@@ -5,18 +5,18 @@ the canonical predicted structure found in AlphaFold db
 
 ###################################### EXAMPLE USAGE ############################################
 
-python3 clustering_3d.py -i /workspace/datasets/intogen/runs/20210108/intogen_20210108/steps/hotmaps/PCAWG_WGS_COLORECT_ADENOCA.in.maf \           
--o /workspace/projects/alphafold_features/hotmaps/test_result \
--P ../required_files/extra/mut_profile/prior.weighted.normalized.PCAWG_WGS_COLORECT_ADENOCA.json \
--s ../required_files/seq_for_mut_prob.csv \
--c ../required_files/cmaps/ \
--u ../required_files/af_uniprot_to_gene_id.json \
+python3 clustering_3d.py -i /../../../evaluation/datasets/input/maf/PCAWG_WGS_COLORECT_ADENOCA.in.maf \         
+-o /../../../evaluation/output \
+-P /../../../evaluation/datasets/input/mut_profile/prior.weighted.normalized.PCAWG_WGS_COLORECT_ADENOCA.json \
+-s ../datasets/seq_for_mut_prob.csv \
+-c ../datasets/cmaps/ \
+-u ../datasets/af_uniprot_to_gene_id.json \
 -n 10000 \
+-H 0 \
 -t COREAD \
 -C PCAWG_WGS_COLORECT_ADENOCA.V1.2
 
 
--p 
 
 #################################################################################################
 """
@@ -34,6 +34,7 @@ from matplotlib_venn import venn2
 from math import sqrt
 from math import floor
 import statistics
+
 import pickle
 import re
 import scipy as sp
@@ -210,9 +211,9 @@ def sort_by_pval_and_mut(result_gene):
     """
     
     result_gene = result_gene.copy()
-    result_gene["Mut_in_vol"] = -result_gene["Mut_in_vol"]
-    result_gene = result_gene.sort_values(["pval", "Mut_in_vol", "Mut_count"], ascending=True).reset_index(drop=True)
-    result_gene["Mut_in_vol"] = -result_gene["Mut_in_vol"]
+    result_gene["Max_mut_in_vol"] = -result_gene["Max_mut_in_vol"]
+    result_gene = result_gene.sort_values(["pval", "Max_mut_in_vol", "Mut_in_gene"], ascending=True).reset_index(drop=True)
+    result_gene["Max_mut_in_vol"] = -result_gene["Max_mut_in_vol"]
     
     return result_gene
 
@@ -242,8 +243,9 @@ def get_final_gene_result(result_pos, result_gene, alpha_gene=0.05):
 
     # Add gene binary clustering label and sort genes
     gene_label = result_gene.apply(lambda x: 1 if x.qval < alpha_gene else 0, axis=1)
-    result_gene.insert(3, "C_gene", gene_label)
-    result_gene.insert(7, "Mut_in_vol", result_gene.pop("Mut_in_vol"))
+    result_gene.insert(4, "C_gene", gene_label)
+    result_gene.insert(8, "Max_mut_in_vol", result_gene.pop("Mut_in_vol"))
+    result_gene.insert(1, "Uniprot_ID", result_gene.pop("Uniprot_ID"))
     result_gene = sort_by_pval_and_mut(result_gene)
     
     return result_gene
@@ -355,13 +357,14 @@ def get_community_index_nx(pos_hits, communities):
 
 ## Wrapper function
 def pseudo_hotmaps(gene, 
-                   mut_gene_df,                                     
-                   gene_to_uniprot_dict, 
+                   uniprot_id,
+                   mut_gene_df,                                      
                    cmap_path,
                    miss_prob_dict,
                    fragment=1,
                    alpha=0.01,
-                   num_iteration=10000):
+                   num_iteration=10000,
+                   hits_only=True):
     """
     Compute local density of missense mutations for a sphere of 10A around          
     each amino acid position of the selected gene product. It performed a 
@@ -398,15 +401,16 @@ def pseudo_hotmaps(gene,
     ## Initialize
     mut_count = len(mut_gene_df)
     result_gene_df = pd.DataFrame({"Gene" : gene,
+                                   "Uniprot_ID" : uniprot_id,
                                    "No_frag" : fragment,                           
-                                   "Mut_count" : mut_count,
+                                   "Mut_in_gene" : mut_count,
                                    "Max_mut_pos" : np.nan,
                                    "Structure_max_pos" : np.nan,
                                    "Status" : np.nan}, 
                                     index=[1])
     
     # Load cmap
-    cmap_complete_path = f"{cmap_path}/{gene_to_uniprot_dict[gene]}-F{fragment}.npy"
+    cmap_complete_path = f"{cmap_path}/{uniprot_id}-F{fragment}.npy"
     if os.path.isfile(cmap_complete_path):
         cmap = np.load(cmap_complete_path) 
     else:
@@ -424,7 +428,7 @@ def pseudo_hotmaps(gene,
     ## Get expected local myssense mutation density
 
     # Probability that each residue can be hit by a missense mut
-    gene_miss_prob = np.array(miss_prob_dict[f"{gene_to_uniprot_dict[gene]}-F{fragment}"])
+    gene_miss_prob = np.array(miss_prob_dict[f"{uniprot_id}-F{fragment}"])
 
     # Probability that the volume of each residue can be hit by a missense mut
     vol_missense_mut_prob = np.dot(cmap, gene_miss_prob)
@@ -444,9 +448,6 @@ def pseudo_hotmaps(gene,
     if max(density_m[0][mutated_pos-1]) <= 1:                       
         result_gene_df["Status"] = "No_density"
         return None, result_gene_df
-
-    if max(density_m[0][mutated_pos-1]) > 10:                                    ################
-        print(gene, max(density_m[0][mutated_pos-1]))
     
     # Inialize result df 
     result_pos_df = pd.DataFrame({"Pos" : mutated_pos, "Mut_in_vol" : density_m[0, mutated_pos-1].astype(int)})
@@ -500,11 +501,17 @@ def pseudo_hotmaps(gene,
         result_pos_df["Community"] = np.nan
         
 
-    ## Evaluate the result and output
+    ## Output
     result_pos_df.insert(0, "Gene", gene)
-    result_pos_df.insert(2, "Mut_in_gene", mut_count)
+    result_pos_df.insert(1, "Uniprot_ID", uniprot_id)
+    result_pos_df.insert(2, "F", fragment)
+    result_pos_df.insert(4, "Mut_in_gene", mut_count)
     result_gene_df["Status"] = "Processed"
-    
+
+    # Keep only positions in clusters           
+    if hits_only:
+        result_pos_df = result_pos_df[result_pos_df["C"] == 1]
+
     return result_pos_df, result_gene_df
 
 
@@ -581,14 +588,15 @@ def main():
     parser.add_argument("-s", "--seq_df", 
                         help="Path to the dataframe including DNA and protein seq of all gene/proteins (all AF predicted ones)", 
                         type=str, 
-                        default="../required_files/seq_for_mut_prob.csv")       
+                        default="../datasets/seq_for_mut_prob.csv")       
 
-    parser.add_argument("-c", "--cmap_path", help="Path to the directory containting the contact map of each protein", type=str, default="../required_files/cmaps/")
+    parser.add_argument("-c", "--cmap_path", help="Path to the directory containting the contact map of each protein", type=str, default="../datasets/cmaps/")
     parser.add_argument("-u", "--uniprot_to_gene_dict", help="Path to a dictionary including Uniprot_ID : HUGO symbol mapping", type=str)  
 
     parser.add_argument("-n", "--n_iterations", help="Number of densities to be simulated", type=int, default=10000)
     parser.add_argument("-a", "--alpha_level_res", help="Significant threshold for the p-value of protein residues", type=float, default=0.01)
     parser.add_argument("-A", "--alpha_level_gene", help="Significant threshold for the global q-value of the genes", type=float, default=0.05)
+    parser.add_argument("-H", "--hits_only", help="if 1 returns only positions in clusters, if 0 returns all", type=int, default=1)
     
     parser.add_argument("-t", "--cancer_type", help="Cancer type", type=str)
     parser.add_argument("-C", "--cohort_name", help="Name of the cohort", type=str)
@@ -605,7 +613,8 @@ def main():
     cancer_type = args.cancer_type
     alpha_pos = args.alpha_level_res
     alpha_gene = args.alpha_level_gene
-    uniprot_to_gene_path = args.uniprot_to_gene_dict
+    uniprot_to_gene_dict = args.uniprot_to_gene_dict
+    hits_only = args.hits_only
 
     print(f"Starting 3D-clustering [{version}]..\n")
     print(f"Iterations: {num_iteration}")
@@ -616,29 +625,17 @@ def main():
     print(f"Output directory: {output_dir}")
 
 
-    ## Load necessary files
-
-    # Uniprot to HUGO symbol mapping
-    if uniprot_to_gene_dict is not None:
-        uniprot_to_gene_dict = json.load(open(uniprot_to_gene_path))
-        gene_to_uniprot_dict = {g:p for (p,g) in uniprot_to_gene_dict.items()}
-    else:
-        uniprot_to_gene_dict = uniprot_to_hugo()
+    ## Load input and mapping dict
 
     # MAF input
     data = parse_maf_input(maf_input_path)
 
-    # Missense mut prob  
-    if miss_mut_prob_path is not None:
-        # Load dict with miss prob of each prot
-        miss_prob_dict = json.load(open(miss_mut_prob_path))
+    # Uniprot to HUGO symbol mapping
+    if uniprot_to_gene_dict is not None:
+        uniprot_to_gene_dict = json.load(open(uniprot_to_gene_dict))
     else:
-        # Compute dict from mut profile of the cohort and dna sequences
-        mut_profile = json.load(open(mut_profile_path))
-        seq_df = pd.read_csv(seq_df_path)
-        print("\nComputing missense mut probability for each protein")
-        mut_profile = mut_rate_vec_to_dict(mut_profile)
-        miss_prob_dict = get_miss_mut_prob_dict(mut_rate_dict=mut_profile, seq_df=seq_df)
+        uniprot_to_gene_dict = uniprot_to_hugo()
+    gene_to_uniprot_dict = {g:p for (p,g) in uniprot_to_gene_dict.items()}
 
 
     ## Run
@@ -651,34 +648,59 @@ def main():
     genes_mut = genes[genes >= 2].index
     genes_no_mut = genes[genes < 2].index
     result_gene = pd.DataFrame({"Gene" : genes_no_mut,
-                            "No_frag" : np.nan,
-                            "Mut_count" : 1,
-                            "Max_mut_pos" : np.nan,
-                            "Structure_max_pos" : np.nan,
-                            "Status" : "No_mut"})
+                                "Uniprot_ID" : np.nan,
+                                "No_frag" : np.nan,
+                                "Mut_in_gene" : 1,
+                                "Max_mut_pos" : np.nan,
+                                "Structure_max_pos" : np.nan,
+                                "Status" : "No_mut"})
     result_gene_lst.append(result_gene)
+
+    # Get genes with corresponding Uniprot-ID mapping
+    genes_mapped = [gene for gene in genes_mut if gene in gene_to_uniprot_dict.keys()]
+    genes_no_mapping = genes[[gene in genes_mut and gene not in gene_to_uniprot_dict.keys() for gene in genes.index]]
+    result_gene = pd.DataFrame({"Gene" : genes_no_mapping.index,
+                                "Uniprot_ID" : np.nan,
+                                "No_frag" : np.nan,
+                                "Mut_in_gene" : genes_no_mapping.values,
+                                "Max_mut_pos" : np.nan,
+                                "Structure_max_pos" : np.nan,
+                                "Status" : "No_ID_mapping"})
+    result_gene_lst.append(result_gene)
+
+    # Missense mut prob  
+    if miss_mut_prob_path is not None:
+        # Load dict with miss prob of each prot
+        miss_prob_dict = json.load(open(miss_mut_prob_path))
+    else:
+        # Compute dict from mut profile of the cohort and dna sequences
+        mut_profile = json.load(open(mut_profile_path))
+        seq_df = pd.read_csv(seq_df_path)
+        seq_df = seq_df[[gene in genes_mapped for gene in seq_df["Gene"]]].reset_index(drop=True)
+        print(f"\nComputing missense mut probabilities, # proteins/fragment: {len(seq_df)}")
+        mut_profile = mut_rate_vec_to_dict(mut_profile)
+        miss_prob_dict = get_miss_mut_prob_dict(mut_rate_dict=mut_profile, seq_df=seq_df)
 
     # Process gene
     print("Performing 3D clustering on genes with enough mutations..")
-    for gene in progressbar(genes_mut):
-
-        ########  XXXXX ########
-
+    for gene in progressbar(genes_mapped):
         mut_gene_df = data[data["Gene"] == gene]
+        uniprot_id = gene_to_uniprot_dict[gene]   
 
         # If there is a single fragment
         if seq_df[seq_df["Gene"] == gene].F.max() == 1:      
-
+            
             # Run clustering
             try:
-                pos_result, result_gene = pseudo_hotmaps(gene, 
-                                                        data,
-                                                        gene_to_uniprot_dict, 
-                                                        cmap_path,
-                                                        miss_prob_dict,
-                                                        fragment=1,
-                                                        alpha=alpha_pos,
-                                                        num_iteration=num_iteration)
+                pos_result, result_gene = pseudo_hotmaps(gene,
+                                                         uniprot_id, 
+                                                         mut_gene_df, 
+                                                         cmap_path,
+                                                         miss_prob_dict,
+                                                         fragment=1,
+                                                         alpha=alpha_pos,
+                                                         num_iteration=num_iteration,
+                                                         hits_only=hits_only)
                 result_gene_lst.append(result_gene)
                 
                 if pos_result is not None:
@@ -687,17 +709,19 @@ def main():
             # Can't run clustering                                                                >>>> Should raise a better exception to capture a more specific error
             except:
                 result_gene = pd.DataFrame({"Gene" : gene,
-                                        "No_frag" : np.nan,
-                                        "Mut_count" : np.nan,
-                                        "Max_mut_pos" : np.nan,
-                                        "Structure_max_pos" : np.nan,
-                                        "Status" : "Not_processed"},
-                                        index=[0])
+                                            "Uniprot_ID" : uniprot_id,
+                                            "No_frag" : np.nan,
+                                            "Mut_in_gene" : np.nan,
+                                            "Max_mut_pos" : np.nan,
+                                            "Structure_max_pos" : np.nan,
+                                            "Status" : "Not_processed"},
+                                            index=[0])
                 result_gene_lst.append(result_gene)
 
         # If the protein is fragmented
         else:
-            mut_gene_df["F"] = get_pos_fragments(mut_gene_df)
+            # mut_gene_df["F"] = get_pos_fragments(mut_gene_df)  
+            mut_gene_df.insert(len(mut_gene_df.columns), "F", get_pos_fragments(mut_gene_df))         # Just to do not get pd warnings
             f_pos_result_lst = []
             f_result_gene_lst = []
             prot_community = 0
@@ -713,87 +737,42 @@ def main():
 
                 # Perform clustrering on fragment
                 f_pos_result, f_result_gene = pseudo_hotmaps(gene, 
-                                                         mut_fragment_df,
-                                                         gene_to_uniprot_dict, 
-                                                         cmap_path,
-                                                         miss_prob_dict,
-                                                         fragment=fragment,
-                                                         alpha=alpha_pos,
-                                                         num_iteration=num_iteration)
+                                                             uniprot_id,
+                                                             mut_fragment_df,
+                                                             cmap_path,
+                                                             miss_prob_dict,
+                                                             fragment=fragment,
+                                                             alpha=alpha_pos,
+                                                             num_iteration=num_iteration,
+                                                             hits_only=hits_only)
 
-                # Go back to protein pos
-                f_pos_result["Pos"] = f_pos_result["Pos"] + 1400 * (fragment-1)
-                
-                # Update community number according considering previous fragments
-                f_community = len(f_pos_result["Community"][pd.notnull(f_pos_result["Community"])].unique())
-                f_pos_result["Community"] = f_pos_result["Community"] + prot_community
-                prot_community += f_community
+                if f_pos_result is not None:
 
-                # Save fragments result
-                f_pos_result_lst.append(f_pos_result)
+                    # Go back to protein pos
+                    f_pos_result["Pos"] = f_pos_result["Pos"] + 1400 * (fragment-1)
+                    
+                    # Update community number according considering previous fragments
+                    f_community = len(f_pos_result["Community"][pd.notnull(f_pos_result["Community"])].unique())
+                    f_pos_result["Community"] = f_pos_result["Community"] + prot_community
+                    prot_community += f_community
+
+                    # Save fragments result
+                    f_pos_result_lst.append(f_pos_result)
                 f_result_gene_lst.append(f_result_gene)
 
-
-            result_pos = pd.concat(f_pos_result_lst).sort_values("pval", ascending=False).reset_index(drop=True)
-
+            # Concat df for clustering of positions
+            if len(f_pos_result_lst) > 0:
+                pos_result = pd.concat(f_pos_result_lst)
+            else:
+                pos_result = None
             if pos_result is not None:
                 result_pos_lst.append(pos_result)
+
+            # Obtain a single df for the gene summary
+            f_result_gene["No_frag"] = f_result_gene["No_frag"].max()
+            f_result_gene["Mut_in_gene"] = f_result_gene["Mut_in_gene"].sum()
+            result_gene = pd.DataFrame(f_result_gene.apply(lambda x: x.unique()[0] if len(x.dropna().unique()) < 2 else x.unique(), axis=0)).T
             result_gene_lst.append(result_gene)
-
-        ########### XXXXX
-
-        
-
-
-
-
-
-
-
-
-
-
-
-        # # Get contact map
-        # try:
-        #     # Here change to different F for bigger proteins
-        #     cmap_gene = np.load(f"{cmap_path}/{gene_to_uniprot_dict[gene]}-F1.npy")                             #### Change the F if we want to include fragmented proteins
-
-        #      # Run clustering
-        #     try:
-        #         pos_result, result_gene = pseudo_hotmaps(gene, 
-        #                                         data,
-        #                                         gene_to_uniprot_dict, 
-        #                                         cmap_gene,
-        #                                         miss_prob_dict,
-        #                                         alpha=alpha_pos,
-        #                                         num_iteration=num_iteration)
-        #         result_gene_lst.append(result_gene)
-                
-        #         if pos_result is not None:
-        #             result_pos_lst.append(pos_result)
-         
-        #     # Can't run clustering                                                                >>>> Should raise a better exception to capture a more specific error
-        #     except:
-        #         result_gene = pd.DataFrame({"Gene" : gene,
-        #                                 "No_frag" : np.nan,
-        #                                 "Mut_count" : np.nan,
-        #                                 "Max_mut_pos" : np.nan,
-        #                                 "Structure_max_pos" : np.nan,
-        #                                 "Status" : "Not_processed"},
-        #                                 index=[0])
-        #         result_gene_lst.append(result_gene)
-            
-        # # Cant load cmap
-        # except:
-        #     result_gene = pd.DataFrame({"Gene" : gene,
-        #                            "No_frag" : np.nan,
-        #                            "Mut_count" : np.nan,
-        #                            "Max_mut_pos" : np.nan,
-        #                            "Structure_max_pos" : np.nan,
-        #                            "Status" : "Cmap_not_found"},
-        #                             index=[0])
-        #     result_gene_lst.append(result_gene)
 
     
     ## Save 
