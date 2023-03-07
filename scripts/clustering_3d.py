@@ -22,7 +22,6 @@ python3 clustering_3d.py -i /../../../evaluation/datasets/input/maf/PCAWG_WGS_CO
 """
 
 
-from lib2to3.pytree import generate_matches
 import os
 import json
 import numpy as np
@@ -31,25 +30,13 @@ import pandas as pd
 import re
 import matplotlib.pyplot as plt
 from matplotlib_venn import venn2
-from math import sqrt
-from math import floor
-import statistics
-
-import pickle
 import re
 import scipy as sp
-from Bio.Seq import Seq
-from Bio import SeqIO
-from itertools import product
-from difflib import SequenceMatcher
 from progressbar import progressbar
-from tqdm.notebook import tqdm
 import argparse
 import networkx as nx
 import networkx.algorithms.community as nx_comm
 from scipy.stats import rankdata
-import glob
-import time
 from utils.utils import get_pos_fragments, uniprot_to_hugo
 from utils.miss_mut_prob import get_miss_mut_prob_dict, mut_rate_vec_to_dict
 
