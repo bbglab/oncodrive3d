@@ -27,156 +27,71 @@ import json
 import numpy as np
 import seaborn as sns
 import pandas as pd
-import re
 import matplotlib.pyplot as plt
-from matplotlib_venn import venn2
-import re
 import scipy as sp
 from progressbar import progressbar
 import argparse
 import networkx as nx
 import networkx.algorithms.community as nx_comm
 from scipy.stats import rankdata
-from utils.utils import get_pos_fragments, uniprot_to_hugo
-from utils.miss_mut_prob import get_miss_mut_prob_dict, mut_rate_vec_to_dict
+from utils.utils import parse_maf_input, uniprot_to_hugo, get_pos_fragments
+from utils.miss_mut_prob import mut_rate_vec_to_dict, get_miss_mut_prob_dict
 
 
 
-## Load data
+## Clustering score and simulations
 
-def get_uniprot_from_gene(gene_name, dictio):
+
+def get_anomaly_score(vec_mut_in_vol, gene_mut, vec_vol_miss_mut_prob):          
     """
-    Simple function that, given a dictionary of gene name 
-    (keys) and Uniprot IDs (values), and a specific gene 
-    name, returns the corresponding Uniprot ID
-    """
+    Compute a metric that scores the anomaly of observing a certain 
+    number of mutations in the volume of a residue.
+    It takes into account the volume and the mutation rate of the codon 
+    of each residue within that volume.
     
-    return list({k:v for k, v in dictio.items() if v == gene_name})[0]
-    
-
-def parse_maf_input(maf_input_path):
-    """
-    Parse in.maf file which is used as 
-    input for the HotMAPS method.
-    """
-
-    # Load
-    maf = pd.read_csv(maf_input_path, sep="\t")
-
-    # Select only missense mutation and extract Gene name and mut
-    maf = maf.loc[maf.Variant_Classification == "Missense_Mutation"].copy()
-    maf["Pos"] = maf.loc[:, "HGVSp_Short"].apply(lambda x: int(re.sub("\\D", "", (x[2:]))))
-    maf["WT"] = maf["HGVSp_Short"].apply(lambda x: re.findall("\\D", x[2:])[0])
-    maf["Mut"] = maf["HGVSp_Short"].apply(lambda x: re.findall("\\D", x[2:])[1])
-    maf = maf[["Hugo_Symbol", "Pos", "WT", "Mut"]]
-    maf = maf.sort_values("Pos").rename(columns={"Hugo_Symbol" : "Gene"})
-    
-    return maf
-
-
-def parse_cluster_output(out_cluster_path):
-    """
-    Parse out.gz file which is the output of HotMAPS.
-    It will be used as ground truth for the new clustering method.
+    Score: loglik equal or larger mut_count / loglik(N)
     """
     
-    # Select only necessary info and rename to match the input file
-    cluster = pd.read_csv(out_cluster_path, sep="\t")
-    cluster = cluster.copy().rename(columns={"CRAVAT Res" : "Pos"})[["Pos", "Ref AA", "HUGO Symbol", "Min p-value", "q-value"]]
-    cluster = cluster.rename(columns={"HUGO Symbol" : "Gene", "Ref AA" : "WT"})
-    
-    return cluster
+    den = sp.stats.binom.logpmf(k=gene_mut, n=gene_mut, p=vec_vol_miss_mut_prob)
+    return sp.stats.binom.logsf(k=vec_mut_in_vol-1, n=gene_mut, p=vec_vol_miss_mut_prob) / den
 
 
-
-## Eval
-
-
-def get_evaluation_df(test_result, mut_gene_df, drop_extra=False):
+def simulate_mutations(n_mutations, p, size):
     """
-    Merge the results from the statistical test (excess of densities 
-    of mutations) with the score assigned from HotMAPs.
+    Simulate the mutations given the mutation rate of a cohort.
     """
 
-    if drop_extra:
-        cols_to_drop = ["Gene", "WT", "Mut"]
-        mut_gene_df = mut_gene_df.drop(columns = cols_to_drop)
-    
-    # Merge the new result (mutations predicted to be in positions enriched of mutations)
-    # with the original data (mutations that were not predicted to be enriched will have NA in that col)
-    mut_gene_df = mut_gene_df.sort_values("Pos")
-    evaluation_df = test_result.merge(mut_gene_df, how = "outer").sort_values("Pos").reset_index(drop=True)
-    
-    return evaluation_df
+    rng = np.random.default_rng()
+    samples = rng.multinomial(n_mutations, p, size=size)
+    return samples
 
 
-def evaluate(evaluation_df):
-
-    evaluation_df = evaluation_df[["Gene", 
-                                   "Pos", 
-                                   "New_hotmaps", 
-                                   "HotMAPs"]].drop_duplicates(keep="first")
-    
-    all_mut = len(evaluation_df)
-
-    all_pos = evaluation_df[evaluation_df["HotMAPs"] == 1]
-    pos_pred = evaluation_df[evaluation_df["New_hotmaps"] == 1]
-    tp_pred = pos_pred[pos_pred["HotMAPs"] == 1]
-    fp_pred = pos_pred[pos_pred["HotMAPs"] == 0]
-
-    all_neg = evaluation_df[evaluation_df["HotMAPs"] == 0]
-    neg_pred = evaluation_df[evaluation_df["New_hotmaps"] == 0]
-    tn_pred = neg_pred[neg_pred["HotMAPs"] == 0]
-    fn_pred = neg_pred[neg_pred["HotMAPs"] == 1]
-    
-    if len(all_pos) > 0:
-        tpr = round(len(tp_pred) / (len(tp_pred) + len(fn_pred)), 3)
-        if len(pos_pred) > 0:
-            precision = round(len(tp_pred) / (len(tp_pred) + len(fp_pred)), 3)
-        else:
-            precision = np.nan
-    else:
-        tpr = np.nan
-        precision = np.nan
-    if len(all_neg):
-        tnr = round(len(tn_pred) / (len(tn_pred) + len(fp_pred)), 3)
-    else:
-        tnr = np.nan
-
-    return pd.DataFrame({"Gene" : evaluation_df.Gene.unique()[0],
-                         "All_mut" : all_mut, 
-                         "All_pos" : len(all_pos),
-                         "Pos_pred" : len(pos_pred), 
-                         "TP_pred" : len(tp_pred), 
-                         "FP_pred" : len(fp_pred), 
-                         "All_neg" : len(all_neg),
-                         "Neg_pred" : len(neg_pred),
-                         "TN_pred" : len(tn_pred),
-                         "FN_pred" : len(fn_pred),
-                         "TPR" : tpr, 
-                         "Precis" : precision,
-                         "TNR" : tnr,}, 
-                        index=[1])
-
-    
-def plot_venn(eval_df_final, save=False, path="venn.png"):
+def get_sim_anomaly_score(mut_count, 
+                            cmap,
+                            gene_miss_prob,
+                            vol_missense_mut_prob,
+                            num_iteration=1000):
     """
-    Venn diagram for genes found by HotMAPS, 
-    the New HotMAPS, and both methods.
+    Simulated mutations following the mutation profile of the cohort.
+    Compute the log-likelihood of observing k or more mutation in the 
+    volume and compare it with the corresponding simualted rank.
     """
     
-    both = len(eval_df_final[(eval_df_final.New_hotmaps == 1) & (eval_df_final.HotMAPs == 1)].Gene.unique())
-    new_hotmaps = len(eval_df_final[eval_df_final.New_hotmaps == 1].Gene.unique()) - both
-    hotmaps = len(eval_df_final[eval_df_final.HotMAPs == 1].Gene.unique()) - both
+    # Generate x sets of random mutation distributed following the mut 
+    # profile of the cohort, each with the same size of the observed mut   
+    mut_sim = simulate_mutations(mut_count, gene_miss_prob, num_iteration)
+    
+    # Get the density of mutations of each position in each iteration
+    density_sim = np.einsum('ij,jk->ki', cmap, mut_sim.T.astype(float), optimize=True)
+    
+    # Compute the ranked score of the densities obtained at each iteration
+    # sign is used to sort in descending order
+    loglik_plus = -np.sort(-get_anomaly_score(density_sim, mut_count, vol_missense_mut_prob))
+    
+    return pd.DataFrame(loglik_plus).T
 
-    venn2(subsets = (hotmaps, new_hotmaps, both), set_labels = ('HotMAPS', 'New HotMAPS'))
-    plt.title("Genes with one or more clusters", fontsize=14)
-    if save: 
-        plt.savefig(path, bbox_inches="tight", dpi=300)
-        plt.clf()
-    else:
-        plt.show()
 
+## Process p-val and gene results
 
 def fdr(p_vals):
     """
@@ -236,59 +151,6 @@ def get_final_gene_result(result_pos, result_gene, alpha_gene=0.05):
     result_gene = sort_by_pval_and_mut(result_gene)
     
     return result_gene
-
-
-## Clustering score and simulations
-
-
-def get_anomaly_score(vec_mut_in_vol, gene_mut, vec_vol_miss_mut_prob):          
-    """
-    Compute a metric that scores the anomaly of observing a certain 
-    number of mutations in the volume of a residue.
-    It takes into account the volume and the mutation rate of the codon 
-    of each residue within that volume.
-    
-    Score: loglik equal or larger mut_count / loglik(N)
-    """
-    
-    den = sp.stats.binom.logpmf(k=gene_mut, n=gene_mut, p=vec_vol_miss_mut_prob)
-    return sp.stats.binom.logsf(k=vec_mut_in_vol-1, n=gene_mut, p=vec_vol_miss_mut_prob) / den
-
-
-def simulate_mutations(n_mutations, p, size):
-    """
-    Simulate the mutations given the mutation rate of a cohort.
-    """
-
-    rng = np.random.default_rng()
-    samples = rng.multinomial(n_mutations, p, size=size)
-    return samples
-
-
-def get_sim_anomaly_score(mut_count, 
-                            cmap,
-                            gene_miss_prob,
-                            vol_missense_mut_prob,
-                            num_iteration=1000):
-    """
-    Simulated mutations following the mutation profile of the cohort.
-    Compute the log-likelihood of observing k or more mutation in the 
-    volume and compare it with the corresponding simualted rank.
-    """
-    
-    # Generate x sets of random mutation distributed following the mut 
-    # profile of the cohort, each with the same size of the observed mut   
-    mut_sim = simulate_mutations(mut_count, gene_miss_prob, num_iteration)
-    
-    # Get the density of mutations of each position in each iteration
-    density_sim = np.einsum('ij,jk->ki', cmap, mut_sim.T.astype(float), optimize=True)
-    
-    # Compute the ranked score of the densities obtained at each iteration
-    # sign is used to sort in descending order
-    loglik_plus = -np.sort(-get_anomaly_score(density_sim, mut_count, vol_missense_mut_prob))
-    
-    return pd.DataFrame(loglik_plus).T
-
 
 
 ## Communities detection 
@@ -384,7 +246,6 @@ def pseudo_hotmaps(gene,
     status_df : pandas df (per-gene processing status)
     """
     
-
     ## Initialize
     mut_count = len(mut_gene_df)
     result_gene_df = pd.DataFrame({"Gene" : gene,
@@ -500,59 +361,6 @@ def pseudo_hotmaps(gene,
         result_pos_df = result_pos_df[result_pos_df["C"] == 1]
 
     return result_pos_df, result_gene_df
-
-
-
-#######################
-
-# STEP 1
-
-# MODIFY THE FOLLOWING FUNCTION SO THAT
-#   - Run for one cohort   
-#   - Takes as input the paths of a maf, a mut_rate, output dir and name
-#   - Outputs maf with clustering info, status processing, log_file
-
-#######################
-
-# STEP 2 (only if there is time)
-
-# MODIFY THE STRUCTURE OF THE SCRIPTS, DIVIDE IT INTO MULTIPLE FILES IN DIFFERENT FOLDERS
-#   - Keep a main in the 3d_clustering folder (wrapper function)
-#   - Name 3d_clustering.py the script that includes the function to run clustering for one gene
-
-#######################
-
-# STEP 3 
-
-# Use a docker to allow anyone to use the easily use the tool
-
-#######################
-
-# STEP 4 (only if there is time)
-
-# Convert big functions into classes
-
-
-
-######################### EXAMPLE ##########################
-
-# -m /workspace/datasets/intogen/runs/20210108/intogen_20210108/steps/hotmaps/PCAWG_WGS_COLORECT_ADENOCA.in.maf"
-# -p /workspace/projects/alphafold_features/hotmaps/mut_rate/miss_mut_prob/PCAWG_WGS_COLORECT_ADENOCA.miss_mut_prob.json
-# -i 100
-# -o /workspace/projects/alphafold_features/hotmaps/test_result
-# -t CESC
-# -c HARTWIG_UTERUS_CERVICAL
-
-
-# "args": ["-m /workspace/datasets/intogen/runs/20210108/intogen_20210108/steps/hotmaps/PCAWG_WGS_COLORECT_ADENOCA.in.maf",
-#          "-p /workspace/projects/alphafold_features/hotmaps/mut_rate/miss_mut_prob/PCAWG_WGS_COLORECT_ADENOCA.miss_mut_prob.json",
-#          "-i 100",
-#          "-o /workspace/projects/alphafold_features/hotmaps/test_result",
-#          "-t COREAD",
-#          "-c PCAWG_WGS_COLORECT_ADENOCA"]
-
-############################################################
-
 
 
 def main():

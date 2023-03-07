@@ -1,16 +1,48 @@
-
-
 import re
 import pandas as pd
 import numpy as np
-import os
 import csv
 import requests
-from difflib import SequenceMatcher
-from Bio import SeqIO
-from Bio.Seq import Seq
+import matplotlib.pyplot as plt
+from matplotlib_venn import venn2
+
+## Parsers
+
+def parse_maf_input(maf_input_path):
+    """
+    Parse in.maf file which is used as 
+    input for the HotMAPS method.
+    """
+
+    # Load
+    maf = pd.read_csv(maf_input_path, sep="\t")
+
+    # Select only missense mutation and extract Gene name and mut
+    maf = maf.loc[maf.Variant_Classification == "Missense_Mutation"].copy()
+    maf["Pos"] = maf.loc[:, "HGVSp_Short"].apply(lambda x: int(re.sub("\\D", "", (x[2:]))))
+    maf["WT"] = maf["HGVSp_Short"].apply(lambda x: re.findall("\\D", x[2:])[0])
+    maf["Mut"] = maf["HGVSp_Short"].apply(lambda x: re.findall("\\D", x[2:])[1])
+    maf = maf[["Hugo_Symbol", "Pos", "WT", "Mut"]]
+    maf = maf.sort_values("Pos").rename(columns={"Hugo_Symbol" : "Gene"})
+    
+    return maf
 
 
+def parse_cluster_output(out_cluster_path):
+    """
+    Parse out.gz file which is the output of HotMAPS.
+    It will be used as ground truth for the new clustering method.
+    """
+    
+    # Select only necessary info and rename to match the input file
+    cluster = pd.read_csv(out_cluster_path, sep="\t")
+    cluster = cluster.copy().rename(columns={"CRAVAT Res" : "Pos"})[["Pos", "Ref AA", "HUGO Symbol", "Min p-value", "q-value"]]
+    cluster = cluster.rename(columns={"HUGO Symbol" : "Gene", "Ref AA" : "WT"})
+    
+    return cluster
+
+
+## Handle proteins fragments
 
 def rounded_up_division(num, den):
     """
@@ -32,32 +64,7 @@ def get_pos_fragments(mut_gene_df):
     return pd.cut(mut_gene_df["Pos"], bins, labels = group_names)
 
 
-def get_af_id_from_pdb(path_structure):
-    """
-    Get AlphaFold 2 identifier (UniprotID_F) from path
-    """
-
-    return path_structure.split("AF-")[1].split("-model")[0]   
-
-
-def get_seq_from_pdb(path_structure):
-    """
-    Get sequense of amino acid residues from PDB structure.
-    """
-    
-    return np.array([record.seq for record in SeqIO.parse(path_structure, 'pdb-seqres')][0])
-
-
-def get_pdb_path_list_from_dir(path_dir):
-    """
-    Takes as input a path of a given directory and it 
-    outputs a list of paths of the contained PDB files.
-    """
-
-    pdb_files = os.listdir(path_dir)
-    pdb_path_list = [f"{path_dir}{f}" for f in pdb_files if re.search('.\.pdb$', f) is not None]
-    return pdb_path_list
-
+## GENE-Uniprot mapping
 
 def uniprot_to_hugo(uniprot_ids=None, hugo_as_keys=False, get_ensembl_id=False):
     """
@@ -100,18 +107,89 @@ def uniprot_to_hugo(uniprot_ids=None, hugo_as_keys=False, get_ensembl_id=False):
     return dict_output
 
 
-def translate_dna(dna_seq):
+## Eval    >>>> DEPRECATED <<<<< 
+
+def get_evaluation_df(test_result, mut_gene_df, drop_extra=False):
     """
-    Translate dna sequence to protein.
+    Merge the results from the statistical test (excess of densities 
+    of mutations) with the score assigned from HotMAPs.
     """
+
+    if drop_extra:
+        cols_to_drop = ["Gene", "WT", "Mut"]
+        mut_gene_df = mut_gene_df.drop(columns = cols_to_drop)
     
-    dna_seq = Seq(dna_seq)
-    return str(dna_seq.translate()) 
+    # Merge the new result (mutations predicted to be in positions enriched of mutations)
+    # with the original data (mutations that were not predicted to be enriched will have NA in that col)
+    mut_gene_df = mut_gene_df.sort_values("Pos")
+    evaluation_df = test_result.merge(mut_gene_df, how = "outer").sort_values("Pos").reset_index(drop=True)
+    
+    return evaluation_df
 
 
-def get_seq_similarity(a, b, decimals=3):
+def evaluate(evaluation_df):
+
+    evaluation_df = evaluation_df[["Gene", 
+                                   "Pos", 
+                                   "New_hotmaps", 
+                                   "HotMAPs"]].drop_duplicates(keep="first")
+    
+    all_mut = len(evaluation_df)
+
+    all_pos = evaluation_df[evaluation_df["HotMAPs"] == 1]
+    pos_pred = evaluation_df[evaluation_df["New_hotmaps"] == 1]
+    tp_pred = pos_pred[pos_pred["HotMAPs"] == 1]
+    fp_pred = pos_pred[pos_pred["HotMAPs"] == 0]
+
+    all_neg = evaluation_df[evaluation_df["HotMAPs"] == 0]
+    neg_pred = evaluation_df[evaluation_df["New_hotmaps"] == 0]
+    tn_pred = neg_pred[neg_pred["HotMAPs"] == 0]
+    fn_pred = neg_pred[neg_pred["HotMAPs"] == 1]
+    
+    if len(all_pos) > 0:
+        tpr = round(len(tp_pred) / (len(tp_pred) + len(fn_pred)), 3)
+        if len(pos_pred) > 0:
+            precision = round(len(tp_pred) / (len(tp_pred) + len(fp_pred)), 3)
+        else:
+            precision = np.nan
+    else:
+        tpr = np.nan
+        precision = np.nan
+    if len(all_neg):
+        tnr = round(len(tn_pred) / (len(tn_pred) + len(fp_pred)), 3)
+    else:
+        tnr = np.nan
+
+    return pd.DataFrame({"Gene" : evaluation_df.Gene.unique()[0],
+                         "All_mut" : all_mut, 
+                         "All_pos" : len(all_pos),
+                         "Pos_pred" : len(pos_pred), 
+                         "TP_pred" : len(tp_pred), 
+                         "FP_pred" : len(fp_pred), 
+                         "All_neg" : len(all_neg),
+                         "Neg_pred" : len(neg_pred),
+                         "TN_pred" : len(tn_pred),
+                         "FN_pred" : len(fn_pred),
+                         "TPR" : tpr, 
+                         "Precis" : precision,
+                         "TNR" : tnr,}, 
+                        index=[1])
+
+    
+def plot_venn(eval_df_final, save=False, path="venn.png"):
     """
-    Compute the similarity ratio between sequences a and b.
+    Venn diagram for genes found by HotMAPS, 
+    the New HotMAPS, and both methods.
     """
     
-    return round(SequenceMatcher(a=a, b=b).ratio(), decimals)
+    both = len(eval_df_final[(eval_df_final.New_hotmaps == 1) & (eval_df_final.HotMAPs == 1)].Gene.unique())
+    new_hotmaps = len(eval_df_final[eval_df_final.New_hotmaps == 1].Gene.unique()) - both
+    hotmaps = len(eval_df_final[eval_df_final.HotMAPs == 1].Gene.unique()) - both
+
+    venn2(subsets = (hotmaps, new_hotmaps, both), set_labels = ('HotMAPS', 'New HotMAPS'))
+    plt.title("Genes with one or more clusters", fontsize=14)
+    if save: 
+        plt.savefig(path, bbox_inches="tight", dpi=300)
+        plt.clf()
+    else:
+        plt.show()
