@@ -1,9 +1,14 @@
 """ 
 The module includes the functions and the script to run 
-an HotMAPs-inspired method that for each gene uses only 
-the canonical predicted structure found in AlphaFold db
+an HotMAPs-inspired method that perform 3D-clustering 
+of mutations using simulations, rank based comparison and
+the canonical predicted structure stored in AlphaFold db.
 
 ###################################### EXAMPLE USAGE ############################################
+
+time python3 clustering_3d.py -i ../tests/input/HARTWIG_WGS_PANCREAS_2020.in.maf -o ../tests/output/ \
+-P ../tests/input/HARTWIG_WGS_PANCREAS_2020.mutrate.json -H 0
+
 
 python3 clustering_3d.py -i /../../../evaluation/datasets/input/maf/PCAWG_WGS_COLORECT_ADENOCA.in.maf \         
 -o /../../../evaluation/output \
@@ -25,9 +30,9 @@ python3 clustering_3d.py -i /../../../evaluation/datasets/input/maf/PCAWG_WGS_CO
 import os
 import json
 import numpy as np
-import seaborn as sns
+# import seaborn as sns
+# import matplotlib.pyplot as plt
 import pandas as pd
-import matplotlib.pyplot as plt
 import scipy as sp
 from progressbar import progressbar
 import argparse
@@ -369,7 +374,7 @@ def main():
     """
 
     ## Initialize
-    version = "2023_v1.2"    # LAST CHANGE: restructured pipeline
+    version = "2023_v1.3"    # LAST CHANGE: added processing fragmented structures
 
     # Parser
     parser = argparse.ArgumentParser()
@@ -378,15 +383,18 @@ def main():
     parser.add_argument("-i", "--input_maf", help="Path of the maf file used as input", type=str, required=True)
     parser.add_argument("-o", "--output_dir", help="Path to output directory", type=str, required=True)
 
-    group.add_argument("-p", "--miss_mut_prob", help="Path to the dict of missense mut prob of each protein based on mut profile of the cohort (json)",  type=str)
+    group.add_argument("-p", "--miss_mut_prob", help="Path to the dict of missense mut prob of each protein based on mut profile of the cohort (json)",  
+                       type=str)
     group.add_argument("-P", "--mut_profile", help="Path to the mut profile (list of 96 floats) of the cohort (json)", type=str)
     parser.add_argument("-s", "--seq_df", 
                         help="Path to the dataframe including DNA and protein seq of all gene/proteins (all AF predicted ones)", 
                         type=str, 
                         default="../datasets/seq_for_mut_prob.csv")       
 
-    parser.add_argument("-c", "--cmap_path", help="Path to the directory containting the contact map of each protein", type=str, default="../datasets/cmaps/")
-    parser.add_argument("-u", "--uniprot_to_gene_dict", help="Path to a dictionary including Uniprot_ID : HUGO symbol mapping", type=str)  
+    parser.add_argument("-c", "--cmap_path", help="Path to the directory containting the contact map of each protein", type=str, 
+                        default="../datasets/cmaps/")
+    parser.add_argument("-u", "--uniprot_to_gene_dict", help="Path to a dictionary including Uniprot_ID : HUGO symbol mapping", 
+                        type=str, default="../datasets/af_uniprot_to_gene_id.json")  
 
     parser.add_argument("-n", "--n_iterations", help="Number of densities to be simulated", type=int, default=10000)
     parser.add_argument("-a", "--alpha_level_res", help="Significant threshold for the p-value of protein residues", type=float, default=0.01)
@@ -515,8 +523,8 @@ def main():
 
         # If the protein is fragmented
         else:
-            # mut_gene_df["F"] = get_pos_fragments(mut_gene_df)  
-            mut_gene_df.insert(len(mut_gene_df.columns), "F", get_pos_fragments(mut_gene_df))         # Just to do not get pd warnings
+
+            mut_gene_df.insert(len(mut_gene_df.columns), "F", get_pos_fragments(mut_gene_df))     
             f_pos_result_lst = []
             f_result_gene_lst = []
             prot_community = 0
@@ -574,15 +582,15 @@ def main():
     print("\nSaving..")
     result_gene = pd.concat(result_gene_lst)
 
-    # Plot 0                                                                                               ### TO REMOVE
-    status_count = result_gene.groupby("Status").count().reset_index()[["Status", "Gene"]]
-    status_count = status_count.rename(columns={"Gene" : "Count"})
+    # # Plot 0                                                                                               ### TO REMOVE
+    # status_count = result_gene.groupby("Status").count().reset_index()[["Status", "Gene"]]
+    # status_count = status_count.rename(columns={"Gene" : "Count"})
 
-    plt.figure(figsize=(12, 4))
-    ax = sns.barplot(x='Status', y='Count', data=status_count)
-    ax.bar_label(ax.containers[0])
-    plt.savefig(f"{output_dir}/{cancer_type}.{cohort}.processing_summary.png", bbox_inches="tight", dpi=300)
-    plt.clf()
+    # plt.figure(figsize=(12, 4))
+    # ax = sns.barplot(x='Status', y='Count', data=status_count)
+    # ax.bar_label(ax.containers[0])
+    # plt.savefig(f"{output_dir}/{cancer_type}.{cohort}.processing_summary.png", bbox_inches="tight", dpi=300)
+    # plt.clf()
 
     if len(result_pos_lst) == 0:
         print(f"Did not processed any genes\n")
