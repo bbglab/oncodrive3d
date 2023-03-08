@@ -6,7 +6,7 @@ a single dictionary having UniprotID_F as keys and contact maps as values.
 
 ###################################### EXAMPLE USAGE ###################################################
 
-python3 contact_maps_opt.py -i /workspace/datasets/alphafold_features/AF_homo_sapiens_pred/ \
+python3 contact_maps.py -i /workspace/datasets/alphafold_features/AF_homo_sapiens_pred/ \
 -o ../../datasets/cmaps/ -c 10
 
 WARNING: requires good amount of memory
@@ -78,54 +78,6 @@ def plot_contact_map(contact_map, title=False):
     plt.show()
 
 
-# def get_contact_maps_from_dir(input_path, output_path, distance=10, 
-#                               output_dict=False, pandas=False, verbose=True):
-#     """
-#     Compute the contact maps of all PDB files contained in a given directory.
-#     Save each contact map as pandas dataframe or numpy array in the given output 
-#     directory. Save the contact maps as individual files or as values of a 
-#     dictionary whose keys are Uniprot ID.
-#     """
-    
-#     # Get the path of all pdb files in the directory
-#     pdb_path_list = get_pdb_path_list_from_dir(input_path)
-#     cmaps_dict = {}
-    
-#     # Iterate through the files and save contact map
-#     for n, file in enumerate(pdb_path_list):
-#         identifier = get_af_id_from_pdb(file)
-#         structure = get_structure(file)
-#         contact_map = get_contact_map(structure["A"], distance=distance)
-
-#         # Save as pd dataframes
-#         if pandas:
-#             contact_map = pd.DataFrame(contact_map, 
-#                                        columns = get_seq_from_pdb(file))
-#             if output_dict:
-#                 cmaps_dict[identifier] = contact_map
-#             else:
-#                 contact_map.to_csv(f"{output_path}/{identifier}.csv", index=False)
-#         # Save as np arrays
-#         else:
-#             contact_map = contact_map.astype(int)
-#             if output_dict:
-#                 cmaps_dict[identifier] = contact_map
-#             else:
-#                 np.save(f"{output_path}/{identifier}.npy", contact_map)
-
-#         # Monitor processing
-#         if verbose and n % 1000 == 0:
-#             if n == 0:
-#                 print("Processing structures..")
-#             else:
-#                 print(f"Completed [{n}/{len(pdb_path_list)}] structures")
-        
-#     if output_dict:
-#         return cmaps_dict
-#     else:
-#         return None
-
-
 def get_contact_maps(files, output_path, distance=10, verbose=False, num_process=0):
     """
     Given a list of path of PDB file, compute the contact map of each PDB 
@@ -177,7 +129,7 @@ def main():
     # Get the path of all pdb files in the directory
     pdb_path_lst = get_pdb_path_list_from_dir(input)
 
-    # Split the list of strings into chunks for each process
+    # Split the PDB fi into chunks for each process
     chunk_size = int(len(pdb_path_lst) / num_cores)
     chunks = [pdb_path_lst[i : i + chunk_size] for i in range(0, len(pdb_path_lst), chunk_size)]
 
