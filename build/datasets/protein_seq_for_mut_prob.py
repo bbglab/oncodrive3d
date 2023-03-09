@@ -149,7 +149,7 @@ def main():
                         default="../../datasets/seq_for_mut_prob.csv")                                                   
     parser.add_argument("-v", "--verbose", help="Verbose", type=int, default=0)          
     parser.add_argument("-u", "--uniprot_to_gene_dict", help="Path to a dictionary including Uniprot_ID : HUGO symbol mapping", type=str, 
-                        default="../../datasets/af_uniprot_to_gene_id.json")  
+                        default="../../datasets/temp/af_uniprot_to_gene_id.json")  
     parser.add_argument("-j", "--join_fragments", help="if 1 join fragments of each protein, if 0 return them as unique elements", type=int, default=0)  
 
     args = parser.parse_args()
