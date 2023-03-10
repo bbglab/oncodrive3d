@@ -1,3 +1,5 @@
 datasets/cmaps
 datasets/temp
 tests/output
+scripts/utils/__pycache__
+
