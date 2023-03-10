@@ -1,5 +1,7 @@
 datasets/cmaps
 datasets/temp
-tests/output
+tests/output/*
+!tests/output/.gitkeep
 scripts/utils/__pycache__
+
 
