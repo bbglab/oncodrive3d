@@ -7,8 +7,7 @@ the canonical predicted structure stored in AlphaFold db.
 ###################################### EXAMPLE USAGE ############################################
 
 time python3 clustering_3d.py -i ../tests/input/HARTWIG_WGS_PANCREAS_2020.in.maf -o ../tests/output/ \
--P ../tests/input/HARTWIG_WGS_PANCREAS_2020.mutrate.json -H 0
-
+-p ../tests/input/HARTWIG_WGS_PANCREAS_2020.mutrate.json -H 0
 
 python3 clustering_3d.py -i ../../../evaluation/datasets/input/maf/PCAWG_WGS_COLORECT_ADENOCA.in.maf \         
 -o ../../../evaluation/output \
@@ -21,7 +20,6 @@ python3 clustering_3d.py -i ../../../evaluation/datasets/input/maf/PCAWG_WGS_COL
 -t COREAD \
 -C PCAWG_WGS_COLORECT_ADENOCA
 
-
 #################################################################################################
 """
 
@@ -29,8 +27,6 @@ python3 clustering_3d.py -i ../../../evaluation/datasets/input/maf/PCAWG_WGS_COL
 import os
 import json
 import numpy as np
-# import seaborn as sns
-# import matplotlib.pyplot as plt
 import pandas as pd
 import scipy as sp
 from progressbar import progressbar
@@ -207,9 +203,77 @@ def get_community_index_nx(pos_hits, communities):
     return pos_hits.map(communities_mapper).values
 
 
+## Clustering on fragmented proteins
+def clustering_3d_frag(gene, 
+                        uniprot_id,
+                        mut_gene_df,
+                        cmap_path,
+                        miss_prob_dict,
+                        alpha,
+                        num_iteration,
+                        hits_only):
+    """"
+    Run 3D clustering on fragmented proteins as each fragment 
+    is an individual protein. Return a single file for gene-level 
+    result and one for position-level.
+    """
+    
+    mut_gene_df.insert(len(mut_gene_df.columns), "F", get_pos_fragments(mut_gene_df))     
+    f_pos_result_lst = []
+    f_result_gene_lst = []
+    prot_community = 0
+
+    # Consider each fragment as an individual protein
+    for fragment in mut_gene_df["F"].unique():
+
+        mut_fragment_df = mut_gene_df[mut_gene_df["F"] == fragment]
+
+        # Use relative pos of the fragments
+        mut_fragment_df = mut_fragment_df.copy()
+        mut_fragment_df["Pos"] = mut_fragment_df["Pos"] - 1400 * (fragment-1)
+
+        # Perform clustrering on fragment
+        f_pos_result, f_result_gene = clustering_3d(gene, 
+                                                    uniprot_id,
+                                                    mut_fragment_df,
+                                                    cmap_path,
+                                                    miss_prob_dict,
+                                                    fragment=fragment,
+                                                    alpha=alpha,
+                                                    num_iteration=num_iteration,
+                                                    hits_only=hits_only)
+
+        if f_pos_result is not None:
+
+            # Go back to protein pos
+            f_pos_result["Pos"] = f_pos_result["Pos"] + 1400 * (fragment-1)
+            
+            # Update community number based on previous fragments
+            f_community = len(f_pos_result["Community"][pd.notnull(f_pos_result["Community"])].unique())
+            f_pos_result["Community"] = f_pos_result["Community"] + prot_community
+            prot_community += f_community
+
+            # Save fragments result
+            f_pos_result_lst.append(f_pos_result)
+        f_result_gene_lst.append(f_result_gene)
+
+    # Concat df for clustering of positions
+    if len(f_pos_result_lst) > 0:
+        pos_result = pd.concat(f_pos_result_lst)
+    else:
+        pos_result = None
+
+    # Obtain a single df for the gene summary
+    f_result_gene["No_frag"] = f_result_gene["No_frag"].max()
+    f_result_gene["Mut_in_gene"] = f_result_gene["Mut_in_gene"].sum()
+    result_gene = pd.DataFrame(f_result_gene.apply(lambda x: x.unique()[0] if len(x.dropna().unique()) < 2 else x.unique(), axis=0)).T
+    
+    return pos_result, result_gene
+
+
 
 ## Wrapper function
-def pseudo_hotmaps(gene, 
+def clustering_3d(gene, 
                    uniprot_id,
                    mut_gene_df,                                      
                    cmap_path,
@@ -385,11 +449,11 @@ def main():
     group.add_argument("-p", "--mut_profile", help="Path to the mut profile (list of 96 floats) of the cohort (json)", type=str)
     group.add_argument("-P", "--miss_mut_prob", help="Path to the dict of missense mut prob of each protein based on mut profile of the cohort (json)",  
                        type=str)
+    
     parser.add_argument("-s", "--seq_df", 
                         help="Path to the dataframe including DNA and protein seq of all gene/proteins (all AF predicted ones)", 
                         type=str, 
                         default="../datasets/seq_for_mut_prob.csv")       
-
     parser.add_argument("-c", "--cmap_path", help="Path to the directory containting the contact map of each protein", type=str, 
                         default="../datasets/cmaps/")
 
@@ -485,9 +549,8 @@ def main():
         # If there is a single fragment
         if seq_df[seq_df["Gene"] == gene].F.max() == 1:      
             
-            # Run clustering
             try:
-                pos_result, result_gene = pseudo_hotmaps(gene,
+                pos_result, result_gene = clustering_3d(gene,
                                                          uniprot_id, 
                                                          mut_gene_df, 
                                                          cmap_path,
@@ -497,12 +560,10 @@ def main():
                                                          num_iteration=num_iteration,
                                                          hits_only=hits_only)
                 result_gene_lst.append(result_gene)
-                
                 if pos_result is not None:
                     result_pos_lst.append(pos_result)
-        
-            # Can't run clustering                                                                >>>> Should raise a better exception to capture a more specific error
-            except:
+                                                              
+            except:                                                     # >>>> Should raise a better exception to capture a more specific error
                 result_gene = pd.DataFrame({"Gene" : gene,
                                             "Uniprot_ID" : uniprot_id,
                                             "No_frag" : np.nan,
@@ -515,76 +576,37 @@ def main():
 
         # If the protein is fragmented
         else:
+            
+            try:
+                pos_result, result_gene = clustering_3d_frag(gene, 
+                                                            uniprot_id,
+                                                            mut_gene_df,
+                                                            cmap_path,
+                                                            miss_prob_dict,
+                                                            alpha=alpha_pos,
+                                                            num_iteration=num_iteration,
+                                                            hits_only=hits_only)
+                result_gene_lst.append(result_gene)
+                if pos_result is not None:
+                    result_pos_lst.append(pos_result)
 
-            mut_gene_df.insert(len(mut_gene_df.columns), "F", get_pos_fragments(mut_gene_df))     
-            f_pos_result_lst = []
-            f_result_gene_lst = []
-            prot_community = 0
+            except:
+                result_gene = pd.DataFrame({"Gene" : gene,
+                                            "Uniprot_ID" : uniprot_id,
+                                            "No_frag" : np.nan,
+                                            "Mut_in_gene" : np.nan,
+                                            "Max_mut_pos" : np.nan,
+                                            "Structure_max_pos" : np.nan,
+                                            "Status" : "Not_processed_frag"},
+                                            index=[0])
+                result_gene_lst.append(result_gene)
 
-            # Consider each fragment as a individual protein
-            for fragment in mut_gene_df["F"].unique():
 
-                mut_fragment_df = mut_gene_df[mut_gene_df["F"] == fragment]
-
-                # Use relative pos of the fragments
-                mut_fragment_df = mut_fragment_df.copy()
-                mut_fragment_df["Pos"] = mut_fragment_df["Pos"] - 1400 * (fragment-1)
-
-                # Perform clustrering on fragment
-                f_pos_result, f_result_gene = pseudo_hotmaps(gene, 
-                                                             uniprot_id,
-                                                             mut_fragment_df,
-                                                             cmap_path,
-                                                             miss_prob_dict,
-                                                             fragment=fragment,
-                                                             alpha=alpha_pos,
-                                                             num_iteration=num_iteration,
-                                                             hits_only=hits_only)
-
-                if f_pos_result is not None:
-
-                    # Go back to protein pos
-                    f_pos_result["Pos"] = f_pos_result["Pos"] + 1400 * (fragment-1)
-                    
-                    # Update community number according considering previous fragments
-                    f_community = len(f_pos_result["Community"][pd.notnull(f_pos_result["Community"])].unique())
-                    f_pos_result["Community"] = f_pos_result["Community"] + prot_community
-                    prot_community += f_community
-
-                    # Save fragments result
-                    f_pos_result_lst.append(f_pos_result)
-                f_result_gene_lst.append(f_result_gene)
-
-            # Concat df for clustering of positions
-            if len(f_pos_result_lst) > 0:
-                pos_result = pd.concat(f_pos_result_lst)
-            else:
-                pos_result = None
-            if pos_result is not None:
-                result_pos_lst.append(pos_result)
-
-            # Obtain a single df for the gene summary
-            f_result_gene["No_frag"] = f_result_gene["No_frag"].max()
-            f_result_gene["Mut_in_gene"] = f_result_gene["Mut_in_gene"].sum()
-            result_gene = pd.DataFrame(f_result_gene.apply(lambda x: x.unique()[0] if len(x.dropna().unique()) < 2 else x.unique(), axis=0)).T
-            result_gene_lst.append(result_gene)
-
-    
     ## Save 
     print("\nSaving..")
     result_gene = pd.concat(result_gene_lst)
     result_gene["Cancer"] = cancer_type
     result_gene["Cohort"] = cohort
-
-    # # Plot 0                                                                                               ### TO REMOVE
-    # status_count = result_gene.groupby("Status").count().reset_index()[["Status", "Gene"]]
-    # status_count = status_count.rename(columns={"Gene" : "Count"})
-
-    # plt.figure(figsize=(12, 4))
-    # ax = sns.barplot(x='Status', y='Count', data=status_count)
-    # ax.bar_label(ax.containers[0])
-    # plt.savefig(f"{output_dir}/{cancer_type}.{cohort}.processing_summary.png", bbox_inches="tight", dpi=300)
-    # plt.clf()
 
     if len(result_pos_lst) == 0:
         print(f"Did not processed any genes\n")
