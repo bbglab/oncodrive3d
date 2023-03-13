@@ -7,7 +7,7 @@ the canonical predicted structure stored in AlphaFold db.
 ###################################### EXAMPLE USAGE ############################################
 
 time python3 clustering_3d.py -i ../tests/input/HARTWIG_WGS_PANCREAS_2020.in.maf -o ../tests/output/ \
--p ../tests/input/HARTWIG_WGS_PANCREAS_2020.mutrate.json -H 0
+-p ../tests/input/HARTWIG_WGS_PANCREAS_2020.mutrate.json -H 0 -t PANCREA -C HARTWIG_WGS_PANCREAS_2020
 
 python3 clustering_3d.py -i ../../../evaluation/datasets/input/maf/PCAWG_WGS_COLORECT_ADENOCA.in.maf \         
 -o ../../../evaluation/output \
@@ -34,7 +34,7 @@ import argparse
 import networkx as nx
 import networkx.algorithms.community as nx_comm
 from scipy.stats import rankdata
-from utils.utils import parse_maf_input, uniprot_to_hugo, get_pos_fragments
+from utils.utils import parse_maf_input, get_pos_fragments
 from utils.miss_mut_prob import mut_rate_vec_to_dict, get_miss_mut_prob_dict
 
 
@@ -619,6 +619,7 @@ def main():
 
         # Get gene global pval, qval, and clustering annotations
         result_gene = get_final_gene_result(result_pos, result_gene, alpha_gene)
+        result_gene = result_gene.drop(columns = ["Max_mut_pos", "Structure_max_pos"]) # comment out if willing to look at isoforms incongruence
         result_gene.to_csv(f"{output_dir}/{cancer_type}.{cohort}.3d_clustering_genes.csv", index=False)
 
 
