@@ -228,6 +228,11 @@ def main():
     print("Output directory:", output_path)
     print("Path to DNA sequences df", path_seq_df, "\n")
 
+    # Create necessary folder
+    if not os.path.exists(output_path):
+        os.makedirs(output_path)
+
+
     # Iterate through all mut profiles path in the directory
     path_profiles = [f"{input_path}/{file}" for file in os.listdir(input_path) if file.endswith(".json")]
     for path_mut_profile in progressbar(path_profiles):
