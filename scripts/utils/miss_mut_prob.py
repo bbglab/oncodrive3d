@@ -4,10 +4,13 @@ Process all mutation profiles in a given directory and, for each one,
 generate a dictionary having as keys UniprotID-Fragment (eg., P04217-F1)
 and as values the corresponding per-residue miss mutation probability.
 
+###################################### EXAMPLE USAGE ############################################
 
 python3 miss_mut_prob.py -i ../../required_files/extra/mut_profile/ \
 -o ../../required_files/extra/missense_mut_prob/ \
 -s ../../required_files/seq_for_mut_prob.csv 
+
+#################################################################################################
 
 """
 
@@ -17,8 +20,6 @@ import pandas as pd
 import numpy as np
 import json
 import argparse
-from Bio.Seq import Seq
-from Bio import SeqIO
 from itertools import product
 import os
 from progressbar import progressbar
