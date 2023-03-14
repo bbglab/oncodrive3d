@@ -3,8 +3,7 @@ import pandas as pd
 import numpy as np
 import csv
 import requests
-import matplotlib.pyplot as plt
-from matplotlib_venn import venn2
+
 
 ## Parsers
 
