@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 """ 
 The module includes the the main function to run an HotMAPs-inspired 
 method that uses the the canonical predicted structure stored in 
@@ -9,30 +11,20 @@ and rank based comparison.
 time python3 main.py -i ../tests/input/HARTWIG_WGS_PANCREAS_2020.in.maf -o ../tests/output/ \
 -p ../tests/input/HARTWIG_WGS_PANCREAS_2020.mutrate.json -H 0 -t PANCREAS -C HARTWIG_WGS_PANCREAS_2020
 
-python3 main.py -i ../../../evaluation/datasets/input/maf/PCAWG_WGS_COLORECT_ADENOCA.in.maf \         
--o ../../../evaluation/output \
--p ../../../evaluation/datasets/input/mut_profile/prior.weighted.normalized.PCAWG_WGS_COLORECT_ADENOCA.json \
--s ../datasets/seq_for_mut_prob.csv \
--c ../datasets/cmaps/ \
--u ../datasets/af_uniprot_to_gene_id.json \
--n 10000 \
--H 0 \
--t COREAD \
--C PCAWG_WGS_COLORECT_ADENOCA
-
 #################################################################################################
 """
 
 
+import argparse
 import json
 import numpy as np
 import pandas as pd
 from progressbar import progressbar
-import argparse
 from utils.utils import parse_maf_input
 from utils.miss_mut_prob import mut_rate_vec_to_dict, get_miss_mut_prob_dict
 from utils.clustering import clustering_3d, clustering_3d_frag
 from utils.pvalues import get_final_gene_result
+import os
 
 
 def main():
@@ -51,15 +43,10 @@ def main():
     parser.add_argument("-o", "--output_dir", help="Path to output directory", type=str, required=True)
 
     group.add_argument("-p", "--mut_profile", help="Path to the mut profile (list of 96 floats) of the cohort (json)", type=str)
-    group.add_argument("-P", "--miss_mut_prob", help="Path to the dict of missense mut prob of each protein based on mut profile of the cohort (json)",  
-                       type=str)
+    group.add_argument("-P", "--miss_mut_prob", help="Path to the dict of missense mut prob of each protein based on mut profile of the cohort (json)",  type=str)
     
-    parser.add_argument("-s", "--seq_df", 
-                        help="Path to the dataframe including DNA and protein seq of all gene/proteins (all AF predicted ones)", 
-                        type=str, 
-                        default="../datasets/seq_for_mut_prob.csv")       
-    parser.add_argument("-c", "--cmap_path", help="Path to the directory containting the contact map of each protein", type=str, 
-                        default="../datasets/cmaps/")
+    parser.add_argument("-s", "--seq_df", help="Path to the dataframe including DNA and protein seq of all gene/proteins (all AF predicted ones)", type=str)       
+    parser.add_argument("-c", "--cmap_path", help="Path to the directory containting the contact map of each protein", type=str)
 
     parser.add_argument("-n", "--n_iterations", help="Number of densities to be simulated", type=int, default=10000)
     parser.add_argument("-a", "--alpha_level_res", help="Significant threshold for the p-value of protein residues", type=float, default=0.01)
@@ -83,7 +70,15 @@ def main():
     alpha_gene = args.alpha_level_gene
     hits_only = args.hits_only
 
+    dir_path = os.path.abspath(os.path.dirname(__file__))
+    if cmap_path is None:
+        cmap_path = f"{dir_path}/../datasets/cmaps/"
+    if seq_df_path is None:
+        seq_df_path = f"{dir_path}/../datasets/seq_for_mut_prob.csv"
+
     print(f"Starting 3D-clustering [{version}]..\n")
+    print(f"Path to contact maps: {cmap_path}")
+    print(f"Path to DNA sequences: {seq_df_path}")
     print(f"Iterations: {num_iteration}")
     print(f"Significant level (position): {alpha_pos}")
     print(f"Global significant level (gene): {alpha_gene}")
