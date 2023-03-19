@@ -80,7 +80,7 @@ def main():
     print(f"Path to contact maps: {cmap_path}")
     print(f"Path to DNA sequences: {seq_df_path}")
     print(f"Iterations: {num_iteration}")
-    print(f"Significant level (position): {alpha_pos}")
+    print(f"Significant level (residue): {alpha_pos}")
     print(f"Global significant level (gene): {alpha_gene}")
     print(f"Cohorts: {cohort}")
     print(f"Cancer type: {cancer_type}")
