@@ -49,8 +49,7 @@ def main():
     parser.add_argument("-c", "--cmap_path", help="Path to the directory containting the contact map of each protein", type=str)
 
     parser.add_argument("-n", "--n_iterations", help="Number of densities to be simulated", type=int, default=10000)
-    parser.add_argument("-a", "--alpha_level_res", help="Significant threshold for the p-value of protein residues", type=float, default=0.01)
-    parser.add_argument("-A", "--alpha_level_gene", help="Significant threshold for the global q-value of the genes", type=float, default=0.05)
+    parser.add_argument("-a", "--alpha_level", help="Significant threshold for the p-value of res and gene", type=float, default=0.05)
     parser.add_argument("-H", "--hits_only", help="if 1 returns only positions in clusters, if 0 returns all", type=int, default=1)
     
     parser.add_argument("-t", "--cancer_type", help="Cancer type", type=str)
@@ -66,8 +65,7 @@ def main():
     output_dir = args.output_dir
     cohort = args.cohort_name
     cancer_type = args.cancer_type
-    alpha_pos = args.alpha_level_res
-    alpha_gene = args.alpha_level_gene
+    alpha = args.alpha_level
     hits_only = args.hits_only
 
     dir_path = os.path.abspath(os.path.dirname(__file__))
@@ -80,8 +78,7 @@ def main():
     print(f"Path to contact maps: {cmap_path}")
     print(f"Path to DNA sequences: {seq_df_path}")
     print(f"Iterations: {num_iteration}")
-    print(f"Significant level (residue): {alpha_pos}")
-    print(f"Global significant level (gene): {alpha_gene}")
+    print(f"Significant level: {alpha}")
     print(f"Cohorts: {cohort}")
     print(f"Cancer type: {cancer_type}")
     print(f"Output directory: {output_dir}")
@@ -147,7 +144,7 @@ def main():
 
         # If there is a single fragment
         if seq_df[seq_df["Gene"] == gene].F.max() == 1:      
-            
+
             try:
                 pos_result, result_gene = clustering_3d(gene,
                                                          uniprot_id, 
@@ -155,7 +152,7 @@ def main():
                                                          cmap_path,
                                                          miss_prob_dict,
                                                          fragment=1,
-                                                         alpha=alpha_pos,
+                                                         alpha=alpha,
                                                          num_iteration=num_iteration,
                                                          hits_only=hits_only)
                 result_gene_lst.append(result_gene)
@@ -182,7 +179,7 @@ def main():
                                                             mut_gene_df,
                                                             cmap_path,
                                                             miss_prob_dict,
-                                                            alpha=alpha_pos,
+                                                            alpha=alpha,
                                                             num_iteration=num_iteration,
                                                             hits_only=hits_only)
                 result_gene_lst.append(result_gene)
@@ -209,6 +206,7 @@ def main():
 
     if len(result_pos_lst) == 0:
         print(f"Did not processed any genes\n")
+        print(result_gene)
         result_gene.to_csv(f"{output_dir}/{cancer_type}.{cohort}.3d_clustering_genes.csv", index=False)
     else:
         result_pos = pd.concat(result_pos_lst)
@@ -217,7 +215,7 @@ def main():
         result_pos.to_csv(f"{output_dir}/{cancer_type}.{cohort}.3d_clustering_pos.csv", index=False)
 
         # Get gene global pval, qval, and clustering annotations
-        result_gene = get_final_gene_result(result_pos, result_gene, alpha_gene)
+        result_gene = get_final_gene_result(result_pos, result_gene, alpha)
         result_gene = result_gene.drop(columns = ["Max_mut_pos", "Structure_max_pos"]) # comment out if willing to look at isoforms incongruence
         result_gene.to_csv(f"{output_dir}/{cancer_type}.{cohort}.3d_clustering_genes.csv", index=False)
 

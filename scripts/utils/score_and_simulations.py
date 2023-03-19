@@ -3,8 +3,8 @@ Contains function to assign clustering anomaly score and perform simulations
 """
 
 import numpy as np
-import scipy as sp
 import pandas as pd
+from scipy import stats
 
 
 def get_anomaly_score(vec_mut_in_vol, gene_mut, vec_vol_miss_mut_prob):          
@@ -17,8 +17,8 @@ def get_anomaly_score(vec_mut_in_vol, gene_mut, vec_vol_miss_mut_prob):
     Score: loglik equal or larger mut_count / loglik(N)
     """
     
-    den = sp.stats.binom.logpmf(k=gene_mut, n=gene_mut, p=vec_vol_miss_mut_prob)
-    return sp.stats.binom.logsf(k=vec_mut_in_vol-1, n=gene_mut, p=vec_vol_miss_mut_prob) / den
+    den = stats.binom.logpmf(k=gene_mut, n=gene_mut, p=vec_vol_miss_mut_prob)
+    return stats.binom.logsf(k=vec_mut_in_vol-1, n=gene_mut, p=vec_vol_miss_mut_prob) / den
 
 
 def simulate_mutations(n_mutations, p, size):
