@@ -131,10 +131,7 @@ def clustering_3d(gene,
 
     # Ratio observed and simulated anomaly scores 
     # (used to break the tie in p-values gene sorting)
-
-    result_pos_df["Ratio_obs_sim"] = sim_anomaly.apply(lambda x: result_pos_df["Abs_anomaly"].values[int(x["index"])] / np.mean(x[1:]), axis=1)  ##### TO REMOV
-    result_pos_df["Diff_obs_sim_std"] = sim_anomaly.apply(lambda x: (result_pos_df["Abs_anomaly"].values[int(x["index"])] - np.mean(x[1:])) / np.std(x[1:]), axis=1)  ##### TO REMOV?
-    result_pos_df["Diff_obs_sim_iqr"] = sim_anomaly.apply(lambda x: (result_pos_df["Abs_anomaly"].values[int(x["index"])] - np.mean(x[1:])) / iqr(x[1:]), axis=1)  ##### TO REMOV?
+    result_pos_df["Ratio_obs_sim"] = sim_anomaly.apply(lambda x: result_pos_df["Abs_anomaly"].values[int(x["index"])] / np.mean(x[1:]), axis=1) 
 
     # Empirical p-val
     result_pos_df["pval"] = sim_anomaly.apply(lambda x: sum(x[1:] >= result_pos_df["Abs_anomaly"].values[int(x["index"])]) / len(x[1:]), axis=1)
