@@ -4,6 +4,7 @@ Contains function to process the experimental p-values.
 
 from statsmodels.stats.multitest import multipletests
 import numpy as np
+#from scipy.stats import rankdata
 
 
 def fdr(p_vals, alpha=0.05):
@@ -12,6 +13,18 @@ def fdr(p_vals, alpha=0.05):
     """
 
     return multipletests(p_vals, alpha=alpha, method='fdr_bh', is_sorted=True)[1]
+
+
+# def fdr(p_vals, alpha=0.05):
+#     """
+#     Compute false discovery rate.
+#     """
+
+#     ranked_p_values = rankdata(p_vals)
+#     fdr = p_vals * len(p_vals) / ranked_p_values
+#     fdr[fdr > 1] = 1
+
+#     return fdr
 
 
 def sort_by_pval_and_mut(result_gene):
@@ -26,6 +39,23 @@ def sort_by_pval_and_mut(result_gene):
     result_gene = result_gene.sort_values(["pval", "Max_mut_in_vol", "Mut_in_gene"], ascending=True).reset_index(drop=True)
     result_gene["Max_mut_in_vol"] = -result_gene["Max_mut_in_vol"]
     
+    return result_gene
+
+
+def add_nan_clust_cols(result_gene):
+    """
+    Add columns showing clustering results with only nan for 
+    genes that are not tested (not enough mutations, etc).
+    """
+
+    result_gene = result_gene.copy()
+    result_gene.insert(2, "pval", np.nan)
+    result_gene.insert(3, "qval", np.nan)
+    result_gene.insert(4, "C_gene", np.nan)
+    result_gene.insert(5, "C_pos", np.nan)
+    result_gene.insert(6, "C_community", np.nan)
+    result_gene.insert(6, "Max_mut_in_vol", np.nan)
+
     return result_gene
 
 
