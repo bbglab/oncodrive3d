@@ -9,6 +9,7 @@ import networkx.algorithms.community as nx_comm
 from utils.score_and_simulations import get_anomaly_score, get_sim_anomaly_score
 from utils.communities import get_network, get_community_index_nx
 from utils.utils import get_pos_fragments
+from scipy.stats import iqr                                                                       #############################
 
 
 def clustering_3d(gene, 
@@ -125,13 +126,18 @@ def clustering_3d(gene,
     ## Compute p-val and assign hits
 
     # Add to the simulated score of each iteration its standard deviation  
-    # This makes the method more conservative (avoid borderline cases)
+    # (makes the method more conservative, eg., avoid borderline cases)
     sim_anomaly.iloc[:,1:] = sim_anomaly.apply(lambda x: x[1:] + x[1:].std(), axis=1)
 
-    # Experimental p-val
+    # Ratio observed and simulated anomaly scores 
+    # (used to break the tie in p-values gene sorting)
+
+    result_pos_df["Ratio_obs_sim"] = sim_anomaly.apply(lambda x: result_pos_df["Abs_anomaly"].values[int(x["index"])] / np.mean(x[1:]), axis=1)  ##### TO REMOV
+    result_pos_df["Diff_obs_sim_std"] = sim_anomaly.apply(lambda x: (result_pos_df["Abs_anomaly"].values[int(x["index"])] - np.mean(x[1:])) / np.std(x[1:]), axis=1)  ##### TO REMOV?
+    result_pos_df["Diff_obs_sim_iqr"] = sim_anomaly.apply(lambda x: (result_pos_df["Abs_anomaly"].values[int(x["index"])] - np.mean(x[1:])) / iqr(x[1:]), axis=1)  ##### TO REMOV?
+
+    # Empirical p-val
     result_pos_df["pval"] = sim_anomaly.apply(lambda x: sum(x[1:] >= result_pos_df["Abs_anomaly"].values[int(x["index"])]) / len(x[1:]), axis=1)
-    # result_pos_df["n_sim_≥_obs"] = sim_anomaly.apply(lambda x: sum(x[1:] >= result_pos_df["Abs_anomaly"].values[int(x["index"])]), axis=1)
-    # result_pos_df["n_sim"] = sim_anomaly.apply(lambda x: len(x[1:]), axis=1)
 
     # Assign hits
     result_pos_df["C"] = [int(i) for i in result_pos_df["pval"] < alpha]                
