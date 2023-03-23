@@ -120,8 +120,7 @@ def clustering_3d(gene,
     sim_anomaly = sim_anomaly.iloc[:no_mut_pos,:].reset_index()
     result_pos_df["Abs_anomaly"] = get_anomaly_score(result_pos_df["Mut_in_vol"], mut_count, vol_missense_mut_prob[result_pos_df["Pos"]-1])
     result_pos_df = result_pos_df.sort_values("Abs_anomaly", ascending=False).reset_index(drop=True)
-    result_pos_df["Avg_sim_anomaly"] = sim_anomaly.iloc[:,1:].mean(axis=1)
-   # result_pos_df["Diff_obs_avg_sim"] = result_pos_df["Abs_anomaly"] - result_pos_df["Avg_sim_anomaly"]
+
 
     ## Compute p-val and assign hits
 
