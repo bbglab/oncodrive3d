@@ -47,6 +47,29 @@ def add_nan_clust_cols(result_gene):
     return result_gene
 
 
+def add_gene_binary_and_sort(result_gene, alpha_gene):
+    """
+    Add gene binary clustering label, re-order columns for the 
+    final gene-level, and sort genes according to p-values and 
+    the ratio between observed and simulated score.
+    """
+
+    # Assign binary label
+    gene_label = result_gene.apply(lambda x: 1 if x.qval < alpha_gene else 0, axis=1)
+
+    # Re-order columns
+    result_gene.insert(1, "Uniprot_ID", result_gene.pop("Uniprot_ID"))
+    result_gene.insert(9, "Top_ratio_obs_sim", result_gene.pop("Top_ratio_obs_sim"))
+    result_gene.insert(9, "Top_diff_obs_sim", result_gene.pop("Top_diff_obs_sim"))
+    result_gene.insert(9, "Top_mut_in_vol", result_gene.pop("Top_mut_in_vol"))
+    result_gene.insert(4, "C_gene", gene_label)     
+    result_gene.insert(11, "AF_F", result_gene.pop("AF_F"))   
+
+    # Sort genes
+    result_gene = result_gene.sort_values(['pval', 'Top_ratio_obs_sim'], ascending=[True, False])
+
+    return result_gene
+
 def get_final_gene_result(result_pos, result_gene, alpha_gene=0.05):
     """
     Output the final dataframe including gene global pval, 
@@ -76,18 +99,8 @@ def get_final_gene_result(result_pos, result_gene, alpha_gene=0.05):
     gene_pvals = gene_pvals.sort_values(["pval"], ascending=True).reset_index(drop=True)
     gene_pvals["qval"] = fdr(gene_pvals["pval"])
 
-    # Combine pval to significant annotation
+    # Combine gene-level clustering result, add label, and sort genes
     result_gene = gene_pvals.merge(result_gene, on="Gene", how="outer")
-
-    # Add gene binary clustering label and sort genes
-    gene_label = result_gene.apply(lambda x: 1 if x.qval < alpha_gene else 0, axis=1)
-
-    result_gene.insert(1, "Uniprot_ID", result_gene.pop("Uniprot_ID"))
-    result_gene.insert(9, "Top_ratio_obs_sim", result_gene.pop("Top_ratio_obs_sim"))
-    result_gene.insert(9, "Top_diff_obs_sim", result_gene.pop("Top_diff_obs_sim"))
-    result_gene.insert(9, "Top_mut_in_vol", result_gene.pop("Top_mut_in_vol"))
-    result_gene.insert(4, "C_gene", gene_label)     
-    result_gene.insert(11, "AF_F", result_gene.pop("AF_F"))                                                                    #### MAKE A FUNCTION FOR THAT
-    result_gene = result_gene.sort_values(['pval', 'Top_ratio_obs_sim'], ascending=[True, False])
-
+    result_gene = add_gene_binary_and_sort(result_gene, alpha_gene)
+    
     return result_gene
