@@ -58,7 +58,7 @@ def clustering_3d(gene,
     mut_count = len(mut_gene_df)
     result_gene_df = pd.DataFrame({"Gene" : gene,
                                    "Uniprot_ID" : uniprot_id,
-                                   "No_frag" : fragment,                           
+                                   "AF_F" : fragment,                           
                                    "Mut_in_gene" : mut_count,
                                    "Max_mut_pos" : np.nan,
                                    "Structure_max_pos" : np.nan,
@@ -131,7 +131,7 @@ def clustering_3d(gene,
     # Ratio observed and simulated anomaly scores 
     # (used to break the tie in p-values gene sorting)
     result_pos_df["Ratio_obs_sim"] = sim_anomaly.apply(lambda x: result_pos_df["Abs_anomaly"].values[int(x["index"])] / np.mean(x[1:]), axis=1) 
-    result_pos_df["Diff_obs_sim_std"] = sim_anomaly.apply(lambda x: (result_pos_df["Abs_anomaly"].values[int(x["index"])] - np.mean(x[1:])) / np.std(x[1:]), axis=1)  ##### TO REMOV ONE OF THEM
+    result_pos_df["Diff_obs_sim"] = sim_anomaly.apply(lambda x: (result_pos_df["Abs_anomaly"].values[int(x["index"])] - np.mean(x[1:])) / np.std(x[1:]), axis=1)  ##### TO REMOV ONE OF THEM
 
     # Empirical p-val
     result_pos_df["pval"] = sim_anomaly.apply(lambda x: sum(x[1:] >= result_pos_df["Abs_anomaly"].values[int(x["index"])]) / len(x[1:]), axis=1)
@@ -233,7 +233,7 @@ def clustering_3d_frag(gene,
         pos_result = None
 
     # Obtain a single df for the gene summary
-    f_result_gene["No_frag"] = f_result_gene["No_frag"].max()
+    f_result_gene["AF_F"] = f_result_gene["AF_F"].max()
     f_result_gene["Mut_in_gene"] = f_result_gene["Mut_in_gene"].sum()
     result_gene = pd.DataFrame(f_result_gene.apply(lambda x: x.unique()[0] if len(x.dropna().unique()) < 2 else x.unique(), axis=0)).T
     

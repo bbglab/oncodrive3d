@@ -16,6 +16,10 @@ time python3 main.py -i /workspace/projects/clustering_3d/evaluation/datasets/in
 -p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile/ICGC_WXS_HCC_LICA_CN_STRELKA_2019.mutrate.json \
 -H 0 -t PANCREAS -C ICGC_WXS_HCC_LICA_CN_STRELKA_2019
 
+time python3 main.py -i /workspace/projects/clustering_3d/evaluation/datasets/input/maf/STJUDE_WGS_D_LGG_2018.in.maf \
+-o /workspace/projects/clustering_3d/dev_testing/output -p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile/STJUDE_WGS_D_LGG_2018.mutrate.json \
+-H 0 -t LGG -C STJUDE_WGS_D_LGG_2018
+
 #################################################################################################
 """
 
@@ -24,12 +28,13 @@ import argparse
 import json
 import numpy as np
 import pandas as pd
+import os
+import datetime
 from progressbar import progressbar
 from utils.utils import parse_maf_input
 from utils.miss_mut_prob import mut_rate_vec_to_dict, get_miss_mut_prob_dict
 from utils.clustering import clustering_3d, clustering_3d_frag
 from utils.pvalues import get_final_gene_result, add_nan_clust_cols
-import os
 
 
 def main():
@@ -78,13 +83,19 @@ def main():
         cmap_path = f"{dir_path}/../datasets/cmaps/"
     if seq_df_path is None:
         seq_df_path = f"{dir_path}/../datasets/seq_for_mut_prob.csv"
+    if cohort is None:
+        cohort = np.nan
+    if cancer_type is None:
+        date = datetime.now()
+        date.strftime("%m-%d-%Y_%H-%M-%S")
+        cancer_type = f"cohort_{date}"
 
     print(f"Starting 3D-clustering [{version}]..\n")
     print(f"Path to contact maps: {cmap_path}")
     print(f"Path to DNA sequences: {seq_df_path}")
     print(f"Iterations: {num_iteration}")
     print(f"Significant level: {alpha}")
-    print(f"Cohorts: {cohort}")
+    print(f"Cohort: {cohort}")
     print(f"Cancer type: {cancer_type}")
     print(f"Output directory: {output_dir}")
 
@@ -109,7 +120,7 @@ def main():
     genes_no_mut = genes[genes < 2].index
     result_gene = pd.DataFrame({"Gene" : genes_no_mut,
                                 "Uniprot_ID" : np.nan,
-                                "No_frag" : np.nan,
+                                "AF_F" : np.nan,
                                 "Mut_in_gene" : 1,
                                 "Max_mut_pos" : np.nan,
                                 "Structure_max_pos" : np.nan,
@@ -123,7 +134,7 @@ def main():
     genes_no_mapping = genes[[gene in genes_mut and gene not in gene_to_uniprot_dict.keys() for gene in genes.index]]
     result_gene = pd.DataFrame({"Gene" : genes_no_mapping.index,
                                 "Uniprot_ID" : np.nan,
-                                "No_frag" : np.nan,
+                                "AF_F" : np.nan,
                                 "Mut_in_gene" : genes_no_mapping.values,
                                 "Max_mut_pos" : np.nan,
                                 "Structure_max_pos" : np.nan,
@@ -142,6 +153,7 @@ def main():
         miss_prob_dict = get_miss_mut_prob_dict(mut_rate_dict=mut_profile, seq_df=seq_df)
 
     # Process gene
+    print("Performing 3D clustering..")
     for gene in progressbar(genes_mapped):
         mut_gene_df = data[data["Gene"] == gene]
         uniprot_id = gene_to_uniprot_dict[gene]   
@@ -166,7 +178,7 @@ def main():
             except:                                                     # >>>> Should raise a better exception to capture a more specific error
                 result_gene = pd.DataFrame({"Gene" : gene,
                                             "Uniprot_ID" : uniprot_id,
-                                            "No_frag" : np.nan,
+                                            "AF_F" : np.nan,
                                             "Mut_in_gene" : np.nan,
                                             "Max_mut_pos" : np.nan,
                                             "Structure_max_pos" : np.nan,
@@ -193,7 +205,7 @@ def main():
             except:
                 result_gene = pd.DataFrame({"Gene" : gene,
                                             "Uniprot_ID" : uniprot_id,
-                                            "No_frag" : np.nan,
+                                            "AF_F" : np.nan,
                                             "Mut_in_gene" : np.nan,
                                             "Max_mut_pos" : np.nan,
                                             "Structure_max_pos" : np.nan,
@@ -212,6 +224,7 @@ def main():
         print(f"Did not processed any genes\n")
         result_gene = add_nan_clust_cols(result_gene).drop(columns = ["Max_mut_pos", "Structure_max_pos"])
         result_gene.to_csv(f"{output_dir}/{cohort}.3d_clustering_genes.csv", index=False)
+
     else:
         result_pos = pd.concat(result_pos_lst)
         result_pos["Cancer"] = cancer_type
