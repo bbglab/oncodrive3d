@@ -37,13 +37,10 @@ from utils.clustering import clustering_3d, clustering_3d_frag
 from utils.pvalues import get_final_gene_result, add_nan_clust_cols
 
 
-def main():
+def init_parser():
     """
-    Wrapper function.
+    Initialize parser for the main function.
     """
-
-    ## Initialize
-    version = "2023_v1.3"    # LAST CHANGE: obtain HUGO mapping from seq_df
 
     # Parser
     parser = argparse.ArgumentParser()
@@ -64,7 +61,20 @@ def main():
     
     parser.add_argument("-t", "--cancer_type", help="Cancer type", type=str)
     parser.add_argument("-C", "--cohort_name", help="Name of the cohort", type=str)
-    args = parser.parse_args()
+
+    return parser.parse_args()
+
+
+def main():
+    """
+    Wrapper function.
+    """
+
+    ## Initialize
+    version = "2023_v1.3"    # LAST CHANGE: obtain HUGO mapping from seq_df
+
+    # Parser
+    args = init_parser()
 
     maf_input_path = args.input_maf
     mut_profile_path = args.mut_profile
