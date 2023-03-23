@@ -54,7 +54,8 @@ def add_nan_clust_cols(result_gene):
     result_gene.insert(4, "C_gene", np.nan)
     result_gene.insert(5, "C_pos", np.nan)
     result_gene.insert(6, "C_community", np.nan)
-    result_gene.insert(6, "Max_mut_in_vol", np.nan)
+    result_gene.insert(7, "Top_ratio_obs_sim", np.nan)
+    result_gene.insert(8, "Top_mut_in_vol", np.nan)
 
     return result_gene
 
@@ -82,7 +83,8 @@ def get_final_gene_result(result_pos, result_gene, alpha_gene=0.05):
     
     # Get gene pval, qval, and largest density among the most significant hits
     gene_pvals = result_pos.groupby("Gene").apply(lambda x: min(x["pval"].values)).reset_index().rename(columns={0 : "pval"})
-    gene_pvals["Max_mut_in_vol"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].Mut_in_vol)).values
+    gene_pvals["Top_ratio_obs_sim"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].Ratio_obs_sim)).values
+    gene_pvals["Top_mut_in_vol"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].Mut_in_vol)).values
     gene_pvals = gene_pvals.sort_values(["pval"], ascending=True).reset_index(drop=True)
     gene_pvals["qval"] = fdr(gene_pvals["pval"])
 
@@ -92,7 +94,8 @@ def get_final_gene_result(result_pos, result_gene, alpha_gene=0.05):
     # Add gene binary clustering label and sort genes
     gene_label = result_gene.apply(lambda x: 1 if x.qval < alpha_gene else 0, axis=1)
     result_gene.insert(4, "C_gene", gene_label)
-    result_gene.insert(8, "Max_mut_in_vol", result_gene.pop("Max_mut_in_vol"))
+    result_gene.insert(8, "Top_ratio_obs_sim", result_gene.pop("Top_ratio_obs_sim"))
+    result_gene.insert(9, "Top_mut_in_vol", result_gene.pop("Top_mut_in_vol"))
     result_gene.insert(1, "Uniprot_ID", result_gene.pop("Uniprot_ID"))
     result_gene = sort_by_pval_and_mut(result_gene)
 
