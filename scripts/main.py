@@ -11,6 +11,11 @@ and rank based comparison.
 time python3 main.py -i ../tests/input/HARTWIG_WGS_PANCREAS_2020.in.maf -o ../tests/output/ \
 -p ../tests/input/HARTWIG_WGS_PANCREAS_2020.mutrate.json -H 0 -t PANCREAS -C HARTWIG_WGS_PANCREAS_2020
 
+time python3 main.py -i /workspace/projects/clustering_3d/evaluation/datasets/input/maf/ICGC_WXS_HCC_LICA_CN_STRELKA_2019.in.maf \
+-o /workspace/projects/clustering_3d/dev_testing/output/ \
+-p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile/ICGC_WXS_HCC_LICA_CN_STRELKA_2019.mutrate.json \
+-H 0 -t PANCREAS -C ICGC_WXS_HCC_LICA_CN_STRELKA_2019
+
 #################################################################################################
 """
 
@@ -23,7 +28,7 @@ from progressbar import progressbar
 from utils.utils import parse_maf_input
 from utils.miss_mut_prob import mut_rate_vec_to_dict, get_miss_mut_prob_dict
 from utils.clustering import clustering_3d, clustering_3d_frag
-from utils.pvalues import get_final_gene_result
+from utils.pvalues import get_final_gene_result, add_nan_clust_cols
 import os
 
 
@@ -109,7 +114,7 @@ def main():
                                 "Max_mut_pos" : np.nan,
                                 "Structure_max_pos" : np.nan,
                                 "Status" : "No_mut"})
-    result_gene_lst.append(result_gene)
+    result_gene_lst.append(result_gene) 
 
     # Get genes with corresponding Uniprot-ID mapping
     gene_to_uniprot_dict = {gene : uni_id for gene, uni_id in seq_df[["Gene", "Uniprot_ID"]].drop_duplicates().values}
@@ -137,7 +142,6 @@ def main():
         miss_prob_dict = get_miss_mut_prob_dict(mut_rate_dict=mut_profile, seq_df=seq_df)
 
     # Process gene
-    print("Performing 3D clustering on genes with enough mutations..")
     for gene in progressbar(genes_mapped):
         mut_gene_df = data[data["Gene"] == gene]
         uniprot_id = gene_to_uniprot_dict[gene]   
@@ -206,18 +210,18 @@ def main():
 
     if len(result_pos_lst) == 0:
         print(f"Did not processed any genes\n")
-        print(result_gene)
-        result_gene.to_csv(f"{output_dir}/{cancer_type}.{cohort}.3d_clustering_genes.csv", index=False)
+        result_gene = add_nan_clust_cols(result_gene).drop(columns = ["Max_mut_pos", "Structure_max_pos"])
+        result_gene.to_csv(f"{output_dir}/{cohort}.3d_clustering_genes.csv", index=False)
     else:
         result_pos = pd.concat(result_pos_lst)
         result_pos["Cancer"] = cancer_type
         result_pos["Cohort"] = cohort
-        result_pos.to_csv(f"{output_dir}/{cancer_type}.{cohort}.3d_clustering_pos.csv", index=False)
+        result_pos.to_csv(f"{output_dir}/{cohort}.3d_clustering_pos.csv", index=False)
 
         # Get gene global pval, qval, and clustering annotations
         result_gene = get_final_gene_result(result_pos, result_gene, alpha)
         result_gene = result_gene.drop(columns = ["Max_mut_pos", "Structure_max_pos"]) # comment out if willing to look at isoforms incongruence
-        result_gene.to_csv(f"{output_dir}/{cancer_type}.{cohort}.3d_clustering_genes.csv", index=False)
+        result_gene.to_csv(f"{output_dir}/{cohort}.3d_clustering_genes.csv", index=False)
 
 
 if __name__ == "__main__":
