@@ -3,9 +3,7 @@ datasets/temp
 datasets/pdb_structures*
 tests/output/*
 !tests/output/.gitkeep
-scripts/utils/__pycache__
+__pycache__
 scripts/test.qmap
 scripts/qmap_init.py
 scripts/run_*
-
-
