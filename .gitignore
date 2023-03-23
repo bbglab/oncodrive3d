@@ -5,5 +5,5 @@ tests/output/*
 !tests/output/.gitkeep
 __pycache__
 scripts/test.qmap
-scripts/qmap_init.py
 scripts/run_*
+scripts/submit*
