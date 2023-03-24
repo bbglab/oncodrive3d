@@ -233,6 +233,7 @@ def clustering_3d_frag(gene,
         pos_result = None
 
     # Obtain a single df for the gene summary
+    f_result_gene = pd.concat(f_result_gene_lst)
     f_result_gene["AF_F"] = f_result_gene["AF_F"].max()
     f_result_gene["Mut_in_gene"] = f_result_gene["Mut_in_gene"].sum()
     result_gene = pd.DataFrame(f_result_gene.apply(lambda x: x.unique()[0] if len(x.dropna().unique()) < 2 else x.unique(), axis=0)).T
