@@ -4,7 +4,6 @@ Contains function to process the experimental p-values.
 
 from statsmodels.stats.multitest import multipletests
 import numpy as np
-#from scipy.stats import rankdata
 
 
 def fdr(p_vals, alpha=0.05):
@@ -13,18 +12,6 @@ def fdr(p_vals, alpha=0.05):
     """
 
     return multipletests(p_vals, alpha=alpha, method='fdr_bh', is_sorted=True)[1]
-
-
-# def fdr(p_vals, alpha=0.05):
-#     """
-#     Compute false discovery rate.
-#     """
-
-#     ranked_p_values = rankdata(p_vals)
-#     fdr = p_vals * len(p_vals) / ranked_p_values
-#     fdr[fdr > 1] = 1
-
-#     return fdr
 
 
 def add_nan_clust_cols(result_gene):
