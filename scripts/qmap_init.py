@@ -1,17 +1,40 @@
 """
-#### run qmap ####
 
+#### EXAMPLE USAGE ####
 
-python3 qmap_init.py -q submit.qmap -o /workspace/projects/clustering_3d/evaluation/tool_output/run_23.03.23
+python3 qmap_init.py -q submit_00.qmap -o /workspace/projects/clustering_3d/evaluation/tool_output/run_23.03.23
+python3 qmap_init.py -q submit_xx.qmap -o /workspace/projects/clustering_3d/evaluation/tool_output/run_23.03.23 \
+-e /home/odove/anaconda3/etc/profile.d/conda.sh
+
+#######################
+
+#### run qmap #########
+
 qmap submit submit.qmap --max-running 30
 
-##################
+#######################
 """
 
 
 import argparse
 import pandas as pd
 import os
+
+"/home/odove/anaconda3/etc/profile.d/conda.sh"
+
+def init_submit_file(path_qmap_file, 
+                     conda_sh_path, 
+                     conda_env_name, 
+                     memory = 10, cores = 1):
+    """
+    Create and initialize a submit.qmap file.
+    """
+
+    with open(path_qmap_file, "w") as file:
+        file.write(f"[params]\nmemory = {memory}G\ncores = {cores}\n")
+        file.write(f"\n[pre]\n")
+        file.write(f'. "{conda_sh_path}"\n')
+        file.write(f"conda activate {conda_env_name}\n\n[jobs]\n")
 
 
 def add_job(path_qmap_file, in_maf, in_mut_profile, output, cancer, cohort):
@@ -24,30 +47,59 @@ def add_job(path_qmap_file, in_maf, in_mut_profile, output, cancer, cohort):
         file.write(command + "\n")
 
 
-def main():
+def init_parser():
+    """
+    Initialize parser for the main function.
+    """
 
     COHORTS_PATH = "/workspace/projects/clustering_3d/evaluation/datasets/cohorts.tsv"
     IN_MAF = "/workspace/projects/clustering_3d/evaluation/datasets/input/maf"
     IN_MUT_PROF = "/workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile"
+    CONDA_SH = "/home/spellegrini/miniconda3/etc/profile.d/conda.sh"
+    CONDA_ENV = "clustering_3d"
 
-    # Parser
     parser = argparse.ArgumentParser()
     parser.add_argument("-q", "--qmap", help="Path to the qmap file to run jobs in parallel", type=str, required=True) 
     parser.add_argument("-o", "--output", help="Path to the output dir", type=str, required=True) 
-    parser.add_argument("-m", "--metadata", help="Path to the cohorts.tsv file inlcuding cohorts metadata", type=str, default=COHORTS_PATH) 
+
+    parser.add_argument("-e", "--conda_sh", help="Path to your own conda.sh file", type=str, default=CONDA_SH)
+    parser.add_argument("-E", "--conda_env", help="Name of conda environment", type=str, default=CONDA_ENV) 
+
+    parser.add_argument("-m", "--memory", help="GB of memory allocated to each job", type=int, default=10) 
+    parser.add_argument("-c", "--cores", help="Number of cores allocated to each job", type=int, default=1) 
+
+    parser.add_argument("-M", "--metadata", help="Path to the cohorts.tsv file inlcuding cohorts metadata", type=str, default=COHORTS_PATH) 
     parser.add_argument("-i", "--input_maf", help="Path to the input MAF file", type=str, default=IN_MAF) 
     parser.add_argument("-p", "--input_mut_profile", help="Path to the input mut_profile", type=str, default=IN_MUT_PROF) 
 
-    args = parser.parse_args()
-    qmap = args.qmap
+    return parser.parse_args()
+
+
+def main():
+
+    # Parser
+    args = init_parser()
+    qmap_file = args.qmap
     output = args.output
+    conda_sh = args.conda_sh
+    conda_env = args.conda_env
+    memory = args.memory
+    cores = args.cores
     metadata = args.metadata
     input_maf = args.input_maf
     input_mut_profile = args.input_mut_profile
+
+    # Create output folder if needed
+    if not os.path.exists(output):
+        os.makedirs(output)
     
-    # Add to qmap a 3D clustering job for each cohort with available MAF and mut_profile
-    metadata = pd.read_csv(COHORTS_PATH, sep="\t")
-    for i, row in metadata.iterrows():
+    # Create a submit.qmap file
+    init_submit_file(qmap_file, conda_sh, conda_env, memory, cores)
+
+    # Add to qmap a 3D clustering job for each cohort with available MAF and mut_profile    
+    metadata = pd.read_csv(metadata, sep="\t")
+    i = 0
+    for _, row in metadata.iterrows():
 
         tumor = row["CANCER_TYPE"]
         cohort = row["COHORT"]
@@ -55,9 +107,10 @@ def main():
         mut_profile = f"{input_mut_profile}/{cohort}.mutrate.json"
 
         if os.path.isfile(maf) and os.path.isfile(mut_profile):
-            add_job(qmap, maf, mut_profile, output, tumor, cohort)
+            add_job(qmap_file, maf, mut_profile, output, tumor, cohort)
+            i += 1
 
-    print(f"{i+1} jobs added to {qmap}")
+    print(f"{i} jobs added to {qmap_file}")
 
 
 if __name__ == "__main__":
