@@ -10,7 +10,7 @@ python3 qmap_init.py -q submit_xx.qmap -o /workspace/projects/clustering_3d/eval
 
 #### run qmap #########
 
-qmap submit submit.qmap --max-running 30
+qmap submit submit_00.qmap --max-running 30
 
 #######################
 """
