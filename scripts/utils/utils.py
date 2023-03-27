@@ -14,7 +14,7 @@ def parse_maf_input(maf_input_path):
     """
 
     # Load
-    maf = pd.read_csv(maf_input_path, sep="\t")
+    maf = pd.read_csv(maf_input_path, sep="\t", dtype={'Chromosome': str})
 
     # Select only missense mutation and extract Gene name and mut
     maf = maf.loc[maf.Variant_Classification == "Missense_Mutation"].copy()
