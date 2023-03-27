@@ -58,7 +58,7 @@ def clustering_3d(gene,
     mut_count = len(mut_gene_df)
     result_gene_df = pd.DataFrame({"Gene" : gene,
                                    "Uniprot_ID" : uniprot_id,
-                                   "AF_F" : fragment,                           
+                                   "F" : fragment,                           
                                    "Mut_in_gene" : mut_count,
                                    "Max_mut_pos" : np.nan,
                                    "Structure_max_pos" : np.nan,
@@ -234,8 +234,9 @@ def clustering_3d_frag(gene,
 
     # Obtain a single df for the gene summary
     f_result_gene = pd.concat(f_result_gene_lst)
-    f_result_gene["AF_F"] = f_result_gene["AF_F"].max()
+    f_result_gene["F"] = f_result_gene["F"].unique()
     f_result_gene["Mut_in_gene"] = f_result_gene["Mut_in_gene"].sum()
     result_gene = pd.DataFrame(f_result_gene.apply(lambda x: x.unique()[0] if len(x.dropna().unique()) < 2 else x.unique(), axis=0)).T
+    result_gene["Status"] = result_gene.apply(lambda x: "Processed" if "Processed" in x["Status"] else x["Status"], axis=1)
     
     return pos_result, result_gene

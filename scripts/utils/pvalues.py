@@ -27,9 +27,11 @@ def add_nan_clust_cols(result_gene):
     result_gene.insert(5, "C_pos", np.nan)
     result_gene.insert(6, "C_community", np.nan)
     result_gene.insert(7, "Top_ratio_obs_sim", np.nan)
-    result_gene.insert(8, "Top_diff_obs_sim", np.nan)
-    result_gene.insert(9, "Top_mut_in_vol", np.nan)
-    result_gene.insert(12, "AF_F", result_gene.pop("AF_F"))
+    #result_gene.insert(8, "Top_diff_obs_sim", np.nan)
+    result_gene.insert(8, "Top_mut_in_vol", np.nan)
+    result_gene.insert(11, "F", result_gene.pop("F"))
+    result_gene.insert(12, "Mut_in_top_F", np.nan)
+    result_gene.insert(13, "Top_F", np.nan)
 
     return result_gene
 
@@ -47,15 +49,33 @@ def add_gene_binary_and_sort(result_gene, alpha_gene):
     # Re-order columns
     result_gene.insert(1, "Uniprot_ID", result_gene.pop("Uniprot_ID"))
     result_gene.insert(9, "Top_ratio_obs_sim", result_gene.pop("Top_ratio_obs_sim"))
-    result_gene.insert(9, "Top_diff_obs_sim", result_gene.pop("Top_diff_obs_sim"))
-    result_gene.insert(9, "Top_mut_in_vol", result_gene.pop("Top_mut_in_vol"))
+    #result_gene.insert(9, "Top_diff_obs_sim", result_gene.pop("Top_diff_obs_sim"))
+    result_gene.insert(10, "Top_mut_in_vol", result_gene.pop("Top_mut_in_vol"))
+    result_gene.insert(10, "Mut_in_gene", result_gene.pop("Mut_in_gene"))   
+    result_gene.insert(10, "F", result_gene.pop("F"))   
     result_gene.insert(4, "C_gene", gene_label)     
-    result_gene.insert(11, "AF_F", result_gene.pop("AF_F"))   
 
     # Sort genes
     result_gene = result_gene.sort_values(['pval', 'Top_ratio_obs_sim'], ascending=[True, False])
 
     return result_gene
+
+
+def add_frag_info(result_pos, result_gene):
+    """
+    Add total mutation in the fragment and number fragment with the most significant cluster.
+    """
+
+    frag_info = result_pos.groupby("Gene").apply(lambda x: 
+                                                 max(x[x["pval"] == min(x["pval"])].Mut_in_gene) if max(x.F) > 1 
+                                                 else np.nan).reset_index().rename(columns = {0 : "Mut_in_top_F"}) 
+    frag_info["Top_F"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].F) if max(x.F) > 1 else np.nan).values                                                  
+    result_gene = result_gene.merge(frag_info, on = "Gene", how = "outer")
+    result_gene.insert(13, "Mut_in_top_F", result_gene.pop("Mut_in_top_F"))
+    result_gene.insert(14, "Top_F", result_gene.pop("Top_F"))
+
+    return result_gene
+
 
 def get_final_gene_result(result_pos, result_gene, alpha_gene=0.05):
     """
@@ -81,13 +101,15 @@ def get_final_gene_result(result_pos, result_gene, alpha_gene=0.05):
     # Get gene pval, qval, and largest density among the most significant hits
     gene_pvals = result_pos.groupby("Gene").apply(lambda x: min(x["pval"].values)).reset_index().rename(columns={0 : "pval"})
     gene_pvals["Top_ratio_obs_sim"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].Ratio_obs_sim)).values
-    gene_pvals["Top_diff_obs_sim"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].Diff_obs_sim)).values
+    #gene_pvals["Top_diff_obs_sim"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].Diff_obs_sim)).values
     gene_pvals["Top_mut_in_vol"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].Mut_in_vol)).values
+
     gene_pvals = gene_pvals.sort_values(["pval"], ascending=True).reset_index(drop=True)
     gene_pvals["qval"] = fdr(gene_pvals["pval"])
 
-    # Combine gene-level clustering result, add label, and sort genes
+    # Combine gene-level clustering result, add label, sort genes, add fragment info
     result_gene = gene_pvals.merge(result_gene, on="Gene", how="outer")
     result_gene = add_gene_binary_and_sort(result_gene, alpha_gene)
-    
+    result_gene = add_frag_info(result_pos, result_gene)
+
     return result_gene
