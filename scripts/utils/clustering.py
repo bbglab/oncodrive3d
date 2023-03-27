@@ -93,7 +93,7 @@ def clustering_3d(gene,
     ## Get observed and ranked simulated scores (loglik+_LFC)
     
     # Get the observed mut count and densities 
-    count = mut_gene_df.Pos.value_counts()
+    count = mut_gene_df.Pos.value_counts()       
     mut_count_v = np.zeros(len(cmap))
     mut_count_v[count.index - 1] = count.values
     mut_count_m = mut_count_v.reshape((1, -1))
@@ -137,7 +137,7 @@ def clustering_3d(gene,
     result_pos_df["pval"] = sim_anomaly.apply(lambda x: sum(x[1:] >= result_pos_df["Abs_anomaly"].values[int(x["index"])]) / len(x[1:]), axis=1)
 
     # Assign hits
-    result_pos_df["C"] = [int(i) for i in result_pos_df["pval"] < alpha]                
+    result_pos_df["C"] = [int(i) for i in result_pos_df["pval"] < alpha]             
 
     
     ## Communities detection
@@ -157,13 +157,15 @@ def clustering_3d(gene,
         result_pos_df = result_pos_df.merge(meta_clusters, how = "left", on = "Pos")
     else:
         result_pos_df["Community"] = np.nan
-        
+    
 
     ## Output
+    clustered_mut = sum(count[[i in pos_hits.values for i in count.index]])
     result_pos_df.insert(0, "Gene", gene)
     result_pos_df.insert(1, "Uniprot_ID", uniprot_id)
     result_pos_df.insert(2, "F", fragment)
     result_pos_df.insert(4, "Mut_in_gene", mut_count)
+    result_gene_df["Clust_mut"] = clustered_mut
     result_gene_df["Status"] = "Processed"
 
     # Keep only positions in clusters           
