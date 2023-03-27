@@ -20,6 +20,12 @@ time python3 main.py -i /workspace/projects/clustering_3d/evaluation/datasets/in
 -o /workspace/projects/clustering_3d/dev_testing/output -p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile/STJUDE_WGS_D_LGG_2018.mutrate.json \
 -H 0 -t LGG -C STJUDE_WGS_D_LGG_2018
 
+
+time python3 main.py -i /workspace/projects/clustering_3d/evaluation/datasets/input/maf/ICGC_WGS_NPC_ORCA_IN_2019.in.maf \
+-o /workspace/projects/clustering_3d/dev_testing/output/ \
+-p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile/ICGC_WGS_NPC_ORCA_IN_2019.mutrate.json \
+-H 0 -C ICGC_WGS_NPC_ORCA_IN_2019
+
 #################################################################################################
 """
 
@@ -29,7 +35,7 @@ import json
 import numpy as np
 import pandas as pd
 import os
-import datetime
+from datetime import datetime
 from progressbar import progressbar
 from utils.utils import parse_maf_input
 from utils.miss_mut_prob import mut_rate_vec_to_dict, get_miss_mut_prob_dict
@@ -57,7 +63,7 @@ def init_parser():
 
     parser.add_argument("-n", "--n_iterations", help="Number of densities to be simulated", type=int, default=10000)
     parser.add_argument("-a", "--alpha_level", help="Significant threshold for the p-value of res and gene", type=float, default=0.05)
-    parser.add_argument("-H", "--hits_only", help="if 1 returns only positions in clusters, if 0 returns all", type=int, default=1)
+    parser.add_argument("-H", "--hits_only", help="if 1 returns only positions in clusters, if 0 returns all", type=int, default=0)
     
     parser.add_argument("-t", "--cancer_type", help="Cancer type", type=str)
     parser.add_argument("-C", "--cohort_name", help="Name of the cohort", type=str)
@@ -93,12 +99,12 @@ def main():
         cmap_path = f"{dir_path}/../datasets/cmaps/"
     if seq_df_path is None:
         seq_df_path = f"{dir_path}/../datasets/seq_for_mut_prob.csv"
-    if cohort is None:
-        cohort = np.nan
     if cancer_type is None:
+        cancer_type = np.nan
+    if cohort is None:
         date = datetime.now()
         date.strftime("%m-%d-%Y_%H-%M-%S")
-        cancer_type = f"cohort_{date}"
+        cohort = f"cohort_{date}"
 
     print(f"Starting 3D-clustering [{version}]..\n")
     print(f"Path to contact maps: {cmap_path}")
@@ -130,7 +136,7 @@ def main():
     genes_no_mut = genes[genes < 2].index
     result_gene = pd.DataFrame({"Gene" : genes_no_mut,
                                 "Uniprot_ID" : np.nan,
-                                "AF_F" : np.nan,
+                                "F" : np.nan,
                                 "Mut_in_gene" : 1,
                                 "Max_mut_pos" : np.nan,
                                 "Structure_max_pos" : np.nan,
@@ -144,7 +150,7 @@ def main():
     genes_no_mapping = genes[[gene in genes_mut and gene not in gene_to_uniprot_dict.keys() for gene in genes.index]]
     result_gene = pd.DataFrame({"Gene" : genes_no_mapping.index,
                                 "Uniprot_ID" : np.nan,
-                                "AF_F" : np.nan,
+                                "F" : np.nan,
                                 "Mut_in_gene" : genes_no_mapping.values,
                                 "Max_mut_pos" : np.nan,
                                 "Structure_max_pos" : np.nan,
@@ -188,7 +194,7 @@ def main():
             except:                                                     # >>>> Should raise a better exception to capture a more specific error
                 result_gene = pd.DataFrame({"Gene" : gene,
                                             "Uniprot_ID" : uniprot_id,
-                                            "AF_F" : np.nan,
+                                            "F" : np.nan,
                                             "Mut_in_gene" : np.nan,
                                             "Max_mut_pos" : np.nan,
                                             "Structure_max_pos" : np.nan,
@@ -215,7 +221,7 @@ def main():
             except:
                 result_gene = pd.DataFrame({"Gene" : gene,
                                             "Uniprot_ID" : uniprot_id,
-                                            "AF_F" : np.nan,
+                                            "F" : np.nan,
                                             "Mut_in_gene" : np.nan,
                                             "Max_mut_pos" : np.nan,
                                             "Structure_max_pos" : np.nan,
@@ -234,7 +240,7 @@ def main():
         print(f"Did not processed any genes\n")
         result_gene = add_nan_clust_cols(result_gene).drop(columns = ["Max_mut_pos", "Structure_max_pos"])
         result_gene.to_csv(f"{output_dir}/{cohort}.3d_clustering_genes.csv", index=False)
-
+        
     else:
         result_pos = pd.concat(result_pos_lst)
         result_pos["Cancer"] = cancer_type
@@ -243,7 +249,7 @@ def main():
 
         # Get gene global pval, qval, and clustering annotations
         result_gene = get_final_gene_result(result_pos, result_gene, alpha)
-        result_gene = result_gene.drop(columns = ["Max_mut_pos", "Structure_max_pos"]) # comment out if willing to look at isoforms incongruence
+        result_gene = result_gene.drop(columns = ["Max_mut_pos", "Structure_max_pos"]) 
         result_gene.to_csv(f"{output_dir}/{cohort}.3d_clustering_genes.csv", index=False)
 
 
