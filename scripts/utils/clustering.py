@@ -8,8 +8,7 @@ import pandas as pd
 import networkx.algorithms.community as nx_comm
 from utils.score_and_simulations import get_anomaly_score, get_sim_anomaly_score
 from utils.communities import get_network, get_community_index_nx
-from utils.utils import get_pos_fragments
-from scipy.stats import iqr                                                                       #############################
+from utils.utils import get_pos_fragments, get_samples_info, add_samples_info
 
 
 def clustering_3d(gene, 
@@ -64,7 +63,7 @@ def clustering_3d(gene,
                                    "Structure_max_pos" : np.nan,
                                    "Status" : np.nan}, 
                                     index=[1])
-    
+
     # Load cmap
     cmap_complete_path = f"{cmap_path}/{uniprot_id}-F{fragment}.npy"
     if os.path.isfile(cmap_complete_path):
@@ -80,6 +79,10 @@ def clustering_3d(gene,
         result_gene_df["Status"] = "Mut_not_in_structure"
         return None, result_gene_df
 
+
+    # Samples info
+    tot_samples, samples_in_vol = get_samples_info(mut_gene_df, cmap)
+    
 
     ## Get expected local myssense mutation density
 
@@ -165,6 +168,8 @@ def clustering_3d(gene,
     result_pos_df.insert(1, "Uniprot_ID", uniprot_id)
     result_pos_df.insert(2, "F", fragment)
     result_pos_df.insert(4, "Mut_in_gene", mut_count)
+    if len(pos_hits) > 0:
+        result_pos_df = add_samples_info(mut_gene_df, result_pos_df, samples_in_vol, tot_samples)
     result_gene_df["Clust_mut"] = clustered_mut
     result_gene_df["Status"] = "Processed"
 

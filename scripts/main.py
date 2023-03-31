@@ -21,10 +21,10 @@ time python3 main.py -i /workspace/projects/clustering_3d/evaluation/datasets/in
 -H 0 -t LGG -C STJUDE_WGS_D_LGG_2018
 
 
-time python3 main.py -i /workspace/projects/clustering_3d/evaluation/datasets/input/maf/ICGC_WGS_NPC_ORCA_IN_2019.in.maf \
+time python3 main.py -i /workspace/projects/clustering_3d/evaluation/datasets/input/maf/ICGC_WXS_AML_LAML_KR_VARSCAN_2019.in.maf \
 -o /workspace/projects/clustering_3d/dev_testing/output/ \
--p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile/ICGC_WGS_NPC_ORCA_IN_2019.mutrate.json \
--H 0 -C ICGC_WGS_NPC_ORCA_IN_2019
+-p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile/ICGC_WXS_AML_LAML_KR_VARSCAN_2019.mutrate.json \
+-H 0 -C ICGC_WXS_AML_LAML_KR_VARSCAN_2019
 
 #################################################################################################
 """
@@ -37,10 +37,10 @@ import pandas as pd
 import os
 from datetime import datetime
 from progressbar import progressbar
-from utils.utils import parse_maf_input
+from utils.utils import parse_maf_input, add_nan_clust_cols, sort_cols
 from utils.miss_mut_prob import mut_rate_vec_to_dict, get_miss_mut_prob_dict
 from utils.clustering import clustering_3d, clustering_3d_frag
-from utils.pvalues import get_final_gene_result, add_nan_clust_cols
+from utils.pvalues import get_final_gene_result
 
 
 def init_parser():
@@ -119,7 +119,9 @@ def main():
     ## Load input and df of DNA sequences
 
     # MAF input
-    data = parse_maf_input(maf_input_path)
+    data = parse_maf_input(maf_input_path, keep_samples_id=True)
+    #data = data[data["Gene"] == "TMPRSS13"] #################################################################
+    data = data[[g in ("TP53", "ZNF615", "ZNF816") for g in data.Gene]]
 
     # Seq df for missense mut prob
     seq_df = pd.read_csv(seq_df_path)
@@ -175,7 +177,7 @@ def main():
         uniprot_id = gene_to_uniprot_dict[gene]   
 
         # If there is a single fragment
-        if seq_df[seq_df["Gene"] == gene].F.max() == 1:      
+        if seq_df[seq_df["Gene"] == gene].F.max() == 1:   
 
             try:
                 pos_result, result_gene = clustering_3d(gene,
@@ -204,7 +206,7 @@ def main():
 
         # If the protein is fragmented
         else:
-            
+        
             try:
                 pos_result, result_gene = clustering_3d_frag(gene, 
                                                             uniprot_id,
@@ -239,6 +241,7 @@ def main():
     if len(result_pos_lst) == 0:
         print(f"Did not processed any genes\n")
         result_gene = add_nan_clust_cols(result_gene).drop(columns = ["Max_mut_pos", "Structure_max_pos"])
+        result_gene = sort_cols(result_gene)
         result_gene.to_csv(f"{output_dir}/{cohort}.3d_clustering_genes.csv", index=False)
         
     else:
@@ -250,8 +253,8 @@ def main():
         # Get gene global pval, qval, and clustering annotations
         result_gene = get_final_gene_result(result_pos, result_gene, alpha)
         result_gene = result_gene.drop(columns = ["Max_mut_pos", "Structure_max_pos"]) 
+        result_gene = sort_cols(result_gene)
         result_gene.to_csv(f"{output_dir}/{cohort}.3d_clustering_genes.csv", index=False)
-
 
 if __name__ == "__main__":
     main()
