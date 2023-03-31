@@ -26,6 +26,11 @@ time python3 main.py -i /workspace/projects/clustering_3d/evaluation/datasets/in
 -p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile/ICGC_WXS_AML_LAML_KR_VARSCAN_2019.mutrate.json \
 -H 0 -C ICGC_WXS_AML_LAML_KR_VARSCAN_2019
 
+time python3 main.py -i /workspace/projects/clustering_3d/evaluation/datasets/input/maf/HARTWIG_WGS_PLMESO_2020.in.maf \
+-o /workspace/projects/clustering_3d/dev_testing/output/ \
+-p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile/HARTWIG_WGS_PLMESO_2020.mutrate.json \
+-H 0 -C HARTWIG_WGS_PLMESO_2020
+
 #################################################################################################
 """
 
@@ -121,7 +126,7 @@ def main():
     # MAF input
     data = parse_maf_input(maf_input_path, keep_samples_id=True)
     #data = data[data["Gene"] == "TMPRSS13"] #################################################################
-    data = data[[g in ("TP53", "ZNF615", "ZNF816") for g in data.Gene]]
+    #data = data[[g in ("TP53", "ZNF615", "ZNF816") for g in data.Gene]]
 
     # Seq df for missense mut prob
     seq_df = pd.read_csv(seq_df_path)
