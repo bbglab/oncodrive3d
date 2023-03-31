@@ -20,7 +20,6 @@ import argparse
 import pandas as pd
 import os
 
-"/home/odove/anaconda3/etc/profile.d/conda.sh"
 
 def init_submit_file(path_qmap_file, 
                      conda_sh_path, 
@@ -37,21 +36,22 @@ def init_submit_file(path_qmap_file,
         file.write(f"conda activate {conda_env_name}\n\n[jobs]\n")
 
 
-def add_job(path_qmap_file, in_maf, in_mut_profile, output, cancer, cohort):
+def add_job(script_dir, path_qmap_file, in_maf, in_mut_profile, output, cancer, cohort):
     """
     Add clustering_3d job to the qmap file.
     """
 
-    command = f"python3 main.py -i {in_maf} -o {output} -p {in_mut_profile} -H 0 -t {cancer} -C {cohort}"
+    command = f"python3 {script_dir}/main.py -i {in_maf} -o {output} -p {in_mut_profile} -H 0 -t {cancer} -C {cohort}"
     with open(path_qmap_file, "a") as file:
         file.write(command + "\n")
-
+        
 
 def init_parser():
     """
     Initialize parser for the main function.
     """
 
+    SCRIPT_PATH = "/workspace/projects/clustering_3d/clustering_3d/scripts"
     COHORTS_PATH = "/workspace/projects/clustering_3d/evaluation/datasets/cohorts.tsv"
     IN_MAF = "/workspace/projects/clustering_3d/evaluation/datasets/input/maf"
     IN_MUT_PROF = "/workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile"
@@ -62,6 +62,8 @@ def init_parser():
     parser.add_argument("-q", "--qmap", help="Path to the qmap file to run jobs in parallel", type=str, required=True) 
     parser.add_argument("-o", "--output", help="Path to the output dir", type=str, required=True) 
 
+    parser.add_argument("-s", "--script_dir", help="Path to dir including the scripts of the tool", type=str, default=SCRIPT_PATH)
+    
     parser.add_argument("-e", "--conda_sh", help="Path to your own conda.sh file", type=str, default=CONDA_SH)
     parser.add_argument("-E", "--conda_env", help="Name of conda environment", type=str, default=CONDA_ENV) 
 
@@ -81,6 +83,7 @@ def main():
     args = init_parser()
     qmap_file = args.qmap
     output = args.output
+    script_dir = args.script_dir
     conda_sh = args.conda_sh
     conda_env = args.conda_env
     memory = args.memory
@@ -107,7 +110,7 @@ def main():
         mut_profile = f"{input_mut_profile}/{cohort}.mutrate.json"
 
         if os.path.isfile(maf) and os.path.isfile(mut_profile):
-            add_job(qmap_file, maf, mut_profile, output, tumor, cohort)
+            add_job(script_dir, qmap_file, maf, mut_profile, output, tumor, cohort)
             i += 1
 
     print(f"{i} jobs added to {qmap_file}")
