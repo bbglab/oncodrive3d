@@ -55,16 +55,19 @@ def get_final_gene_result(result_pos, result_gene, alpha_gene=0.05):
     
     # Sample info and largest density among hits
     # > NB: samples info for fragments will be displayed as they are individual proteins <
+    gene_pvals["Tot_samples"] = result_pos.groupby("Gene").apply(lambda x: x["Tot_samples"].unique()[0]).values
     gene_pvals["Top_samples_in_vol"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].Samples_in_vol)).values
     gene_pvals["Top_samples_in_comm"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].Samples_in_comm)).values
+    gene_pvals["Top_mut_in_comm"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].Mut_in_comm)).values
     gene_pvals["Top_ratio_obs_sim"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].Ratio_obs_sim)).values
     #gene_pvals["Top_diff_obs_sim"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].Diff_obs_sim)).values
     gene_pvals["Top_mut_in_vol"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].Mut_in_vol)).values
     
     # Sort positions and get qval
     gene_pvals = gene_pvals.sort_values(["pval"], ascending=True).reset_index(drop=True)
-    gene_pvals["qval"] = fdr(gene_pvals["pval"])
-
+    not_processed_genes_count = sum(result_gene["Status"] != "Processed")
+    gene_pvals["qval"] = fdr(np.concatenate((gene_pvals["pval"], np.repeat(1, not_processed_genes_count))))[:len(gene_pvals)]
+                     
     # Combine gene-level clustering result, add label, sort genes, add fragment info
     result_gene = gene_pvals.merge(result_gene, on="Gene", how="outer")
     result_gene["C_gene"] = result_gene.apply(lambda x: 1 if x.qval < alpha_gene else 0, axis=1)

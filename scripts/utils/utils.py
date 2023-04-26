@@ -123,17 +123,24 @@ def get_samples_info(mut_gene_df, cmap):
     pos_barcodes = pos_barcodes.reset_index().rename(columns={0 : "Barcode"})
 
     # Get the ratio of unique samples with mut in the vol of each mutated res
-    uniq_pos_barcodes = [len(pos_barcodes[[pos in np.where(cmap[i-1])[0] for pos in pos_barcodes.Pos]].Barcode.explode().unique()) for i in pos_barcodes.Pos]
-    pos_barcodes["Samples_in_vol"] = np.array(uniq_pos_barcodes) / tot_samples
+    uniq_pos_barcodes = [len(pos_barcodes[[pos in np.where(cmap[i-1])[0]+1 for pos in pos_barcodes.Pos]].Barcode.explode().unique()) for i in pos_barcodes.Pos]
+    pos_barcodes["Tot_samples"] = tot_samples        
+    pos_barcodes["Samples_in_vol"] = uniq_pos_barcodes
+    #pos_barcodes["Ratio_samples_in_vol"] = np.array(uniq_pos_barcodes) / tot_samples       
     
-    ## TO DELETE #####################################################################################################
-    # pos_barcodes["Tot_samples"] = tot_samples               
-    # pos_barcodes["# barcodes"] = uniq_pos_barcodes
-    
-    return tot_samples, pos_barcodes
+    return pos_barcodes
 
 
-def add_samples_info(mut_gene_df, result_pos_df, samples_in_vol, tot_samples):
+def get_unique_pos_in_contact(lst_pos, cmap):
+    """
+    Given a list of position and a contact map, return a numpy 
+    array of unique positions in contact with the given ones.
+    """
+    
+    return np.unique(np.concatenate([np.where(cmap[pos-1])[0] for pos in lst_pos]))
+
+
+def add_samples_info(mut_gene_df, result_pos_df, samples_info, cmap):
     """
     Add information about the ratio of unique samples in the volume of 
     each mutated residues and in each detected community (meta-cluster) 
@@ -141,23 +148,31 @@ def add_samples_info(mut_gene_df, result_pos_df, samples_in_vol, tot_samples):
     """
 
     # Add samples in vol
-    result_pos_df = result_pos_df.merge(samples_in_vol.drop(columns=["Barcode"]), on="Pos", how="outer")
+    result_pos_df = result_pos_df.merge(samples_info.drop(columns=["Barcode"]), on="Pos", how="outer")
     
     # Get per-community ratio of mutated samples
-    community_samples = result_pos_df.groupby("Community").apply(lambda x: 
-        len(mut_gene_df[[pos in x.Pos.values for pos in mut_gene_df.Pos]].Tumor_Sample_Barcode.unique()))
-    community_samples = community_samples / tot_samples
-    community_samples = community_samples.reset_index().rename(columns={0 : "Samples_in_comm"})
-    
-    
-    # ## TOP DDELÒETE À#####################################################################################################
-    # community_samples["# samples comm"] = result_pos_df.groupby("Community").apply(lambda x: 
-    #     len(mut_gene_df[[pos in x.Pos.values for pos in mut_gene_df.Pos]].Tumor_Sample_Barcode.unique()))
-    # community_samples["tot # samples comm"] = tot_samples
-    
-    # Add to residues-level result
-    result_pos_df = result_pos_df.merge(community_samples, on="Community", how="outer")
-    #result_pos_df.insert(6, "Samples_in_vol", result_pos_df.pop("Samples_in_vol"))
+    if result_pos_df["Community"].isna().all():
+        result_pos_df["Samples_in_comm"] = np.nan
+        #result_pos_df["Ratio_samples_in_comm"] = np.nan
+    else:       
+        community_pos = result_pos_df.groupby("Community").apply(lambda x: x.Pos.values)
+        community_mut = community_pos.apply(lambda x: sum([pos in get_unique_pos_in_contact(x, cmap) for pos in mut_gene_df.Pos]))
+        community_samples = community_pos.apply(lambda x: 
+                                        len(mut_gene_df[[pos in get_unique_pos_in_contact(x, cmap) for pos in mut_gene_df.Pos]].Tumor_Sample_Barcode.unique()))
+        #community_samples_ratio = community_samples / samples_info["Tot_samples"].unique()[0]
+        #community_mut_ratio = community_mut / len(mut_gene_df)
+        community_pos_count = community_pos.apply(lambda x: len(x))
+        community_samples = pd.DataFrame({"Samples_in_comm" : community_samples, 
+                                          #"Ratio_samples_in_comm" : community_samples_ratio,
+                                          "Mut_in_comm" : community_mut,
+                                          #"Ratio_mut_in_comm" : community_mut_ratio,
+                                          "Res_in_comm" : community_pos_count})
+        
+        # Add to residues-level result
+        result_pos_df = result_pos_df.merge(community_samples, on="Community", how="outer")
+
+    # Sort positions
+    result_pos_df = result_pos_df.sort_values("Rank").reset_index(drop=True)
     
     return result_pos_df
 
@@ -170,11 +185,10 @@ def add_nan_clust_cols(result_gene):
 
     result_gene = result_gene.copy()
     
-    columns = ["pval", "qval", "C_gene", "C_pos", "C_community",
-               "Top_samples_in_vol", "Top_samples_in_comm", 
-               "Top_ratio_obs_sim", #"Top_diff_obs_sim", 
-               "Clust_mut", "Top_mut_in_vol", "F", 
-               "Mut_in_top_F", "Top_F"]
+    columns = ["pval", "qval", "C_gene", "C_pos", 'C_community', 'Top_ratio_obs_sim', 
+               "Clust_res", 'Clust_mut', 'Top_mut_in_vol', 
+               'Tot_samples', 'Top_samples_in_vol', 'Top_samples_in_comm', 
+               'F', 'Mut_in_top_F', 'Top_F']
     
     for col in columns:
         result_gene[col] = np.nan
@@ -188,10 +202,10 @@ def sort_cols(result_gene):
     """
 
     cols = ['Gene', 'Uniprot_ID', 
-            'pval', 'qval', 'C_gene', 'C_pos', 'C_community',
-            'Top_samples_in_vol', 'Top_samples_in_comm', 
-            'Top_ratio_obs_sim', 'Clust_mut', 'Top_mut_in_vol', 
-            'Mut_in_gene', 'F', 'Mut_in_top_F', 'Top_F', 'Status', 
+            'pval', 'qval', 'C_gene', 'C_pos', 'C_community', 'Top_ratio_obs_sim', "Clust_res",
+            'Mut_in_gene', 'Clust_mut', 'Top_mut_in_vol', 
+            'Tot_samples', 'Top_samples_in_vol', 'Top_samples_in_comm', "Top_mut_in_comm",
+            'F', 'Mut_in_top_F', 'Top_F', 'Status', 
             'Cancer', 'Cohort']
 
     return result_gene[[col for col in cols if col in result_gene.columns]]

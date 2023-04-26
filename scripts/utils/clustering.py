@@ -81,7 +81,7 @@ def clustering_3d(gene,
 
 
     # Samples info
-    tot_samples, samples_in_vol = get_samples_info(mut_gene_df, cmap)
+    samples_info = get_samples_info(mut_gene_df, cmap)
     
 
     ## Get expected local myssense mutation density
@@ -134,13 +134,13 @@ def clustering_3d(gene,
     # Ratio observed and simulated anomaly scores 
     # (used to break the tie in p-values gene sorting)
     result_pos_df["Ratio_obs_sim"] = sim_anomaly.apply(lambda x: result_pos_df["Abs_anomaly"].values[int(x["index"])] / np.mean(x[1:]), axis=1) 
-    result_pos_df["Diff_obs_sim"] = sim_anomaly.apply(lambda x: (result_pos_df["Abs_anomaly"].values[int(x["index"])] - np.mean(x[1:])) / np.std(x[1:]), axis=1)  ##### TO REMOV ONE OF THEM
+    #result_pos_df["Diff_obs_sim"] = sim_anomaly.apply(lambda x: (result_pos_df["Abs_anomaly"].values[int(x["index"])] - np.mean(x[1:])) / np.std(x[1:]), axis=1)  ##### TO REMOV ONE OF THEM
 
     # Empirical p-val
     result_pos_df["pval"] = sim_anomaly.apply(lambda x: sum(x[1:] >= result_pos_df["Abs_anomaly"].values[int(x["index"])]) / len(x[1:]), axis=1)
 
     # Assign hits
-    result_pos_df["C"] = [int(i) for i in result_pos_df["pval"] < alpha]             
+    result_pos_df["C"] = [int(i) for i in result_pos_df["pval"] < alpha]                
 
     
     ## Communities detection
@@ -163,13 +163,14 @@ def clustering_3d(gene,
     
 
     ## Output
-    clustered_mut = sum(count[[i in pos_hits.values for i in count.index]])
+    clustered_mut = sum([pos in np.unique(np.concatenate([np.where(cmap[pos-1])[0]+1 for pos in pos_hits.values])) for pos in mut_gene_df.Pos])
+    result_pos_df["Rank"] = result_pos_df.index
     result_pos_df.insert(0, "Gene", gene)
     result_pos_df.insert(1, "Uniprot_ID", uniprot_id)
     result_pos_df.insert(2, "F", fragment)
     result_pos_df.insert(4, "Mut_in_gene", mut_count)
-    if len(pos_hits) > 0:
-        result_pos_df = add_samples_info(mut_gene_df, result_pos_df, samples_in_vol, tot_samples)
+    result_pos_df = add_samples_info(mut_gene_df, result_pos_df, samples_info, cmap)
+    result_gene_df["Clust_res"] = len(pos_hits)
     result_gene_df["Clust_mut"] = clustered_mut
     result_gene_df["Status"] = "Processed"
 
