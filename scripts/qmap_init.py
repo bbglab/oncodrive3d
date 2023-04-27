@@ -10,7 +10,7 @@ python3 qmap_init.py -q submit.qmap -o /workspace/projects/clustering_3d/evaluat
 
 #### run qmap #########
 
-qmap submit submit_00.qmap --max-running 30
+qmap submit submit.qmap --max-running 30
 
 #######################
 """
@@ -36,12 +36,12 @@ def init_submit_file(path_qmap_file,
         file.write(f"conda activate {conda_env_name}\n\n[jobs]\n")
 
 
-def add_job(script_dir, path_qmap_file, in_maf, in_mut_profile, output, cancer, cohort):
+def add_job(script_dir, path_qmap_file, in_maf, in_mut_profile, output, cancer, cohort, num_iteration):
     """
     Add clustering_3d job to the qmap file.
     """
 
-    command = f"python3 {script_dir}/main.py -i {in_maf} -o {output} -p {in_mut_profile} -H 0 -t {cancer} -C {cohort}"
+    command = f"python3 {script_dir}/main.py -i {in_maf} -o {output} -p {in_mut_profile} -H 0 -t {cancer} -C {cohort} -n {num_iteration}"
     with open(path_qmap_file, "a") as file:
         file.write(command + "\n")
         
@@ -73,6 +73,8 @@ def init_parser():
     parser.add_argument("-M", "--metadata", help="Path to the cohorts.tsv file inlcuding cohorts metadata", type=str, default=COHORTS_PATH) 
     parser.add_argument("-i", "--input_maf", help="Path to the input MAF file", type=str, default=IN_MAF) 
     parser.add_argument("-p", "--input_mut_profile", help="Path to the input mut_profile", type=str, default=IN_MUT_PROF) 
+    
+    parser.add_argument("-n", "--n_iterations", help = "Number of densities to be simulated", type=int, default=10000)
 
     return parser.parse_args()
 
@@ -91,6 +93,7 @@ def main():
     metadata = args.metadata
     input_maf = args.input_maf
     input_mut_profile = args.input_mut_profile
+    num_iteration = args.n_iterations
 
     # Create output folder if needed
     if not os.path.exists(output):
@@ -110,7 +113,7 @@ def main():
         mut_profile = f"{input_mut_profile}/{cohort}.mutrate.json"
 
         if os.path.isfile(maf) and os.path.isfile(mut_profile):
-            add_job(script_dir, qmap_file, maf, mut_profile, output, tumor, cohort)
+            add_job(script_dir, qmap_file, maf, mut_profile, output, tumor, cohort, num_iteration)
             i += 1
 
     print(f"{i} jobs added to {qmap_file}")
