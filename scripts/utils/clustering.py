@@ -121,8 +121,8 @@ def clustering_3d(gene,
     # Get ranked observed score (loglik+_LFC) 
     no_mut_pos = len(result_pos_df)
     sim_anomaly = sim_anomaly.iloc[:no_mut_pos,:].reset_index()
-    result_pos_df["Abs_anomaly"] = get_anomaly_score(result_pos_df["Mut_in_vol"], mut_count, vol_missense_mut_prob[result_pos_df["Pos"]-1])
-    result_pos_df = result_pos_df.sort_values("Abs_anomaly", ascending=False).reset_index(drop=True)
+    result_pos_df["Obs_anomaly"] = get_anomaly_score(result_pos_df["Mut_in_vol"], mut_count, vol_missense_mut_prob[result_pos_df["Pos"]-1])
+    result_pos_df = result_pos_df.sort_values("Obs_anomaly", ascending=False).reset_index(drop=True)
 
 
     ## Compute p-val and assign hits
@@ -133,11 +133,11 @@ def clustering_3d(gene,
 
     # Ratio observed and simulated anomaly scores 
     # (used to break the tie in p-values gene sorting)
-    result_pos_df["Ratio_obs_sim"] = sim_anomaly.apply(lambda x: result_pos_df["Abs_anomaly"].values[int(x["index"])] / np.mean(x[1:]), axis=1) 
-    #result_pos_df["Diff_obs_sim"] = sim_anomaly.apply(lambda x: (result_pos_df["Abs_anomaly"].values[int(x["index"])] - np.mean(x[1:])) / np.std(x[1:]), axis=1)  ##### TO REMOV ONE OF THEM
+    result_pos_df["Ratio_obs_sim"] = sim_anomaly.apply(lambda x: result_pos_df["Obs_anomaly"].values[int(x["index"])] / np.mean(x[1:]), axis=1) 
+    #result_pos_df["Diff_obs_sim"] = sim_anomaly.apply(lambda x: (result_pos_df["Obs_anomaly"].values[int(x["index"])] - np.mean(x[1:])) / np.std(x[1:]), axis=1)  ##### TO REMOV ONE OF THEM
 
     # Empirical p-val
-    result_pos_df["pval"] = sim_anomaly.apply(lambda x: sum(x[1:] >= result_pos_df["Abs_anomaly"].values[int(x["index"])]) / len(x[1:]), axis=1)
+    result_pos_df["pval"] = sim_anomaly.apply(lambda x: sum(x[1:] >= result_pos_df["Obs_anomaly"].values[int(x["index"])]) / len(x[1:]), axis=1)
 
     # Assign hits
     result_pos_df["C"] = [int(i) for i in result_pos_df["pval"] < alpha]                
