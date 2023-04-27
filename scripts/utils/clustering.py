@@ -163,7 +163,10 @@ def clustering_3d(gene,
     
 
     ## Output
-    clustered_mut = sum([pos in np.unique(np.concatenate([np.where(cmap[pos-1])[0]+1 for pos in pos_hits.values])) for pos in mut_gene_df.Pos])
+    if len(pos_hits) > 0:
+        clustered_mut = sum([pos in np.unique(np.concatenate([np.where(cmap[pos-1])[0]+1 for pos in pos_hits.values])) for pos in mut_gene_df.Pos])
+    else:
+        clustered_mut = 0
     result_pos_df["Rank"] = result_pos_df.index
     result_pos_df.insert(0, "Gene", gene)
     result_pos_df.insert(1, "Uniprot_ID", uniprot_id)
