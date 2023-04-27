@@ -137,7 +137,7 @@ def get_unique_pos_in_contact(lst_pos, cmap):
     array of unique positions in contact with the given ones.
     """
     
-    return np.unique(np.concatenate([np.where(cmap[pos-1])[0] for pos in lst_pos]))
+    return np.unique(np.concatenate([np.where(cmap[pos-1])[0]+1 for pos in lst_pos]))
 
 
 def add_samples_info(mut_gene_df, result_pos_df, samples_info, cmap):
