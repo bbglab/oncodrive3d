@@ -58,24 +58,30 @@ def init_parser():
     Initialize parser for the main function.
     """
 
-    # Parser
+    ## Parser
     parser = argparse.ArgumentParser()
-    group = parser.add_mutually_exclusive_group(required=True)
 
+    # Required input
     parser.add_argument("-i", "--input_maf", help = "Path of the maf file used as input", type=str, required=True)
-    parser.add_argument("-o", "--output_dir", help = "Path to output directory", type=str, required=True)
-
+    group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("-p", "--mut_profile", help = "Path to the mut profile (list of 96 floats) of the cohort (json)", type=str)
-    group.add_argument("-P", "--miss_mut_prob", help = "Path to the dict of missense mut prob of each protein based on mut profile of the cohort (json)",  type=str)
+    group.add_argument("-P", "--miss_mut_prob", help = "Path to the dict of missense mut prob of each protein based on mut profile of the cohort (json)",  type=str)   ### <<< Probably unnecessary >>>
     
+    # Required output
+    parser.add_argument("-o", "--output_dir", help = "Path to output directory", type=str, required=True)
+    
+    # Precomputed files input
     parser.add_argument("-s", "--seq_df", help = "Path to the dataframe including DNA and protein seq of all gene/proteins (all AF predicted ones)", type=str)       
     parser.add_argument("-c", "--cmap_path", help = "Path to the directory containting the contact map of each protein", type=str)
 
+    # Parameters
     parser.add_argument("-n", "--n_iterations", help = "Number of densities to be simulated", type=int, default=10000)
     parser.add_argument("-a", "--alpha_level", help = "Significant threshold for the p-value of res and gene", type=float, default=0.01)
-    parser.add_argument("-H", "--hits_only", help = "if 1 returns only positions in clusters, if 0 returns all", type=int, default=0)
+    parser.add_argument("-H", "--hits_only", help = "If 1 returns only positions in clusters, if 0 returns all", type=int, default=0)
+    parser.add_argument("-e", "--ext_hits", help = "Extend hits to mutated neighbours whose abserved anomaly is larger than the rank average simulated one", type=int, default=1)
     parser.add_argument("-f", "--fragments", help = "Enable processing of fragmented proteins (AF-F)", type=int, default=0)
     
+    # Metadata annotation
     parser.add_argument("-t", "--cancer_type", help = "Cancer type", type=str)
     parser.add_argument("-C", "--cohort_name", help = "Name of the cohort", type=str)
 
@@ -88,7 +94,7 @@ def main():
     """
 
     ## Initialize
-    version = "2023_v1.3"    # LAST CHANGE: FIXED samples and mut in community
+    version = "2023_v1.3"    # LAST CHANGE: ADD extend hits
 
     # Parser
     args = init_parser()
@@ -105,6 +111,7 @@ def main():
     alpha = args.alpha_level
     hits_only = args.hits_only
     fragments = args.fragments
+    ext_hits = args.ext_hits
 
     dir_path = os.path.abspath(os.path.dirname(__file__))
     if cmap_path is None:
@@ -132,9 +139,9 @@ def main():
 
     # MAF input
     data = parse_maf_input(maf_input_path, keep_samples_id=True)
-    # data = data[data["Gene"] == "TP53"] #################################################################
+    #data = data[data["Gene"] == "TP53"] #################################################################
     
-    # data = data[[g in ("TP53", "ZNF615") for g in data.Gene]]
+    data = data[[g in ("TP53", "CDKN2A") for g in data.Gene]]
     # data = data[[g in ("TP53", "ZNF615", "ZNF816", "COL6A3", "TTN", "ARMC4", "C10orf71", "ATP5MF-PTCD1", "NRAF", "BRAF",
     #                    'ABCA2', 'ABCC11', 'ACCS', 'BAP1', 'BTBD3', "ATM", "APOB", "FLNB", "PNMA8A", "AANAT") for g in data.Gene]]
 
@@ -222,7 +229,8 @@ def main():
                                                         fragment=1,
                                                         alpha=alpha,
                                                         num_iteration=num_iteration,
-                                                        hits_only=hits_only)
+                                                        hits_only=hits_only,
+                                                        ext_hits=ext_hits)
                 result_gene_lst.append(result_gene)
                 if pos_result is not None:
                     result_pos_lst.append(pos_result)
@@ -250,7 +258,8 @@ def main():
                                                             miss_prob_dict,
                                                             alpha=alpha,
                                                             num_iteration=num_iteration,
-                                                            hits_only=hits_only)
+                                                            hits_only=hits_only,
+                                                            ext_hits=ext_hits)
                 result_gene_lst.append(result_gene)
                 if pos_result is not None:
                     result_pos_lst.append(pos_result)

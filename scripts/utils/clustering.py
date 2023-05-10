@@ -19,7 +19,8 @@ def clustering_3d(gene,
                    fragment=1,
                    alpha=0.01,
                    num_iteration=10000,
-                   hits_only=True):
+                   hits_only=True,
+                   ext_hits=True):
     """
     Compute local density of missense mutations for a sphere of 10A around          
     each amino acid position of the selected gene product. It performed a 
@@ -142,12 +143,24 @@ def clustering_3d(gene,
     result_pos_df["pval"] = sim_anomaly.apply(lambda x: sum(x[1:] >= result_pos_df["Obs_anomaly"].values[int(x["index"])]) / len(x[1:]), axis=1)
 
     # Assign hits
-    result_pos_df["C"] = [int(i) for i in result_pos_df["pval"] < alpha]                
+    result_pos_df["C"] = [int(i) for i in result_pos_df["pval"] < alpha]              
+    
+    # Select extended significant hits
+    pos_hits = result_pos_df[result_pos_df["C"] == 1].Pos
+    if ext_hits:
+        neigh_pos_hits = list(set([pos for p in pos_hits.values for pos in list(np.where(cmap[p - 1])[0] + 1)]))
+        pos_hits_extended = [pos for pos in result_pos_df.Pos if pos in neigh_pos_hits]
+        #result_pos_df["C_ext"] = 0                                    ########################################################################################
+        result_pos_df["C_ext"] = result_pos_df.apply(lambda x: 1 if (x["C"] == 0) & (x["Pos"] in pos_hits_extended) & (x["Ratio_obs_sim"] > 1) 
+                                                     else 0 if (x["C"] == 1) else np.nan, axis=1)
+        #result_pos_df.loc[([p in pos_hits_extended for p in result_pos_df["Pos"]]) & (result_pos_df["Ratio_obs_sim"] > 1) & (result_pos_df["C"] == 0), "C_ext"] = 1 ########################################################################################
+        result_pos_df["C"] = result_pos_df.apply(lambda x: 1 if (x["C"] == 1) | (x["C_ext"] == 1) else 0, axis=1)
+        pos_hits = result_pos_df[result_pos_df["C"] == 1].Pos  
 
     
     ## Communities detection
     
-    pos_hits = result_pos_df[result_pos_df["C"] == 1].Pos
+    #pos_hits = result_pos_df[result_pos_df["C"] == 1].Pos               ########################################################################################
     if len(pos_hits) > 0:
         if len(pos_hits) > 1:
             # Build network and perform detection
@@ -187,13 +200,14 @@ def clustering_3d(gene,
 
 
 def clustering_3d_frag(gene,                           ######################## REQUIRE CHECK/FIX AFTER OUTPUT ENRICHMENT (sample & mut info, etc)
-                        uniprot_id,
-                        mut_gene_df,
-                        cmap_path,
-                        miss_prob_dict,
-                        alpha,
-                        num_iteration,
-                        hits_only):
+                       uniprot_id,
+                       mut_gene_df,
+                       cmap_path,
+                       miss_prob_dict,
+                       alpha=0.01,
+                       num_iteration=10000,
+                       hits_only=False,
+                       ext_hits=True):
     """"
     Run 3D clustering on fragmented proteins as each fragment 
     is an individual protein. Return a single file for gene-level 
@@ -223,7 +237,8 @@ def clustering_3d_frag(gene,                           ######################## 
                                                     fragment=fragment,
                                                     alpha=alpha,
                                                     num_iteration=num_iteration,
-                                                    hits_only=hits_only)
+                                                    hits_only=hits_only,
+                                                    ext_hits=ext_hits)
 
         if f_pos_result is not None:
 
