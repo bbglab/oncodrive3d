@@ -153,6 +153,8 @@ def add_samples_info(mut_gene_df, result_pos_df, samples_info, cmap):
     # Get per-community ratio of mutated samples
     if result_pos_df["Community"].isna().all():
         result_pos_df["Samples_in_comm"] = np.nan
+        result_pos_df["Mut_in_comm"] = np.nan
+        result_pos_df["Res_in_comm"] = np.nan
         #result_pos_df["Ratio_samples_in_comm"] = np.nan
     else:       
         community_pos = result_pos_df.groupby("Community").apply(lambda x: x.Pos.values)

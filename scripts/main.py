@@ -26,6 +26,11 @@ time python3 main.py -i /workspace/projects/clustering_3d/evaluation/datasets/in
 -p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile/ICGC_WXS_AML_LAML_KR_VARSCAN_2019.mutrate.json \
 -H 0 -C ICGC_WXS_AML_LAML_KR_VARSCAN_2019
 
+time python3 main.py -i /workspace/projects/clustering_3d/evaluation/datasets/input/maf/STJUDE_WGS_D_ALL_2018.in.maf \
+-o /workspace/projects/clustering_3d/dev_testing/output/ \
+-p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile/STJUDE_WGS_D_ALL_2018.mutrate.json \
+-H 0 -C STJUDE_WGS_D_ALL_2018
+
 time python3 main.py -i /workspace/projects/clustering_3d/evaluation/datasets/input/maf/HARTWIG_WGS_PLMESO_2020.in.maf \
 -o /workspace/projects/clustering_3d/dev_testing/output/ \
 -p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile/HARTWIG_WGS_PLMESO_2020.mutrate.json \
@@ -83,7 +88,7 @@ def main():
     """
 
     ## Initialize
-    version = "2023_v1.3"    # LAST CHANGE: obtain HUGO mapping from seq_df
+    version = "2023_v1.3"    # LAST CHANGE: FIXED samples and mut in community
 
     # Parser
     args = init_parser()
@@ -127,10 +132,9 @@ def main():
 
     # MAF input
     data = parse_maf_input(maf_input_path, keep_samples_id=True)
-    #data = data[data["Gene"] == "TP53"] #################################################################
+    # data = data[data["Gene"] == "TP53"] #################################################################
     
-    #data = data[[g in ("TP53", "ZNF615") for g in data.Gene]]
-    
+    # data = data[[g in ("TP53", "ZNF615") for g in data.Gene]]
     # data = data[[g in ("TP53", "ZNF615", "ZNF816", "COL6A3", "TTN", "ARMC4", "C10orf71", "ATP5MF-PTCD1", "NRAF", "BRAF",
     #                    'ABCA2', 'ABCC11', 'ACCS', 'BAP1', 'BTBD3', "ATM", "APOB", "FLNB", "PNMA8A", "AANAT") for g in data.Gene]]
 
@@ -222,9 +226,9 @@ def main():
                 result_gene_lst.append(result_gene)
                 if pos_result is not None:
                     result_pos_lst.append(pos_result)
-            #        print("\nAFTER CLUST3D\n", pos_result) ############################################################################################################################################
                                                               
-            except:                                                     # >>>> Should raise a better exception to capture a more specific error
+            except:                                                     # >>>> Should raise a better exception to capture a more specific error                
+                
                 result_gene = pd.DataFrame({"Gene" : gene,
                                             "Uniprot_ID" : uniprot_id,
                                             "F" : np.nan,
@@ -273,6 +277,8 @@ def main():
         print(f"Did not processed any genes\n")
         result_gene = add_nan_clust_cols(result_gene).drop(columns = ["Max_mut_pos", "Structure_max_pos"])
         result_gene = sort_cols(result_gene)
+        if fragments == False:
+            result_gene = result_gene.drop(columns=[col for col in ["F", "Mut_in_top_F", "Top_F"] if col in result_gene.columns])
         result_gene.to_csv(f"{output_dir}/{cohort}.3d_clustering_genes.csv", index=False)
         
     else:
@@ -280,17 +286,16 @@ def main():
         result_pos["Cancer"] = cancer_type
         result_pos["Cohort"] = cohort
         result_pos.to_csv(f"{output_dir}/{cohort}.3d_clustering_pos.csv", index=False)
-        # print("\n >> Wanted Genes>\n", result_gene)        #############################################################################################################################
-        print("\n >> Wanted Pos>\n", result_pos.drop(columns=["Cancer", "Cohort"]))           #############################################################################################################################
+        # print("\n >> Wanted Pos>\n", result_pos.drop(columns=["Cancer", "Cohort"]))           #############################################################################################################################
 
         # Get gene global pval, qval, and clustering annotations
         result_gene = get_final_gene_result(result_pos, result_gene, alpha)
         result_gene = result_gene.drop(columns = ["Max_mut_pos", "Structure_max_pos"]) 
         result_gene = sort_cols(result_gene) 
         if fragments == False:
-            result_gene = result_gene.drop(columns=["F", "Mut_in_top_F", "Top_F"])
+            result_gene = result_gene.drop(columns=[col for col in ["F", "Mut_in_top_F", "Top_F"] if col in result_gene.columns])
         result_gene.to_csv(f"{output_dir}/{cohort}.3d_clustering_genes.csv", index=False)
-        print("\n >> Wanted Genes>\n", result_gene.drop(columns=["Uniprot_ID", "C_pos", "C_community", "Cancer", "Cohort"]))        #############################################################################################################################
+        # print("\n >> Wanted Genes>\n", result_gene.drop(columns=["Uniprot_ID", "C_pos", "C_community", "Cancer", "Cohort"]))        #############################################################################################################################
 
 if __name__ == "__main__":
     main()
