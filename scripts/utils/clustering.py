@@ -122,6 +122,8 @@ def clustering_3d(gene,
     no_mut_pos = len(result_pos_df)
     sim_anomaly = sim_anomaly.iloc[:no_mut_pos,:].reset_index()
     result_pos_df["Obs_anomaly"] = get_anomaly_score(result_pos_df["Mut_in_vol"], mut_count, vol_missense_mut_prob[result_pos_df["Pos"]-1])
+    mut_in_res = count.reset_index().rename(columns = {"Pos" : "Mut_in_res", "index" : "Pos"})       # (unnecessary but can be informative)
+    result_pos_df = mut_in_res.merge(result_pos_df, on = "Pos", how = "outer")                       #     "        "        "        "     
     result_pos_df = result_pos_df.sort_values("Obs_anomaly", ascending=False).reset_index(drop=True)
 
 
@@ -184,7 +186,7 @@ def clustering_3d(gene,
     return result_pos_df, result_gene_df
 
 
-def clustering_3d_frag(gene, 
+def clustering_3d_frag(gene,                           ######################## REQUIRE CHECK/FIX AFTER OUTPUT ENRICHMENT (sample & mut info, etc)
                         uniprot_id,
                         mut_gene_df,
                         cmap_path,
