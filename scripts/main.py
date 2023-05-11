@@ -73,6 +73,7 @@ def init_parser():
     # Precomputed files input
     parser.add_argument("-s", "--seq_df", help = "Path to the dataframe including DNA and protein seq of all gene/proteins (all AF predicted ones)", type=str)       
     parser.add_argument("-c", "--cmap_path", help = "Path to the directory containting the contact map of each protein", type=str)
+    parser.add_argument("-d", "--plddt_path", help = "Path to the pandas dataframe including the AF model confidence of all proteins", type=str)
 
     # Parameters
     parser.add_argument("-n", "--n_iterations", help = "Number of densities to be simulated", type=int, default=10000)
@@ -112,8 +113,11 @@ def main():
     hits_only = args.hits_only
     fragments = args.fragments
     ext_hits = args.ext_hits
+    plddt_path = args.plddt_path
 
     dir_path = os.path.abspath(os.path.dirname(__file__))
+    if plddt_path is None:
+        plddt_path = "/workspace/projects/alphafold_features/feature_extraction/model_confidence/confidence_df_all_prot.csv"
     if cmap_path is None:
         cmap_path = f"{dir_path}/../datasets/cmaps/"
     if seq_df_path is None:
@@ -147,6 +151,9 @@ def main():
 
     # Seq df for missense mut prob
     seq_df = pd.read_csv(seq_df_path)
+    
+    # Model confidence
+    plddt_df = pd.read_csv(plddt_path)
 
 
     ## Run
@@ -215,7 +222,11 @@ def main():
     print("Performing 3D clustering..")
     for gene in progressbar(genes_to_process):
         mut_gene_df = data[data["Gene"] == gene]
-        uniprot_id = gene_to_uniprot_dict[gene]   
+        uniprot_id = gene_to_uniprot_dict[gene]
+        
+        # Add confidence to mut_gene_df
+        plddt_df_gene_df = plddt_df[plddt_df["Uniprot_ID"] == uniprot_id]
+        mut_gene_df = mut_gene_df.merge(plddt_df_gene_df, on = ["Pos"], how = "left")
 
         # If there is a single fragment
         if seq_df[seq_df["Gene"] == gene].F.max() == 1:   
@@ -298,6 +309,8 @@ def main():
         # print("\n >> Wanted Pos>\n", result_pos.drop(columns=["Cancer", "Cohort"]))           #############################################################################################################################
 
         # Get gene global pval, qval, and clustering annotations
+        #print(result_pos.head()) #######################à##############################################
+        #print(result_pos.columns) ###################################################################################################################
         result_gene = get_final_gene_result(result_pos, result_gene, alpha)
         result_gene = result_gene.drop(columns = ["Max_mut_pos", "Structure_max_pos"]) 
         result_gene = sort_cols(result_gene) 

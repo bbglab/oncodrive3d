@@ -55,6 +55,7 @@ def clustering_3d(gene,
     """
     
     ## Initialize
+
     mut_count = len(mut_gene_df)
     result_gene_df = pd.DataFrame({"Gene" : gene,
                                    "Uniprot_ID" : uniprot_id,
@@ -182,7 +183,7 @@ def clustering_3d(gene,
     result_pos_df.insert(0, "Gene", gene)
     result_pos_df.insert(1, "Uniprot_ID", uniprot_id)
     result_pos_df.insert(2, "F", fragment)
-    result_pos_df.insert(4, "Mut_in_gene", mut_count)
+    result_pos_df.insert(4, "Mut_in_gene", mut_count)    
     result_pos_df = add_samples_info(mut_gene_df, result_pos_df, samples_info, cmap)
     result_gene_df["Clust_res"] = len(pos_hits)
     result_gene_df["Clust_mut"] = clustered_mut

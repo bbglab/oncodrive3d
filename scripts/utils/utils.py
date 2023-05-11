@@ -38,7 +38,8 @@ def parse_cluster_output(out_cluster_path):
     
     # Select only necessary info and rename to match the input file
     cluster = pd.read_csv(out_cluster_path, sep="\t")
-    cluster = cluster.copy().rename(columns={"CRAVAT Res" : "Pos"})[["Pos", "Ref AA", "HUGO Symbol", "Min p-value", "q-value"]]
+    cluster = cluster.copy().rename(columns={"CRAVAT Res" : "Pos"})[["Pos", "Ref AA", "HUGO Symbol", 
+                                                                     "Min p-value", "q-value"]]
     cluster = cluster.rename(columns={"HUGO Symbol" : "Gene", "Ref AA" : "WT"})
     
     return cluster
@@ -109,6 +110,17 @@ def uniprot_to_hugo(uniprot_ids=None, hugo_as_keys=False, get_ensembl_id=False):
     return dict_output
 
 
+## Model confidence
+
+def weighted_avg_plddt_vol(target_pos, mut_plddt_df, cmap):
+    """
+    Get the weighted average pLDDT score across residues in 
+    the volume, based on number of mutations hitting each residue.  
+    """
+    
+    return mut_plddt_df[[pos in np.where(cmap[target_pos-1])[0]+1 for pos in mut_plddt_df.Pos]].Confidence.mean()
+
+
 ## Other utils
 
 def get_samples_info(mut_gene_df, cmap):
@@ -123,7 +135,8 @@ def get_samples_info(mut_gene_df, cmap):
     pos_barcodes = pos_barcodes.reset_index().rename(columns={0 : "Barcode"})
 
     # Get the ratio of unique samples with mut in the vol of each mutated res
-    uniq_pos_barcodes = [len(pos_barcodes[[pos in np.where(cmap[i-1])[0]+1 for pos in pos_barcodes.Pos]].Barcode.explode().unique()) for i in pos_barcodes.Pos]
+    uniq_pos_barcodes = [len(pos_barcodes[[pos in np.where(cmap[i-1])[0]+1 for 
+                                           pos in pos_barcodes.Pos]].Barcode.explode().unique()) for i in pos_barcodes.Pos]
     pos_barcodes["Tot_samples"] = tot_samples        
     pos_barcodes["Samples_in_vol"] = uniq_pos_barcodes
     #pos_barcodes["Ratio_samples_in_vol"] = np.array(uniq_pos_barcodes) / tot_samples       
@@ -155,12 +168,18 @@ def add_samples_info(mut_gene_df, result_pos_df, samples_info, cmap):
         result_pos_df["Samples_in_comm_vol"] = np.nan
         result_pos_df["Mut_in_comm_vol"] = np.nan
         result_pos_df["Res_in_comm"] = np.nan
+        result_pos_df["pLDDT_comm_vol"] = np.nan
         #result_pos_df["Ratio_samples_in_comm"] = np.nan
     else:       
         community_pos = result_pos_df.groupby("Community").apply(lambda x: x.Pos.values)
-        community_mut = community_pos.apply(lambda x: sum([pos in get_unique_pos_in_contact(x, cmap) for pos in mut_gene_df.Pos]))
+        community_mut = community_pos.apply(lambda x: sum([pos in get_unique_pos_in_contact(x, cmap) for 
+                                                           pos in mut_gene_df.Pos]))
         community_samples = community_pos.apply(lambda x: 
-                                        len(mut_gene_df[[pos in get_unique_pos_in_contact(x, cmap) for pos in mut_gene_df.Pos]].Tumor_Sample_Barcode.unique()))
+                                        len(mut_gene_df[[pos in get_unique_pos_in_contact(x, cmap) for 
+                                                         pos in mut_gene_df.Pos]].Tumor_Sample_Barcode.unique()))
+        community_plddt = community_pos.apply(lambda x: mut_gene_df.Confidence[[pos in get_unique_pos_in_contact(x, cmap) 
+                                                                             for pos in mut_gene_df.Pos]].mean())
+
         #community_samples_ratio = community_samples / samples_info["Tot_samples"].unique()[0]
         #community_mut_ratio = community_mut / len(mut_gene_df)
         community_pos_count = community_pos.apply(lambda x: len(x))
@@ -168,10 +187,16 @@ def add_samples_info(mut_gene_df, result_pos_df, samples_info, cmap):
                                           #"Ratio_samples_in_comm" : community_samples_ratio,
                                           "Mut_in_comm_vol" : community_mut,
                                           #"Ratio_mut_in_comm" : community_mut_ratio,
-                                          "Res_in_comm" : community_pos_count})
+                                          "Res_in_comm" : community_pos_count,
+                                          "pLDDT_comm_vol" : community_plddt})
         
         # Add to residues-level result
         result_pos_df = result_pos_df.merge(community_samples, on="Community", how="outer")
+        
+    # AF confidence
+    result_pos_df["pLDDT_res"] = result_pos_df.apply(lambda x: mut_gene_df.Confidence[mut_gene_df["Pos"] == x.Pos].values[0], axis=1)
+    result_pos_df["pLDDT_vol"] = result_pos_df.apply(lambda x: weighted_avg_plddt_vol(x["Pos"], mut_gene_df, cmap), axis=1)
+    result_pos_df["pLDDT_comm_vol"] = result_pos_df.pop("pLDDT_comm_vol")
 
     # Sort positions
     result_pos_df = result_pos_df.sort_values("Rank").reset_index(drop=True)
@@ -190,6 +215,7 @@ def add_nan_clust_cols(result_gene):
     columns = ["pval", "qval", "C_gene", "C_pos", 'C_community', 'Ratio_obs_sim_top_vol', 
                "Clust_res", 'Clust_mut', 'Mut_in_top_vol', "Mut_in_top_comm_vol",
                'Tot_samples', 'Samples_in_top_vol', 'Samples_in_top_comm_vol', 
+               "pLDDT_top_vol", "pLDDT_top_comm_vol",
                'F', 'Mut_in_top_F', 'Top_F']
     
     for col in columns:
@@ -207,6 +233,7 @@ def sort_cols(result_gene):
             'pval', 'qval', 'C_gene', 'C_pos', 'C_community', 'Ratio_obs_sim_top_vol', "Clust_res",
             'Mut_in_gene', 'Clust_mut', 'Mut_in_top_vol', "Mut_in_top_comm_vol",
             'Tot_samples', 'Samples_in_top_vol', 'Samples_in_top_comm_vol', 
+            "pLDDT_top_vol", "pLDDT_top_comm_vol",
             'F', 'Mut_in_top_F', 'Top_F', 'Status', 
             'Cancer', 'Cohort']
 
