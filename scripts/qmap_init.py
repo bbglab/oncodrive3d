@@ -2,8 +2,8 @@
 
 #### EXAMPLE USAGE ####
 
-python3 qmap_init.py -q submit.qmap -o /workspace/projects/clustering_3d/evaluation/tool_output/run_27.03.23
-python3 qmap_init.py -q submit.qmap -o /workspace/projects/clustering_3d/evaluation/tool_output/run_23.03.23 \
+python3 qmap_init.py -q submit.qmap -o /workspace/projects/clustering_3d/evaluation/tool_output/run_20230510
+python3 qmap_init.py -q submit.qmap -o /workspace/projects/clustering_3d/evaluation/tool_output/run_20230510 \
 -e /home/odove/anaconda3/etc/profile.d/conda.sh
 
 #######################

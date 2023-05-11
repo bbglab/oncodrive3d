@@ -152,8 +152,8 @@ def add_samples_info(mut_gene_df, result_pos_df, samples_info, cmap):
     
     # Get per-community ratio of mutated samples
     if result_pos_df["Community"].isna().all():
-        result_pos_df["Samples_in_comm"] = np.nan
-        result_pos_df["Mut_in_comm"] = np.nan
+        result_pos_df["Samples_in_comm_vol"] = np.nan
+        result_pos_df["Mut_in_comm_vol"] = np.nan
         result_pos_df["Res_in_comm"] = np.nan
         #result_pos_df["Ratio_samples_in_comm"] = np.nan
     else:       
@@ -164,9 +164,9 @@ def add_samples_info(mut_gene_df, result_pos_df, samples_info, cmap):
         #community_samples_ratio = community_samples / samples_info["Tot_samples"].unique()[0]
         #community_mut_ratio = community_mut / len(mut_gene_df)
         community_pos_count = community_pos.apply(lambda x: len(x))
-        community_samples = pd.DataFrame({"Samples_in_comm" : community_samples, 
+        community_samples = pd.DataFrame({"Samples_in_comm_vol" : community_samples, 
                                           #"Ratio_samples_in_comm" : community_samples_ratio,
-                                          "Mut_in_comm" : community_mut,
+                                          "Mut_in_comm_vol" : community_mut,
                                           #"Ratio_mut_in_comm" : community_mut_ratio,
                                           "Res_in_comm" : community_pos_count})
         
@@ -187,9 +187,9 @@ def add_nan_clust_cols(result_gene):
 
     result_gene = result_gene.copy()
     
-    columns = ["pval", "qval", "C_gene", "C_pos", 'C_community', 'Top_ratio_obs_sim', 
-               "Clust_res", 'Clust_mut', 'Top_mut_in_vol', 
-               'Tot_samples', 'Top_samples_in_vol', 'Top_samples_in_comm', 
+    columns = ["pval", "qval", "C_gene", "C_pos", 'C_community', 'Ratio_obs_sim_top_vol', 
+               "Clust_res", 'Clust_mut', 'Mut_in_top_vol', "Mut_in_top_comm_vol",
+               'Tot_samples', 'Samples_in_top_vol', 'Samples_in_top_comm_vol', 
                'F', 'Mut_in_top_F', 'Top_F']
     
     for col in columns:
@@ -204,9 +204,9 @@ def sort_cols(result_gene):
     """
 
     cols = ['Gene', 'Uniprot_ID', 
-            'pval', 'qval', 'C_gene', 'C_pos', 'C_community', 'Top_ratio_obs_sim', "Clust_res",
-            'Mut_in_gene', 'Clust_mut', 'Top_mut_in_vol', 
-            'Tot_samples', 'Top_samples_in_vol', 'Top_samples_in_comm', "Top_mut_in_comm",
+            'pval', 'qval', 'C_gene', 'C_pos', 'C_community', 'Ratio_obs_sim_top_vol', "Clust_res",
+            'Mut_in_gene', 'Clust_mut', 'Mut_in_top_vol', "Mut_in_top_comm_vol",
+            'Tot_samples', 'Samples_in_top_vol', 'Samples_in_top_comm_vol', 
             'F', 'Mut_in_top_F', 'Top_F', 'Status', 
             'Cancer', 'Cohort']
 

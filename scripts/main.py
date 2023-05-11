@@ -94,7 +94,7 @@ def main():
     """
 
     ## Initialize
-    version = "2023_v1.3"    # LAST CHANGE: ADD extend hits
+    version = "v_2023_05_10"    # LAST CHANGE: ADD extend hits
 
     # Parser
     args = init_parser()
@@ -141,7 +141,7 @@ def main():
     data = parse_maf_input(maf_input_path, keep_samples_id=True)
     #data = data[data["Gene"] == "TP53"] #################################################################
     
-    data = data[[g in ("TP53", "CDKN2A") for g in data.Gene]]
+    #data = data[[g in ("TP53", "CDKN2A") for g in data.Gene]]
     # data = data[[g in ("TP53", "ZNF615", "ZNF816", "COL6A3", "TTN", "ARMC4", "C10orf71", "ATP5MF-PTCD1", "NRAF", "BRAF",
     #                    'ABCA2', 'ABCC11', 'ACCS', 'BAP1', 'BTBD3', "ATM", "APOB", "FLNB", "PNMA8A", "AANAT") for g in data.Gene]]
 

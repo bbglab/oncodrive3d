@@ -56,12 +56,12 @@ def get_final_gene_result(result_pos, result_gene, alpha_gene=0.05):
     # Sample info and largest density among hits
     # > NB: samples info for fragments will be displayed as they are individual proteins <
     gene_pvals["Tot_samples"] = result_pos.groupby("Gene").apply(lambda x: x["Tot_samples"].unique()[0]).values
-    gene_pvals["Top_samples_in_vol"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].Samples_in_vol)).values
-    gene_pvals["Top_samples_in_comm"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].Samples_in_comm)).values
-    gene_pvals["Top_mut_in_comm"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].Mut_in_comm)).values
-    gene_pvals["Top_ratio_obs_sim"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].Ratio_obs_sim)).values
+    gene_pvals["Samples_in_top_vol"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].Samples_in_vol)).values
+    gene_pvals["Samples_in_top_comm_vol"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].Samples_in_comm_vol)).values
+    gene_pvals["Mut_in_top_comm_vol"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].Mut_in_comm_vol)).values
+    gene_pvals["Ratio_obs_sim_top_vol"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].Ratio_obs_sim)).values
     #gene_pvals["Top_diff_obs_sim"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].Diff_obs_sim)).values
-    gene_pvals["Top_mut_in_vol"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].Mut_in_vol)).values
+    gene_pvals["Mut_in_top_vol"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].Mut_in_vol)).values
     
     # Sort positions and get qval
     gene_pvals = gene_pvals.sort_values(["pval"], ascending=True).reset_index(drop=True)
@@ -71,7 +71,7 @@ def get_final_gene_result(result_pos, result_gene, alpha_gene=0.05):
     # Combine gene-level clustering result, add label, sort genes, add fragment info
     result_gene = gene_pvals.merge(result_gene, on="Gene", how="outer")
     result_gene["C_gene"] = result_gene.apply(lambda x: 1 if x.qval < alpha_gene else 0, axis=1)
-    result_gene = result_gene.sort_values(["pval", "Top_ratio_obs_sim"], ascending=[True, False])
+    result_gene = result_gene.sort_values(["pval", "Ratio_obs_sim_top_vol"], ascending=[True, False])
     result_gene = add_frag_info(result_pos, result_gene)
 
     return result_gene
