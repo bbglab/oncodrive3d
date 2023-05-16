@@ -9,7 +9,7 @@ and rank based comparison.
 ###################################### EXAMPLE USAGE ############################################
 
 time python3 main.py -i ../tests/input/HARTWIG_WGS_PANCREAS_2020.in.maf -o ../tests/output/ \
--p ../tests/input/HARTWIG_WGS_PANCREAS_2020.mutrate.json -H 0 -t PANCREAS -C HARTWIG_WGS_PANCREAS_2020
+-p ../tests/input/HARTWIG_WGS_PANCREAS_2020.mutrate.json -H 0 -t PANCREAS -C HARTWIG_WGS_PANCREAS_2020 -e 1
 
 time python3 main.py -i /workspace/projects/clustering_3d/evaluation/datasets/input/maf/ICGC_WXS_HCC_LICA_CN_STRELKA_2019.in.maf \
 -o /workspace/projects/clustering_3d/dev_testing/output/ \
@@ -34,7 +34,24 @@ time python3 main.py -i /workspace/projects/clustering_3d/evaluation/datasets/in
 time python3 main.py -i /workspace/projects/clustering_3d/evaluation/datasets/input/maf/HARTWIG_WGS_PLMESO_2020.in.maf \
 -o /workspace/projects/clustering_3d/dev_testing/output/ \
 -p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile/HARTWIG_WGS_PLMESO_2020.mutrate.json \
--H 0 -C HARTWIG_WGS_PLMESO_2020
+-H 0 -C HARTWIG_WGS_PLMESO_2020 -e 1
+
+time python3 main.py -i /workspace/projects/clustering_3d/evaluation/datasets/input/maf/HARTWIG_WGS_NSCLC_2020.in.maf \
+-o /workspace/projects/clustering_3d/dev_testing/output/ \
+-p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile/HARTWIG_WGS_NSCLC_2020.mutrate.json \
+-H 0 -C HARTWIG_WGS_NSCLC_2020 -e 1
+
+## CH
+
+time python3 main.py -i /workspace/projects/clustering_3d/evaluation/datasets/datasets_ch/input/maf/OTHER_WXS_CH_IMPACT_PANEL.in.maf \
+-o /workspace/projects/clustering_3d/dev_testing/output/ \
+-p /workspace/projects/clustering_3d/evaluation/datasets/datasets_ch/input/mut_profile/OTHER_WXS_CH_IMPACT_PANEL.mutrate.json \
+-H 0 -t CH -C OTHER_WXS_CH_IMPACT_PANEL -e 1
+
+time python3 main.py -i /workspace/projects/clustering_3d/evaluation/datasets/datasets_ch/input/maf/OTHER_WXS_TCGA_FULL.in.maf \
+-o /workspace/projects/clustering_3d/evaluation/tool_output/run_20230512_ch/ \
+-p /workspace/projects/clustering_3d/evaluation/datasets/datasets_ch/input/mut_profile/OTHER_WXS_TCGA_FULL.mutrate.json \
+-H 0 -t CH -C OTHER_WXS_TCGA_FULL -e 1
 
 #################################################################################################
 """
@@ -79,7 +96,9 @@ def init_parser():
     parser.add_argument("-n", "--n_iterations", help = "Number of densities to be simulated", type=int, default=10000)
     parser.add_argument("-a", "--alpha_level", help = "Significant threshold for the p-value of res and gene", type=float, default=0.01)
     parser.add_argument("-H", "--hits_only", help = "If 1 returns only positions in clusters, if 0 returns all", type=int, default=0)
-    parser.add_argument("-e", "--ext_hits", help = "Extend hits to mutated neighbours whose abserved anomaly is larger than the rank average simulated one", type=int, default=1)
+    parser.add_argument("-e", "--ext_hits", 
+                        help = "If 1 extend clusters to all mutated residues in the significant volumes, if 0 extend only to the ones having an anomaly > expected", 
+                        type=int, default=1)
     parser.add_argument("-f", "--fragments", help = "Enable processing of fragmented proteins (AF-F)", type=int, default=0)
     
     # Metadata annotation
@@ -132,8 +151,11 @@ def main():
     print(f"Starting 3D-clustering [{version}]..\n")
     print(f"Path to contact maps: {cmap_path}")
     print(f"Path to DNA sequences: {seq_df_path}")
+    print(f"Path to pLDDT scores: {plddt_path}")
     print(f"Iterations: {num_iteration}")
     print(f"Significant level: {alpha}")
+    print(f"Extend hits: {ext_hits}")
+    print(f"Fragments: {fragments}")
     print(f"Cohort: {cohort}")
     print(f"Cancer type: {cancer_type}")
     print(f"Output directory: {output_dir}")
@@ -145,7 +167,7 @@ def main():
     data = parse_maf_input(maf_input_path, keep_samples_id=True)
     #data = data[data["Gene"] == "TP53"] #################################################################
     
-    #data = data[[g in ("TP53", "CDKN2A") for g in data.Gene]]
+    # data = data[[g in ("TP53", "CDKN2A") for g in data.Gene]]
     # data = data[[g in ("TP53", "ZNF615", "ZNF816", "COL6A3", "TTN", "ARMC4", "C10orf71", "ATP5MF-PTCD1", "NRAF", "BRAF",
     #                    'ABCA2', 'ABCC11', 'ACCS', 'BAP1', 'BTBD3', "ATM", "APOB", "FLNB", "PNMA8A", "AANAT") for g in data.Gene]]
 
@@ -307,7 +329,6 @@ def main():
         result_pos["Cohort"] = cohort
         result_pos.to_csv(f"{output_dir}/{cohort}.3d_clustering_pos.csv", index=False)
         # print("\n >> Wanted Pos>\n", result_pos.drop(columns=["Cancer", "Cohort"]))           #############################################################################################################################
-
         # Get gene global pval, qval, and clustering annotations
         #print(result_pos.head()) #######################à##############################################
         #print(result_pos.columns) ###################################################################################################################

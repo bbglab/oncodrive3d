@@ -149,12 +149,15 @@ def clustering_3d(gene,
     # Select extended significant hits
     pos_hits = result_pos_df[result_pos_df["C"] == 1].Pos
     if ext_hits:
-        neigh_pos_hits = list(set([pos for p in pos_hits.values for pos in list(np.where(cmap[p - 1])[0] + 1)]))
-        pos_hits_extended = [pos for pos in result_pos_df.Pos if pos in neigh_pos_hits]
-        result_pos_df["C_ext"] = result_pos_df.apply(lambda x: 1 if (x["C"] == 0) & (x["Pos"] in pos_hits_extended) & (x["Ratio_obs_sim"] > 1) 
-                                                     else 0 if (x["C"] == 1) else np.nan, axis=1)
-        result_pos_df["C"] = result_pos_df.apply(lambda x: 1 if (x["C"] == 1) | (x["C_ext"] == 1) else 0, axis=1)
-        pos_hits = result_pos_df[result_pos_df["C"] == 1].Pos  
+        anomaly_ratio_th = 0
+    else:
+        anomaly_ratio_th = 1
+    neigh_pos_hits = list(set([pos for p in pos_hits.values for pos in list(np.where(cmap[p - 1])[0] + 1)]))
+    pos_hits_extended = [pos for pos in result_pos_df.Pos if pos in neigh_pos_hits]
+    result_pos_df["C_ext"] = result_pos_df.apply(lambda x: 1 if (x["C"] == 0) & (x["Pos"] in pos_hits_extended) & (x["Ratio_obs_sim"] > anomaly_ratio_th) 
+                                                    else 0 if (x["C"] == 1) else np.nan, axis=1)
+    result_pos_df["C"] = result_pos_df.apply(lambda x: 1 if (x["C"] == 1) | (x["C_ext"] == 1) else 0, axis=1)
+    pos_hits = result_pos_df[result_pos_df["C"] == 1].Pos  
 
     
     ## Communities detection

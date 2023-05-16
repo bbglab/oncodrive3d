@@ -2,7 +2,7 @@
 
 #### EXAMPLE USAGE ####
 
-python3 qmap_init.py -q submit.qmap -o /workspace/projects/clustering_3d/evaluation/tool_output/run_20230510
+python3 qmap_init.py -q submit.qmap -o /workspace/projects/clustering_3d/evaluation/tool_output/run_20230512_all_ext
 python3 qmap_init.py -q submit.qmap -o /workspace/projects/clustering_3d/evaluation/tool_output/run_20230510 \
 -e /home/odove/anaconda3/etc/profile.d/conda.sh
 
@@ -36,12 +36,12 @@ def init_submit_file(path_qmap_file,
         file.write(f"conda activate {conda_env_name}\n\n[jobs]\n")
 
 
-def add_job(script_dir, path_qmap_file, in_maf, in_mut_profile, output, cancer, cohort, num_iteration):
+def add_job(script_dir, path_qmap_file, in_maf, in_mut_profile, output, cancer, cohort, num_iteration, ext_hits):
     """
     Add clustering_3d job to the qmap file.
     """
 
-    command = f"python3 {script_dir}/main.py -i {in_maf} -o {output} -p {in_mut_profile} -H 0 -t {cancer} -C {cohort} -n {num_iteration}"
+    command = f"python3 {script_dir}/main.py -i {in_maf} -o {output} -p {in_mut_profile} -H 0 -t {cancer} -C {cohort} -n {num_iteration} -e {ext_hits}"
     with open(path_qmap_file, "a") as file:
         file.write(command + "\n")
         
@@ -75,6 +75,9 @@ def init_parser():
     parser.add_argument("-p", "--input_mut_profile", help="Path to the input mut_profile", type=str, default=IN_MUT_PROF) 
     
     parser.add_argument("-n", "--n_iterations", help = "Number of densities to be simulated", type=int, default=10000)
+    parser.add_argument("-x", "--ext_hits",
+                        help = "If 1 extend clusters to all mutated residues in the significant volumes, if 0 extend only to the ones having an anomaly > expected", 
+                        type=int, default=1)
 
     return parser.parse_args()
 
@@ -94,6 +97,7 @@ def main():
     input_maf = args.input_maf
     input_mut_profile = args.input_mut_profile
     num_iteration = args.n_iterations
+    ext_hits = args.ext_hits
 
     # Create output folder if needed
     if not os.path.exists(output):
@@ -113,7 +117,7 @@ def main():
         mut_profile = f"{input_mut_profile}/{cohort}.mutrate.json"
 
         if os.path.isfile(maf) and os.path.isfile(mut_profile):
-            add_job(script_dir, qmap_file, maf, mut_profile, output, tumor, cohort, num_iteration)
+            add_job(script_dir, qmap_file, maf, mut_profile, output, tumor, cohort, num_iteration, ext_hits)
             i += 1
 
     print(f"{i} jobs added to {qmap_file}")
