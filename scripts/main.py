@@ -194,7 +194,7 @@ def main():
                                 "Max_mut_pos" : np.nan,
                                 "Structure_max_pos" : np.nan,
                                 "Status" : "No_mut"})
-    result_gene_lst.append(result_gene)     
+    result_gene_lst.append(result_gene)   
 
     # Get genes with corresponding Uniprot-ID mapping
     gene_to_uniprot_dict = {gene : uni_id for gene, uni_id in seq_df[["Gene", "Uniprot_ID"]].drop_duplicates().values}
