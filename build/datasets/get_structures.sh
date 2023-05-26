@@ -1,5 +1,7 @@
 #!/bin/bash
 
+#################################### FIX THE ERROR #######################
+
 # Help message
 function show_help() {
     echo "Usage: ./get_structures.sh [option1] [option2]"
@@ -69,4 +71,3 @@ if [[ "$species" == "mouse" || "$species" == "human" ]]; then
 else
     echo "Invalid species: $species"
 fi
-

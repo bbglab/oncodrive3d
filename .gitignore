@@ -1,6 +1,8 @@
 datasets/cmaps
 datasets/temp
 datasets/pdb_structures*
+datasets_mouse/cmaps
+datasets_mouse/pdb_structures*
 tests/output/*
 !tests/output/.gitkeep
 __pycache__

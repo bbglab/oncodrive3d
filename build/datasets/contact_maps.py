@@ -6,8 +6,7 @@ a single dictionary having UniprotID_F as keys and contact maps as values.
 
 ###################################### EXAMPLE USAGE ###################################################
 
-python3 contact_maps.py -i /workspace/datasets/alphafold_features/AF_homo_sapiens_pred/ \
--o ../../datasets/cmaps/ -c 10
+python3 contact_maps.py -i ../../datasets/pdb_structures/ -o ../../datasets/cmaps/ -c 10
 
 WARNING: requires good amount of memory
 
