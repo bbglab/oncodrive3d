@@ -27,6 +27,7 @@ if [[ -z "$1" || -z "$2" ]]; then
 fi
 
 # Run VEP
+echo "Running VEP.."
 singularity exec /workspace/datasets/vep/mus_musculus/vep102.sif vep --dir /workspace/datasets/vep/ -i $1 --offline --cache -o $2 --species mus_musculus --assembly GRCm38 --fork 8 --symbol --protein --tab --canonical --pick
 # Remove VEP summary
 rm $2"_summary.html"
@@ -40,4 +41,5 @@ cat "$2" | grep -v "^##" > "$temp_file"
 mv "$temp_file" "$2"
 
 # Parse output
+echo "Parsing output.."
 python3 /workspace/projects/clustering_3d/clustering_3d/build/preprocessing/parse_vep_out.py -i $2 -o $2
