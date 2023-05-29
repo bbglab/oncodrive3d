@@ -135,14 +135,12 @@ def main():
     parser.add_argument("-i", "--input", help="Path to directory including PDB structures", type=str, required=True)
     parser.add_argument("-o", "--output_seq_df", help="Output path to save the dataframe including all sequences", type=str, 
                         default="../../datasets/seq_for_mut_prob.csv")                                                       
-    parser.add_argument("-u", "--uniprot_to_gene_dict", help="Path to a dictionary including Uniprot_ID : HUGO symbol mapping", type=str, 
-                        default="../../datasets/af_uniprot_to_gene_id.json")  
+    parser.add_argument("-u", "--uniprot_to_gene_dict", help="Path to a dictionary including Uniprot_ID : HUGO symbol mapping", type=str)  
 
     args = parser.parse_args()
     input = args.input
     uniprot_to_gene_dict = args.uniprot_to_gene_dict
     output_seq_df = args.output_seq_df
-
 
     # Load Uniprot ID to HUGO mapping
     if uniprot_to_gene_dict is not None:
