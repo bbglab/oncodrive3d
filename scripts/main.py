@@ -114,7 +114,7 @@ def main():
     """
 
     ## Initialize
-    version = "v_2023_05_10"    # LAST CHANGE: ADD extend hits
+    version = "v_2023_06_02"    # LAST CHANGE: Enable Mus musculus processing and other organisms
 
     # Parser
     args = init_parser()

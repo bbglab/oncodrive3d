@@ -10,9 +10,10 @@ to get the probability of a certain volume to be hit by a missense mutation.
 
 ###################################### EXAMPLE USAGE ####################################
 
-python3 seq_for_mut_prob.py -i /workspace/datasets/alphafold_features/AF_homo_sapiens_pred/ \
+python3 seq_for_mut_prob.py -i ../../datasets/pdb_structures/ \
 -o ../../datasets/seq_for_mut_prob.csv \
--u ../../datasets/af_uniprot_to_gene_id.json
+-u ../../datasets/af_uniprot_to_gene_id.json \ 
+-s "Mus musculus"
       
 #########################################################################################
 """
@@ -25,6 +26,7 @@ import warnings
 from progressbar import progressbar
 import requests
 import time
+import os
 import re
 from utils import uniprot_to_hugo, get_pdb_path_list_from_dir, get_af_id_from_pdb, get_seq_from_pdb, get_seq_similarity, translate_dna
 
@@ -99,7 +101,7 @@ def backtranseq(protein_seqs, organism = "Homo sapiens"):
     return dna_seq
 
 
-def batch_backtranseq(df, batch_size):
+def batch_backtranseq(df, batch_size, organism = "Homo sapiens"):
     """
     Given a dataframe including protein sequences, it divides the 
     sequences into batches of a given size and run EMBOSS backtranseq 
@@ -117,7 +119,7 @@ def batch_backtranseq(df, batch_size):
         batch_seq = "\n".join(batch.reset_index(drop=True).apply(lambda x: f'>\n{x["Seq"]}', axis=1).values)
 
         # Run backtranseq
-        batch_dna = backtranseq(batch_seq)
+        batch_dna = backtranseq(batch_seq, organism = organism)
 
         # Parse output
         batch_dna = re.split(">EMBOSS_\d+", batch_dna.replace("\n", ""))[1:]
@@ -128,6 +130,32 @@ def batch_backtranseq(df, batch_size):
     return pd.concat(lst_batches)
 
 
+def add_extra_genes_to_seq_df(seq_df, uniprot_to_gene_dict):
+    """
+    If multiple genes are mapping to a given Uniprot_ID, add 
+    each gene name with corresponding sequence info to the seq_df.
+    """
+    
+    lst_extra_genes = []
+
+    for _, seq_row in seq_df.iterrows():
+
+        uni_id = seq_row["Uniprot_ID"]
+        gene_id = uniprot_to_gene_dict[uni_id]
+        if pd.isnull(gene_id) == False:
+
+            gene_id = gene_id.split(" ")
+            if len(gene_id) > 1:
+
+                for gene in gene_id:
+                    if gene != seq_row["Gene"]:
+                        lst_extra_genes.append((gene, seq_row["Uniprot_ID"], seq_row["F"], seq_row["Seq"], seq_row["Seq_dna"]))
+
+    seq_df_extra_genes = pd.DataFrame(lst_extra_genes, columns=["Gene", "Uniprot_ID", "F", "Seq", "Seq_dna"])
+    
+    return pd.concat((seq_df, seq_df_extra_genes))
+
+
 def main():
     
     ## Parser
@@ -136,27 +164,37 @@ def main():
     parser.add_argument("-o", "--output_seq_df", help="Output path to save the dataframe including all sequences", type=str, 
                         default="../../datasets/seq_for_mut_prob.csv")                                                       
     parser.add_argument("-u", "--uniprot_to_gene_dict", help="Path to a dictionary including Uniprot_ID : HUGO symbol mapping", type=str)  
+    parser.add_argument("-s", "--organism", help="Binominal nomenclature of the organism", type=str, default="Homo sapiens") 
 
     args = parser.parse_args()
     input = args.input
     uniprot_to_gene_dict = args.uniprot_to_gene_dict
     output_seq_df = args.output_seq_df
+    organism = args.organism
 
     # Load Uniprot ID to HUGO mapping
     if uniprot_to_gene_dict is not None:
         uniprot_to_gene_dict = json.load(open(uniprot_to_gene_dict)) 
     else:
-        uniprot_to_gene_dict = uniprot_to_hugo()  
+        print("Retrieving Uniprot_ID to Hugo symbol mapping information..")
+        uniprot_ids = os.listdir(input)
+        uniprot_ids = [uni_id.split("-")[1] for uni_id in list(set(uniprot_ids)) if uni_id.endswith(".pdb")]
+        uniprot_to_gene_dict = uniprot_to_hugo(uniprot_ids)  
 
     # Create a dataframe with protein sequences
     print("\nGenerating sequence df..")
     seq_df = get_seq_df_from_dir(input, uniprot_to_gene_dict)
 
     # Annotate df with DNA sequences
-    print("Performing back translation")
-    seq_df = batch_backtranseq(seq_df, 500)
+    print("\nPerforming back translation")
+    seq_df = batch_backtranseq(seq_df, 500, organism=organism)
+    
+    # Add multiple genes mapping to the same Uniprot_ID
+    seq_df = add_extra_genes_to_seq_df(seq_df, uniprot_to_gene_dict)
+    seq_df = seq_df.dropna(subset=["Gene"])
+    
+    # Save and assess similarity
     seq_df.to_csv(output_seq_df, index=False)
-
     sim_ratio = sum(seq_df.apply(lambda x: get_seq_similarity(x.Seq, translate_dna(x.Seq_dna)), axis=1)) / len(seq_df)
     if sim_ratio < 1:                       
         warnings.warn(f"WARNING........... some problems occurred during back translation, protein and translated DNA similarity: {sim_ratio}")

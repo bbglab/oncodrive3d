@@ -196,13 +196,13 @@ def uniprot_to_hudo_df(uniprot_ids):
         time.sleep(1)
         df = load_df_from_url(url)
         if i % 60 == 0:
-            print(f"Waiting for UniprotKB mapping job to produce url.. [waited {i-59}s]")
+            print(f"Waiting for UniprotKB mapping job to produce url..")
         i =+ 1 
         
     return df
 
 
-def hugo_to_uniprot_dict(dict_uniprot_hugo):
+def convert_dict_hugo_to_uniprot(dict_uniprot_hugo):
     """
     Convert a Uniprot IDs to Hugo symbol dictionary to a Hugo symbo to 
     Uniprot IDs dictionary, if multiple Hugo symbols are mapped to the 
@@ -219,7 +219,7 @@ def hugo_to_uniprot_dict(dict_uniprot_hugo):
     return dict_hugo_uniprot
 
 
-def uniprot_to_hugo_dict(uniprot_ids, hugo_as_keys=False):
+def uniprot_to_hugo(uniprot_ids, hugo_as_keys=False):
     """
     Given a list of Uniprot IDs (any species.), request an Id mapping 
     job to UniprotKB to retrieve the corresponding Hugo symbols. 
@@ -244,6 +244,6 @@ def uniprot_to_hugo_dict(uniprot_ids, hugo_as_keys=False):
     
     # Convert to a dictionary of Hugo symbols to Uniprot IDs
     if hugo_as_keys:
-        dictio = hugo_to_uniprot_dict(dictio)
+        dictio = convert_dict_hugo_to_uniprot(dictio)
             
     return dictio
