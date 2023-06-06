@@ -22,7 +22,8 @@ import multiprocessing
 import matplotlib.pyplot as plt
 from Bio.Data.IUPACData import protein_letters_3to1
 from Bio.PDB.PDBParser import PDBParser
-from utils import get_pdb_path_list_from_dir, get_seq_from_pdb, get_af_id_from_pdb
+import warnings
+from utils import get_pdb_path_list_from_dir, get_af_id_from_pdb
 
 
 
@@ -86,9 +87,14 @@ def get_contact_maps(files, output_path, distance=10, verbose=False, num_process
     # Iterate through the files and save contact map
     for n, file in enumerate(files):
         identifier = get_af_id_from_pdb(file)
-        structure = get_structure(file)
-        contact_map = get_contact_map(structure["A"], distance=distance)        
-        np.save(f"{output_path}/{identifier}.npy", contact_map.astype(int))
+        try:
+            structure = get_structure(file)
+            contact_map = get_contact_map(structure["A"], distance=distance)        
+            np.save(f"{output_path}/{identifier}.npy", contact_map.astype(int))
+        except:
+            warnings.warn(f"WARNING........... could not process {identifier}")
+            with open(f"{output_path}/ids_not_processed.txt", 'a+') as file:
+                file.write(identifier + '\n')
 
         # Monitor processing
         if verbose and n % 100 == 0:
@@ -134,7 +140,8 @@ def main():
 
     # Create a pool of processes and compute the cmaps in parallel
     with multiprocessing.Pool(processes = num_cores) as pool:
-        results = pool.starmap(get_contact_maps, [(chunk, output, distance, verbose, n) for n, chunk in enumerate(chunks)])
+        results = pool.starmap(get_contact_maps, [(chunk, output, distance, verbose, n) 
+                                                  for n, chunk in enumerate(chunks)])
 
     print(f"\nIndividual cmaps saved in {output}")
 
