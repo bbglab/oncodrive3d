@@ -231,10 +231,11 @@ def main():
         filename = filename[len(filename)-1]
         filename = filename.split(".json")[0]
 
-        # Load mut profile and convert into dictionary
+        # Load mut profile (mut rate) and convert into dictionary
         with open(path_mut_profile) as json_file:
-            mut_profile = json.load(json_file)
-        mut_rate_dict = mut_rate_vec_to_dict(mut_profile)
+            mut_rate_dict = json.load(json_file)
+        if not isinstance(mut_rate_dict, dict):
+            mut_rate_dict = mut_rate_vec_to_dict(mut_rate_dict)
 
         # Get the per-residue miss mut prob for each protein and add it to a dict
         seq_df = pd.read_csv(path_seq_df)
