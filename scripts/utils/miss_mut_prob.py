@@ -25,41 +25,30 @@ import os
 from progressbar import progressbar
 
 
-def mut_rate_vec_to_dict(mut_rate_vec, v=False):
+def mut_rate_vec_to_dict(mut_rate, v=False):
     """
-    Convert the vector of mut rate to a dictionary:
-    the keys are mutations in trinucleotide context
-    (e.g., "ACA>A") and values are the corresponding 
-    mut rate (frequency of mut normalized for the 
-    nucleotide content).
+    Convert the vector of mut mut_rate of 96 channels to a dictionary of 192 
+    items: the keys are mutations in trinucleotide context (e.g., "ACA>A") 
+    and values are the corresponding mut rate (frequency of mut normalized 
+    for the nucleotide content).
     """
     
-    # Init
     cb  = dict(zip('ACGT', 'TGCA'))
-    redundancy_dict = {"CA" : "GT", 
-                       "CG" : "GC",
-                       "CT" : "GA",
-                       "TA" : "AT", 
-                       "TC" : "AG",
-                       "TG" : "AC"}
+    if v: print("Mut1\tMut2\tN_context\tMut_rate")
     mut_rate_dict = {}
     i = 0
-    if v: print("Mut1\tMut2\tN_context\tMut_rate")
-        
-    # Iterate through the context and add them to a dictionary
     for ref in ['C', 'T']:
         for alt in cb.keys():
             if ref == alt:
                 continue
             else:
                 for p in product(cb.keys(), repeat=2):
-                    ra2 = redundancy_dict[ref+alt]
-                    mut1 = f"{p[0]}{ref}{p[1]}>{alt}"
-                    mut2 = f"{p[0]}{ra2[0]}{p[1]}>{ra2[1]}"
-                    mut_rate_dict[mut1] = mut_rate_vec[i]
-                    mut_rate_dict[mut2] = mut_rate_vec[i]
-                    if v: print(f"{mut1}\t{mut2}\t{i}\t\t{mut_rate_vec[i]}")
-                    i += 1
+                    mut = f"{p[0]}{ref}{p[1]}>{alt}"
+                    cmut = f"{cb[p[1]]}{cb[ref]}{cb[p[0]]}>{cb[alt]}"
+                    mut_rate_dict[mut] = mut_rate[i]
+                    mut_rate_dict[cmut] = mut_rate[i]
+                    if v: print(f"{mut}\t{cmut}\t{i}\t\t{mut_rate[i]}")
+                    i +=1
                     
     return mut_rate_dict
 
