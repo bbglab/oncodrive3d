@@ -171,12 +171,12 @@ def load_df_from_url(url):
     return df
 
 
-def split_lst_into_chunks(lst, chunk_size = 5000):
+def split_lst_into_chunks(lst, batch_size = 5000):
     """
     Simple split a list into list of list of chunk_size elements.
     """
     
-    return [lst[i:i+chunk_size] for i in range(0, len(lst), chunk_size)]
+    return [lst[i:i+batch_size] for i in range(0, len(lst), batch_size)]
 
 
 def uniprot_to_hudo_df(uniprot_ids):
@@ -197,7 +197,7 @@ def uniprot_to_hudo_df(uniprot_ids):
         df = load_df_from_url(url)
         if i % 60 == 0:
             print(f"Waiting for UniprotKB mapping job to produce url..")
-        i =+ 1 
+        i += 1 
         
     return df
 
@@ -219,7 +219,7 @@ def convert_dict_hugo_to_uniprot(dict_uniprot_hugo):
     return dict_hugo_uniprot
 
 
-def uniprot_to_hugo(uniprot_ids, hugo_as_keys=False):
+def uniprot_to_hugo(uniprot_ids, hugo_as_keys=False, batch_size=5000):
     """
     Given a list of Uniprot IDs (any species.), request an Id mapping 
     job to UniprotKB to retrieve the corresponding Hugo symbols. 
@@ -227,18 +227,19 @@ def uniprot_to_hugo(uniprot_ids, hugo_as_keys=False):
     """
     
     # Split uniprot IDs into chunks
-    uniprot_ids_lst = split_lst_into_chunks(uniprot_ids)
+    uniprot_ids_lst = split_lst_into_chunks(uniprot_ids, batch_size)
     
     # Get a dataframe including all IDs mapping info
     df_lst = []
-    for ids in uniprot_ids_lst:
+    for i, ids in enumerate(uniprot_ids_lst):
+        print(f"Batch {i+1}/{len(uniprot_ids_lst)} ({len(ids)} IDs)..")
         df = uniprot_to_hudo_df(ids)
         df_lst.append(df)
     df = pd.concat(df_lst)
 
     # Get a dictionary for Uniprot ID to Hugo symbols
     dictio = {}
-    for i,r in df[["Entry", "Gene Names"]].iterrows():
+    for i, r in df[["Entry", "Gene Names"]].iterrows():
         uni_id, gene = r 
         dictio[uni_id] = gene
     
