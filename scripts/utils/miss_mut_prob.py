@@ -195,7 +195,7 @@ def main():
     ## Parser
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--input", 
-                        help="Input path to the directory including the mutation profile of the cohorts (list of 96 floats corresponding to the trinucleotide context)", 
+                        help="Input path to the directory including the mutation profile of the cohorts (list of 96 floats or dict of 192 items)", 
                         type=str, required=True)
     parser.add_argument("-o", "--output", 
                         help="Output path to save the dictionaries of missense mutation probability of each protein of the cohorts", 

@@ -114,8 +114,7 @@ def main():
     """
 
     ## Initialize
-    version = "v_2023_06_02"    # LAST CHANGE: Enable Mus musculus processing and other organisms
-
+    version = "v_2023_06_08"    # LAST CHANGE: Enable merge of fragmented structures
     # Parser
     args = init_parser()
 
@@ -165,11 +164,6 @@ def main():
 
     # MAF input
     data = parse_maf_input(maf_input_path, keep_samples_id=True)
-    #data = data[data["Gene"] == "TP53"] #################################################################
-    
-    # data = data[[g in ("TP53", "CDKN2A") for g in data.Gene]]
-    # data = data[[g in ("TP53", "ZNF615", "ZNF816", "COL6A3", "TTN", "ARMC4", "C10orf71", "ATP5MF-PTCD1", "NRAF", "BRAF",
-    #                    'ABCA2', 'ABCC11', 'ACCS', 'BAP1', 'BTBD3', "ATM", "APOB", "FLNB", "PNMA8A", "AANAT") for g in data.Gene]]
 
     # Seq df for missense mut prob
     seq_df = pd.read_csv(seq_df_path)
