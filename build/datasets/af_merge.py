@@ -17,6 +17,7 @@ Example: python3 merge_afold_files.py -u A2VEC9 -i example_uncompressed/ -v 4 -o
 '''
 
 import argparse
+from Bio.PDB import Structure
 from Bio.PDB import *
 import gzip
 from os import listdir, sep
