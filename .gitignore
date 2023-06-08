@@ -1,8 +1,8 @@
-datasets/cmaps
-datasets/temp
-datasets/pdb_structures*
-datasets_mouse/cmaps
-datasets_mouse/pdb_structures*
+datasets*/cmaps
+datasets*/temp
+datasets*/pdb_structures*
+datasets*/af_uniprot_to_gene_id.json
+datasets*/seq_for_mut_prob.csv
 tests/output/*
 !tests/output/.gitkeep
 __pycache__

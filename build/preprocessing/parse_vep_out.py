@@ -1,6 +1,12 @@
+""" 
+Run VEP and parse output for the 3D-clustering method.
+"""
+
+
 import pandas as pd
 import numpy as np
 import argparse
+
 
 # Parser
 parser = argparse.ArgumentParser()

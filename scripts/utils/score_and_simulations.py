@@ -34,10 +34,10 @@ def simulate_mutations(n_mutations, p, size):
 
 
 def get_sim_anomaly_score(mut_count, 
-                            cmap,
-                            gene_miss_prob,
-                            vol_missense_mut_prob,
-                            num_iteration=1000):
+                          cmap,
+                          gene_miss_prob,
+                          vol_missense_mut_prob,
+                          num_iteration=1000):
     """
     Simulated mutations following the mutation profile of the cohort.
     Compute the log-likelihood of observing k or more mutation in the 
