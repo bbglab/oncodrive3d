@@ -1,4 +1,7 @@
 """
+
+>>>>>>>>>>>>>>>>> D E P R E C A T E D  <<<<<<<<<<<<<<<<<<
+
 Given a directory including AF predicted structure, it generate a dictionary 
 having Uniprot IDs as keys and HUGO symbols as values. If genes_as_keys equal 1,
 use HUGO symbols as value and Uniprot IDs as keys. If ensebl_id equal 1, use 
@@ -36,6 +39,9 @@ def main():
     genes_as_keys = args.genes_as_keys
 
     print("\nGet dictionary for Uniprot ID to HUGO symbol /+ ENSEMBL ID mapping")
+    
+    print("\n >>>>>>>>>>>> D E P R E C A T E D <<<<<<<<<<<<<<<\n")
+    
     print("\nInput directory:", input)
     print("Output:", output)
     print("Use HUGO symbol as keys:", genes_as_keys)

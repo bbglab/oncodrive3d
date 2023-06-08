@@ -12,6 +12,8 @@ from Bio import SeqIO
 from Bio.Seq import Seq
 
 
+# General utils
+
 def rounded_up_division(num, den):
     """
     Simply round up the result of the division.
@@ -31,6 +33,8 @@ def get_pos_fragments(mut_gene_df):
     
     return pd.cut(mut_gene_df["Pos"], bins, labels = group_names)
 
+
+# PDB
 
 def get_af_id_from_pdb(path_structure):
     """
@@ -79,48 +83,6 @@ def get_seq_similarity(a, b, decimals=3):
 
 
 # Uniprot ID to Hugo symbols mapping
-
-# def uniprot_to_hugo(uniprot_ids=None, hugo_as_keys=False, get_ensembl_id=False):
-#     """
-#     Get human Uniprot IDs to Hugo symbols mapping from www.genenames.org.
-#     Returns a dictionary with UniProt IDs as keys and corresponding HUGO symbols as values.
-#     """
-#     # Download the latest HGNC gene symbols file
-#     url = "https://www.genenames.org/cgi-bin/download/custom?col=gd_app_sym&col=gd_pub_ensembl_id&col=md_prot_id&status=Approved&hgnc_dbtag=on&order_by=gd_app_sym_sort&format=text&submit=submit"
-#     response = requests.get(url)
-#     csv_data = response.content.decode('utf-8')
-    
-#     # Parse the CSV data into a dictionary of UniProt IDs to HUGO symbols
-#     reader = csv.reader(csv_data.splitlines(), delimiter='\t')
-#     next(reader)  # Skip the header row
-#     dict_output = {}
-#     for row in reader:
-#         hugo_symbol, ensembl_id, uniprot_id = row
-#         if uniprot_id and hugo_symbol:
-            
-#             # Get Uniprot ID, HUGO symbol, Ensembl ID
-#             if get_ensembl_id:
-#                 if not ensembl_id:
-#                     ensembl_id = np.nan
-                
-#                 if hugo_as_keys:
-#                     dict_output[hugo_symbol] = uniprot_id, ensembl_id
-#                 else:
-#                     dict_output[uniprot_id] = hugo_symbol, ensembl_id
-                    
-#             # Get Uniprot ID, HUGO symbol
-#             else:   
-#                 if hugo_as_keys:
-#                     dict_output[hugo_symbol] = uniprot_id
-#                 else:
-#                     dict_output[uniprot_id] = hugo_symbol
-    
-#     # Filter the dictionary to only include UniProt IDs that were input
-#     if uniprot_ids is not None and not hugo_as_keys:
-#         dict_output = {k: v for k, v in dict_output.items() if k in uniprot_ids}
-    
-#     return dict_output
-
 
 def get_response_jobid(response):
     """
