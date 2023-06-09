@@ -135,7 +135,7 @@ def main():
 
     dir_path = os.path.abspath(os.path.dirname(__file__))
     if plddt_path is None:
-        plddt_path = "/workspace/projects/alphafold_features/feature_extraction/model_confidence/confidence_df_all_prot.csv"
+        plddt_path = f"{dir_path}/../datasets/confidence.csv"
     if cmap_path is None:
         cmap_path = f"{dir_path}/../datasets/cmaps/"
     if seq_df_path is None:
