@@ -9,15 +9,14 @@ import requests
 
 def parse_maf_input(maf_input_path, keep_samples_id=False):
     """
-    Parse in.maf file which is used as 
-    input for the HotMAPS method.
+    Parse in.maf file which is used as input for the HotMAPS method.
     """
 
     # Load
     maf = pd.read_csv(maf_input_path, sep="\t", dtype={'Chromosome': str})
 
     # Select only missense mutation and extract Gene name and mut
-    maf = maf.loc[maf.Variant_Classification == "Missense_Mutation"].copy()
+    maf = maf[maf['Variant_Classification'].str.contains('missense_variant')]
     maf["Pos"] = maf.loc[:, "HGVSp_Short"].apply(lambda x: int(re.sub("\\D", "", (x[2:]))))
     maf["WT"] = maf["HGVSp_Short"].apply(lambda x: re.findall("\\D", x[2:])[0])
     maf["Mut"] = maf["HGVSp_Short"].apply(lambda x: re.findall("\\D", x[2:])[1])
@@ -27,7 +26,7 @@ def parse_maf_input(maf_input_path, keep_samples_id=False):
     if keep_samples_id == False:
         maf = maf.drop(columns=["Tumor_Sample_Barcode"])
     
-    return maf
+    return maf.reset_index(drop=True)
 
 
 def parse_cluster_output(out_cluster_path):
