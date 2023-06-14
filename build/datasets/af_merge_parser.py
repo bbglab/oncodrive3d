@@ -21,6 +21,7 @@ python3 af_merge_parser.py -i ./example_uncompressed -o ./example_uncompressed/o
 /workspace/projects/clustering_3d/clustering_3d/datasets_frag/pdb_structures
 """
 
+
 # Add SEQREF record to pdb file
 
 def get_res_from_chain(pdb_path):
