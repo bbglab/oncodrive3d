@@ -131,11 +131,11 @@ def main():
     if not os.path.exists(output):
         os.makedirs(output)
 
-    # Get the path of all pdb files in the directory
+    # Get the path of all pdb files in the directorys
     pdb_path_lst = get_pdb_path_list_from_dir(input)
 
     # Split the PDB files into chunks for each process
-    chunk_size = int(len(pdb_path_lst) / num_cores)
+    chunk_size = int(len(pdb_path_lst) / num_cores) + 1
     chunks = [pdb_path_lst[i : i + chunk_size] for i in range(0, len(pdb_path_lst), chunk_size)]
 
     # Create a pool of processes and compute the cmaps in parallel
