@@ -16,8 +16,8 @@ def fdr(p_vals, alpha=0.05):
 
 def get_final_gene_result(result_pos, result_gene, alpha_gene=0.05):
     """
-    Output the final dataframe including gene global pval, 
-    significant positions, communities, processing status, etc.
+    Output the final dataframe including gene global pval, s
+    significant positions, clusters, processing status, etc.
     """
 
     pos_hits = result_pos[result_pos["C"] == 1]
@@ -26,14 +26,14 @@ def get_final_gene_result(result_pos, result_gene, alpha_gene=0.05):
 
         # Get significant positions and communities for each gene
         clusters = pos_hits.groupby("Gene").apply(lambda x: (x["Pos"].values)).reset_index().rename(columns={0 : "C_pos"})
-        clusters["C_community"] = pos_hits.groupby("Gene").apply(lambda x: x["Community"].values).reset_index(drop=True)
+        clusters["C_label"] = pos_hits.groupby("Gene").apply(lambda x: x["Cluster"].values).reset_index(drop=True)
         
         # Annotate each gene with significant hits
         result_gene = clusters.merge(result_gene, on="Gene", how="outer")
 
     else:
         result_gene["C_pos"] = np.nan
-        result_gene["C_community"] = np.nan
+        result_gene["C_label"] = np.nan
     
     # Gene pval, qval
     gene_pvals = result_pos.groupby("Gene").apply(lambda x: min(x["pval"].values)).reset_index().rename(columns={0 : "pval"})
@@ -42,13 +42,13 @@ def get_final_gene_result(result_pos, result_gene, alpha_gene=0.05):
     # > NB: samples info for fragments will be displayed as they are individual proteins <
     gene_pvals["Tot_samples"] = result_pos.groupby("Gene").apply(lambda x: x["Tot_samples"].unique()[0]).values
     gene_pvals["Samples_in_top_vol"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].Samples_in_vol)).values
-    gene_pvals["Samples_in_top_comm_vol"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].Samples_in_comm_vol)).values
-    gene_pvals["Mut_in_top_comm_vol"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].Mut_in_comm_vol)).values
+    gene_pvals["Samples_in_top_c_vol"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].Samples_in_cl_vol)).values
+    gene_pvals["Mut_in_top_cl_vol"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].Mut_in_cl_vol)).values
     gene_pvals["Ratio_obs_sim_top_vol"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].Ratio_obs_sim)).values
     #gene_pvals["Top_diff_obs_sim"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].Diff_obs_sim)).values
     gene_pvals["Mut_in_top_vol"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].Mut_in_vol)).values
     gene_pvals["pLDDT_top_vol"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].pLDDT_vol)).values
-    gene_pvals["pLDDT_top_comm_vol"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].pLDDT_comm_vol)).values
+    gene_pvals["pLDDT_top_cl_vol"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].pLDDT_cl_vol)).values
     
     # Sort positions and get qval
     gene_pvals = gene_pvals.sort_values(["pval"], ascending=True).reset_index(drop=True)

@@ -58,6 +58,7 @@ time python3 main.py -i /workspace/projects/clustering_3d/evaluation/datasets/da
 python3 /workspace/projects/clustering_3d/clustering_3d/scripts/main.py -i /workspace/projects/clustering_3d/evaluation/datasets/input/maf/HARTWIG_WGS_BLCA_2020.in.maf -o /workspace/projects/clustering_3d/evaluation/tool_output/run_20230612_frag -p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile/HARTWIG_WGS_BLCA_2020.mutrate.json -s /workspace/projects/clustering_3d/clustering_3d/datasets_frag/seq_for_mut_prob.csv -c /workspace/projects/clustering_3d/clustering_3d/datasets_frag/cmaps/ -d /workspace/projects/clustering_3d/clustering_3d/datasets_frag/confidence.csv -H 0 -t BLCA -C HARTWIG_WGS_BLCA_2020 -n 10000 -e 1
 python3 /workspace/projects/clustering_3d/clustering_3d/scripts/main.py -i /workspace/projects/clustering_3d/evaluation/datasets/input/maf/HARTWIG_WGS_PLMESO_2020.in.maf -o /workspace/projects/clustering_3d/evaluation/tool_output/run_20230621_frag -p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile/HARTWIG_WGS_PLMESO_2020.mutrate.json -s /workspace/projects/clustering_3d/clustering_3d/datasets_frag/seq_for_mut_prob.csv -c /workspace/projects/clustering_3d/clustering_3d/datasets_frag/cmaps/ -d /workspace/projects/clustering_3d/clustering_3d/datasets_frag/confidence.csv -H 0 -t BLCA -C HARTWIG_WGS_PLMESO_2020 -n 10000 -e 1
 
+python3 /workspace/projects/clustering_3d/clustering_3d/scripts/main.py -i /workspace/projects/clustering_3d/evaluation/datasets/input/maf/CBIOP_WXS_LUAD_BROAD.in.maf -o /workspace/projects/clustering_3d/dev_testing/output -p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile/CBIOP_WXS_LUAD_BROAD.mutrate.json -s /workspace/projects/clustering_3d/clustering_3d/datasets_frag/seq_for_mut_prob.csv -c /workspace/projects/clustering_3d/clustering_3d/datasets_frag/cmaps/ -d /workspace/projects/clustering_3d/clustering_3d/datasets_frag/confidence.csv -H 0 -t BLCA -C CBIOP_WXS_LUAD_BROAD -n 10000 -e 1
 #################################################################################################
 """
 
@@ -71,7 +72,7 @@ from datetime import datetime
 from progressbar import progressbar
 from utils.utils import parse_maf_input, add_nan_clust_cols, sort_cols
 from utils.miss_mut_prob import mut_rate_vec_to_dict, get_miss_mut_prob_dict
-from utils.clustering import clustering_3d, clustering_3d_frag
+from utils.clustering import clustering_3d
 from utils.pvalues import get_final_gene_result
 
 
@@ -250,6 +251,17 @@ def main():
         # Add confidence to mut_gene_df
         plddt_df_gene_df = plddt_df[plddt_df["Uniprot_ID"] == uniprot_id]
         mut_gene_df = mut_gene_df.merge(plddt_df_gene_df, on = ["Pos"], how = "left")
+        
+        
+        pos_result, result_gene = clustering_3d(gene,
+                                                    uniprot_id, 
+                                                    mut_gene_df, 
+                                                    cmap_path,
+                                                    miss_prob_dict,
+                                                    alpha=alpha,
+                                                    num_iteration=num_iteration,
+                                                    hits_only=hits_only,
+                                                    ext_hits=ext_hits)
 
         try:
             pos_result, result_gene = clustering_3d(gene,

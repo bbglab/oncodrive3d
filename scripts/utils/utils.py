@@ -163,14 +163,14 @@ def add_samples_info(mut_gene_df, result_pos_df, samples_info, cmap):
     result_pos_df = result_pos_df.merge(samples_info.drop(columns=["Barcode"]), on="Pos", how="outer")
     
     # Get per-community ratio of mutated samples
-    if result_pos_df["Community"].isna().all():
-        result_pos_df["Samples_in_comm_vol"] = np.nan
-        result_pos_df["Mut_in_comm_vol"] = np.nan
-        result_pos_df["Res_in_comm"] = np.nan
-        result_pos_df["pLDDT_comm_vol"] = np.nan
+    if result_pos_df["Cluster"].isna().all():
+        result_pos_df["Samples_in_cl_vol"] = np.nan
+        result_pos_df["Mut_in_cl_vol"] = np.nan
+        result_pos_df["Res_in_cl"] = np.nan
+        result_pos_df["pLDDT_cl_vol"] = np.nan
         #result_pos_df["Ratio_samples_in_comm"] = np.nan
     else:       
-        community_pos = result_pos_df.groupby("Community").apply(lambda x: x.Pos.values)
+        community_pos = result_pos_df.groupby("Cluster").apply(lambda x: x.Pos.values)
         community_mut = community_pos.apply(lambda x: sum([pos in get_unique_pos_in_contact(x, cmap) for 
                                                            pos in mut_gene_df.Pos]))
         community_samples = community_pos.apply(lambda x: 
@@ -182,20 +182,20 @@ def add_samples_info(mut_gene_df, result_pos_df, samples_info, cmap):
         #community_samples_ratio = community_samples / samples_info["Tot_samples"].unique()[0]
         #community_mut_ratio = community_mut / len(mut_gene_df)
         community_pos_count = community_pos.apply(lambda x: len(x))
-        community_samples = pd.DataFrame({"Samples_in_comm_vol" : community_samples, 
+        community_samples = pd.DataFrame({"Samples_in_cl_vol" : community_samples, 
                                           #"Ratio_samples_in_comm" : community_samples_ratio,
-                                          "Mut_in_comm_vol" : community_mut,
+                                          "Mut_in_cl_vol" : community_mut,
                                           #"Ratio_mut_in_comm" : community_mut_ratio,
-                                          "Res_in_comm" : community_pos_count,
-                                          "pLDDT_comm_vol" : community_plddt})
+                                          "Res_in_cl" : community_pos_count,
+                                          "pLDDT_cl_vol" : community_plddt})
         
         # Add to residues-level result
-        result_pos_df = result_pos_df.merge(community_samples, on="Community", how="outer")
+        result_pos_df = result_pos_df.merge(community_samples, on="Cluster", how="outer")
         
     # AF confidence
     result_pos_df["pLDDT_res"] = result_pos_df.apply(lambda x: mut_gene_df.Confidence[mut_gene_df["Pos"] == x.Pos].values[0], axis=1)
     result_pos_df["pLDDT_vol"] = result_pos_df.apply(lambda x: weighted_avg_plddt_vol(x["Pos"], mut_gene_df, cmap), axis=1)
-    result_pos_df["pLDDT_comm_vol"] = result_pos_df.pop("pLDDT_comm_vol")
+    result_pos_df["pLDDT_cl_vol"] = result_pos_df.pop("pLDDT_cl_vol")
 
     # Sort positions
     result_pos_df = result_pos_df.sort_values("Rank").reset_index(drop=True)
@@ -211,11 +211,10 @@ def add_nan_clust_cols(result_gene):
 
     result_gene = result_gene.copy()
     
-    columns = ["pval", "qval", "C_gene", "C_pos", 'C_community', 'Ratio_obs_sim_top_vol', 
-               "Clust_res", 'Clust_mut', 'Mut_in_top_vol', "Mut_in_top_comm_vol",
-               'Tot_samples', 'Samples_in_top_vol', 'Samples_in_top_comm_vol', 
-               "pLDDT_top_vol", "pLDDT_top_comm_vol",
-               'F', 'Mut_in_top_F', 'Top_F']
+    columns = ["pval", "qval", "C_gene", "C_pos", 'C_label', 'Ratio_obs_sim_top_vol', 
+               "Clust_res", 'Clust_mut', 'Mut_in_top_vol', "Mut_in_top_cl_vol",
+               'Tot_samples', 'Samples_in_top_vol', 'Samples_in_top_cl_vol', 
+               "pLDDT_top_vol", "pLDDT_top_cl_vol", 'F']
     
     for col in columns:
         result_gene[col] = np.nan
@@ -229,11 +228,10 @@ def sort_cols(result_gene):
     """
 
     cols = ['Gene', 'Uniprot_ID', 
-            'pval', 'qval', 'C_gene', 'C_pos', 'C_community', 'Ratio_obs_sim_top_vol', "Clust_res",
-            'Mut_in_gene', 'Clust_mut', 'Mut_in_top_vol', "Mut_in_top_comm_vol",
-            'Tot_samples', 'Samples_in_top_vol', 'Samples_in_top_comm_vol', 
-            "pLDDT_top_vol", "pLDDT_top_comm_vol",
-            'F', 'Mut_in_top_F', 'Top_F', 'Status', 
-            'Cancer', 'Cohort']
+            'pval', 'qval', 'C_gene', 'C_pos', 'C_label', 'Ratio_obs_sim_top_vol', "Clust_res",
+            'Mut_in_gene', 'Clust_mut', 'Mut_in_top_vol', "Mut_in_top_cl_vol",
+            'Tot_samples', 'Samples_in_top_vol', 'Samples_in_top_cl_vol', 
+            "pLDDT_top_vol", "pLDDT_top_cl_vol",
+            'F', 'Status', 'Cancer', 'Cohort']
 
     return result_gene[[col for col in cols if col in result_gene.columns]]
