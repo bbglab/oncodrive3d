@@ -53,6 +53,11 @@ time python3 main.py -i /workspace/projects/clustering_3d/evaluation/datasets/da
 -p /workspace/projects/clustering_3d/evaluation/datasets/datasets_ch/input/mut_profile/OTHER_WXS_TCGA_FULL.mutrate.json \
 -H 0 -t CH -C OTHER_WXS_TCGA_FULL -e 1
 
+## Merged
+
+python3 /workspace/projects/clustering_3d/clustering_3d/scripts/main.py -i /workspace/projects/clustering_3d/evaluation/datasets/input/maf/HARTWIG_WGS_BLCA_2020.in.maf -o /workspace/projects/clustering_3d/evaluation/tool_output/run_20230612_frag -p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile/HARTWIG_WGS_BLCA_2020.mutrate.json -s /workspace/projects/clustering_3d/clustering_3d/datasets_frag/seq_for_mut_prob.csv -c /workspace/projects/clustering_3d/clustering_3d/datasets_frag/cmaps/ -d /workspace/projects/clustering_3d/clustering_3d/datasets_frag/confidence.csv -H 0 -t BLCA -C HARTWIG_WGS_BLCA_2020 -n 10000 -e 1
+python3 /workspace/projects/clustering_3d/clustering_3d/scripts/main.py -i /workspace/projects/clustering_3d/evaluation/datasets/input/maf/HARTWIG_WGS_PLMESO_2020.in.maf -o /workspace/projects/clustering_3d/evaluation/tool_output/run_20230621_frag -p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile/HARTWIG_WGS_PLMESO_2020.mutrate.json -s /workspace/projects/clustering_3d/clustering_3d/datasets_frag/seq_for_mut_prob.csv -c /workspace/projects/clustering_3d/clustering_3d/datasets_frag/cmaps/ -d /workspace/projects/clustering_3d/clustering_3d/datasets_frag/confidence.csv -H 0 -t BLCA -C HARTWIG_WGS_PLMESO_2020 -n 10000 -e 1
+
 #################################################################################################
 """
 
@@ -99,7 +104,7 @@ def init_parser():
     parser.add_argument("-e", "--ext_hits", 
                         help = "If 1 extend clusters to all mutated residues in the significant volumes, if 0 extend only to the ones having an anomaly > expected", 
                         type=int, default=1)
-    parser.add_argument("-f", "--fragments", help = "Enable processing of fragmented proteins (AF-F)", type=int, default=0)
+    parser.add_argument("-f", "--fragments", help = "Enable processing of fragmented (AF-F) proteins", type=int, default=1)
     
     # Metadata annotation
     parser.add_argument("-t", "--cancer_type", help = "Cancer type", type=str)
@@ -168,8 +173,9 @@ def main():
     # Seq df for missense mut prob
     seq_df = pd.read_csv(seq_df_path)
     
-    # Model confidence
-    plddt_df = pd.read_csv(plddt_path)
+    # Model confidences
+    plddt_df = pd.read_csv(plddt_path, dtype={"Pos" : int, "Res" : str, "Confidence" : float, 
+                                              "Uniprot_ID" : str, "AF_F" : str})
 
 
     ## Run
@@ -195,6 +201,7 @@ def main():
     genes_to_process = [gene for gene in genes_mut.index if gene in gene_to_uniprot_dict.keys()]
     seq_df = seq_df[[gene in genes_to_process for gene in seq_df["Gene"]]].reset_index(drop=True)
     genes_no_mapping = genes[[gene in genes_mut.index and gene not in gene_to_uniprot_dict.keys() for gene in genes.index]]
+    
     result_gene = pd.DataFrame({"Gene" : genes_no_mapping.index,
                                 "Uniprot_ID" : np.nan,
                                 "F" : np.nan,
@@ -207,8 +214,8 @@ def main():
     # Filter on fragmented (AF-F) genes
     if fragments == False:
         # Return the fragmented genes as non processed output
-        genes_frag = seq_df.groupby("Gene").F.max()
-        genes_frag = genes_frag[genes_frag > 1].index 
+        genes_frag = seq_df[seq_df.F.str.extract(r'(\d+)', expand=False).astype(int) > 1]
+        genes_frag = genes_frag.Gene.reset_index(drop=True).values
         genes_frag_mut = genes_mut[[gene in genes_frag for gene in genes_mut.index]]
         genes_frag_id = [gene_to_uniprot_dict[gene] for gene in genes_frag_mut.index]                  
         result_gene = pd.DataFrame({"Gene" : genes_frag,
@@ -244,63 +251,31 @@ def main():
         plddt_df_gene_df = plddt_df[plddt_df["Uniprot_ID"] == uniprot_id]
         mut_gene_df = mut_gene_df.merge(plddt_df_gene_df, on = ["Pos"], how = "left")
 
-        # If there is a single fragment
-        if seq_df[seq_df["Gene"] == gene].F.max() == 1:   
+        try:
+            pos_result, result_gene = clustering_3d(gene,
+                                                    uniprot_id, 
+                                                    mut_gene_df, 
+                                                    cmap_path,
+                                                    miss_prob_dict,
+                                                    alpha=alpha,
+                                                    num_iteration=num_iteration,
+                                                    hits_only=hits_only,
+                                                    ext_hits=ext_hits)
+            result_gene_lst.append(result_gene)
+            if pos_result is not None:
+                result_pos_lst.append(pos_result)
+                                                            
+        except:                                                     # >>>> Should raise a better exception to capture a more specific error                
             
-            try:
-                pos_result, result_gene = clustering_3d(gene,
-                                                        uniprot_id, 
-                                                        mut_gene_df, 
-                                                        cmap_path,
-                                                        miss_prob_dict,
-                                                        fragment=1,
-                                                        alpha=alpha,
-                                                        num_iteration=num_iteration,
-                                                        hits_only=hits_only,
-                                                        ext_hits=ext_hits)
-                result_gene_lst.append(result_gene)
-                if pos_result is not None:
-                    result_pos_lst.append(pos_result)
-                                                              
-            except:                                                     # >>>> Should raise a better exception to capture a more specific error                
-                
-                result_gene = pd.DataFrame({"Gene" : gene,
-                                            "Uniprot_ID" : uniprot_id,
-                                            "F" : np.nan,
-                                            "Mut_in_gene" : np.nan,
-                                            "Max_mut_pos" : np.nan,
-                                            "Structure_max_pos" : np.nan,
-                                            "Status" : "Not_processed"},
-                                            index=[0])
-                result_gene_lst.append(result_gene)
-
-        # If the protein is fragmented
-        else:
-        
-            try:
-                pos_result, result_gene = clustering_3d_frag(gene, 
-                                                            uniprot_id,
-                                                            mut_gene_df,
-                                                            cmap_path,
-                                                            miss_prob_dict,
-                                                            alpha=alpha,
-                                                            num_iteration=num_iteration,
-                                                            hits_only=hits_only,
-                                                            ext_hits=ext_hits)
-                result_gene_lst.append(result_gene)
-                if pos_result is not None:
-                    result_pos_lst.append(pos_result)
-
-            except:
-                result_gene = pd.DataFrame({"Gene" : gene,
-                                            "Uniprot_ID" : uniprot_id,
-                                            "F" : np.nan,
-                                            "Mut_in_gene" : np.nan,
-                                            "Max_mut_pos" : np.nan,
-                                            "Structure_max_pos" : np.nan,
-                                            "Status" : "Not_processed_frag"},
-                                            index=[0])
-                result_gene_lst.append(result_gene)
+            result_gene = pd.DataFrame({"Gene" : gene,
+                                        "Uniprot_ID" : uniprot_id,
+                                        "F" : np.nan,
+                                        "Mut_in_gene" : np.nan,
+                                        "Max_mut_pos" : np.nan,
+                                        "Structure_max_pos" : np.nan,
+                                        "Status" : "Not_processed"},
+                                        index=[0])
+            result_gene_lst.append(result_gene)
 
 
     ## Save 
@@ -318,21 +293,19 @@ def main():
         result_gene.to_csv(f"{output_dir}/{cohort}.3d_clustering_genes.csv", index=False)
         
     else:
+        # Save res-level result
         result_pos = pd.concat(result_pos_lst)
         result_pos["Cancer"] = cancer_type
         result_pos["Cohort"] = cohort
         result_pos.to_csv(f"{output_dir}/{cohort}.3d_clustering_pos.csv", index=False)
-        # print("\n >> Wanted Pos>\n", result_pos.drop(columns=["Cancer", "Cohort"]))           #############################################################################################################################
-        # Get gene global pval, qval, and clustering annotations
-        #print(result_pos.head()) #######################à##############################################
-        #print(result_pos.columns) ###################################################################################################################
+   
+        # Get gene global pval, qval, and clustering annotations and save gene-level result
         result_gene = get_final_gene_result(result_pos, result_gene, alpha)
         result_gene = result_gene.drop(columns = ["Max_mut_pos", "Structure_max_pos"]) 
         result_gene = sort_cols(result_gene) 
         if fragments == False:
             result_gene = result_gene.drop(columns=[col for col in ["F", "Mut_in_top_F", "Top_F"] if col in result_gene.columns])
         result_gene.to_csv(f"{output_dir}/{cohort}.3d_clustering_genes.csv", index=False)
-        # print("\n >> Wanted Genes>\n", result_gene.drop(columns=["Uniprot_ID", "C_pos", "C_community", "Cancer", "Cohort"]))        #############################################################################################################################
 
 if __name__ == "__main__":
     main()

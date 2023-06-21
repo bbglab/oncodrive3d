@@ -16,7 +16,6 @@ def clustering_3d(gene,
                    mut_gene_df,                                      
                    cmap_path,
                    miss_prob_dict,
-                   fragment=1,
                    alpha=0.01,
                    num_iteration=10000,
                    hits_only=True,
@@ -57,9 +56,10 @@ def clustering_3d(gene,
     ## Initialize
 
     mut_count = len(mut_gene_df)
+    af_f = mut_gene_df.AF_F.unique()[0]
     result_gene_df = pd.DataFrame({"Gene" : gene,
                                    "Uniprot_ID" : uniprot_id,
-                                   "F" : fragment,                           
+                                   "F" : af_f,                           
                                    "Mut_in_gene" : mut_count,
                                    "Max_mut_pos" : np.nan,
                                    "Structure_max_pos" : np.nan,
@@ -67,7 +67,7 @@ def clustering_3d(gene,
                                     index=[1])
 
     # Load cmap
-    cmap_complete_path = f"{cmap_path}/{uniprot_id}-F{fragment}.npy"
+    cmap_complete_path = f"{cmap_path}/{uniprot_id}-F{af_f}.npy"
     if os.path.isfile(cmap_complete_path):
         cmap = np.load(cmap_complete_path) 
     else:
@@ -89,7 +89,7 @@ def clustering_3d(gene,
     ## Get expected local myssense mutation density
 
     # Probability that each residue can be hit by a missense mut
-    gene_miss_prob = np.array(miss_prob_dict[f"{uniprot_id}-F{fragment}"])
+    gene_miss_prob = np.array(miss_prob_dict[f"{uniprot_id}-F{af_f}"])
 
     # Probability that the volume of each residue can be hit by a missense mut
     vol_missense_mut_prob = np.dot(cmap, gene_miss_prob)
@@ -185,7 +185,7 @@ def clustering_3d(gene,
     result_pos_df["Rank"] = result_pos_df.index
     result_pos_df.insert(0, "Gene", gene)
     result_pos_df.insert(1, "Uniprot_ID", uniprot_id)
-    result_pos_df.insert(2, "F", fragment)
+    result_pos_df.insert(2, "F", af_f)
     result_pos_df.insert(4, "Mut_in_gene", mut_count)    
     result_pos_df = add_samples_info(mut_gene_df, result_pos_df, samples_info, cmap)
     result_gene_df["Clust_res"] = len(pos_hits)
