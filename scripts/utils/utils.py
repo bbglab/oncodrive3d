@@ -16,7 +16,7 @@ def parse_maf_input(maf_input_path, keep_samples_id=False):
     maf = pd.read_csv(maf_input_path, sep="\t", dtype={'Chromosome': str})
 
     # Select only missense mutation and extract Gene name and mut
-    maf = maf[maf['Variant_Classification'].str.contains('missense_variant')]
+    maf = maf[maf['Variant_Classification'].str.contains('Missense_Mutation')]
     maf["Pos"] = maf.loc[:, "HGVSp_Short"].apply(lambda x: int(re.sub("\\D", "", (x[2:]))))
     maf["WT"] = maf["HGVSp_Short"].apply(lambda x: re.findall("\\D", x[2:])[0])
     maf["Mut"] = maf["HGVSp_Short"].apply(lambda x: re.findall("\\D", x[2:])[1])
