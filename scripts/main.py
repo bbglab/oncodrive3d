@@ -249,40 +249,15 @@ def main():
 
     # Process gene
     print(f"Performing 3D clustering on [{len(seq_df)}] proteins..")
-    # for gene in progressbar(genes_to_process):
-    #     mut_gene_df = data[data["Gene"] == gene]
-    #     uniprot_id = gene_to_uniprot_dict[gene]
-        
-    #     # Add confidence to mut_gene_df
-    #     plddt_df_gene_df = plddt_df[plddt_df["Uniprot_ID"] == uniprot_id]
-    #     mut_gene_df = mut_gene_df.merge(plddt_df_gene_df, on = ["Pos"], how = "left")
-
-    #     pos_result, result_gene = clustering_3d(gene,
-    #                                             uniprot_id, 
-    #                                             mut_gene_df, 
-    #                                             cmap_path,
-    #                                             miss_prob_dict,
-    #                                             alpha=alpha,
-    #                                             num_iteration=num_iteration,
-    #                                             hits_only=hits_only,
-    #                                             ext_hits=ext_hits)
-    #     result_gene_lst.append(result_gene)
-    #     if pos_result is not None:
-    #         result_pos_lst.append(pos_result)
-    # result_gene = pd.concat(result_gene_lst)    ###################################### NEW
-    # result_pos = pd.concat(result_pos_lst)    ###################################### NEW
-    
     result_pos, result_gene = clustering_3d_mp_wrapper(genes_to_process, data, cmap_path, 
                                                        miss_prob_dict, gene_to_uniprot_dict, plddt_df,
                                                        num_cores, alpha=alpha, num_iteration=num_iteration, 
                                                        hits_only=hits_only, ext_hits=ext_hits, verbose=verbose)
-    
     result_gene = pd.concat((result_gene, pd.concat(result_np_gene_lst)))
 
 
     ## Save 
     print("\nSaving..")
-    #result_gene = pd.concat(result_gene_lst)                   ###################################### NEW
     result_gene["Cancer"] = cancer_type
     result_gene["Cohort"] = cohort
 
@@ -297,7 +272,6 @@ def main():
         
     else:
         # Save res-level result
-        #result_pos = pd.concat(result_pos_lst)                  ###################################### NEW
         result_pos["Cancer"] = cancer_type
         result_pos["Cohort"] = cohort
         result_pos.to_csv(f"{output_dir}/{cohort}.3d_clustering_pos.csv", index=False)
