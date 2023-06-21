@@ -181,7 +181,7 @@ def get_miss_mut_prob_dict(mut_rate_dict, seq_df, v=False):
 
     miss_prob_dict = {}
     # Process any Protein/fragment in the sequence df
-    for _, row in progressbar(seq_df.iterrows()):
+    for _, row in seq_df.iterrows():
         if "F" in seq_df.columns:
             miss_prob_dict[f"{row.Uniprot_ID}-F{row.F}"] = get_miss_mut_prob(row.Seq_dna, mut_rate_dict, v=v)
         else:

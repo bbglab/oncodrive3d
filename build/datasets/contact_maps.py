@@ -111,7 +111,7 @@ def main():
     parser.add_argument("-i", "--input", help="Input directory with PDB structures", type=str, required=True)
     parser.add_argument("-o", "--output", help="Output directory to save contact maps", type=str, default="../../datasets/cmaps/")
     parser.add_argument("-d", "--distance", help="Set the distance in angstrom to define a contact", type=int, default=10)
-    parser.add_argument("-c", "--num_cores", help="Set the number of cores for parallel processing", type=int, default=1)
+    parser.add_argument("-c", "--num_cores", help="Set the number of cores for parallel processing", type=int)
     parser.add_argument("-v", "--verbose", help="Verbose", type=int, default=1)
 
     args = parser.parse_args()
@@ -119,6 +119,8 @@ def main():
     input = args.input
     output = args.output
     num_cores = args.num_cores
+    if num_cores is None:
+        num_cores = multiprocessing.cpu_count()
     verbose = args.verbose
     print("\nComputing contact maps of all structures in directory")
     print("\nInput directory:", input)

@@ -6,6 +6,7 @@ import os
 import numpy as np
 import pandas as pd
 import networkx.algorithms.community as nx_comm
+import multiprocessing
 from utils.score_and_simulations import get_anomaly_score, get_sim_anomaly_score
 from utils.communities import get_network, get_community_index_nx
 from utils.utils import get_pos_fragments, get_samples_info, add_samples_info
@@ -197,3 +198,92 @@ def clustering_3d(gene,
         result_pos_df = result_pos_df[result_pos_df["C"] == 1]
 
     return result_pos_df, result_gene_df
+
+
+def clustering_3d_mp(genes,
+                     data,
+                     cmap_path,
+                     miss_prob_dict,
+                     gene_to_uniprot_dict,
+                     plddt_df,
+                     num_process,
+                     alpha=0.01,
+                     num_iteration=10000,
+                     hits_only=1,
+                     ext_hits=1, 
+                     verbose=0):
+    """
+    Run the 3D-clustering algorithm in parallel on multiple genes.
+    """
+    
+    result_gene_lst = []
+    result_pos_lst = []
+    
+    for n, gene in enumerate(genes):
+    
+        mut_gene_df = data[data["Gene"] == gene]
+        uniprot_id = gene_to_uniprot_dict[gene]
+
+        # Add confidence to mut_gene_df
+        plddt_df_gene_df = plddt_df[plddt_df["Uniprot_ID"] == uniprot_id]
+        mut_gene_df = mut_gene_df.merge(plddt_df_gene_df, on = ["Pos"], how = "left")
+
+        pos_result, result_gene = clustering_3d(gene,
+                                                uniprot_id, 
+                                                mut_gene_df, 
+                                                cmap_path,
+                                                miss_prob_dict,
+                                                alpha=alpha,
+                                                num_iteration=num_iteration,
+                                                hits_only=hits_only,
+                                                ext_hits=ext_hits)
+        result_gene_lst.append(result_gene)
+        if pos_result is not None:
+            result_pos_lst.append(pos_result)
+            
+        # Monitor processing
+        if verbose and n % 10 == 0:
+            if n == 0:
+                print(f"Process [{num_process}] starting..")
+            else:
+                print(f"Process [{num_process}] completed [{n}/{len(genes)}] structures")
+        
+    return result_gene_lst, result_pos_lst
+
+
+def clustering_3d_mp_wrapper(genes,
+                             data,
+                             cmap_path,
+                             miss_prob_dict,
+                             gene_to_uniprot_dict,
+                             plddt_df,
+                             num_cores,
+                             alpha=0.01,
+                             num_iteration=10000,
+                             hits_only=0,
+                             ext_hits=1, 
+                             verbose=0):
+    """
+    Wrapper function to run the 3D-clustering algorithm in parallel on multiple genes.
+    """
+
+    # Split the genes into chunks for each process
+    chunk_size = int(len(genes) / num_cores) + 1
+    chunks = [genes[i : i + chunk_size] for i in range(0, len(genes), chunk_size)]
+    
+    # Create a pool of processes and run clustering in parallel
+    with multiprocessing.Pool(processes = num_cores) as pool:
+        results = pool.starmap(clustering_3d_mp, [(chunk, data, cmap_path, miss_prob_dict, 
+                                                   gene_to_uniprot_dict, plddt_df, n_process,
+                                                   alpha, num_iteration, hits_only, ext_hits, verbose) 
+                                                 for n_process, chunk in enumerate(chunks)])
+        
+    # Parse output
+    result_pos_lst = [pd.concat(r[1]) for r in results if len(r[1]) > 0]
+    if len(result_pos_lst) > 0: 
+        result_pos = pd.concat(result_pos_lst)
+    else:
+        result_pos = None
+    result_gene = pd.concat([pd.concat(r[0]) for r in results])
+    
+    return result_pos, result_gene

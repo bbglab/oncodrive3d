@@ -6,15 +6,15 @@ python3 qmap_init.py -q submit.qmap -o /workspace/projects/clustering_3d/evaluat
 python3 qmap_init.py -q submit.qmap -o /workspace/projects/clustering_3d/evaluation/tool_output/run_20230516_process_all_mut \
     -e /home/odove/anaconda3/etc/profile.d/conda.sh
 
-python3 qmap_init.py -q submit.qmap -o /workspace/projects/clustering_3d/evaluation/tool_output/run_20230612_frag \
+python3 qmap_init.py -q submit.qmap -o /workspace/projects/clustering_3d/evaluation/tool_output/run_20230621_frag_mp \
         -c /workspace/projects/clustering_3d/clustering_3d/datasets_frag/cmaps/ -d /workspace/projects/clustering_3d/clustering_3d/datasets_frag/confidence.csv \
-            -s /workspace/projects/clustering_3d/clustering_3d/datasets_frag/seq_for_mut_prob.csv
+            -s /workspace/projects/clustering_3d/clustering_3d/datasets_frag/seq_for_mut_prob.csv -u 10 -m 27
 
 #######################
 
 #### run qmap #########
 
-qmap submit submit.qmap --max-running 30
+qmap submit submit.qmap --max-running 9
 
 #######################
 """
@@ -42,13 +42,13 @@ def init_submit_file(path_qmap_file,
 
 def add_job(script_dir, path_qmap_file, 
             in_maf, in_mut_profile, output,
-            seq_df, cmap_path, plddt_path,
+            seq_df, cmap_path, plddt_path, cores,
             cancer, cohort, num_iteration, ext_hits):
     """
     Add clustering_3d job to the qmap file.
     """
 
-    command = f"python3 {script_dir}/main.py -i {in_maf} -o {output} -p {in_mut_profile} -s {seq_df} -c {cmap_path} -d {plddt_path} -H 0 -t {cancer} -C {cohort} -n {num_iteration} -e {ext_hits}"
+    command = f"python3 {script_dir}/main.py -i {in_maf} -o {output} -p {in_mut_profile} -s {seq_df} -c {cmap_path} -d {plddt_path} -H 0 -t {cancer} -C {cohort} -u {cores} -n {num_iteration} -e {ext_hits}"
     with open(path_qmap_file, "a") as file:
         file.write(command + "\n")
         
@@ -83,7 +83,7 @@ def init_parser():
     parser.add_argument("-E", "--conda_env", help="Name of conda environment", type=str, default=CONDA_ENV) 
 
     parser.add_argument("-m", "--memory", help="GB of memory allocated to each job", type=int, default=10) 
-    parser.add_argument("-C", "--cores", help="Number of cores allocated to each job", type=int, default=1) 
+    parser.add_argument("-u", "--cores", help="Number of cores allocated to each job", type=int, default=1) 
 
     parser.add_argument("-M", "--metadata", help="Path to the cohorts.tsv file inlcuding cohorts metadata", type=str, default=COHORTS_PATH) 
     parser.add_argument("-i", "--input_maf", help="Path to the input MAF file", type=str, default=IN_MAF) 
@@ -139,7 +139,7 @@ def main():
         if os.path.isfile(maf) and os.path.isfile(mut_profile):
             add_job(script_dir, qmap_file, 
                     maf, mut_profile, output,
-                    seq_df, cmap_path, plddt_path,
+                    seq_df, cmap_path, plddt_path, cores,
                     tumor, cohort, num_iteration, ext_hits)
             i += 1
 
