@@ -58,7 +58,7 @@ time python3 main.py -i /workspace/projects/clustering_3d/evaluation/datasets/da
 python3 /workspace/projects/clustering_3d/clustering_3d/scripts/main.py -i /workspace/projects/clustering_3d/evaluation/datasets/input/maf/HARTWIG_WGS_BLCA_2020.in.maf -o /workspace/projects/clustering_3d/evaluation/tool_output/run_20230612_frag -p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile/HARTWIG_WGS_BLCA_2020.mutrate.json -s /workspace/projects/clustering_3d/clustering_3d/datasets_frag/seq_for_mut_prob.csv -c /workspace/projects/clustering_3d/clustering_3d/datasets_frag/cmaps/ -d /workspace/projects/clustering_3d/clustering_3d/datasets_frag/confidence.csv -H 0 -t BLCA -C HARTWIG_WGS_BLCA_2020 -n 10000 -e 1
 python3 /workspace/projects/clustering_3d/clustering_3d/scripts/main.py -i /workspace/projects/clustering_3d/evaluation/datasets/input/maf/HARTWIG_WGS_PLMESO_2020.in.maf -o /workspace/projects/clustering_3d/evaluation/tool_output/run_20230621_frag -p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile/HARTWIG_WGS_PLMESO_2020.mutrate.json -s /workspace/projects/clustering_3d/clustering_3d/datasets_frag/seq_for_mut_prob.csv -c /workspace/projects/clustering_3d/clustering_3d/datasets_frag/cmaps/ -d /workspace/projects/clustering_3d/clustering_3d/datasets_frag/confidence.csv -H 0 -t BLCA -C HARTWIG_WGS_PLMESO_2020 -n 10000 -e 1
 
-python3 /workspace/projects/clustering_3d/clustering_3d/scripts/main.py -i /workspace/projects/clustering_3d/evaluation/datasets/input/maf/HARTWIG_WGS_PSCC_2020.in.maf -o /workspace/projects/clustering_3d/dev_testing/output -p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile/HARTWIG_WGS_PSCC_2020.mutrate.json -s /workspace/projects/clustering_3d/clustering_3d/datasets_frag/seq_for_mut_prob.csv -c /workspace/projects/clustering_3d/clustering_3d/datasets_frag/cmaps/ -d /workspace/projects/clustering_3d/clustering_3d/datasets_frag/confidence.csv -H 0 -t BLCA -C HARTWIG_WGS_PSCC_2020 -n 10000 -e 1
+python3 /workspace/projects/clustering_3d/clustering_3d/scripts/main.py -i /workspace/projects/clustering_3d/evaluation/datasets/input/maf/HARTWIG_WGS_PLMESO_2020.in.maf -o /workspace/projects/clustering_3d/dev_testing/output -p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile/HARTWIG_WGS_PLMESO_2020.mutrate.json -s /workspace/projects/clustering_3d/clustering_3d/datasets_frag/seq_for_mut_prob.csv -c /workspace/projects/clustering_3d/clustering_3d/datasets_frag/cmaps/ -d /workspace/projects/clustering_3d/clustering_3d/datasets_frag/confidence.csv -t BLCA -C HARTWIG_WGS_PLMESO_2020 -n 10000
 #################################################################################################
 """
 
@@ -106,6 +106,7 @@ def init_parser():
                         type=int, default=1)
     parser.add_argument("-f", "--fragments", help = "Enable processing of fragmented (AF-F) proteins", type=int, default=1)
     parser.add_argument("-u", "--num_cores", help="Set the number of cores for parallel processing", type=int, default=1)
+    parser.add_argument("-S", "--seed", help="Set seed to ensure reproducible results", type=int)
     parser.add_argument("-v", "--verbose", help="Monitor the number of processed genes", type=int, default=0)
     
     # Metadata annotation
@@ -121,7 +122,7 @@ def main():
     """
 
     ## Initialize
-    version = "v_2023_06_21"    # LAST CHANGE: Debug processing of merged fragmented structure + Enable multiple genes processing
+    version = "v_2023_06_23"    # LAST CHANGE: Seed for reproducible result
     # Parser
     args = init_parser()
 
@@ -141,6 +142,7 @@ def main():
     plddt_path = args.plddt_path
     num_cores = args.num_cores
     verbose = args.verbose
+    seed = args.seed
 
     dir_path = os.path.abspath(os.path.dirname(__file__))
     if plddt_path is None:
@@ -170,6 +172,7 @@ def main():
     print(f"Cohort:", cohort)
     print(f"Cancer type: {cancer_type}")
     print(f"Verbose: {bool(verbose)}")
+    print(f"Seed: {seed}")
 
 
     ## Load input and df of DNA sequences
@@ -247,13 +250,17 @@ def main():
         mut_profile = mut_rate_vec_to_dict(mut_profile)
         miss_prob_dict = get_miss_mut_prob_dict(mut_rate_dict=mut_profile, seq_df=seq_df)
 
-    # Process gene
-    print(f"Performing 3D clustering on [{len(seq_df)}] proteins..")
-    result_pos, result_gene = clustering_3d_mp_wrapper(genes_to_process, data, cmap_path, 
-                                                       miss_prob_dict, gene_to_uniprot_dict, plddt_df,
-                                                       num_cores, alpha=alpha, num_iteration=num_iteration, 
-                                                       hits_only=hits_only, ext_hits=ext_hits, verbose=verbose)
-    result_gene = pd.concat((result_gene, pd.concat(result_np_gene_lst)))
+    # Run 3D-clustering
+    if len(genes_to_process) > 0:
+        print(f"Performing 3D clustering on [{len(seq_df)}] proteins..")
+        result_pos, result_gene = clustering_3d_mp_wrapper(genes_to_process, data, cmap_path, 
+                                                           miss_prob_dict, gene_to_uniprot_dict, plddt_df,
+                                                           num_cores, alpha=alpha, num_iteration=num_iteration, 
+                                                           hits_only=hits_only, ext_hits=ext_hits, verbose=verbose, seed=seed)
+        result_gene = pd.concat((result_gene, pd.concat(result_np_gene_lst)))
+    else:
+        result_gene = pd.concat(result_np_gene_lst)
+        result_pos = None
 
 
     ## Save 

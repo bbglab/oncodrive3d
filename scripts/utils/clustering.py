@@ -9,7 +9,7 @@ import networkx.algorithms.community as nx_comm
 import multiprocessing
 from utils.score_and_simulations import get_anomaly_score, get_sim_anomaly_score
 from utils.communities import get_network, get_community_index_nx
-from utils.utils import get_pos_fragments, get_samples_info, add_samples_info
+from utils.utils import get_samples_info, add_samples_info
 
 
 def clustering_3d(gene, 
@@ -20,7 +20,8 @@ def clustering_3d(gene,
                    alpha=0.01,
                    num_iteration=10000,
                    hits_only=True,
-                   ext_hits=True):
+                   ext_hits=True,
+                   seed=None):
     """
     Compute local density of missense mutations for a sphere of 10A around          
     each amino acid position of the selected gene product. It performed a 
@@ -82,7 +83,6 @@ def clustering_3d(gene,
         result_gene_df["Status"] = "Mut_not_in_structure"
         return None, result_gene_df
 
-
     # Samples info
     samples_info = get_samples_info(mut_gene_df, cmap)
     
@@ -119,7 +119,8 @@ def clustering_3d(gene,
                                         cmap, 
                                         gene_miss_prob,
                                         vol_missense_mut_prob,                                                                               
-                                        num_iteration=num_iteration) 
+                                        num_iteration=num_iteration,
+                                        seed=seed) 
 
     # Get ranked observed score (loglik+_LFC) 
     no_mut_pos = len(result_pos_df)
@@ -211,7 +212,8 @@ def clustering_3d_mp(genes,
                      num_iteration=10000,
                      hits_only=1,
                      ext_hits=1, 
-                     verbose=0):
+                     verbose=0,
+                     seed=None):
     """
     Run the 3D-clustering algorithm in parallel on multiple genes.
     """
@@ -236,17 +238,18 @@ def clustering_3d_mp(genes,
                                                 alpha=alpha,
                                                 num_iteration=num_iteration,
                                                 hits_only=hits_only,
-                                                ext_hits=ext_hits)
+                                                ext_hits=ext_hits,
+                                                seed=seed)
         result_gene_lst.append(result_gene)
         if pos_result is not None:
             result_pos_lst.append(pos_result)
             
         # Monitor processing
-        if verbose and n % 10 == 0:
+        if (verbose and n % 10 == 0) or (verbose and n+1 == len(genes)):
             if n == 0:
                 print(f"Process [{num_process}] starting..")
             else:
-                print(f"Process [{num_process}] completed [{n}/{len(genes)}] structures")
+                print(f"Process [{num_process}] completed [{n+1}/{len(genes)}] structures")
         
     return result_gene_lst, result_pos_lst
 
@@ -262,7 +265,8 @@ def clustering_3d_mp_wrapper(genes,
                              num_iteration=10000,
                              hits_only=0,
                              ext_hits=1, 
-                             verbose=0):
+                             verbose=0,
+                             seed=None):
     """
     Wrapper function to run the 3D-clustering algorithm in parallel on multiple genes.
     """
@@ -275,7 +279,7 @@ def clustering_3d_mp_wrapper(genes,
     with multiprocessing.Pool(processes = num_cores) as pool:
         results = pool.starmap(clustering_3d_mp, [(chunk, data, cmap_path, miss_prob_dict, 
                                                    gene_to_uniprot_dict, plddt_df, n_process,
-                                                   alpha, num_iteration, hits_only, ext_hits, verbose) 
+                                                   alpha, num_iteration, hits_only, ext_hits, verbose, seed) 
                                                  for n_process, chunk in enumerate(chunks)])
         
     # Parse output
