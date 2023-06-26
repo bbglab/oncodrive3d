@@ -10,6 +10,7 @@ import multiprocessing
 from utils.score_and_simulations import get_anomaly_score, get_sim_anomaly_score
 from utils.communities import get_network, get_community_index_nx
 from utils.utils import get_samples_info, add_samples_info
+from utils.miss_mut_prob import get_unif_gene_miss_prob
 
 
 def clustering_3d(gene, 
@@ -90,7 +91,10 @@ def clustering_3d(gene,
     ## Get expected local myssense mutation density
 
     # Probability that each residue can be hit by a missense mut
-    gene_miss_prob = np.array(miss_prob_dict[f"{uniprot_id}-F{af_f}"])
+    if miss_prob_dict is not None:
+        gene_miss_prob = np.array(miss_prob_dict[f"{uniprot_id}-F{af_f}"])
+    else:
+        gene_miss_prob = get_unif_gene_miss_prob(size=len(cmap))
 
     # Probability that the volume of each residue can be hit by a missense mut
     vol_missense_mut_prob = np.dot(cmap, gene_miss_prob)

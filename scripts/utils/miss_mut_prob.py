@@ -25,6 +25,19 @@ import os
 from progressbar import progressbar
 
 
+def get_unif_gene_miss_prob(size):
+    """
+    Get a uniformly distributed gene missense mutation 
+    probability vector.
+    """
+    
+    vector = np.ones(size)
+    vector[0] = 0
+    vector[-1] = 0
+    
+    return vector / sum(vector)
+
+
 def mut_rate_vec_to_dict(mut_rate, v=False):
     """
     Convert the vector of mut mut_rate of 96 channels to a dictionary of 192 

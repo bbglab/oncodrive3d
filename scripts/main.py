@@ -85,9 +85,8 @@ def init_parser():
 
     # Required input
     parser.add_argument("-i", "--input_maf", help = "Path of the maf file used as input", type=str, required=True)
-    group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument("-p", "--mut_profile", help = "Path to the mut profile (list of 96 floats) of the cohort (json)", type=str)
-    group.add_argument("-P", "--miss_mut_prob", help = "Path to the dict of missense mut prob of each protein based on mut profile of the cohort (json)",  type=str)   ### <<< Probably unnecessary >>>
+    parser.add_argument("-p", "--mut_profile", help = "Path to the mut profile (list of 96 floats) of the cohort (json)", type=str)
+    parser.add_argument("-P", "--miss_mut_prob", help = "Path to the dict of missense mut prob of each protein based on mut profile of the cohort (json)",  type=str)   ### <<< Probably unnecessary >>>
     
     # Required output
     parser.add_argument("-o", "--output_dir", help = "Path to output directory", type=str, required=True)
@@ -122,7 +121,7 @@ def main():
     """
 
     ## Initialize
-    version = "v_2023_06_23"    # LAST CHANGE: Seed for reproducible result
+    version = "v_2023_06_23"    # LAST CHANGE: Seed (128) for reproducible result
     # Parser
     args = init_parser()
 
@@ -163,6 +162,13 @@ def main():
     print(f"Path to contact maps: {cmap_path}")
     print(f"Path to DNA sequences: {seq_df_path}")
     print(f"Path to pLDDT scores: {plddt_path}")
+    if miss_mut_prob_path is not None:
+        path_prob = miss_mut_prob_path
+    elif mut_profile_path is not None:
+        path_prob = mut_profile_path
+    else:
+        path_prob = "Not provided, uniform distribution will be used"
+    print(f"Path to mut profile: {path_prob}")
     print(f"CPU cores:", num_cores)
     print(f"Iterations: {num_iteration}")
     print(f"Significant level: {alpha}")
@@ -243,12 +249,14 @@ def main():
     if miss_mut_prob_path is not None:
         # Load dict with miss prob of each prot
         miss_prob_dict = json.load(open(miss_mut_prob_path))
-    else:
+    elif mut_profile_path is not None:
         # Compute dict from mut profile of the cohort and dna sequences
         mut_profile = json.load(open(mut_profile_path))
         print(f"\nComputing missense mut probabilities..")
         mut_profile = mut_rate_vec_to_dict(mut_profile)
         miss_prob_dict = get_miss_mut_prob_dict(mut_rate_dict=mut_profile, seq_df=seq_df)
+    else:
+        miss_prob_dict = None
 
     # Run 3D-clustering
     if len(genes_to_process) > 0:

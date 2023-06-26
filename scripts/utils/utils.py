@@ -44,7 +44,7 @@ def parse_cluster_output(out_cluster_path):
     return cluster
 
 
-## Handle proteins fragments
+## Handle proteins fragments         ## IN THEORY DEPRECATED (TO CHECK)
 
 def rounded_up_division(num, den):
     """

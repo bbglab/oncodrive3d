@@ -6,9 +6,14 @@ python3 qmap_init.py -q submit.qmap -o /workspace/projects/clustering_3d/evaluat
 python3 qmap_init.py -q submit.qmap -o /workspace/projects/clustering_3d/evaluation/tool_output/run_20230516_process_all_mut \
     -e /home/odove/anaconda3/etc/profile.d/conda.sh
 
-python3 qmap_init.py -q submit.qmap -o /workspace/projects/clustering_3d/evaluation/tool_output/run_20230621_frag_mp \
+python3 qmap_init.py -q submit.qmap -o /workspace/projects/clustering_3d/evaluation/tool_output/run_20230626 \
+    -p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile \
         -c /workspace/projects/clustering_3d/clustering_3d/datasets_frag/cmaps/ -d /workspace/projects/clustering_3d/clustering_3d/datasets_frag/confidence.csv \
-            -s /workspace/projects/clustering_3d/clustering_3d/datasets_frag/seq_for_mut_prob.csv -u 10 -m 27
+            -s /workspace/projects/clustering_3d/clustering_3d/datasets_frag/seq_for_mut_prob.csv -u 10 -m 55 -r 128
+            
+python3 qmap_init.py -q submit.qmap -o /workspace/projects/clustering_3d/evaluation/tool_output/run_20230623_unif \
+        -c /workspace/projects/clustering_3d/clustering_3d/datasets_frag/cmaps/ -d /workspace/projects/clustering_3d/clustering_3d/datasets_frag/confidence.csv \
+            -s /workspace/projects/clustering_3d/clustering_3d/datasets_frag/seq_for_mut_prob.csv -u 10 -m 55 -r 128
 
 #######################
 
@@ -43,12 +48,20 @@ def init_submit_file(path_qmap_file,
 def add_job(script_dir, path_qmap_file, 
             in_maf, in_mut_profile, output,
             seq_df, cmap_path, plddt_path, cores,
-            cancer, cohort, num_iteration, ext_hits):
+            cancer, cohort, num_iteration, ext_hits, seed):
     """
     Add clustering_3d job to the qmap file.
     """
 
-    command = f"python3 {script_dir}/main.py -i {in_maf} -o {output} -p {in_mut_profile} -s {seq_df} -c {cmap_path} -d {plddt_path} -H 0 -t {cancer} -C {cohort} -u {cores} -n {num_iteration} -e {ext_hits}"
+    if in_mut_profile is not None:
+        flag_mut_profile = f"-p {in_mut_profile}"
+    else:
+        flag_mut_profile = ""
+    if seed is not None:
+        flag_seed = f"-S {seed}"
+    else:
+        flag_seed = ""
+    command = f"python3 {script_dir}/main.py -i {in_maf} -o {output} {flag_mut_profile} -s {seq_df} -c {cmap_path} -d {plddt_path} -H 0 -t {cancer} -C {cohort} -u {cores} -n {num_iteration} -e {ext_hits} {flag_seed}"
     with open(path_qmap_file, "a") as file:
         file.write(command + "\n")
         
@@ -61,7 +74,6 @@ def init_parser():
     SCRIPT_PATH = "/workspace/projects/clustering_3d/clustering_3d/scripts"
     COHORTS_PATH = "/workspace/projects/clustering_3d/evaluation/datasets/cohorts.tsv"
     IN_MAF = "/workspace/projects/clustering_3d/evaluation/datasets/input/maf"
-    IN_MUT_PROF = "/workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile"
     IN_SEQ = "/workspace/projects/clustering_3d/clustering_3d/datasets/seq_for_mut_prob.csv"
     IN_CMAP = "/workspace/projects/clustering_3d/clustering_3d/datasets/cmaps/"
     IN_PLDDT = "/workspace/projects/clustering_3d/clustering_3d/datasets/confidence.csv"
@@ -73,6 +85,10 @@ def init_parser():
     parser.add_argument("-q", "--qmap", help="Path to the qmap file to run jobs in parallel", type=str, required=True) 
     parser.add_argument("-o", "--output", help="Path to the output dir", type=str, required=True) 
     
+    parser.add_argument("-M", "--metadata", help="Path to the cohorts.tsv file inlcuding cohorts metadata", type=str, default=COHORTS_PATH) 
+    parser.add_argument("-i", "--input_maf", help="Path to the input MAF file", type=str, default=IN_MAF) 
+    parser.add_argument("-p", "--input_mut_profile", help="Path to the input mut_profile", type=str) 
+    
     parser.add_argument("-s", "--seq_df", help = "Path to the dataframe including DNA and protein seq of all gene/proteins (all AF predicted ones)", type=str, default = IN_SEQ)       
     parser.add_argument("-c", "--cmap_path", help = "Path to the directory containting the contact map of each protein", type=str, default = IN_CMAP)
     parser.add_argument("-d", "--plddt_path", help = "Path to the pandas dataframe including the AF model confidence of all proteins", type=str, default = IN_PLDDT)
@@ -82,12 +98,9 @@ def init_parser():
     parser.add_argument("-e", "--conda_sh", help="Path to your own conda.sh file", type=str, default=CONDA_SH)
     parser.add_argument("-E", "--conda_env", help="Name of conda environment", type=str, default=CONDA_ENV) 
 
+    parser.add_argument("-r", "--seed", help="Set seed to ensure reproducible results", type=int)
     parser.add_argument("-m", "--memory", help="GB of memory allocated to each job", type=int, default=10) 
     parser.add_argument("-u", "--cores", help="Number of cores allocated to each job", type=int, default=1) 
-
-    parser.add_argument("-M", "--metadata", help="Path to the cohorts.tsv file inlcuding cohorts metadata", type=str, default=COHORTS_PATH) 
-    parser.add_argument("-i", "--input_maf", help="Path to the input MAF file", type=str, default=IN_MAF) 
-    parser.add_argument("-p", "--input_mut_profile", help="Path to the input mut_profile", type=str, default=IN_MUT_PROF) 
     
     parser.add_argument("-n", "--n_iterations", help = "Number of densities to be simulated", type=int, default=10000)
     parser.add_argument("-x", "--ext_hits",
@@ -111,6 +124,7 @@ def main():
     script_dir = args.script_dir
     conda_sh = args.conda_sh
     conda_env = args.conda_env
+    seed = args.seed
     memory = args.memory
     cores = args.cores
     metadata = args.metadata
@@ -134,15 +148,24 @@ def main():
         tumor = row["CANCER_TYPE"]
         cohort = row["COHORT"]
         maf = f"{input_maf}/{cohort}.in.maf"
-        mut_profile = f"{input_mut_profile}/{cohort}.mutrate.json"
 
-        if os.path.isfile(maf) and os.path.isfile(mut_profile):
-            add_job(script_dir, qmap_file, 
-                    maf, mut_profile, output,
-                    seq_df, cmap_path, plddt_path, cores,
-                    tumor, cohort, num_iteration, ext_hits)
-            i += 1
-
+        if input_mut_profile is not None:
+            mut_profile = f"{input_mut_profile}/{cohort}.mutrate.json"
+            if os.path.isfile(maf) and os.path.isfile(mut_profile):
+                add_job(script_dir, qmap_file, 
+                        maf, mut_profile, output,
+                        seq_df, cmap_path, plddt_path, cores,
+                        tumor, cohort, num_iteration, ext_hits, seed)
+                i += 1
+        else:
+            mut_profile = None
+            if os.path.isfile(maf):
+                add_job(script_dir, qmap_file, 
+                        maf, mut_profile, output,
+                        seq_df, cmap_path, plddt_path, cores,
+                        tumor, cohort, num_iteration, ext_hits, seed)
+                i += 1
+            
     print(f"{i} jobs added to {qmap_file}")
 
 
