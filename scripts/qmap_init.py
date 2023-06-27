@@ -6,10 +6,10 @@ python3 qmap_init.py -q submit.qmap -o /workspace/projects/clustering_3d/evaluat
 python3 qmap_init.py -q submit.qmap -o /workspace/projects/clustering_3d/evaluation/tool_output/run_20230516_process_all_mut \
     -e /home/odove/anaconda3/etc/profile.d/conda.sh
 
-python3 qmap_init.py -q submit.qmap -o /workspace/projects/clustering_3d/evaluation/tool_output/run_20230626 \
+python3 qmap_init.py -q submit.qmap -o /workspace/projects/clustering_3d/evaluation/tool_output/run_20230626_nofrag \
     -p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile \
         -c /workspace/projects/clustering_3d/clustering_3d/datasets_frag/cmaps/ -d /workspace/projects/clustering_3d/clustering_3d/datasets_frag/confidence.csv \
-            -s /workspace/projects/clustering_3d/clustering_3d/datasets_frag/seq_for_mut_prob.csv -u 10 -m 55 -r 128
+            -s /workspace/projects/clustering_3d/clustering_3d/datasets_frag/seq_for_mut_prob.csv -u 10 -m 55 -r 128 -f 0
             
 python3 qmap_init.py -q submit.qmap -o /workspace/projects/clustering_3d/evaluation/tool_output/run_20230623_unif \
         -c /workspace/projects/clustering_3d/clustering_3d/datasets_frag/cmaps/ -d /workspace/projects/clustering_3d/clustering_3d/datasets_frag/confidence.csv \
@@ -48,7 +48,7 @@ def init_submit_file(path_qmap_file,
 def add_job(script_dir, path_qmap_file, 
             in_maf, in_mut_profile, output,
             seq_df, cmap_path, plddt_path, cores,
-            cancer, cohort, num_iteration, ext_hits, seed):
+            cancer, cohort, num_iteration, ext_hits, seed, fragments):
     """
     Add clustering_3d job to the qmap file.
     """
@@ -61,7 +61,7 @@ def add_job(script_dir, path_qmap_file,
         flag_seed = f"-S {seed}"
     else:
         flag_seed = ""
-    command = f"python3 {script_dir}/main.py -i {in_maf} -o {output} {flag_mut_profile} -s {seq_df} -c {cmap_path} -d {plddt_path} -H 0 -t {cancer} -C {cohort} -u {cores} -n {num_iteration} -e {ext_hits} {flag_seed}"
+    command = f"python3 {script_dir}/main.py -i {in_maf} -o {output} {flag_mut_profile} -s {seq_df} -c {cmap_path} -d {plddt_path} -H 0 -t {cancer} -C {cohort} -u {cores} -n {num_iteration} -e {ext_hits} {flag_seed} -f {fragments}"
     with open(path_qmap_file, "a") as file:
         file.write(command + "\n")
         
@@ -102,6 +102,7 @@ def init_parser():
     parser.add_argument("-m", "--memory", help="GB of memory allocated to each job", type=int, default=10) 
     parser.add_argument("-u", "--cores", help="Number of cores allocated to each job", type=int, default=1) 
     
+    parser.add_argument("-f", "--fragments", help = "Enable processing of fragmented (AF-F) proteins", type=int, default=1)
     parser.add_argument("-n", "--n_iterations", help = "Number of densities to be simulated", type=int, default=10000)
     parser.add_argument("-x", "--ext_hits",
                         help = "If 1 extend clusters to all mutated residues in the significant volumes, if 0 extend only to the ones having an anomaly > expected", 
@@ -130,6 +131,7 @@ def main():
     metadata = args.metadata
     input_maf = args.input_maf
     input_mut_profile = args.input_mut_profile
+    fragments = args.fragments
     num_iteration = args.n_iterations
     ext_hits = args.ext_hits
 
@@ -155,7 +157,7 @@ def main():
                 add_job(script_dir, qmap_file, 
                         maf, mut_profile, output,
                         seq_df, cmap_path, plddt_path, cores,
-                        tumor, cohort, num_iteration, ext_hits, seed)
+                        tumor, cohort, num_iteration, ext_hits, seed, fragments)
                 i += 1
         else:
             mut_profile = None
@@ -163,7 +165,7 @@ def main():
                 add_job(script_dir, qmap_file, 
                         maf, mut_profile, output,
                         seq_df, cmap_path, plddt_path, cores,
-                        tumor, cohort, num_iteration, ext_hits, seed)
+                        tumor, cohort, num_iteration, ext_hits, seed, fragments)
                 i += 1
             
     print(f"{i} jobs added to {qmap_file}")

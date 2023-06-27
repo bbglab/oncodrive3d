@@ -232,7 +232,8 @@ def main():
         genes_frag = seq_df[seq_df.F.str.extract(r'(\d+)', expand=False).astype(int) > 1]
         genes_frag = genes_frag.Gene.reset_index(drop=True).values
         genes_frag_mut = genes_mut[[gene in genes_frag for gene in genes_mut.index]]
-        genes_frag_id = [gene_to_uniprot_dict[gene] for gene in genes_frag_mut.index]                  
+        genes_frag = genes_frag_mut.index.values
+        genes_frag_id = [gene_to_uniprot_dict[gene] for gene in genes_frag]               
         result_gene = pd.DataFrame({"Gene" : genes_frag,
                                     "Uniprot_ID" : genes_frag_id,
                                     "F" : np.nan,
