@@ -43,7 +43,7 @@ def get_seq_df_from_dir(input_path, uniprot_to_gene_dict):
     list_prot_path = [path for path in list_prot_path if get_af_id_from_pdb(path).split("-F")[0] in uniprot_to_gene_dict.keys()]
     pdb_not_mapped = set([get_af_id_from_pdb(path).split("-F")[0] for path in list_prot_path if get_af_id_from_pdb(path).split("-F")[0] not in uniprot_to_gene_dict.keys()])
     if len(pdb_not_mapped) > 0:                                 
-        warnings.warn(f"WARNING........... {len(pdb_not_mapped)} Uniprot-ID not found in the Uniprot-HUGO mapping dictionary")
+        warnings.warn(f"{len(pdb_not_mapped)} Uniprot-ID not found in the Uniprot-HUGO mapping dictionary")
 
     # Get Uniprot ID, HUGO, F and protein sequence of any PDB in dir
     gene_lst = []
