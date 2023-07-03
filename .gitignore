@@ -5,6 +5,10 @@ datasets/af_uniprot_to_gene_id.json
 datasets/seq_for_mut_prob.csv
 datasets/confidence.csv
 datasets_frag/cmaps
+datasets_frag/cmaps_12a
+datasets_frag/cmaps_14a
+datasets_frag/cmaps_8a
+datasets_frag/cmaps_6a
 datasets_frag/temp
 datasets_frag/pdb_structures*
 datasets_frag/af_uniprot_to_gene_id.json

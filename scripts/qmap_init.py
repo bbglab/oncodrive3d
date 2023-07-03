@@ -6,14 +6,29 @@ python3 qmap_init.py -q submit.qmap -o /workspace/projects/clustering_3d/evaluat
 python3 qmap_init.py -q submit.qmap -o /workspace/projects/clustering_3d/evaluation/tool_output/run_20230516_process_all_mut \
     -e /home/odove/anaconda3/etc/profile.d/conda.sh
 
-python3 qmap_init.py -q submit.qmap -o /workspace/projects/clustering_3d/evaluation/tool_output/run_20230626_nofrag \
+python3 qmap_init.py -q submit.qmap -o /workspace/projects/clustering_3d/evaluation/tool_output/run_20230627 \
     -p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile \
         -c /workspace/projects/clustering_3d/clustering_3d/datasets_frag/cmaps/ -d /workspace/projects/clustering_3d/clustering_3d/datasets_frag/confidence.csv \
-            -s /workspace/projects/clustering_3d/clustering_3d/datasets_frag/seq_for_mut_prob.csv -u 10 -m 55 -r 128 -f 0
+            -s /workspace/projects/clustering_3d/clustering_3d/datasets_frag/seq_for_mut_prob.csv -u 10 -m 55 -r 128
             
 python3 qmap_init.py -q submit.qmap -o /workspace/projects/clustering_3d/evaluation/tool_output/run_20230623_unif \
         -c /workspace/projects/clustering_3d/clustering_3d/datasets_frag/cmaps/ -d /workspace/projects/clustering_3d/clustering_3d/datasets_frag/confidence.csv \
+            -s /workspace/projects/clustering_3d/clustering_3d/datasets_frag/seq_for_mut_prob.csv -u 10 -m 55 -r 128ù
+            
+python3 qmap_init.py -q submit.qmap -o /workspace/projects/clustering_3d/evaluation/tool_output/run_20230628_n50000 \
+    -p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile \
+        -c /workspace/projects/clustering_3d/clustering_3d/datasets_frag/cmaps/ -d /workspace/projects/clustering_3d/clustering_3d/datasets_frag/confidence.csv \
+            -s /workspace/projects/clustering_3d/clustering_3d/datasets_frag/seq_for_mut_prob.csv -u 10 -m 55 -r 128 -n 50000
+            
+python3 qmap_init.py -q submit.qmap -o /workspace/projects/clustering_3d/evaluation/tool_output/run_20230629_process_all_mut \
+    -p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile \
+        -c /workspace/projects/clustering_3d/clustering_3d/datasets_frag/cmaps/ -d /workspace/projects/clustering_3d/clustering_3d/datasets_frag/confidence.csv \
             -s /workspace/projects/clustering_3d/clustering_3d/datasets_frag/seq_for_mut_prob.csv -u 10 -m 55 -r 128
+            
+python3 qmap_init.py -q submit.qmap -o /workspace/projects/clustering_3d/evaluation/tool_output/run_20230630_noseed1 \
+    -p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile \
+        -c /workspace/projects/clustering_3d/clustering_3d/datasets_frag/cmaps/ -d /workspace/projects/clustering_3d/clustering_3d/datasets_frag/confidence.csv \
+            -s /workspace/projects/clustering_3d/clustering_3d/datasets_frag/seq_for_mut_prob.csv -u 10 -m 55
 
 #######################
 
