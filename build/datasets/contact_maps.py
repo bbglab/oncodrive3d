@@ -101,6 +101,8 @@ def get_contact_maps(files, output_path, distance=10, verbose=False, num_process
         if verbose and n % 100 == 0:
             if n == 0:
                 print(f"Process [{num_process}] starting..")
+            elif n == len(files):
+                print(f"Process [{num_process}] completed [{n}/{len(files)}] structures")
             else:
                 print(f"Process [{num_process}] completed [{n}/{len(files)}] structures")
 
