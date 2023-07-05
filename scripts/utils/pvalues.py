@@ -42,7 +42,7 @@ def get_final_gene_result(result_pos, result_gene, alpha_gene=0.05):
     # > NB: samples info for fragments will be displayed as they are individual proteins <
     gene_pvals["Tot_samples"] = result_pos.groupby("Gene").apply(lambda x: x["Tot_samples"].unique()[0]).values
     gene_pvals["Samples_in_top_vol"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].Samples_in_vol)).values
-    gene_pvals["Samples_in_top_c_vol"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].Samples_in_cl_vol)).values
+    gene_pvals["Samples_in_top_cl_vol"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].Samples_in_cl_vol)).values
     gene_pvals["Mut_in_top_cl_vol"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].Mut_in_cl_vol)).values
     gene_pvals["Ratio_obs_sim_top_vol"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].Ratio_obs_sim)).values
     #gene_pvals["Top_diff_obs_sim"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].Diff_obs_sim)).values
