@@ -32,6 +32,6 @@ for file in "$input_dir"/*; do
     filename="${filename%%.in.maf}"
 
     # Get count of mutation per context and normalize by trinucleotide bias (mut profile)
-    bgsignature normalize -m $file -r $regions --normalize $output_dir/wg.count.json -s 3 -g $genome --collapse --cores 4 -o $output_dir/${filename}.mutrate.json
+    bgsignature normalize -m "$file" -r "$regions" --normalize "$output_dir/wg.count.json" -s 3 -g "$genome" --collapse --cores 4 -o "$output_dir/${filename}.mutrate.json"
 
 done
