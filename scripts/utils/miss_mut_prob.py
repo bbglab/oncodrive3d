@@ -83,8 +83,10 @@ def translate_dna_to_prot(dna_seq, gencode):
 
 
 def colored(text, r=255, g=0, b=0):
+    
     start = f"\033[38;2;{r};{g};{b}m"
     end = "\033[38;2;255;255;255;0m"
+    
     return f"{start}{text}{end}"
 
 
@@ -170,7 +172,10 @@ def get_miss_mut_prob(dna_seq, mut_rate_dict, get_probability=True, v=False):
                     if alt_aa != aa and alt_aa != "_":
                         mut = f"{trinucl}>{alt}"
                         if v: print(mut, "\t", mut_rate_dict[mut], "\t", alt_codon, "\t    ", alt_aa, )
-                        missense_prob += mut_rate_dict[mut]
+                        if mut in mut_rate_dict:
+                            missense_prob += mut_rate_dict[mut]
+                        else:
+                            missense_prob += 0
             if v: print("")
 
         if v: print(f">> Prob of missense mut: {missense_prob:.3}\n")

@@ -29,14 +29,19 @@ python3 qmap_init.py -q submit.qmap -o /workspace/projects/clustering_3d/evaluat
     -p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile \
         -c /workspace/projects/clustering_3d/clustering_3d/datasets_frag/cmaps/ -d /workspace/projects/clustering_3d/clustering_3d/datasets_frag/confidence.csv \
             -s /workspace/projects/clustering_3d/clustering_3d/datasets_frag/seq_for_mut_prob.csv -u 10 -m 55 -r 1234
+            
+python3 qmap_init.py -q submit_profile_bgsign.qmap -o /workspace/projects/clustering_3d/evaluation/tool_output/run_20230705_profile_bgsign \
+    -p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile_bgsign \
+        -c /workspace/projects/clustering_3d/clustering_3d/datasets_frag/cmaps/ -d /workspace/projects/clustering_3d/clustering_3d/datasets_frag/confidence.csv \
+            -s /workspace/projects/clustering_3d/clustering_3d/datasets_frag/seq_for_mut_prob.csv -u 5 -m 30 -r 128
 
-python3 qmap_init.py -q submit_cmap12a.qmap -o /workspace/projects/clustering_3d/evaluation/tool_output/run_20230704_cmap12a     -p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile         -c /workspace/projects/clustering_3d/clustering_3d/datasets_frag/cmaps_12a/ -d /workspace/projects/clustering_3d/clustering_3d/datasets_frag/confidence.csv             -s /workspace/projects/clustering_3d/clustering_3d/datasets_frag/seq_for_mut_prob.csv -u 10 -m 55 -r 128
+python3 qmap_init.py -q submit_cmap4a.qmap -o /workspace/projects/clustering_3d/evaluation/tool_output/run_20230706_cmap4a     -p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile         -c /workspace/projects/clustering_3d/clustering_3d/datasets_frag/cmaps_4a/ -d /workspace/projects/clustering_3d/clustering_3d/datasets_frag/confidence.csv             -s /workspace/projects/clustering_3d/clustering_3d/datasets_frag/seq_for_mut_prob.csv -u 10 -m 55 -r 128
 
 #######################
 
 #### run qmap #########
 
-qmap submit submit.qmap --max-running 9
+qmap submit submit_profile_bgsign.qmap --max-running 2
 
 #######################
 """

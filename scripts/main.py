@@ -254,7 +254,8 @@ def main():
         # Compute dict from mut profile of the cohort and dna sequences
         mut_profile = json.load(open(mut_profile_path))
         print(f"\nComputing missense mut probabilities..")
-        mut_profile = mut_rate_vec_to_dict(mut_profile)
+        if not isinstance(mut_profile, dict):
+            mut_profile = mut_rate_vec_to_dict(mut_profile)
         miss_prob_dict = get_miss_mut_prob_dict(mut_rate_dict=mut_profile, seq_df=seq_df)
     else:
         miss_prob_dict = None
