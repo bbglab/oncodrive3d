@@ -4,6 +4,7 @@ datasets/pdb_structures*
 datasets/af_uniprot_to_gene_id.json
 datasets/seq_for_mut_prob.csv
 datasets/confidence.csv
+datasets_frag/pae
 datasets_frag/cmaps
 datasets_frag/cmaps_12a
 datasets_frag/cmaps_14a
