@@ -32,17 +32,17 @@ while IFS=',' read -ra cols
 do
 
     # Check if the third element is equal to 1
-    if [[ ${cols[2]} == 1 ]]; then
+    if [[ ${cols[2]} == 1 && ${cols[0]} != "Uniprot_ID" ]]; then
 
         # Download PAE from AF databasae
-        wget -O $output_dir/${cols[1]}-F1-predicted_aligned_error.json https://alphafold.ebi.ac.uk/files/AF-${cols[1]}-F1-predicted_aligned_error_v4.json
+        wget -q -O $output_dir/${cols[1]}-F1-predicted_aligned_error.json https://alphafold.ebi.ac.uk/files/AF-${cols[1]}-F1-predicted_aligned_error_v4.json
 
-    fi
+        # Check that the file is not truncated
+        if ! tail -n 1 $output_dir/${cols[1]}-F1-predicted_aligned_error.json | grep -q "}]" ; then
+            echo The ${cols[1]} is incomplete.. re-downloading..
+            wget -q -O $output_dir/${cols[1]}-F1-predicted_aligned_error.json https://alphafold.ebi.ac.uk/files/AF-${cols[1]}-F1-predicted_aligned_error_v4.json
 
-    # Check that the file is not truncated
-    if ! tail -n 1 $output_dir/${cols[1]}-F1-predicted_aligned_error.json | grep -q "}]" ; then
-        echo The ${cols[1]} is incomplete.. re-downloading..
-        wget -O $output_dir/${cols[1]}-F1-predicted_aligned_error.json https://alphafold.ebi.ac.uk/files/AF-${cols[1]}-F1-predicted_aligned_error_v4.json
+        fi
 
     fi
 

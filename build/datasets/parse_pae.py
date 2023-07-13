@@ -38,7 +38,6 @@ def get_pae_path_list_from_dir(path_dir):
 
 def json_to_npy(path):
     
-    print(path)
     with open(path) as f:
         pae = json.load(f)
         
@@ -60,7 +59,7 @@ def main():
         
     path_files = get_pae_path_list_from_dir(input)
 
-    for path in progressbar(path_files[16525:]):
+    for path in progressbar(path_files):
         np.save(path.replace(".json", ".npy"), json_to_npy(path))
 
 if __name__ == "__main__":
