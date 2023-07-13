@@ -12,6 +12,9 @@ from progressbar import progressbar
 
 #####################################################################################################
 
+##### NOTE #####
+# I might want to add a final check that ensure that there are no truncated structures
+################
 
 def init_parser():
     """
