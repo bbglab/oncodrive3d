@@ -14,7 +14,12 @@ datasets_frag/cmaps_4a
 datasets_frag/cmaps_2a
 datasets_frag/cmaps_16a
 datasets_frag/cmaps_18a
+datasets_frag/cmaps_temp1
+datasets_frag/prob_cmaps
+datasets_frag/prob_cmaps_temp1
 datasets_frag/temp
+datasets_frag/pae
+datasets_frag/pae_v2
 datasets_frag/pdb_structures*
 datasets_frag/af_uniprot_to_gene_id.json
 datasets_frag/seq_for_mut_prob.csv
