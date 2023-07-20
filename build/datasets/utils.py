@@ -59,7 +59,7 @@ def get_pdb_path_list_from_dir(path_dir):
     """
 
     pdb_files = os.listdir(path_dir)
-    pdb_path_list = [f"{path_dir}{f}" for f in pdb_files if re.search('.\.pdb$', f) is not None]
+    pdb_path_list = [f"{path_dir}/{f}" for f in pdb_files if re.search('.\.pdb$', f) is not None]
     return pdb_path_list
 
 
