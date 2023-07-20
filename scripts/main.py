@@ -59,6 +59,10 @@ python3 /workspace/projects/clustering_3d/clustering_3d/scripts/main.py -i /work
 python3 /workspace/projects/clustering_3d/clustering_3d/scripts/main.py -i /workspace/projects/clustering_3d/evaluation/datasets/input/maf/HARTWIG_WGS_PLMESO_2020.in.maf -o /workspace/projects/clustering_3d/evaluation/tool_output/run_20230621_frag -p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile/HARTWIG_WGS_PLMESO_2020.mutrate.json -s /workspace/projects/clustering_3d/clustering_3d/datasets_frag/seq_for_mut_prob.csv -c /workspace/projects/clustering_3d/clustering_3d/datasets_frag/cmaps/ -d /workspace/projects/clustering_3d/clustering_3d/datasets_frag/confidence.csv -H 0 -t BLCA -C HARTWIG_WGS_PLMESO_2020 -n 10000 -e 1
 
 python3 /workspace/projects/clustering_3d/clustering_3d/scripts/main.py -i /workspace/projects/clustering_3d/evaluation/datasets/input/maf/HARTWIG_WGS_PLMESO_2020.in.maf -o /workspace/projects/clustering_3d/dev_testing/output -p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile/HARTWIG_WGS_PLMESO_2020.mutrate.json -s /workspace/projects/clustering_3d/clustering_3d/datasets_frag/seq_for_mut_prob.csv -c /workspace/projects/clustering_3d/clustering_3d/datasets_frag/cmaps/ -d /workspace/projects/clustering_3d/clustering_3d/datasets_frag/confidence.csv -t BLCA -C HARTWIG_WGS_PLMESO_2020 -n 10000
+
+## Probabilistic CMAPs
+
+python3 /workspace/projects/clustering_3d/clustering_3d/scripts/main.py -i /workspace/projects/clustering_3d/evaluation/datasets/input/maf/HARTWIG_WGS_PLMESO_2020.in.maf -o /workspace/projects/clustering_3d/dev_testing/output -p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile/HARTWIG_WGS_PLMESO_2020.mutrate.json -s /workspace/projects/clustering_3d/clustering_3d/datasets_frag/seq_for_mut_prob.csv -c /workspace/projects/clustering_3d/clustering_3d/datasets_frag/prob_cmaps/ -d /workspace/projects/clustering_3d/clustering_3d/datasets_frag/confidence.csv -t BLCA -C HARTWIG_WGS_PLMESO_2020 -n 10000 -P 0.5
 #################################################################################################
 """
 
@@ -86,7 +90,6 @@ def init_parser():
     # Required input
     parser.add_argument("-i", "--input_maf", help = "Path of the maf file used as input", type=str, required=True)
     parser.add_argument("-p", "--mut_profile", help = "Path to the mut profile (list of 96 floats) of the cohort (json)", type=str)
-    parser.add_argument("-P", "--miss_mut_prob", help = "Path to the dict of missense mut prob of each protein based on mut profile of the cohort (json)",  type=str)   ### <<< Probably unnecessary >>>
     
     # Required output
     parser.add_argument("-o", "--output_dir", help = "Path to output directory", type=str, required=True)
@@ -99,10 +102,8 @@ def init_parser():
     # Parameters
     parser.add_argument("-n", "--n_iterations", help = "Number of densities to be simulated", type=int, default=10000)
     parser.add_argument("-a", "--alpha_level", help = "Significant threshold for the p-value of res and gene", type=float, default=0.01)
+    parser.add_argument("-P", "--cmap_prob_thr", help = "Threshold to define AAs contacts based on distance on predicted structure and PAE", type=float, default=0.01)
     parser.add_argument("-H", "--hits_only", help = "If 1 returns only positions in clusters, if 0 returns all", type=int, default=0)
-    parser.add_argument("-e", "--ext_hits", 
-                        help = "If 1 extend clusters to all mutated residues in the significant volumes, if 0 extend only to the ones having an anomaly > expected", 
-                        type=int, default=1)
     parser.add_argument("-f", "--fragments", help = "Enable processing of fragmented (AF-F) proteins", type=int, default=1)
     parser.add_argument("-u", "--num_cores", help="Set the number of cores for parallel processing", type=int, default=1)
     parser.add_argument("-S", "--seed", help="Set seed to ensure reproducible results", type=int)
@@ -121,13 +122,12 @@ def main():
     """
 
     ## Initialize
-    version = "v_2023_06_23"    # LAST CHANGE: Seed (128) for reproducible result
+    version = "v_2023_07_20"    # LAST CHANGE: Implemented probability of contact using PAE
     # Parser
     args = init_parser()
 
     maf_input_path = args.input_maf
     mut_profile_path = args.mut_profile
-    miss_mut_prob_path = args.miss_mut_prob
     seq_df_path = args.seq_df
     cmap_path = args.cmap_path
     num_iteration = args.n_iterations
@@ -137,11 +137,11 @@ def main():
     alpha = args.alpha_level
     hits_only = args.hits_only
     fragments = args.fragments
-    ext_hits = args.ext_hits
     plddt_path = args.plddt_path
     num_cores = args.num_cores
     verbose = args.verbose
     seed = args.seed
+    cmap_prob_thr = args.cmap_prob_thr
 
     dir_path = os.path.abspath(os.path.dirname(__file__))
     if plddt_path is None:
@@ -159,12 +159,10 @@ def main():
 
     print(f"Starting 3D-clustering [{version}]..\n")
     print(f"Output directory: {output_dir}")
-    print(f"Path to contact maps: {cmap_path}")
+    print(f"Path to CMAPs: {cmap_path}")
     print(f"Path to DNA sequences: {seq_df_path}")
     print(f"Path to pLDDT scores: {plddt_path}")
-    if miss_mut_prob_path is not None:
-        path_prob = miss_mut_prob_path
-    elif mut_profile_path is not None:
+    if mut_profile_path is not None:
         path_prob = mut_profile_path
     else:
         path_prob = "Not provided, uniform distribution will be used"
@@ -172,7 +170,7 @@ def main():
     print(f"CPU cores:", num_cores)
     print(f"Iterations: {num_iteration}")
     print(f"Significant level: {alpha}")
-    print(f"Extend hits: {bool(ext_hits)}")
+    print(f"Probability threshold for CMAPs: {cmap_prob_thr}")
     print(f"Hits only: {bool(hits_only)}")
     print(f"Fragments: {bool(fragments)}")
     print(f"Cohort:", cohort)
@@ -247,10 +245,7 @@ def main():
         seq_df = seq_df[[gene in genes_to_process for gene in seq_df["Gene"]]].reset_index(drop=True)
 
     # Missense mut prob  
-    if miss_mut_prob_path is not None:
-        # Load dict with miss prob of each prot
-        miss_prob_dict = json.load(open(miss_mut_prob_path))
-    elif mut_profile_path is not None:
+    if mut_profile_path is not None:
         # Compute dict from mut profile of the cohort and dna sequences
         mut_profile = json.load(open(mut_profile_path))
         print(f"\nComputing missense mut probabilities..")
@@ -266,7 +261,8 @@ def main():
         result_pos, result_gene = clustering_3d_mp_wrapper(genes_to_process, data, cmap_path, 
                                                            miss_prob_dict, gene_to_uniprot_dict, plddt_df,
                                                            num_cores, alpha=alpha, num_iteration=num_iteration, 
-                                                           hits_only=hits_only, ext_hits=ext_hits, verbose=verbose, seed=seed)
+                                                           cmap_prob_thr=cmap_prob_thr, hits_only=hits_only, 
+                                                           verbose=verbose, seed=seed)
         result_gene = pd.concat((result_gene, pd.concat(result_np_gene_lst)))
     else:
         result_gene = pd.concat(result_np_gene_lst)

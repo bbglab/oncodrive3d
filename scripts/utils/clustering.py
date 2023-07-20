@@ -14,15 +14,15 @@ from utils.miss_mut_prob import get_unif_gene_miss_prob
 
 
 def clustering_3d(gene, 
-                   uniprot_id,
-                   mut_gene_df,                                      
-                   cmap_path,
-                   miss_prob_dict,
-                   alpha=0.01,
-                   num_iteration=10000,
-                   hits_only=True,
-                   ext_hits=True,
-                   seed=None):
+                  uniprot_id,
+                  mut_gene_df,                                      
+                  cmap_path,
+                  miss_prob_dict,
+                  alpha=0.01,
+                  num_iteration=10000,
+                  cmap_prob_thr=0.5,
+                  hits_only=True,
+                  seed=None):
     """
     Compute local density of missense mutations for a sphere of 10A around          
     each amino acid position of the selected gene product. It performed a 
@@ -73,6 +73,8 @@ def clustering_3d(gene,
     cmap_complete_path = f"{cmap_path}/{uniprot_id}-F{af_f}.npy"
     if os.path.isfile(cmap_complete_path):
         cmap = np.load(cmap_complete_path) 
+        cmap = cmap > cmap_prob_thr
+        cmap = cmap.astype(int)
     else:
         result_gene_df["Status"] = "Cmap_not_found"
         return None, result_gene_df
@@ -130,8 +132,8 @@ def clustering_3d(gene,
     no_mut_pos = len(result_pos_df)
     sim_anomaly = sim_anomaly.iloc[:no_mut_pos,:].reset_index()
     result_pos_df["Obs_anomaly"] = get_anomaly_score(result_pos_df["Mut_in_vol"], mut_count, vol_missense_mut_prob[result_pos_df["Pos"]-1])
-    mut_in_res = count.reset_index().rename(columns = {"Pos" : "Mut_in_res", "index" : "Pos"})       # unnecessary but it is informative
-    result_pos_df = mut_in_res.merge(result_pos_df, on = "Pos", how = "outer")                       #   "        "        "        "     
+    mut_in_res = count.reset_index().rename(columns = {"Pos" : "Mut_in_res", "index" : "Pos"})      
+    result_pos_df = mut_in_res.merge(result_pos_df, on = "Pos", how = "outer")                          
     result_pos_df = result_pos_df.sort_values("Obs_anomaly", ascending=False).reset_index(drop=True)
 
 
@@ -153,13 +155,9 @@ def clustering_3d(gene,
     
     # Select extended significant hits
     pos_hits = result_pos_df[result_pos_df["C"] == 1].Pos
-    if ext_hits:
-        anomaly_ratio_th = 0
-    else:
-        anomaly_ratio_th = 1
     neigh_pos_hits = list(set([pos for p in pos_hits.values for pos in list(np.where(cmap[p - 1])[0] + 1)]))
     pos_hits_extended = [pos for pos in result_pos_df.Pos if pos in neigh_pos_hits]
-    result_pos_df["C_ext"] = result_pos_df.apply(lambda x: 1 if (x["C"] == 0) & (x["Pos"] in pos_hits_extended) & (x["Ratio_obs_sim"] > anomaly_ratio_th) 
+    result_pos_df["C_ext"] = result_pos_df.apply(lambda x: 1 if (x["C"] == 0) & (x["Pos"] in pos_hits_extended)
                                                     else 0 if (x["C"] == 1) else np.nan, axis=1)
     result_pos_df["C"] = result_pos_df.apply(lambda x: 1 if (x["C"] == 1) | (x["C_ext"] == 1) else 0, axis=1)
     pos_hits = result_pos_df[result_pos_df["C"] == 1].Pos  
@@ -213,8 +211,8 @@ def clustering_3d_mp(genes,
                      num_process,
                      alpha=0.01,
                      num_iteration=10000,
+                     cmap_prob_thr=0.5,
                      hits_only=1,
-                     ext_hits=1, 
                      verbose=0,
                      seed=None):
     """
@@ -241,8 +239,8 @@ def clustering_3d_mp(genes,
                                                 alpha=alpha,
                                                 num_iteration=num_iteration,
                                                 hits_only=hits_only,
-                                                ext_hits=ext_hits,
-                                                seed=seed)
+                                                seed=seed,
+                                                cmap_prob_thr=cmap_prob_thr)
         result_gene_lst.append(result_gene)
         if pos_result is not None:
             result_pos_lst.append(pos_result)
@@ -266,8 +264,8 @@ def clustering_3d_mp_wrapper(genes,
                              num_cores,
                              alpha=0.01,
                              num_iteration=10000,
+                             cmap_prob_thr=0.5,
                              hits_only=0,
-                             ext_hits=1, 
                              verbose=0,
                              seed=None):
     """
@@ -282,7 +280,8 @@ def clustering_3d_mp_wrapper(genes,
     with multiprocessing.Pool(processes = num_cores) as pool:
         results = pool.starmap(clustering_3d_mp, [(chunk, data, cmap_path, miss_prob_dict, 
                                                    gene_to_uniprot_dict, plddt_df, n_process,
-                                                   alpha, num_iteration, hits_only, ext_hits, verbose, seed) 
+                                                   alpha, num_iteration, hits_only, verbose, 
+                                                   seed, cmap_prob_thr) 
                                                  for n_process, chunk in enumerate(chunks)])
         
     # Parse output

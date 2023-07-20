@@ -83,7 +83,9 @@ def get_structure(file):
     """
     Use Bio.PDB to parse protein structure.
     """
+    
     id = file.split("AF-")[1].split("-model_v1")[0]
+    
     return PDBParser().get_structure(id=id, file = f"{file}")[0]
 
 
@@ -91,6 +93,7 @@ def get_3to1_protein_id(protein_id):
     """
     Convert a 3 letter protein code into 1 letter.
     """
+    
     return protein_letters_3to1[protein_id.lower().capitalize()]
 
 
@@ -98,10 +101,13 @@ def get_dist_matrix(chain) :
     """
     Compute the distance matrix between C-alpha of a protein.
     """
+    
     m = np.zeros((len(chain), len(chain)), float)
+    
     for i, res1 in enumerate(chain) :
         for j, res2 in enumerate(chain) :
             m[i, j] = abs(res1["CA"] - res2["CA"])
+            
     return m
 
 
@@ -109,8 +115,12 @@ def get_contact_map(chain, distance=10):
     """
     Compute the contact map between C-alpha of a protein.
     """
+    
     dist_matrix = get_dist_matrix(chain)
-    return dist_matrix < distance
+    dist_matrix = dist_matrix < distance
+    
+    return dist_matrix.astype(float)
+
 
 
 def get_prob_contact(pae_value, dmap_value, distance=10):
@@ -144,7 +154,6 @@ def get_prob_cmap(chain, pae, distance=10) :
     
     for i, res1 in enumerate(chain):
         for j, res2 in enumerate(chain):
-
             d = abs(res1["CA"] - res2["CA"])
             m[i, j] = get_prob_contact(pae[i, j], d, distance)
             
