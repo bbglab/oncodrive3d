@@ -37,11 +37,13 @@ python3 qmap_init.py -q submit_profile_bgsign.qmap -o /workspace/projects/cluste
 
 python3 qmap_init.py -q submit_cmap4a.qmap -o /workspace/projects/clustering_3d/evaluation/tool_output/run_20230706_cmap4a     -p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile         -c /workspace/projects/clustering_3d/clustering_3d/datasets_frag/cmaps_4a/ -d /workspace/projects/clustering_3d/clustering_3d/datasets_frag/confidence.csv             -s /workspace/projects/clustering_3d/clustering_3d/datasets_frag/seq_for_mut_prob.csv -u 10 -m 55 -r 128
 
+python3 qmap_init.py -q submit_pcmap_0.5.qmap -o /workspace/projects/clustering_3d/evaluation/tool_output/run_pcmap_0.5 -p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile -c /workspace/projects/clustering_3d/clustering_3d/datasets_frag/prob_cmaps/ -d /workspace/projects/clustering_3d/clustering_3d/datasets_frag/confidence.csv -s /workspace/projects/clustering_3d/clustering_3d/datasets_frag/seq_for_mut_prob.csv -u 10 -m 55 -r 128 -P 0.5
+
 #######################
 
 #### run qmap #########
 
-qmap submit submit_profile_bgsign.qmap --max-running 2
+qmap submit submit_pcmap_0.5.qmap --max-running 5
 
 #######################
 """
@@ -70,7 +72,8 @@ def init_submit_file(path_qmap_file,
 def add_job(script_dir, path_qmap_file, 
             in_maf, in_mut_profile, output,
             seq_df, cmap_path, plddt_path, cores,
-            cancer, cohort, num_iteration, ext_hits, seed, fragments):
+            cancer, cohort, num_iteration, seed, 
+            fragments, cmap_prob_thr):
     """
     Add clustering_3d job to the qmap file.
     """
@@ -83,7 +86,7 @@ def add_job(script_dir, path_qmap_file,
         flag_seed = f"-S {seed}"
     else:
         flag_seed = ""
-    command = f"python3 {script_dir}/main.py -i {in_maf} -o {output} {flag_mut_profile} -s {seq_df} -c {cmap_path} -d {plddt_path} -H 0 -t {cancer} -C {cohort} -u {cores} -n {num_iteration} -e {ext_hits} {flag_seed} -f {fragments}"
+    command = f"python3 {script_dir}/main.py -i {in_maf} -o {output} {flag_mut_profile} -s {seq_df} -c {cmap_path} -d {plddt_path} -H 0 -t {cancer} -C {cohort} -u {cores} -n {num_iteration} -P {cmap_prob_thr} {flag_seed} -f {fragments}"
     with open(path_qmap_file, "a") as file:
         file.write(command + "\n")
         
@@ -126,9 +129,8 @@ def init_parser():
     
     parser.add_argument("-f", "--fragments", help = "Enable processing of fragmented (AF-F) proteins", type=int, default=1)
     parser.add_argument("-n", "--n_iterations", help = "Number of densities to be simulated", type=int, default=10000)
-    parser.add_argument("-x", "--ext_hits",
-                        help = "If 1 extend clusters to all mutated residues in the significant volumes, if 0 extend only to the ones having an anomaly > expected", 
-                        type=int, default=1)
+    parser.add_argument("-P", "--cmap_prob_thr", help = "Threshold to define AAs contacts based on distance on predicted structure and PAE", type=float, default=0.01)
+
 
     return parser.parse_args()
 
@@ -155,7 +157,7 @@ def main():
     input_mut_profile = args.input_mut_profile
     fragments = args.fragments
     num_iteration = args.n_iterations
-    ext_hits = args.ext_hits
+    cmap_prob_thr = args.cmap_prob_thr
 
     # Create output folder if needed
     if not os.path.exists(output):
@@ -172,6 +174,9 @@ def main():
         tumor = row["CANCER_TYPE"]
         cohort = row["COHORT"]
         maf = f"{input_maf}/{cohort}.in.maf"
+        
+        if cohort.startswith("ICGC"):
+            continue
 
         if input_mut_profile is not None:
             mut_profile = f"{input_mut_profile}/{cohort}.mutrate.json"
@@ -179,7 +184,8 @@ def main():
                 add_job(script_dir, qmap_file, 
                         maf, mut_profile, output,
                         seq_df, cmap_path, plddt_path, cores,
-                        tumor, cohort, num_iteration, ext_hits, seed, fragments)
+                        tumor, cohort, num_iteration, seed, 
+                        fragments, cmap_prob_thr)
                 i += 1
         else:
             mut_profile = None
@@ -187,7 +193,8 @@ def main():
                 add_job(script_dir, qmap_file, 
                         maf, mut_profile, output,
                         seq_df, cmap_path, plddt_path, cores,
-                        tumor, cohort, num_iteration, ext_hits, seed, fragments)
+                        tumor, cohort, num_iteration, seed, 
+                        fragments, cmap_prob_thr)
                 i += 1
             
     print(f"{i} jobs added to {qmap_file}")
