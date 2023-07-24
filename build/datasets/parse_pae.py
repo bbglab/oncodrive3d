@@ -13,7 +13,8 @@ from progressbar import progressbar
 #####################################################################################################
 
 ##### NOTE #####
-# I might want to add a final check that ensure that there are no truncated structures
+# 1) In the final pipeline the PAE files in original format must be deleted after parsing
+# 2) I might want to enable multiprocessing in this step
 ################
 
 def init_parser():

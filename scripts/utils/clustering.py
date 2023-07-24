@@ -280,8 +280,8 @@ def clustering_3d_mp_wrapper(genes,
     with multiprocessing.Pool(processes = num_cores) as pool:
         results = pool.starmap(clustering_3d_mp, [(chunk, data, cmap_path, miss_prob_dict, 
                                                    gene_to_uniprot_dict, plddt_df, n_process,
-                                                   alpha, num_iteration, hits_only, verbose, 
-                                                   seed, cmap_prob_thr) 
+                                                   alpha, num_iteration, cmap_prob_thr, 
+                                                   hits_only, verbose, seed) 
                                                  for n_process, chunk in enumerate(chunks)])
         
     # Parse output

@@ -181,7 +181,7 @@ def get_prob_cmaps(pdb_files, pae_path, output_path, distance=10, verbose=False,
         if af_f > 1:
             try:
                 cmap = get_contact_map(get_structure(file)["A"], distance=distance)    
-                np.save(f"{output_path}/{identifier}-prob_cmap.npy", cmap)
+                np.save(f"{output_path}/{identifier}.npy", cmap)
             except:
                 warnings.warn(f"WARNING........... could not process {identifier}")
                 with open(f"{output_path}/ids_not_processed.txt", 'a+') as file:
@@ -193,7 +193,7 @@ def get_prob_cmaps(pdb_files, pae_path, output_path, distance=10, verbose=False,
                 pae = np.load(f"{pae_path}/{identifier}-predicted_aligned_error.npy")
                 chain = get_structure(file)["A"]
                 prob_cmap = get_prob_cmap(chain, pae, distance=distance)        
-                np.save(f"{output_path}/{identifier}-prob_cmap.npy", prob_cmap)
+                np.save(f"{output_path}/{identifier}.npy", prob_cmap)
             except:
                 warnings.warn(f"WARNING........... could not process {identifier}")
                 with open(f"{output_path}/ids_not_processed.txt", 'a+') as file:
