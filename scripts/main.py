@@ -63,6 +63,16 @@ python3 /workspace/projects/clustering_3d/clustering_3d/scripts/main.py -i /work
 ## Probabilistic CMAPs
 
 python3 /workspace/projects/clustering_3d/clustering_3d/scripts/main.py -i /workspace/projects/clustering_3d/evaluation/datasets/input/maf/HARTWIG_WGS_PLMESO_2020.in.maf -o /workspace/projects/clustering_3d/dev_testing/output -p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile/HARTWIG_WGS_PLMESO_2020.mutrate.json -s /workspace/projects/clustering_3d/clustering_3d/datasets_frag/seq_for_mut_prob.csv -c /workspace/projects/clustering_3d/clustering_3d/datasets_frag/prob_cmaps/ -d /workspace/projects/clustering_3d/clustering_3d/datasets_frag/confidence.csv -t BLCA -C HARTWIG_WGS_PLMESO_2020 -n 10000 -P 0.5
+
+
+## Average PAE
+
+# Using CMAPs
+python3 /workspace/projects/clustering_3d/clustering_3d/scripts/main.py -i /workspace/projects/clustering_3d/evaluation/datasets/input/maf/HARTWIG_WGS_PLMESO_2020.in.maf -o /workspace/projects/clustering_3d/dev_testing/output -p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile/HARTWIG_WGS_PLMESO_2020.mutrate.json -s /workspace/projects/clustering_3d/clustering_3d/datasets_frag/seq_for_mut_prob.csv -c /workspace/projects/clustering_3d/clustering_3d/datasets_frag/cmaps/ -d /workspace/projects/clustering_3d/clustering_3d/datasets_frag/confidence.csv -t BLCA -C HARTWIG_WGS_PLMESO_2020 -n 10000 -e /workspace/projects/clustering_3d/clustering_3d/datasets_frag/pae -u 30 -S 128
+
+# Using pCMAPs
+python3 /workspace/projects/clustering_3d/clustering_3d/scripts/main.py -i /workspace/projects/clustering_3d/evaluation/datasets/input/maf/HARTWIG_WGS_PANCREAS_2020.in.maf -o /workspace/projects/clustering_3d/dev_testing/output -p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile/HARTWIG_WGS_PANCREAS_2020.mutrate.json -s /workspace/projects/clustering_3d/clustering_3d/datasets_frag/seq_for_mut_prob.csv -c /workspace/projects/clustering_3d/clustering_3d/datasets_frag/prob_cmaps/ -d /workspace/projects/clustering_3d/clustering_3d/datasets_frag/confidence.csv -t BLCA -C HARTWIG_WGS_PANCREAS_2020 -n 10000 -P 0.99 -e /workspace/projects/clustering_3d/clustering_3d/datasets_frag/pae -u 30
+
 #################################################################################################
 """
 
@@ -98,6 +108,7 @@ def init_parser():
     parser.add_argument("-s", "--seq_df", help = "Path to the dataframe including DNA and protein seq of all gene/proteins (all AF predicted ones)", type=str)       
     parser.add_argument("-c", "--cmap_path", help = "Path to the directory containting the contact map of each protein", type=str)
     parser.add_argument("-d", "--plddt_path", help = "Path to the pandas dataframe including the AF model confidence of all proteins", type=str)
+    parser.add_argument("-e", "--pae_path", help = "Path to the directory including the AF Predicted Aligned Error (PAE) .npy files", type=str)
 
     # Parameters
     parser.add_argument("-n", "--n_iterations", help = "Number of densities to be simulated", type=int, default=10000)
@@ -142,12 +153,13 @@ def main():
     verbose = args.verbose
     seed = args.seed
     cmap_prob_thr = args.cmap_prob_thr
+    pae_path = args.pae_path
 
     dir_path = os.path.abspath(os.path.dirname(__file__))
     if plddt_path is None:
         plddt_path = f"{dir_path}/../datasets/confidence.csv"
     if cmap_path is None:
-        cmap_path = f"{dir_path}/../datasets/cmaps/"
+        cmap_path = f"{dir_path}/../datasets/cmaps/"                                          
     if seq_df_path is None:
         seq_df_path = f"{dir_path}/../datasets/seq_for_mut_prob.csv"
     if cancer_type is None:
@@ -161,6 +173,10 @@ def main():
     print(f"Output directory: {output_dir}")
     print(f"Path to CMAPs: {cmap_path}")
     print(f"Path to DNA sequences: {seq_df_path}")
+    if pae_path is not None:
+        print(f"Path to PAE: {pae_path}")
+    else:
+        print(f"Path to PAE: not defined, weighted average PAE of mutated volumes will not be calculated")
     print(f"Path to pLDDT scores: {plddt_path}")
     if mut_profile_path is not None:
         path_prob = mut_profile_path
@@ -262,7 +278,7 @@ def main():
                                                            miss_prob_dict, gene_to_uniprot_dict, plddt_df,
                                                            num_cores, alpha=alpha, num_iteration=num_iteration, 
                                                            cmap_prob_thr=cmap_prob_thr, hits_only=hits_only, 
-                                                           verbose=verbose, seed=seed)
+                                                           verbose=verbose, seed=seed, pae_path=pae_path)
         result_gene = pd.concat((result_gene, pd.concat(result_np_gene_lst)))
     else:
         result_gene = pd.concat(result_np_gene_lst)

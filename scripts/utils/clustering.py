@@ -22,7 +22,8 @@ def clustering_3d(gene,
                   num_iteration=10000,
                   cmap_prob_thr=0.5,
                   hits_only=True,
-                  seed=None):
+                  seed=None,
+                  pae_path=None):
     """
     Compute local density of missense mutations for a sphere of 10A around          
     each amino acid position of the selected gene product. It performed a 
@@ -78,6 +79,13 @@ def clustering_3d(gene,
     else:
         result_gene_df["Status"] = "Cmap_not_found"
         return None, result_gene_df
+    
+    # Load PAE
+    pae_complete_path = f"{pae_path}/{uniprot_id}-F{af_f}-predicted_aligned_error.npy"
+    if os.path.isfile(pae_complete_path):
+        pae = np.load(pae_complete_path) 
+    else:
+        pae = None
 
     # Check if there is a mutation that is not in the structure      
     if max(mut_gene_df.Pos) > len(cmap):
@@ -182,7 +190,8 @@ def clustering_3d(gene,
 
     ## Output
     if len(pos_hits) > 0:
-        clustered_mut = sum([pos in np.unique(np.concatenate([np.where(cmap[pos-1])[0]+1 for pos in pos_hits.values])) for pos in mut_gene_df.Pos])
+        clustered_mut = sum([pos in np.unique(np.concatenate([np.where(cmap[pos-1])[0]+1 for pos in pos_hits.values])) 
+                             for pos in mut_gene_df.Pos])
     else:
         clustered_mut = 0
     result_pos_df["Rank"] = result_pos_df.index
@@ -190,7 +199,7 @@ def clustering_3d(gene,
     result_pos_df.insert(1, "Uniprot_ID", uniprot_id)
     result_pos_df.insert(2, "F", af_f)
     result_pos_df.insert(4, "Mut_in_gene", mut_count)    
-    result_pos_df = add_samples_info(mut_gene_df, result_pos_df, samples_info, cmap)
+    result_pos_df = add_samples_info(mut_gene_df, result_pos_df, samples_info, cmap, pae)
     result_gene_df["Clust_res"] = len(pos_hits)
     result_gene_df["Clust_mut"] = clustered_mut
     result_gene_df["Status"] = "Processed"
@@ -214,7 +223,8 @@ def clustering_3d_mp(genes,
                      cmap_prob_thr=0.5,
                      hits_only=1,
                      verbose=0,
-                     seed=None):
+                     seed=None,
+                     pae_path=None):
     """
     Run the 3D-clustering algorithm in parallel on multiple genes.
     """
@@ -238,9 +248,10 @@ def clustering_3d_mp(genes,
                                                 miss_prob_dict,
                                                 alpha=alpha,
                                                 num_iteration=num_iteration,
+                                                cmap_prob_thr=cmap_prob_thr,
                                                 hits_only=hits_only,
                                                 seed=seed,
-                                                cmap_prob_thr=cmap_prob_thr)
+                                                pae_path=pae_path)
         result_gene_lst.append(result_gene)
         if pos_result is not None:
             result_pos_lst.append(pos_result)
@@ -267,7 +278,8 @@ def clustering_3d_mp_wrapper(genes,
                              cmap_prob_thr=0.5,
                              hits_only=0,
                              verbose=0,
-                             seed=None):
+                             seed=None,
+                             pae_path=None):
     """
     Wrapper function to run the 3D-clustering algorithm in parallel on multiple genes.
     """
@@ -281,7 +293,7 @@ def clustering_3d_mp_wrapper(genes,
         results = pool.starmap(clustering_3d_mp, [(chunk, data, cmap_path, miss_prob_dict, 
                                                    gene_to_uniprot_dict, plddt_df, n_process,
                                                    alpha, num_iteration, cmap_prob_thr, 
-                                                   hits_only, verbose, seed) 
+                                                   hits_only, verbose, seed, pae_path) 
                                                  for n_process, chunk in enumerate(chunks)])
         
     # Parse output

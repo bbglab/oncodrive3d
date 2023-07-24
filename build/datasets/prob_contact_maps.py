@@ -117,9 +117,8 @@ def get_contact_map(chain, distance=10):
     """
     
     dist_matrix = get_dist_matrix(chain)
-    dist_matrix = dist_matrix < distance
-    
-    return dist_matrix.astype(float)
+
+    return dist_matrix < distance
 
 
 

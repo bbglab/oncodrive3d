@@ -109,7 +109,7 @@ def uniprot_to_hugo(uniprot_ids=None, hugo_as_keys=False, get_ensembl_id=False):
     return dict_output
 
 
-## Model confidence
+## Model confidence and PAE
 
 def weighted_avg_plddt_vol(target_pos, mut_plddt_df, cmap):
     """
@@ -118,6 +118,18 @@ def weighted_avg_plddt_vol(target_pos, mut_plddt_df, cmap):
     """
     
     return mut_plddt_df[[pos in np.where(cmap[target_pos-1])[0]+1 for pos in mut_plddt_df.Pos]].Confidence.mean()
+
+
+def weighted_avg_pae_vol(target_pos, mut_plddt_df, cmap, pae):
+    """
+    Get the weighted average PAE across residues in the volume, 
+    based on number of mutations hitting each residue.  
+    """
+    
+    contacts = mut_plddt_df[[pos in np.where(cmap[target_pos-1])[0]+1 for pos in mut_plddt_df.Pos]].Pos.values
+    pae_vol = pae[np.repeat(target_pos-1, len(contacts)), contacts-1].mean()
+    
+    return pae_vol
 
 
 ## Other utils
@@ -152,7 +164,7 @@ def get_unique_pos_in_contact(lst_pos, cmap):
     return np.unique(np.concatenate([np.where(cmap[pos-1])[0]+1 for pos in lst_pos]))
 
 
-def add_samples_info(mut_gene_df, result_pos_df, samples_info, cmap):
+def add_samples_info(mut_gene_df, result_pos_df, samples_info, cmap, pae=None):
     """
     Add information about the ratio of unique samples in the volume of 
     each mutated residues and in each detected community (meta-cluster) 
@@ -192,6 +204,12 @@ def add_samples_info(mut_gene_df, result_pos_df, samples_info, cmap):
         # Add to residues-level result
         result_pos_df = result_pos_df.merge(community_samples, on="Cluster", how="outer")
         
+    # AF PAE
+    if pae is not None:
+        result_pos_df["PAE_vol"] = result_pos_df.apply(lambda x: weighted_avg_pae_vol(x["Pos"], mut_gene_df, cmap, pae), axis=1)  
+    else:
+        result_pos_df["PAE_vol"] = np.nan
+        
     # AF confidence
     result_pos_df["pLDDT_res"] = result_pos_df.apply(lambda x: mut_gene_df.Confidence[mut_gene_df["Pos"] == x.Pos].values[0], axis=1)
     result_pos_df["pLDDT_vol"] = result_pos_df.apply(lambda x: weighted_avg_plddt_vol(x["Pos"], mut_gene_df, cmap), axis=1)
@@ -214,7 +232,7 @@ def add_nan_clust_cols(result_gene):
     columns = ["pval", "qval", "C_gene", "C_pos", 'C_label', 'Ratio_obs_sim_top_vol', 
                "Clust_res", 'Clust_mut', 'Mut_in_top_vol', "Mut_in_top_cl_vol",
                'Tot_samples', 'Samples_in_top_vol', 'Samples_in_top_cl_vol', 
-               "pLDDT_top_vol", "pLDDT_top_cl_vol", 'F']
+               "PAE_top_vol", "pLDDT_top_vol", "pLDDT_top_cl_vol", 'F']
     
     for col in columns:
         result_gene[col] = np.nan
@@ -231,7 +249,7 @@ def sort_cols(result_gene):
             'pval', 'qval', 'C_gene', 'C_pos', 'C_label', 'Ratio_obs_sim_top_vol', "Clust_res",
             'Mut_in_gene', 'Clust_mut', 'Mut_in_top_vol', "Mut_in_top_cl_vol",
             'Tot_samples', 'Samples_in_top_vol', 'Samples_in_top_cl_vol', 
-            "pLDDT_top_vol", "pLDDT_top_cl_vol",
+            "PAE_top_vol", "pLDDT_top_vol", "pLDDT_top_cl_vol",
             'F', 'Status', 'Cancer', 'Cohort']
 
     return result_gene[[col for col in cols if col in result_gene.columns]]

@@ -37,14 +37,16 @@ python3 qmap_init.py -q submit_profile_bgsign.qmap -o /workspace/projects/cluste
 
 python3 qmap_init.py -q submit_cmap4a.qmap -o /workspace/projects/clustering_3d/evaluation/tool_output/run_20230706_cmap4a     -p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile         -c /workspace/projects/clustering_3d/clustering_3d/datasets_frag/cmaps_4a/ -d /workspace/projects/clustering_3d/clustering_3d/datasets_frag/confidence.csv             -s /workspace/projects/clustering_3d/clustering_3d/datasets_frag/seq_for_mut_prob.csv -u 10 -m 55 -r 128
 
-python3 qmap_init.py -q submit_pcmap_0.5.qmap -o /workspace/projects/clustering_3d/evaluation/tool_output/run_pcmap_0.5 -p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile -c /workspace/projects/clustering_3d/clustering_3d/datasets_frag/prob_cmaps/ -d /workspace/projects/clustering_3d/clustering_3d/datasets_frag/confidence.csv -s /workspace/projects/clustering_3d/clustering_3d/datasets_frag/seq_for_mut_prob.csv -u 2 -m 15 -r 128 -P 0.5
+python3 qmap_init.py -q submit_pcmap_0.01.qmap -o /workspace/projects/clustering_3d/evaluation/tool_output/run_pcmap_0.01 -p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile -c /workspace/projects/clustering_3d/clustering_3d/datasets_frag/prob_cmaps/ -d /workspace/projects/clustering_3d/clustering_3d/datasets_frag/confidence.csv -s /workspace/projects/clustering_3d/clustering_3d/datasets_frag/seq_for_mut_prob.csv -u 5 -m 30 -r 128 -P 0.01
+
+python3 qmap_init.py -q submit_cmap_pae_vol.qmap -o /workspace/projects/clustering_3d/evaluation/tool_output/run_cmap_pae_vol -p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile -c /workspace/projects/clustering_3d/clustering_3d/datasets_frag/cmaps/ -d /workspace/projects/clustering_3d/clustering_3d/datasets_frag/confidence.csv -s /workspace/projects/clustering_3d/clustering_3d/datasets_frag/seq_for_mut_prob.csv -u 5 -m 50 -r 128 -a /workspace/projects/clustering_3d/clustering_3d/datasets_frag/pae
 
 #######################
 
 
 #### run qmap #########
 
-qmap submit submit_pcmap_0.5.qmap --max-running 2
+qmap submit submit_cmap_pae_vol.qmap --max-running 5
 
 #######################
 """
@@ -74,7 +76,7 @@ def add_job(script_dir, path_qmap_file,
             in_maf, in_mut_profile, output,
             seq_df, cmap_path, plddt_path, cores,
             cancer, cohort, num_iteration, seed, 
-            fragments, cmap_prob_thr):
+            fragments, cmap_prob_thr, pae_path):
     """
     Add clustering_3d job to the qmap file.
     """
@@ -87,7 +89,7 @@ def add_job(script_dir, path_qmap_file,
         flag_seed = f"-S {seed}"
     else:
         flag_seed = ""
-    command = f"python3 {script_dir}/main.py -i {in_maf} -o {output} {flag_mut_profile} -s {seq_df} -c {cmap_path} -d {plddt_path} -H 0 -t {cancer} -C {cohort} -u {cores} -n {num_iteration} -P {cmap_prob_thr} {flag_seed} -f {fragments}"
+    command = f"python3 {script_dir}/main.py -i {in_maf} -o {output} {flag_mut_profile} -s {seq_df} -c {cmap_path} -d {plddt_path} -H 0 -t {cancer} -C {cohort} -u {cores} -n {num_iteration} -P {cmap_prob_thr} {flag_seed} -f {fragments} -e {pae_path}"
     with open(path_qmap_file, "a") as file:
         file.write(command + "\n")
         
@@ -118,6 +120,7 @@ def init_parser():
     parser.add_argument("-s", "--seq_df", help = "Path to the dataframe including DNA and protein seq of all gene/proteins (all AF predicted ones)", type=str, default = IN_SEQ)       
     parser.add_argument("-c", "--cmap_path", help = "Path to the directory containting the contact map of each protein", type=str, default = IN_CMAP)
     parser.add_argument("-d", "--plddt_path", help = "Path to the pandas dataframe including the AF model confidence of all proteins", type=str, default = IN_PLDDT)
+    parser.add_argument("-a", "--pae_path", help = "Path to the directory including the AF Predicted Aligned Error (PAE) .npy files", type=str)
 
     parser.add_argument("-S", "--script_dir", help="Path to dir including the scripts of the tool", type=str, default=SCRIPT_PATH)
     
@@ -159,6 +162,7 @@ def main():
     fragments = args.fragments
     num_iteration = args.n_iterations
     cmap_prob_thr = args.cmap_prob_thr
+    pae_path = args.pae_path
 
     # Create output folder if needed
     if not os.path.exists(output):
@@ -186,7 +190,7 @@ def main():
                         maf, mut_profile, output,
                         seq_df, cmap_path, plddt_path, cores,
                         tumor, cohort, num_iteration, seed, 
-                        fragments, cmap_prob_thr)
+                        fragments, cmap_prob_thr, pae_path)
                 i += 1
         else:
             mut_profile = None
@@ -195,7 +199,7 @@ def main():
                         maf, mut_profile, output,
                         seq_df, cmap_path, plddt_path, cores,
                         tumor, cohort, num_iteration, seed, 
-                        fragments, cmap_prob_thr)
+                        fragments, cmap_prob_thr, pae_path)
                 i += 1
             
     print(f"{i} jobs added to {qmap_file}")
