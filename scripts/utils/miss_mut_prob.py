@@ -4,6 +4,10 @@ Process all mutation profiles in a given directory and, for each one,
 generate a dictionary having as keys UniprotID-Fragment (eg., P04217-F1)
 and as values the corresponding per-residue miss mutation probability.
 
+
+#### DEPRECATED use as direct script, use it as module ####
+
+
 ###################################### EXAMPLE USAGE ############################################
 
 python3 miss_mut_prob.py -i ../../required_files/extra/mut_profile/ \

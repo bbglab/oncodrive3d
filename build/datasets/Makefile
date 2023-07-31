@@ -1,3 +1,6 @@
+################## WORK IN PROGRESS - probably not going to use it anymore ######################
+
+
 # PDB_DIR = "../../datasets/pdb_structures_2"
 # PDB_LST = $(PDB_DIR)/pdb_lst.txt
 # #DIFF = $(diff <(ls $(PDB_DIR)) $(PDB_LST))

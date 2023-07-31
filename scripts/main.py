@@ -8,69 +8,15 @@ and rank based comparison.
 
 ###################################### EXAMPLE USAGE ############################################
 
-time python3 main.py -i ../tests/input/HARTWIG_WGS_PANCREAS_2020.in.maf -o ../tests/output/ \
--p ../tests/input/HARTWIG_WGS_PANCREAS_2020.mutrate.json -H 0 -t PANCREAS -C HARTWIG_WGS_PANCREAS_2020 -e 1
-
-time python3 main.py -i /workspace/projects/clustering_3d/evaluation/datasets/input/maf/ICGC_WXS_HCC_LICA_CN_STRELKA_2019.in.maf \
--o /workspace/projects/clustering_3d/dev_testing/output/ \
--p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile/ICGC_WXS_HCC_LICA_CN_STRELKA_2019.mutrate.json \
--H 0 -t PANCREAS -C ICGC_WXS_HCC_LICA_CN_STRELKA_2019
-
-time python3 main.py -i /workspace/projects/clustering_3d/evaluation/datasets/input/maf/STJUDE_WGS_D_LGG_2018.in.maf \
--o /workspace/projects/clustering_3d/dev_testing/output -p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile/STJUDE_WGS_D_LGG_2018.mutrate.json \
--H 0 -t LGG -C STJUDE_WGS_D_LGG_2018
-
-
-time python3 main.py -i /workspace/projects/clustering_3d/evaluation/datasets/input/maf/ICGC_WXS_AML_LAML_KR_VARSCAN_2019.in.maf \
--o /workspace/projects/clustering_3d/dev_testing/output/ \
--p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile/ICGC_WXS_AML_LAML_KR_VARSCAN_2019.mutrate.json \
--H 0 -C ICGC_WXS_AML_LAML_KR_VARSCAN_2019
-
-time python3 main.py -i /workspace/projects/clustering_3d/evaluation/datasets/input/maf/STJUDE_WGS_D_ALL_2018.in.maf \
--o /workspace/projects/clustering_3d/dev_testing/output/ \
--p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile/STJUDE_WGS_D_ALL_2018.mutrate.json \
--H 0 -C STJUDE_WGS_D_ALL_2018
-
-time python3 main.py -i /workspace/projects/clustering_3d/evaluation/datasets/input/maf/HARTWIG_WGS_PLMESO_2020.in.maf \
--o /workspace/projects/clustering_3d/dev_testing/output/ \
--p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile/HARTWIG_WGS_PLMESO_2020.mutrate.json \
--H 0 -C HARTWIG_WGS_PLMESO_2020 -e 1
-
-time python3 main.py -i /workspace/projects/clustering_3d/evaluation/datasets/input/maf/HARTWIG_WGS_NSCLC_2020.in.maf \
--o /workspace/projects/clustering_3d/dev_testing/output/ \
--p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile/HARTWIG_WGS_NSCLC_2020.mutrate.json \
--H 0 -C HARTWIG_WGS_NSCLC_2020 -e 1
-
 ## CH
 
-time python3 main.py -i /workspace/projects/clustering_3d/evaluation/datasets/datasets_ch/input/maf/OTHER_WXS_CH_IMPACT_PANEL.in.maf \
+python3 main.py -i /workspace/projects/clustering_3d/evaluation/datasets/datasets_ch/input/maf/OTHER_WXS_CH_IMPACT_PANEL.in.maf \
 -o /workspace/projects/clustering_3d/dev_testing/output/ \
 -p /workspace/projects/clustering_3d/evaluation/datasets/datasets_ch/input/mut_profile/OTHER_WXS_CH_IMPACT_PANEL.mutrate.json \
 -H 0 -t CH -C OTHER_WXS_CH_IMPACT_PANEL -e 1
 
-time python3 main.py -i /workspace/projects/clustering_3d/evaluation/datasets/datasets_ch/input/maf/OTHER_WXS_TCGA_FULL.in.maf \
--o /workspace/projects/clustering_3d/evaluation/tool_output/run_20230512_ch/ \
--p /workspace/projects/clustering_3d/evaluation/datasets/datasets_ch/input/mut_profile/OTHER_WXS_TCGA_FULL.mutrate.json \
--H 0 -t CH -C OTHER_WXS_TCGA_FULL -e 1
+## pCMAPs
 
-## Merged
-
-python3 /workspace/projects/clustering_3d/clustering_3d/scripts/main.py -i /workspace/projects/clustering_3d/evaluation/datasets/input/maf/HARTWIG_WGS_BLCA_2020.in.maf -o /workspace/projects/clustering_3d/evaluation/tool_output/run_20230612_frag -p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile_bgsign/HARTWIG_WGS_BLCA_2020.mutrate.json -s /workspace/projects/clustering_3d/clustering_3d/datasets_frag/seq_for_mut_prob.csv -c /workspace/projects/clustering_3d/clustering_3d/datasets_frag/cmaps/ -d /workspace/projects/clustering_3d/clustering_3d/datasets_frag/confidence.csv -H 0 -t BLCA -C HARTWIG_WGS_BLCA_2020 -n 10000 -e 1
-python3 /workspace/projects/clustering_3d/clustering_3d/scripts/main.py -i /workspace/projects/clustering_3d/evaluation/datasets/input/maf/HARTWIG_WGS_PLMESO_2020.in.maf -o /workspace/projects/clustering_3d/evaluation/tool_output/run_20230621_frag -p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile_bgsign/HARTWIG_WGS_PLMESO_2020.mutrate.json -s /workspace/projects/clustering_3d/clustering_3d/datasets_frag/seq_for_mut_prob.csv -c /workspace/projects/clustering_3d/clustering_3d/datasets_frag/cmaps/ -d /workspace/projects/clustering_3d/clustering_3d/datasets_frag/confidence.csv -H 0 -t BLCA -C HARTWIG_WGS_PLMESO_2020 -n 10000 -e 1
-
-python3 /workspace/projects/clustering_3d/clustering_3d/scripts/main.py -i /workspace/projects/clustering_3d/evaluation/datasets/input/maf/HARTWIG_WGS_PLMESO_2020.in.maf -o /workspace/projects/clustering_3d/dev_testing/output -p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile_bgsign/HARTWIG_WGS_PLMESO_2020.mutrate.json -s /workspace/projects/clustering_3d/clustering_3d/datasets_frag/seq_for_mut_prob.csv -c /workspace/projects/clustering_3d/clustering_3d/datasets_frag/cmaps/ -d /workspace/projects/clustering_3d/clustering_3d/datasets_frag/confidence.csv -t BLCA -C HARTWIG_WGS_PLMESO_2020 -n 10000
-
-## Probabilistic CMAPs
-
-python3 /workspace/projects/clustering_3d/clustering_3d/scripts/main.py -i /workspace/projects/clustering_3d/evaluation/datasets/input/maf/HARTWIG_WGS_PLMESO_2020.in.maf -o /workspace/projects/clustering_3d/dev_testing/output -p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile_bgsign/HARTWIG_WGS_PLMESO_2020.mutrate.json -s /workspace/projects/clustering_3d/clustering_3d/datasets_frag/seq_for_mut_prob.csv -c /workspace/projects/clustering_3d/clustering_3d/datasets_frag/prob_cmaps/ -d /workspace/projects/clustering_3d/clustering_3d/datasets_frag/confidence.csv -t BLCA -C HARTWIG_WGS_PLMESO_2020 -n 10000 -P 0.5
-
-
-## Average PAE
-
-# Using CMAPs
-python3 /workspace/projects/clustering_3d/clustering_3d/scripts/main.py -i /workspace/projects/clustering_3d/evaluation/datasets/input/maf/HARTWIG_WGS_PLMESO_2020.in.maf -o /workspace/projects/clustering_3d/dev_testing/output -p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile_bgsign/HARTWIG_WGS_PLMESO_2020.mutrate.json -s /workspace/projects/clustering_3d/clustering_3d/datasets_frag/seq_for_mut_prob.csv -c /workspace/projects/clustering_3d/clustering_3d/datasets_frag/cmaps/ -d /workspace/projects/clustering_3d/clustering_3d/datasets_frag/confidence.csv -t BLCA -C HARTWIG_WGS_PLMESO_2020 -n 10000 -e /workspace/projects/clustering_3d/clustering_3d/datasets_frag/pae -u 30 -S 128
-
-# Using pCMAPs
 python3 /workspace/projects/clustering_3d/clustering_3d/scripts/main.py -i /workspace/projects/clustering_3d/evaluation/datasets/input/maf/HARTWIG_WGS_PANCREAS_2020.in.maf -o /workspace/projects/clustering_3d/dev_testing/output -p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile_bgsign/HARTWIG_WGS_PANCREAS_2020.mutrate.json -s /workspace/projects/clustering_3d/clustering_3d/datasets_frag/seq_for_mut_prob.csv -c /workspace/projects/clustering_3d/clustering_3d/datasets_frag/prob_cmaps/ -d /workspace/projects/clustering_3d/clustering_3d/datasets_frag/confidence.csv -t BLCA -C HARTWIG_WGS_PANCREAS_2020 -n 10000 -P 0.99 -e /workspace/projects/clustering_3d/clustering_3d/datasets_frag/pae -u 30
 
 #################################################################################################
