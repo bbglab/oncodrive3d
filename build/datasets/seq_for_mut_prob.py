@@ -158,7 +158,7 @@ def add_extra_genes_to_seq_df(seq_df, uniprot_to_gene_dict):
 
 @click.command(context_settings=dict(help_option_names=['-h', '--help']),
                help='Generate a pandas dataframe including identifiers mapped to protein and DNA sequences.')
-@click.option("-i", "--input", type=click.Path(exists=True), required=True, 
+@click.option("-i", "--input_dir", type=click.Path(exists=True), required=True, 
               help="Path to directory including PDB structures")
 @click.option("-o", "--output_seq_df", help="Output path to save the dataframe including all sequences", type=str, 
               default="../../datasets/seq_for_mut_prob.csv")
@@ -166,7 +166,7 @@ def add_extra_genes_to_seq_df(seq_df, uniprot_to_gene_dict):
               help="Path to a dictionary including Uniprot_ID : HUGO symbol mapping", type=str)
 @click.option("-s", "--organism", 
               help="Binominal nomenclature of the organism", type=str, default="Homo sapiens")
-def main(input, 
+def main(input_dir, 
          output_seq_df, 
          uniprot_to_gene_dict, 
          organism):
@@ -176,13 +176,13 @@ def main(input,
         uniprot_to_gene_dict = json.load(open(uniprot_to_gene_dict)) 
     else:
         print("Retrieving Uniprot_ID to Hugo symbol mapping information..")
-        uniprot_ids = os.listdir(input)
+        uniprot_ids = os.listdir(input_dir)
         uniprot_ids = [uni_id.split("-")[1] for uni_id in list(set(uniprot_ids)) if uni_id.endswith(".pdb")]
         uniprot_to_gene_dict = uniprot_to_hugo(uniprot_ids)  
 
     # Create a dataframe with protein sequences
     print("\nGenerating sequence df..")
-    seq_df = get_seq_df_from_dir(input, uniprot_to_gene_dict)
+    seq_df = get_seq_df_from_dir(input_dir, uniprot_to_gene_dict)
 
     # Annotate df with DNA sequences
     print("\nPerforming back translation")
