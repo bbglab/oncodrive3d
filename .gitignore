@@ -30,9 +30,7 @@ datasets_mouse/pdb_structures*
 datasets_mouse/af_uniprot_to_gene_id.json
 datasets_mouse/seq_for_mut_prob.csv
 datasets_mouse/confidence.csv
-build/datasets/uniprot_hugo_ens_map.py
-build/Makefile
-build/contact_maps.py
+backups
 tests/output/*
 !tests/output/.gitkeep
 __pycache__

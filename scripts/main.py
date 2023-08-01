@@ -86,10 +86,6 @@ def main(input_maf_path,
          verbose,
          cancer_type,
          cohort):
-    
-    """
-    Wrapper function.
-    """
 
     ## Initialize
     version = "v_2023_08_01"    # LAST CHANGE: Use click instead of argparse
