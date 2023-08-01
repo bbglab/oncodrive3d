@@ -16,7 +16,7 @@ doi: 10.1101/2022.05.19.492622
 Example: python3 merge_afold_files.py -u A2VEC9 -i example_uncompressed/ -v 4 -o example_uncompressed/out/ -g 0
 '''
 
-import argparse
+import click
 from Bio.PDB import Structure
 from Bio.PDB import *
 import gzip
@@ -24,33 +24,22 @@ from os import listdir, sep
 from os.path import isfile, join
 import subprocess
 
+@click.command(context_settings=dict(help_option_names=['-h', '--help']),
+               help='Tool merging split AlphaFold PDB files.')
+@click.option('-u', help='UniProt ID', required=True, metavar='UniProtID')
+@click.option('-i', help='input path', required=True, metavar='Input path')
+@click.option('-v', help='AlphaFold version', required=True, metavar='AlphaFold version')
+@click.option('-o', help='output path', metavar='Output path')
+@click.option('-g', help='gzip file', type=int, default=1)
+
+def parser(u, i, v, o, g):
+    return u, i, v, o, g
+
 if __name__ == "__main__":
 
     ###  ARGUMENTS PARSING  ###
 
-    parser = argparse.ArgumentParser(description = '''Tool merging split AlphaFold PDB files.''',
-                                     add_help = False,
-                                     formatter_class = argparse.ArgumentDefaultsHelpFormatter,
-                                     conflict_handler = 'resolve')
-
-    required_arguments = parser.add_argument_group('Required arguments')
-    required_arguments.add_argument('-u', help='UniProt ID', required=True, metavar='UniProtID', default=argparse.SUPPRESS)
-    required_arguments.add_argument('-i', help='input path', required=True, metavar='Input path', default=argparse.SUPPRESS)
-    required_arguments.add_argument('-v', help='AlphaFold version', required=True, metavar='AlphaFold version', default=argparse.SUPPRESS)
-
-    optional_arguments = parser.add_argument_group('Optional arguments')
-    optional_arguments.add_argument('-o', help='output path', metavar='Output path')
-    optional_arguments.add_argument('-g', help='gzip file', type=int, default=1)
-    optional_arguments.add_argument('-h', action = 'help', help = 'show this help message and exit')
-    optional_arguments.add_argument('--help', '-h', action = 'help', help = 'show this help message and exit')
-
-    args = vars(parser.parse_args())
-
-    struct_name = args['u']
-    input_path = args['i']
-    afold_version = args['v']
-    output_path = args['o']
-    zip = args['g']
+    struct_name, input_path, afold_version, output_path, zip_files = parser()
 
     if input_path[-1] == sep:
         input_path = input_path[:-1]

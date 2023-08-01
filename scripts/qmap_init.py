@@ -1,4 +1,5 @@
 """
+qmap initializer
 
 #### EXAMPLE USAGE ####
 
@@ -42,8 +43,8 @@ def init_submit_file(path_qmap_file,
 def add_job(script_dir, path_qmap_file, 
             in_maf, in_mut_profile, output,
             seq_df, cmap_path, plddt_path, cores,
-            cancer, cohort, num_iteration, seed, 
-            fragments, cmap_prob_thr, pae_path):
+            cancer, cohort, num_iteration, seed,
+            cmap_prob_thr, pae_path):
     """
     Add clustering_3d job to the qmap file.
     """
@@ -56,7 +57,7 @@ def add_job(script_dir, path_qmap_file,
         flag_seed = f"-S {seed}"
     else:
         flag_seed = ""
-    command = f"python3 {script_dir}/main.py -i {in_maf} -o {output} {flag_mut_profile} -s {seq_df} -c {cmap_path} -d {plddt_path} -H 0 -t {cancer} -C {cohort} -u {cores} -n {num_iteration} -P {cmap_prob_thr} {flag_seed} -f {fragments} -e {pae_path}"
+    command = f"python3 {script_dir}/main.py -i {in_maf} -o {output} {flag_mut_profile} -s {seq_df} -c {cmap_path} -d {plddt_path} -t {cancer} -C {cohort} -u {cores} -n {num_iteration} -P {cmap_prob_thr} {flag_seed} -e {pae_path}"
     with open(path_qmap_file, "a") as file:
         file.write(command + "\n")
         
@@ -98,7 +99,6 @@ def init_parser():
     parser.add_argument("-m", "--memory", help="GB of memory allocated to each job", type=int, default=10) 
     parser.add_argument("-u", "--cores", help="Number of cores allocated to each job", type=int, default=1) 
     
-    parser.add_argument("-f", "--fragments", help = "Enable processing of fragmented (AF-F) proteins", type=int, default=1)
     parser.add_argument("-n", "--n_iterations", help = "Number of densities to be simulated", type=int, default=10000)
     parser.add_argument("-P", "--cmap_prob_thr", help = "Threshold to define AAs contacts based on distance on predicted structure and PAE", type=float, default=0.5)
 
@@ -126,7 +126,6 @@ def main():
     metadata = args.metadata
     input_maf = args.input_maf
     input_mut_profile = args.input_mut_profile
-    fragments = args.fragments
     num_iteration = args.n_iterations
     cmap_prob_thr = args.cmap_prob_thr
     pae_path = args.pae_path
@@ -157,7 +156,7 @@ def main():
                         maf, mut_profile, output,
                         seq_df, cmap_path, plddt_path, cores,
                         tumor, cohort, num_iteration, seed, 
-                        fragments, cmap_prob_thr, pae_path)
+                        cmap_prob_thr, pae_path)
                 i += 1
         else:
             mut_profile = None
@@ -166,7 +165,7 @@ def main():
                         maf, mut_profile, output,
                         seq_df, cmap_path, plddt_path, cores,
                         tumor, cohort, num_iteration, seed, 
-                        fragments, cmap_prob_thr, pae_path)
+                        cmap_prob_thr, pae_path)
                 i += 1
             
     print(f"{i} jobs added to {qmap_file}")

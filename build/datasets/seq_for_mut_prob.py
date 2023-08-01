@@ -21,7 +21,7 @@ python3 seq_for_mut_prob.py -i ../../datasets/pdb_structures/ \
 import json
 import pandas as pd
 import json
-import argparse
+import click
 import warnings
 from progressbar import progressbar
 import requests
@@ -156,21 +156,20 @@ def add_extra_genes_to_seq_df(seq_df, uniprot_to_gene_dict):
     return pd.concat((seq_df, seq_df_extra_genes))
 
 
-def main():
-    
-    ## Parser
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-i", "--input", help="Path to directory including PDB structures", type=str, required=True)
-    parser.add_argument("-o", "--output_seq_df", help="Output path to save the dataframe including all sequences", type=str, 
-                        default="../../datasets/seq_for_mut_prob.csv")                                                       
-    parser.add_argument("-u", "--uniprot_to_gene_dict", help="Path to a dictionary including Uniprot_ID : HUGO symbol mapping", type=str)  
-    parser.add_argument("-s", "--organism", help="Binominal nomenclature of the organism", type=str, default="Homo sapiens") 
-
-    args = parser.parse_args()
-    input = args.input
-    uniprot_to_gene_dict = args.uniprot_to_gene_dict
-    output_seq_df = args.output_seq_df
-    organism = args.organism
+@click.command(context_settings=dict(help_option_names=['-h', '--help']),
+               help='Generate a pandas dataframe including identifiers mapped to protein and DNA sequences.')
+@click.option("-i", "--input", type=click.Path(exists=True), required=True, 
+              help="Path to directory including PDB structures")
+@click.option("-o", "--output_seq_df", help="Output path to save the dataframe including all sequences", type=str, 
+              default="../../datasets/seq_for_mut_prob.csv")
+@click.option("-u", "--uniprot_to_gene_dict", 
+              help="Path to a dictionary including Uniprot_ID : HUGO symbol mapping", type=str)
+@click.option("-s", "--organism", 
+              help="Binominal nomenclature of the organism", type=str, default="Homo sapiens")
+def main(input, 
+         output_seq_df, 
+         uniprot_to_gene_dict, 
+         organism):
 
     # Load Uniprot ID to HUGO mapping
     if uniprot_to_gene_dict is not None:

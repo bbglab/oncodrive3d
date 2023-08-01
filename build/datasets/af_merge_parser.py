@@ -2,7 +2,7 @@ import os
 import re
 import pandas as pd
 import subprocess
-import argparse
+import click
 from progressbar import progressbar
 import shutil
 import warnings
@@ -115,18 +115,17 @@ def save_unprocessed_ids(uni_ids, filename):
             file.write(id + '\n')
 
 
-parser = argparse.ArgumentParser()
-parser.add_argument("-i", "--input_dir", help = "Path to directory including pdb structures", type=str, required=True)
-parser.add_argument("-o", "--output_dir", help = "Path to output directory", type=str)
-parser.add_argument("-v", "--af_version", help = "AlphaFold 2 version used to produced the pdb files", type=int, default=4)
-parser.add_argument("-g", "--zip", help = "1 if files is compressed with gzip, else 0", type=int, default=0)
+@click.command(context_settings=dict(help_option_names=['-h', '--help']),
+               help='In-house script that merge all fragmented structures in a given directory. To merge the pdb structures it uses the DEGRONOPEDIA script.')
+@click.option("-i", "--input_dir", type=click.Path(exists=True), required=True, 
+              help="Path to directory including pdb structures")
+@click.option("-o", "--output_dir", help="Path to output directory", type=str)
+@click.option("-v", "--af_version", help="AlphaFold 2 version used to produced the pdb files", type=int, default=4)
+@click.option("-g", "--zip", help="Use gzip compressed file", is_flag=True)
+def parser(input_dir, output_dir, af_version, zip):
+    return input_dir, output_dir, af_version, zip
 
-args = parser.parse_args()
-input_dir = args.input_dir
-output_dir = args.output_dir
-af_version = args.af_version
-zip = args.zip
-
+input_dir, output_dir, af_version, zip = parser()
 dir_path = os.path.abspath(os.path.dirname(__file__))
 path_script = f"{dir_path}/af_merge.py"
 

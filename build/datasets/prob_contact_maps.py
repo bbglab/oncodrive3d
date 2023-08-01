@@ -15,12 +15,10 @@ WARNING: requires good amount of memory
 """
 
 
-import pandas as pd
 import os
 import numpy as np
-import argparse
+import click
 import multiprocessing
-import matplotlib.pyplot as plt
 from Bio.Data.IUPACData import protein_letters_3to1
 from Bio.PDB.PDBParser import PDBParser
 import re
@@ -208,26 +206,24 @@ def get_prob_cmaps(pdb_files, pae_path, output_path, distance=10, verbose=False,
                 print(f"Process [{num_process}] completed [{n}/{len(pdb_files)}] structures")
 
 
-def main():
+@click.command(context_settings=dict(help_option_names=['-h', '--help']),
+               help='Compute contact probabiltiy maps from AF predicted structures and predicted aligned error.')
+@click.option("-i", "--input_pdb", type=click.Path(exists=True), required=True, 
+              help="Input directory with PDB structures")
+@click.option("-i", "--input_pae", type=click.Path(exists=True), required=True, 
+              help="Input directory with PAE files")
+@click.option("-o", "--output", help="Path to output directory", type=str, default="../../datasets/prob_cmaps/")
+@click.option("-a", "--distance", help="Set the distance in angstrom to define a contact", type=int, default=10)
+@click.option("-u", "--num_cores", type=click.IntRange(min=1, max=os.cpu_count(), clamp=False), default=os.cpu_count(),
+              help="Set the number of cores to use in the computation")
+@click.option("-v", "--verbose", help="Verbose", is_flag=True)
+def main(input_pdb,
+         input_pae,
+         output,
+         distance,
+         num_cores,
+         verbose):
 
-    ## Parser
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-i", "--input_pdb", help="Input directory with PDB structures", type=str, required=True)
-    parser.add_argument("-p", "--input_pae", help="Input directory with PAE files", type=str, required=True)
-    parser.add_argument("-o", "--output", help="Output directory to save prob cmaps", type=str, default="../../datasets/prob_cmaps/")
-    parser.add_argument("-d", "--distance", help="Set the distance in angstrom to define a contact", type=int, default=10)
-    parser.add_argument("-c", "--num_cores", help="Set the number of cores for parallel processing", type=int)
-    parser.add_argument("-v", "--verbose", help="Verbose", type=int, default=1)
-
-    args = parser.parse_args()
-    distance = args.distance
-    input_pdb = args.input_pdb
-    input_pae = args.input_pae
-    output = args.output
-    num_cores = args.num_cores
-    if num_cores is None:
-        num_cores = multiprocessing.cpu_count()
-    verbose = args.verbose
     print("\nComputing prob cmaps of all structures in directory")
     print("\nInput PDB directory:", input_pdb)
     print("Input PAE directory:", input_pae)

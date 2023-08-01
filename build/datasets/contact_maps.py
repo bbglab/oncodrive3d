@@ -4,6 +4,10 @@ The output can be either individual contact maps named with UniprotID_F
 (.npy or .csv), where F is the number of AF fragment. It can generate, or
 a single dictionary having UniprotID_F as keys and contact maps as values. 
 
+
+##                                  D E P R E C A T E D                                      ##
+
+
 ###################################### EXAMPLE USAGE ###################################################
 
 python3 contact_maps.py -i ../../datasets/pdb_structures/ -o ../../datasets/cmaps/ -c 10 -d 10
@@ -18,7 +22,7 @@ WARNING: requires good amount of memory
 import pandas as pd
 import os
 import numpy as np
-import argparse
+import click
 import multiprocessing
 import matplotlib.pyplot as plt
 from Bio.Data.IUPACData import protein_letters_3to1
@@ -107,24 +111,22 @@ def get_contact_maps(files, output_path, distance=10, verbose=False, num_process
                 print(f"Process [{num_process}] completed [{n}/{len(files)}] structures")
 
 
-def main():
+@click.command()
+@click.option("-i", "--input", type=click.Path(exists=True), required=True, help="Path of the maf file used as input")
+@click.option("-o", "--output", help="Path to output directory", type=str, required=True)
+@click.option("-a", "--distance", help="Set the distance in angstrom to define a contact", type=int, default=10)
+@click.option("-u", "--num_cores", type=click.IntRange(min=1, max=os.cpu_count(), clamp=False), default=1,
+              help="Set the number of cores to use in the computation")
+@click.option("-v", "--verbose", help="Verbose", is_flag=True)
+def main(input,
+         output,
+         distance,
+         num_cores,
+         verbose):
 
-    ## Parser
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-i", "--input", help="Input directory with PDB structures", type=str, required=True)
-    parser.add_argument("-o", "--output", help="Output directory to save contact maps", type=str, default="../../datasets/cmaps/")
-    parser.add_argument("-d", "--distance", help="Set the distance in angstrom to define a contact", type=int, default=10)
-    parser.add_argument("-c", "--num_cores", help="Set the number of cores for parallel processing", type=int)
-    parser.add_argument("-v", "--verbose", help="Verbose", type=int, default=1)
-
-    args = parser.parse_args()
-    distance = args.distance
-    input = args.input
-    output = args.output
-    num_cores = args.num_cores
     if num_cores is None:
         num_cores = multiprocessing.cpu_count()
-    verbose = args.verbose
+  
     print("\nComputing contact maps of all structures in directory")
     print("\nInput directory:", input)
     print("Output:", output)

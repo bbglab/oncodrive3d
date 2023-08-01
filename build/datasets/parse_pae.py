@@ -1,7 +1,7 @@
 import numpy as np
 import os
 import json
-import argparse
+import click
 import re
 from progressbar import progressbar
 
@@ -16,16 +16,6 @@ from progressbar import progressbar
 # 1) In the final pipeline the PAE files in original format must be deleted after parsing
 # 2) I might want to enable multiprocessing in this step
 ################
-
-def init_parser():
-    """
-    Initialize parser for the main function.
-    """
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-i", "--input", help="Path to directory including the json files (predicted aligned error)", type=str, required=True) 
-    parser.add_argument("-o", "--output", help="Path to the output dir", type=str) 
-    return parser.parse_args()
 
 
 def get_pae_path_list_from_dir(path_dir):
@@ -48,11 +38,12 @@ def json_to_npy(path):
     return np.array(pae[0]['predicted_aligned_error'])
 
 
-def main():
-    
-    args = init_parser()
-    input = args.input
-    output = args.output
+@click.command(context_settings=dict(help_option_names=['-h', '--help']),
+               help='Convert all predicted aligned error from .json dict to .npy array.')
+@click.option("-i", "--input", type=click.Path(exists=True), required=True, 
+              help="Path to directory including the json files (predicted aligned error)")
+@click.option("-o", "--output", help="Path to output directory", type=str)
+def main(input, output):
     
     if output is None:
         output = input
@@ -65,6 +56,7 @@ def main():
 
     for path in progressbar(path_files):
         np.save(path.replace(".json", ".npy"), json_to_npy(path))
+
 
 if __name__ == "__main__":
     main()

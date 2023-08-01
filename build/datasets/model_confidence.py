@@ -9,7 +9,7 @@ python3 model_confidence.py -i ../../datasets/pdb_structures/ -o ../../datasets/
 """
 
 
-import argparse
+import click
 import pandas as pd
 from Bio.Data.IUPACData import protein_letters_3to1
 from Bio.PDB.PDBParser import PDBParser
@@ -70,17 +70,12 @@ def get_confidence_from_dir(path_dir):
     return pd.concat(df_list).reset_index(drop=True)
 
 
-def main():
+@click.command(context_settings=dict(help_option_names=['-h', '--help']),
+               help='Get per-residue model confidence from all AlphaFold predicted structures contained in a given directory.')
+@click.option("-i", "--input", type=click.Path(exists=True), required=True, help="Input directory with PDB structures")
+@click.option("-o", "--output", help="Output path", default="../../datasets/confidence.csv")
+def main(input, output):
     
-    ## Parser
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-i", "--input", help="Input directory with PDB structures", type=str, required=True)
-    parser.add_argument("-o", "--output", help="Output path", type=str, default="/../../datasets/confidence.csv")                                       
-    
-    args = parser.parse_args()
-    input = args.input
-    output = args.output
-
     print("\nExtracting model confidence from PDB structures..")
     print("\nInput directory:", input)
     print("Output:", output)
