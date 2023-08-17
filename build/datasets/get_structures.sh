@@ -42,7 +42,7 @@ elif [ "$species" == "mouse" ]; then
     proteome=UP000000589_10090_MOUSE_v4
 fi
 
-# Check if valid species is provided
+# If valid species is provided, download proteome
 if [[ "$species" == "mouse" || "$species" == "human" ]]; then
     echo "Valid species: $species"
     echo "Proteome to download: $proteome"
