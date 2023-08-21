@@ -2,16 +2,22 @@
 Contains functions to perform the 3D clustering of missense mutations.
 """
 
+import logging
+import multiprocessing
 import os
+
+import networkx.algorithms.community as nx_comm
 import numpy as np
 import pandas as pd
-import networkx.algorithms.community as nx_comm
-import multiprocessing
-from utils.score_and_simulations import get_anomaly_score, get_sim_anomaly_score
-from utils.communities import get_network, get_community_index_nx
-from utils.utils import get_samples_info, add_samples_info
-from utils.miss_mut_prob import get_unif_gene_miss_prob
 
+from scripts import __logger_name__
+from scripts.utils.communities import get_community_index_nx, get_network
+from scripts.utils.miss_mut_prob import get_unif_gene_miss_prob
+from scripts.utils.score_and_simulations import (get_anomaly_score,
+                                                 get_sim_anomaly_score)
+from scripts.utils.utils import add_samples_info, get_samples_info
+
+logger = logging.getLogger(__logger_name__ + ".clustering")
 
 def clustering_3d(gene, 
                   uniprot_id,
@@ -256,12 +262,15 @@ def clustering_3d_mp(genes,
         if pos_result is not None:
             result_pos_lst.append(pos_result)
             
-        # Monitor processing
-        if (verbose and n % 10 == 0) or (verbose and n+1 == len(genes)):
-            if n == 0:
-                print(f"Process [{num_process}] starting..")
-            else:
-                print(f"Process [{num_process}] completed [{n+1}/{len(genes)}] structures")
+        # logging - monitor processing
+        if n == 0:
+            logger.debug(f"Process [{num_process}] starting..")
+        elif n % 10 == 0:
+            logger.debug(f"Process [{num_process}] completed [{n+1}/{len(genes)}] structures")
+        elif n+1 == len(genes):
+            logger.info(f"Process [{num_process}] completed")
+
+
         
     return result_gene_lst, result_pos_lst
 
@@ -290,6 +299,7 @@ def clustering_3d_mp_wrapper(genes,
     
     # Create a pool of processes and run clustering in parallel
     with multiprocessing.Pool(processes = num_cores) as pool:
+        logger.info(f'Starting {len(chunks) - 1} processes..')
         results = pool.starmap(clustering_3d_mp, [(chunk, data, cmap_path, miss_prob_dict, 
                                                    gene_to_uniprot_dict, plddt_df, n_process,
                                                    alpha, num_iteration, cmap_prob_thr, 

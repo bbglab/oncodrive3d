@@ -19,14 +19,19 @@ python3 miss_mut_prob.py -i ../../required_files/extra/mut_profile/ \
 """
 
 
-import json
-import pandas as pd
-import numpy as np
-import json
 import argparse
-from itertools import product
+import json
+import logging
 import os
+from itertools import product
+
+import numpy as np
+import pandas as pd
 from progressbar import progressbar
+
+from scripts import __logger_name__
+
+logger = logging.getLogger(__logger_name__)
 
 
 def get_unif_gene_miss_prob(size):
@@ -51,7 +56,7 @@ def mut_rate_vec_to_dict(mut_rate, v=False):
     """
     
     cb  = dict(zip('ACGT', 'TGCA'))
-    if v: print("Mut1\tMut2\tN_context\tMut_rate")
+    if v: logger.debug("Mut1\tMut2\tN_context\tMut_rate")
     mut_rate_dict = {}
     i = 0
     for ref in ['C', 'T']:
@@ -64,7 +69,7 @@ def mut_rate_vec_to_dict(mut_rate, v=False):
                     cmut = f"{cb[p[1]]}{cb[ref]}{cb[p[0]]}>{cb[alt]}"
                     mut_rate_dict[mut] = mut_rate[i]
                     mut_rate_dict[cmut] = mut_rate[i]
-                    if v: print(f"{mut}\t{cmut}\t{i}\t\t{mut_rate[i]}")
+                    if v: logger.debug(f"{mut}\t{cmut}\t{i}\t\t{mut_rate[i]}")
                     i +=1
                     
     return mut_rate_dict
@@ -149,21 +154,21 @@ def get_miss_mut_prob(dna_seq, mut_rate_dict, get_probability=True, v=False):
 
         # Print codon info
         if v:
-            print(f"\n{colored('>>>')} Codon n: {c}", "\tRef AA:", aa, "\tCodon:", colored(codon))
-            print("")
-            print(f"\t\t{codons[c-1]}{colored(codons[c])}{codons[c+1]}")
-            print(f"\t\t..{colored(trinucl0, 0, 0, 255)}....")
-            print(f"\t\t...{colored(trinucl1, 0, 0, 255)}...")
-            print(f"\t\t....{colored(trinucl2, 0, 0, 255)}..")
-            print("")
+            logger.debug(f"\n{colored('>>>')} Codon n: {c}", "\tRef AA:", aa, "\tCodon:", colored(codon))
+            logger.debug("")
+            logger.debug(f"\t\t{codons[c-1]}{colored(codons[c])}{codons[c+1]}")
+            logger.debug(f"\t\t..{colored(trinucl0, 0, 0, 255)}....")
+            logger.debug(f"\t\t...{colored(trinucl1, 0, 0, 255)}...")
+            logger.debug(f"\t\t....{colored(trinucl2, 0, 0, 255)}..")
+            logger.debug("")
 
         # Iterate through the possible contexts of a missense mut
         for i, trinucl in enumerate([trinucl0, trinucl1, trinucl2]):
             ref = trinucl[1]
             aa = gencode[codon]
             if v: 
-                print(">> Context:", colored(trinucl, 0, 0, 255), "\n   Ref:", ref, "\n")
-                print("Mut      Mut_prob                Alt_codon   Alt_AA")
+                logger.debug(">> Context:", colored(trinucl, 0, 0, 255), "\n   Ref:", ref, "\n")
+                logger.debug("Mut      Mut_prob                Alt_codon   Alt_AA")
 
             # Iterate through the possible alt 
             for alt in "ACGT":
@@ -180,9 +185,9 @@ def get_miss_mut_prob(dna_seq, mut_rate_dict, get_probability=True, v=False):
                             missense_prob += mut_rate_dict[mut]
                         else:
                             missense_prob += 0
-            if v: print("")
+            if v: logger.debug("")
 
-        if v: print(f">> Prob of missense mut: {missense_prob:.3}\n")
+        if v: logger.debug(f">> Prob of missense mut: {missense_prob:.3}\n")
         missense_prob_vec.append(missense_prob)
     missense_prob_vec.append(0)                               # Assign 0 prob to the last residu
 
@@ -235,9 +240,9 @@ def main():
     verbose = args.verbose
 
 
-    print("Input directory:", input_path)
-    print("Output directory:", output_path)
-    print("Path to DNA sequences df", path_seq_df, "\n")
+    logger.info("Input directory:", input_path)
+    logger.info("Output directory:", output_path)
+    logger.info("Path to DNA sequences df", path_seq_df, "\n")
 
     # Create necessary folder
     if not os.path.exists(output_path):
@@ -262,7 +267,7 @@ def main():
         # Get the per-residue miss mut prob for each protein and add it to a dict
         seq_df = pd.read_csv(path_seq_df)
         miss_prob_dict = {}
-        print(f" Processing {len(seq_df)} proteins/fragments in {filename}..")
+        logger.info(f" Processing {len(seq_df)} proteins/fragments in {filename}..")
         miss_prob_dict = get_miss_mut_prob_dict(mut_rate_dict=mut_rate_dict, seq_df=seq_df, v=verbose)
 
         # Save
