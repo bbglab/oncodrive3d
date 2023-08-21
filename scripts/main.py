@@ -54,6 +54,8 @@ from scripts.utils.utils import add_nan_clust_cols, parse_maf_input, sort_cols
 DATE = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 FORMAT = "%(asctime)s - %(color)s%(levelname)s%(color_stop)s | %(name)s - %(color)s%(message)s%(color_stop)s"
 
+logger = daiquiri.getLogger(__logger_name__)
+
 def setup_logging(verbose: bool, fname: str) -> None:
     """Set up logging facilities.
 
@@ -73,9 +75,8 @@ def setup_logging(verbose: bool, fname: str) -> None:
         daiquiri.output.File(filename=log_dir + fname, formatter=formatter)
     ))
 
-    logging.debug(f'Log path: {log_dir}')
+    logger.debug(f'Log path: {log_dir}')
 
-logger = daiquiri.getLogger(__logger_name__)
 
 
 @click.group(context_settings={'help_option_names': ['-h', '--help']})
@@ -150,13 +151,7 @@ def run(input_maf_path,
         cohort = f"cohort_{DATE}"
 
     # Log
-    if not os.path.exists(output_path):
-        os.makedirs(os.path.join(output_path))
-        setup_logging(verbose, f'/{cohort}-{DATE}.log')
-        logger.warning(f"Directory '{output_path}' does not exists")
-        logger.debug(f"Creating output directory tree..")
-    else: 
-        setup_logging(verbose, f'/{cohort}-{DATE}.log')
+    setup_logging(verbose, f'/{cohort}-{DATE}.log')
 
     logger.info('Initializing Oncodrive3D...')
     logger.info(f'Oncodrive3D v{__version__}')
@@ -279,6 +274,11 @@ def run(input_maf_path,
 
     ## Save 
     logger.info(f"Saving to {output_path}")
+
+    if not os.path.exists(output_path):
+        os.makedirs(os.path.join(output_path))
+        logger.warning(f"Directory '{output_path}' does not exists. Creating...")
+    
     result_gene["Cancer"] = cancer_type
     result_gene["Cohort"] = cohort
 
@@ -289,6 +289,8 @@ def run(input_maf_path,
         if no_fragments == True:
             result_gene = result_gene.drop(columns=[col for col in ["F", "Mut_in_top_F", "Top_F"] if col in result_gene.columns])
         result_gene.to_csv(f"{output_path}/{cohort}.3d_clustering_genes.csv", index=False)
+        logger.info(f"Saving to {output_path}/{cohort}.3d_clustering_genes.csv")
+
         
     else:
         # Save res-level result
@@ -304,6 +306,11 @@ def run(input_maf_path,
             result_gene = result_gene.drop(columns=[col for col in ["F", "Mut_in_top_F", "Top_F"] if col in result_gene.columns])
         with np.printoptions(linewidth=10000):
             result_gene.to_csv(f"{output_path}/{cohort}.3d_clustering_genes.csv", index=False)
+
+        logger.info(f"Saving to {output_path}/{cohort}.3d_clustering_pos.csv")
+        logger.info(f"Saving to {output_path}/{cohort}.3d_clustering_genes.csv")
+
+
 
 if __name__ == "__main__":
     oncodrive3D()
