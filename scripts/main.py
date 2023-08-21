@@ -41,6 +41,7 @@ import click
 import numpy as np
 import pandas as pd
 import daiquiri
+from platformdirs import user_log_dir, user_log_path
 
 from scripts import __logger_name__, __version__
 from scripts.utils.clustering import clustering_3d_mp_wrapper
@@ -53,12 +54,15 @@ from scripts.utils.utils import add_nan_clust_cols, parse_maf_input, sort_cols
 DATE = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 FORMAT = "%(asctime)s - %(color)s%(levelname)s%(color_stop)s | %(name)s - %(color)s%(message)s%(color_stop)s"
 
-def setup_logging(verbose: bool, output_path: str) -> None:
+def setup_logging(verbose: bool, fname: str) -> None:
     """Set up logging facilities.
 
     :param verbose: verbosity (bool)
-    :param output_path: str for log file
+    # :param fname: str for log file
     """
+
+    log_dir = user_log_dir(__logger_name__, appauthor='BBGlab')
+    os.makedirs(log_dir, exist_ok=True)
     
     level = logging.DEBUG if verbose else logging.INFO
 
@@ -66,8 +70,10 @@ def setup_logging(verbose: bool, output_path: str) -> None:
 
     daiquiri.setup(level=level, outputs=(
         daiquiri.output.Stream(formatter=formatter), 
-        daiquiri.output.File(filename=output_path, formatter=formatter)
+        daiquiri.output.File(filename=log_dir + fname, formatter=formatter)
     ))
+
+    logging.debug(f'Log path: {log_dir}')
 
 logger = daiquiri.getLogger(__logger_name__)
 
@@ -145,12 +151,12 @@ def run(input_maf_path,
 
     # Log
     if not os.path.exists(output_path):
-        os.makedirs(os.path.join(output_path, 'logs/'))
-        setup_logging(verbose,os.path.join(output_path,  'logs/', f'{cohort}-{DATE}.log'))
+        os.makedirs(os.path.join(output_path))
+        setup_logging(verbose, f'/{cohort}-{DATE}.log')
         logger.warning(f"Directory '{output_path}' does not exists")
         logger.debug(f"Creating output directory tree..")
     else: 
-        setup_logging(verbose, os.path.join(output_path,  'logs/', f'{cohort}-{DATE}.log'))
+        setup_logging(verbose, f'/{cohort}-{DATE}.log')
 
     logger.info('Initializing Oncodrive3D...')
     logger.info(f'Oncodrive3D v{__version__}')
