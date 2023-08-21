@@ -72,16 +72,16 @@ def get_confidence_from_dir(path_dir):
 
 @click.command(context_settings=dict(help_option_names=['-h', '--help']),
                help='Get per-residue model confidence from all AlphaFold predicted structures contained in a given directory.')
-@click.option("-i", "--input", type=click.Path(exists=True), required=True, help="Input directory with PDB structures")
+@click.option("-i", "--input_dir", type=click.Path(exists=True), required=True, help="Input directory with PDB structures")
 @click.option("-o", "--output", help="Output path", default="../../datasets/confidence.csv")
-def main(input, output):
+def main(input_dir, output):
     
     print("\nExtracting model confidence from PDB structures..")
-    print("\nInput directory:", input)
+    print("\nInput directory:", input_dir)
     print("Output:", output)
     
     # Get model confidence
-    confidence_df = get_confidence_from_dir(input)
+    confidence_df = get_confidence_from_dir(input_dir)
     confidence_df.to_csv(output, index=False)
 
 if __name__ == "__main__":

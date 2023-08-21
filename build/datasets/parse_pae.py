@@ -40,19 +40,19 @@ def json_to_npy(path):
 
 @click.command(context_settings=dict(help_option_names=['-h', '--help']),
                help='Convert all predicted aligned error from .json dict to .npy array.')
-@click.option("-i", "--input", type=click.Path(exists=True), required=True, 
+@click.option("-i", "--input_dir", type=click.Path(exists=True), required=True, 
               help="Path to directory including the json files (predicted aligned error)")
 @click.option("-o", "--output", help="Path to output directory", type=str)
-def main(input, output):
+def main(input_dir, output):
     
     if output is None:
-        output = input
+        output = input_dir
         
     # Create necessary folder
     if not os.path.exists(output):
         os.makedirs(output)
         
-    path_files = get_pae_path_list_from_dir(input)
+    path_files = get_pae_path_list_from_dir(input_dir)
 
     for path in progressbar(path_files):
         np.save(path.replace(".json", ".npy"), json_to_npy(path))

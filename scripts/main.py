@@ -25,8 +25,8 @@ python3 /workspace/projects/clustering_3d/clustering_3d/scripts/main.py  \
                     -c /workspace/projects/clustering_3d/clustering_3d/datasets_frag/prob_cmaps/ \
                         -d /workspace/projects/clustering_3d/clustering_3d/datasets_frag/confidence.csv \
                             -t BLCA -C HARTWIG_WGS_PANCREAS_2020 \
-                                -e /workspace/projects/clustering_3d/clustering_3d/datasets_frag/pae \
-                                    -u 30 -P 0.5
+                                -e /workspace/projects/clustering_3d/clustering_3d/datasets_frag/pae/ \
+                                    -u 30 -S 128 -P 0.5
 
 #################################################################################################
 """
@@ -103,7 +103,7 @@ def build_datasets():
 @click.option("-a", "--alpha", help="Significant threshold for the p-value of res and gene", type=float, default=0.01)
 @click.option("-P", "--cmap_prob_thr", type=float, default=0.5,
               help="Threshold to define AAs contacts based on distance on predicted structure and PAE")
-@click.option("-H", "--hits_only", help="If 1 returns only positions in clusters, if 0 returns all", is_flag=True)
+@click.option("-H", "--hits_only", help="Returns only positions in clusters", is_flag=True)
 @click.option("-f", "--no_fragments", help="Disable processing of fragmented (AF-F) proteins", is_flag=True)
 @click.option("-u", "--num_cores", type=click.IntRange(min=1, max=os.cpu_count(), clamp=False), default=1,
               help="Set the number of cores to use in the computation")
@@ -130,6 +130,7 @@ def run(input_maf_path,
          cohort):
 
     ## Initialize
+    
     dir_path = os.path.abspath(os.path.dirname(__file__))
     if plddt_path is None:
         plddt_path = f"{dir_path}/../datasets/confidence.csv"
@@ -275,7 +276,6 @@ def run(input_maf_path,
     result_gene["Cancer"] = cancer_type
     result_gene["Cohort"] = cohort
 
-    #if len(result_pos_lst) == 0:
     if result_pos is None:
         logger.warning(f"Did not processed any genes\n")
         result_gene = add_nan_clust_cols(result_gene).drop(columns = ["Max_mut_pos", "Structure_max_pos"])
@@ -296,7 +296,8 @@ def run(input_maf_path,
         result_gene = sort_cols(result_gene) 
         if no_fragments == True:
             result_gene = result_gene.drop(columns=[col for col in ["F", "Mut_in_top_F", "Top_F"] if col in result_gene.columns])
-        result_gene.to_csv(f"{output_path}/{cohort}.3d_clustering_genes.csv", index=False)
+        with np.printoptions(linewidth=10000):
+            result_gene.to_csv(f"{output_path}/{cohort}.3d_clustering_genes.csv", index=False)
 
 if __name__ == "__main__":
     oncodrive3D()
