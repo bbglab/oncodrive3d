@@ -2,8 +2,8 @@
 Contains function to process the experimental p-values.
 """
 
-from statsmodels.stats.multitest import multipletests
 import numpy as np
+from statsmodels.stats.multitest import multipletests
 
 
 def fdr(p_vals, alpha=0.05):
