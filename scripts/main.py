@@ -15,10 +15,14 @@ python3 main.py -i /workspace/projects/clustering_3d/evaluation/datasets/dataset
 -p /workspace/projects/clustering_3d/evaluation/datasets/datasets_ch/input/mut_profile/OTHER_WXS_CH_IMPACT_PANEL.mutrate.json \
 -H 0 -t CH -C OTHER_WXS_CH_IMPACT_PANEL -e 1
 
-## pCMAPs
 
-python3 /workspace/projects/clustering_3d/clustering_3d/scripts/main.py  \
-    -i /workspace/projects/clustering_3d/evaluation/datasets/input/maf/HARTWIG_WGS_PANCREAS_2020.in.maf  \
+## Build datasets
+
+oncodrive3D build-datasets -o /workspace/projects/clustering_3d/clustering_3d/datasets_build_final/
+
+## Run 
+
+oncodrive3D run -i /workspace/projects/clustering_3d/evaluation/datasets/input/maf/HARTWIG_WGS_PANCREAS_2020.in.maf  \
         -o /workspace/projects/clustering_3d/dev_testing/output \
             -p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile/HARTWIG_WGS_PANCREAS_2020.mutrate.json \
                 -s /workspace/projects/clustering_3d/clustering_3d/datasets/seq_for_mut_prob.csv \
@@ -27,7 +31,7 @@ python3 /workspace/projects/clustering_3d/clustering_3d/scripts/main.py  \
                             -t BLCA -C HARTWIG_WGS_PANCREAS_2020 \
                                 -e /workspace/projects/clustering_3d/clustering_3d/datasets/pae/ \
                                     -u 30 -S 128 -P 0.5
-
+                                    
                                     
 #################################################################################################
 """
@@ -45,6 +49,7 @@ import daiquiri
 from platformdirs import user_log_dir, user_log_path
 
 from scripts import __logger_name__, __version__
+from scripts.datasets.build_datasets import build
 from scripts.utils.clustering import clustering_3d_mp_wrapper
 from scripts.utils.miss_mut_prob import (get_miss_mut_prob_dict,
                                          mut_rate_vec_to_dict)
@@ -77,25 +82,80 @@ def setup_logging(verbose: bool, fname: str) -> None:
     ))
 
     logger.debug(f'Log path: {log_dir}')
+    
+
+def startup_message(version, initializing_text):
+    
+    author = "Biomedical Genomics Lab - IRB Barcelona"
+    support_email = "stefano.pellegrini@irbbarcelona.com"
+    banner_width = 70
+
+    logger.info("#" * banner_width)
+    logger.info(f"{'#' + ' ' * (banner_width - 2) + '#'}")
+    logger.info(f"{'#' + f'Welcome to Oncodrive3D!'.center(banner_width - 2) + '#'}")
+    logger.info(f"{'#' + ' ' * (banner_width - 2) + '#'}")
+    logger.info(f"{'#' + initializing_text.center(banner_width - 2) + '#'}")
+    logger.info(f"{'#' + f'Version: {version}'.center(banner_width - 2) + '#'}")
+    logger.info(f"{'#' + f'Author: {author}'.center(banner_width - 2) + '#'}")
+    logger.info(f"{'#' + f'Support: {support_email}'.center(banner_width - 2) + '#'}")
+    logger.info(f"{'#' + ' ' * (banner_width - 2) + '#'}")
+    logger.info("#" * banner_width)
+    logger.info("")
 
 
 
 @click.group(context_settings={'help_option_names': ['-h', '--help']})
 @click.version_option(__version__)
 def oncodrive3D():
-    """Oncrodrive3D: software for the identification of 3D-clustering of missense mutations for cancer driver genes detection."""
+    """Oncodrive3D: software for the identification of 3D-clustering of missense mutations for cancer driver genes detection."""
     pass
 
 @oncodrive3D.command(context_settings=dict(help_option_names=['-h', '--help']),
-               help="build datasets - required at the beginning") # CHANGE ACCORDINGLY
-def build_datasets():
-    """"function to build datasets"""
-
-    pass
+               help="Build datasets - Required once after installation") # CHANGE ACCORDINGLY
+@click.option("-o", "--output_datasets", help="Directory where to save the files", type=str)
+@click.option("-s", "--organism", type=click.Choice(['human', 'mouse']), 
+              help="Organism name", default="human")
+@click.option("-u", "--uniprot_to_hugo", type=click.Path(exists=True), 
+              help="Optional path to custom dict including Uniprot to HUGO IDs mapping")
+@click.option("-c", "--num_cores", type=click.IntRange(min=1, max=os.cpu_count(), clamp=False), default=1,
+              help="Set the number of cores to use in the computation")
+@click.option("-c", "--num_cores", type=click.IntRange(min=1, max=os.cpu_count(), clamp=False), default=1,
+              help="Set the number of cores to use in the computation")
+@click.option("-a", "--af_version", type=click.IntRange(min=1, max=4, clamp=False), default=4,
+              help="Specify the version of AlphaFold 2")
+@click.option("-k", "--keep_pdb_files", help="Keep original PDB files", is_flag=True)
+@click.option("-v", "--verbose", help="Verbose", is_flag=True)
+def build_datasets(output_datasets, 
+                   organism, 
+                   uniprot_to_hugo, 
+                   num_cores, af_version, 
+                   keep_pdb_files, 
+                   verbose):
+    """"Build datasets necessary to run Oncodrive3D."""
+    
+    setup_logging(verbose, f'/build_datasets-{DATE}.log')
+    startup_message(__version__, "Initializing building datasets...")
+    
+    logger.info(f"Datasets path: {output_datasets}")
+    logger.info(f"Organism: {organism}")
+    logger.info(f"Custom IDs mapping: {uniprot_to_hugo}")
+    logger.info(f"CPU cores: {num_cores}")
+    logger.info(f"AlphaFold version: {af_version}")
+    logger.info(f"Keep PDB files: {keep_pdb_files}")
+    logger.info(f"Verbose: {verbose}")
+    logger.info("")
+        
+    build(output_datasets, 
+          organism, 
+          uniprot_to_hugo, 
+          num_cores, af_version, 
+          keep_pdb_files, 
+          verbose)
+    
 
 
 @oncodrive3D.command(context_settings=dict(help_option_names=['-h', '--help']),
-               help="run analysis") # CHANGE ACCORDINGLY
+                     help="Run 3D-clustering analysis") # CHANGE ACCORDINGLY
 @click.option("-i", "--input_maf_path", type=click.Path(exists=True), required=True, help="Path of the maf file used as input")
 @click.option("-o", "--output_path", help="Path to output directory", type=str, required=True)
 @click.option("-p", "--mut_profile_path", type=click.Path(exists=True), 
@@ -121,59 +181,46 @@ def build_datasets():
 @click.option("-t", "--cancer_type", help="Cancer type", type=str)
 @click.option("-C", "--cohort", help="Name of the cohort", type=str)
 def run(input_maf_path, 
-         mut_profile_path, 
-         output_path,
-         seq_df_path,
-         cmap_path,
-         plddt_path,
-         pae_path,
-         n_iterations,
-         alpha,
-         cmap_prob_thr,
-         hits_only,
-         no_fragments,
-         num_cores,
-         seed,
-         verbose,
-         cancer_type,
-         cohort):
+        mut_profile_path, 
+        output_path,
+        seq_df_path,
+        cmap_path,
+        plddt_path,
+        pae_path,
+        n_iterations,
+        alpha,
+        cmap_prob_thr,
+        hits_only,
+        no_fragments,
+        num_cores,
+        seed,
+        verbose,
+        cancer_type,
+        cohort):
+    """Run Oncodrive3D."""
 
     ## Initialize
     
     dir_path = os.path.abspath(os.path.dirname(__file__))
-    if plddt_path is None:
-        plddt_path = f"{dir_path}/../datasets/confidence.csv"
-    if cmap_path is None:
-        cmap_path = f"{dir_path}/../datasets/prob_cmaps/"                                          
-    if seq_df_path is None:
-        seq_df_path = f"{dir_path}/../datasets/seq_for_mut_prob.csv"
-    if pae_path is None:
-        pae_path = f"{dir_path}/../datasets/pae_path/"
-    if cancer_type is None:
-        cancer_type = np.nan
-    if cohort is None:
-        cohort = f"cohort_{DATE}"
-
+    plddt_path = plddt_path if not None else f"{dir_path}/../datasets/confidence.csv"
+    cmap_path = cmap_path if not None else f"{dir_path}/../datasets/prob_cmaps/"   
+    seq_df_path = seq_df_path if not None else f"{dir_path}/../datasets/seq_for_mut_prob.csv"                                    
+    pae_path = pae_path if not None else f"{dir_path}/../datasets/pae/"     
+    cancer_type = cancer_type if not None else np.nan
+    cohort = cohort if not None else f"cohort_{DATE}"
+    
     # Log
     setup_logging(verbose, f'/{cohort}-{DATE}.log')
+    startup_message(__version__, "Initializing analysis...")
 
-    logger.info('Initializing Oncodrive3D...')
-    logger.info(f'Oncodrive3D v{__version__}')
-
-    logger.info(f"Starting 3D-clustering..")
-
+    logger.info(f"Input MAF: {input_maf_path}")
+    path_prob = mut_profile_path if not None else "Not provided, uniform distribution will be used"
+    logger.info(f"Input mut profile: {path_prob}")
     logger.info(f"Output directory: {output_path}")
     logger.info(f"Path to CMAPs: {cmap_path}")
     logger.info(f"Path to DNA sequences: {seq_df_path}")
-    if pae_path is not None:
-        logger.info(f"Path to PAE: {pae_path}")
-    else:
-        logger.info(f"Path to PAE: not defined, weighted average PAE of mutated volumes will not be calculated")
+    logger.info(f"Path to PAE: {pae_path}")
     logger.info(f"Path to pLDDT scores: {plddt_path}")
-
-    path_prob = mut_profile_path if not None else "Not provided, uniform distribution will be used"
-
-    logger.info(f"Path to mut profile: {path_prob}")
     logger.info(f"CPU cores: {num_cores}")
     logger.info(f"Iterations: {n_iterations}")
     logger.info(f"Significant level: {alpha}")
@@ -184,17 +231,13 @@ def run(input_maf_path,
     logger.info(f"Cancer type: {cancer_type}")
     logger.info(f"Verbose: {bool(verbose)}")
     logger.info(f"Seed: {seed}")
+    logger.info("")
 
 
     ## Load input and df of DNA sequences
 
-    # MAF input
     data = parse_maf_input(input_maf_path, keep_samples_id=True)
-
-    # Seq df for missense mut prob
     seq_df = pd.read_csv(seq_df_path)
-    
-    # Model confidences
     plddt_df = pd.read_csv(plddt_path, dtype={"Pos" : int, "Res" : str, "Confidence" : float, 
                                               "Uniprot_ID" : str, "AF_F" : str})
 
@@ -264,7 +307,7 @@ def run(input_maf_path,
 
     # Run 3D-clustering
     if len(genes_to_process) > 0:
-        logger.info(f"Performing 3D clustering on [{len(seq_df)}] proteins..")
+        logger.info(f"Performing 3D-clustering on [{len(seq_df)}] proteins..")
         result_pos, result_gene = clustering_3d_mp_wrapper(genes_to_process, data, cmap_path, 
                                                            miss_prob_dict, gene_to_uniprot_dict, plddt_df,
                                                            num_cores, alpha=alpha, num_iteration=n_iterations, 
@@ -277,7 +320,6 @@ def run(input_maf_path,
 
 
     ## Save 
-    logger.info(f"Saving to {output_path}")
 
     if not os.path.exists(output_path):
         os.makedirs(os.path.join(output_path))
@@ -311,8 +353,8 @@ def run(input_maf_path,
         with np.printoptions(linewidth=10000):
             result_gene.to_csv(f"{output_path}/{cohort}.3d_clustering_genes.csv", index=False)
 
-        logger.info(f"Saving to {output_path}/{cohort}.3d_clustering_pos.csv")
-        logger.info(f"Saving to {output_path}/{cohort}.3d_clustering_genes.csv")
+        logger.info(f"Saving {output_path}/{cohort}.3d_clustering_pos.csv")
+        logger.info(f"Saving {output_path}/{cohort}.3d_clustering_genes.csv")
 
 
 
