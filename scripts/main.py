@@ -32,21 +32,70 @@ python3 /workspace/projects/clustering_3d/clustering_3d/scripts/main.py  \
 #################################################################################################
 """
 
+import json
+import logging
+import os
+import sys
+from datetime import datetime
 
 import click
-import json
 import numpy as np
 import pandas as pd
-import os
-from datetime import datetime
-from utils.utils import parse_maf_input, add_nan_clust_cols, sort_cols
-from utils.miss_mut_prob import mut_rate_vec_to_dict, get_miss_mut_prob_dict
-from utils.clustering import clustering_3d_mp_wrapper
-from utils.pvalues import get_final_gene_result
+import daiquiri
+from platformdirs import user_log_dir, user_log_path
+
+from scripts import __logger_name__, __version__
+from scripts.utils.clustering import clustering_3d_mp_wrapper
+from scripts.utils.miss_mut_prob import (get_miss_mut_prob_dict,
+                                         mut_rate_vec_to_dict)
+from scripts.utils.pvalues import get_final_gene_result
+from scripts.utils.utils import add_nan_clust_cols, parse_maf_input, sort_cols
 
 
-@click.command(context_settings=dict(help_option_names=['-h', '--help']),
-               help="Oncodrive3D: software for the identification of 3D-clustering of missense mutations for cancer driver genes detection.")
+DATE = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+FORMAT = "%(asctime)s - %(color)s%(levelname)s%(color_stop)s | %(name)s - %(color)s%(message)s%(color_stop)s"
+
+logger = daiquiri.getLogger(__logger_name__)
+
+def setup_logging(verbose: bool, fname: str) -> None:
+    """Set up logging facilities.
+
+    :param verbose: verbosity (bool)
+    # :param fname: str for log file
+    """
+
+    log_dir = user_log_dir(__logger_name__, appauthor='BBGlab')
+    os.makedirs(log_dir, exist_ok=True)
+    
+    level = logging.DEBUG if verbose else logging.INFO
+
+    formatter = daiquiri.formatter.ColorFormatter(fmt=FORMAT)
+
+    daiquiri.setup(level=level, outputs=(
+        daiquiri.output.Stream(formatter=formatter), 
+        daiquiri.output.File(filename=log_dir + fname, formatter=formatter)
+    ))
+
+    logger.debug(f'Log path: {log_dir}')
+
+
+
+@click.group(context_settings={'help_option_names': ['-h', '--help']})
+@click.version_option(__version__)
+def oncodrive3D():
+    """Oncrodrive3D: software for the identification of 3D-clustering of missense mutations for cancer driver genes detection."""
+    pass
+
+@oncodrive3D.command(context_settings=dict(help_option_names=['-h', '--help']),
+               help="build datasets - required at the beginning") # CHANGE ACCORDINGLY
+def build_datasets():
+    """"function to build datasets"""
+
+    pass
+
+
+@oncodrive3D.command(context_settings=dict(help_option_names=['-h', '--help']),
+               help="run analysis") # CHANGE ACCORDINGLY
 @click.option("-i", "--input_maf_path", type=click.Path(exists=True), required=True, help="Path of the maf file used as input")
 @click.option("-o", "--output_path", help="Path to output directory", type=str, required=True)
 @click.option("-p", "--mut_profile_path", type=click.Path(exists=True), 
@@ -71,7 +120,7 @@ from utils.pvalues import get_final_gene_result
 @click.option("-v", "--verbose", help="Verbose", is_flag=True)
 @click.option("-t", "--cancer_type", help="Cancer type", type=str)
 @click.option("-C", "--cohort", help="Name of the cohort", type=str)
-def main(input_maf_path, 
+def run(input_maf_path, 
          mut_profile_path, 
          output_path,
          seq_df_path,
@@ -90,7 +139,6 @@ def main(input_maf_path,
          cohort):
 
     ## Initialize
-    version = "v_2023_08_17"    # LAST CHANGE: Avoid \n in long list of C_pos gene-level result
     
     dir_path = os.path.abspath(os.path.dirname(__file__))
     if plddt_path is None:
@@ -104,31 +152,38 @@ def main(input_maf_path,
     if cancer_type is None:
         cancer_type = np.nan
     if cohort is None:
-        date = datetime.now()
-        date.strftime("%m-%d-%Y_%H-%M-%S")
-        cohort = f"cohort_{date}"
+        cohort = f"cohort_{DATE}"
 
-    print(f"Starting 3D-clustering [{version}]..\n")
-    print(f"Output directory: {output_path}")
-    print(f"Path to CMAPs: {cmap_path}")
-    print(f"Path to DNA sequences: {seq_df_path}")
-    print(f"Path to PAE: {pae_path}")
-    print(f"Path to pLDDT scores: {plddt_path}")
-    if mut_profile_path is not None:
-        path_prob = mut_profile_path
+    # Log
+    setup_logging(verbose, f'/{cohort}-{DATE}.log')
+
+    logger.info('Initializing Oncodrive3D...')
+    logger.info(f'Oncodrive3D v{__version__}')
+
+    logger.info(f"Starting 3D-clustering..")
+
+    logger.info(f"Output directory: {output_path}")
+    logger.info(f"Path to CMAPs: {cmap_path}")
+    logger.info(f"Path to DNA sequences: {seq_df_path}")
+    if pae_path is not None:
+        logger.info(f"Path to PAE: {pae_path}")
     else:
-        path_prob = "Not provided, uniform distribution will be used"
-    print(f"Path to mut profile: {path_prob}")
-    print(f"CPU cores:", num_cores)
-    print(f"Iterations: {n_iterations}")
-    print(f"Significant level: {alpha}")
-    print(f"Probability threshold for CMAPs: {cmap_prob_thr}")
-    print(f"Output hits only: {bool(hits_only)}")
-    print(f"Disable fragments: {bool(no_fragments)}")
-    print(f"Cohort:", cohort)
-    print(f"Cancer type: {cancer_type}")
-    print(f"Verbose: {bool(verbose)}")
-    print(f"Seed: {seed}")
+        logger.info(f"Path to PAE: not defined, weighted average PAE of mutated volumes will not be calculated")
+    logger.info(f"Path to pLDDT scores: {plddt_path}")
+
+    path_prob = mut_profile_path if not None else "Not provided, uniform distribution will be used"
+
+    logger.info(f"Path to mut profile: {path_prob}")
+    logger.info(f"CPU cores: {num_cores}")
+    logger.info(f"Iterations: {n_iterations}")
+    logger.info(f"Significant level: {alpha}")
+    logger.info(f"Probability threshold for CMAPs: {cmap_prob_thr}")
+    logger.info(f"Output hits only: {bool(hits_only)}")
+    logger.info(f"Disable fragments: {bool(no_fragments)}")
+    logger.info(f"Cohort: {cohort}")
+    logger.info(f"Cancer type: {cancer_type}")
+    logger.info(f"Verbose: {bool(verbose)}")
+    logger.info(f"Seed: {seed}")
 
 
     ## Load input and df of DNA sequences
@@ -200,7 +255,7 @@ def main(input_maf_path,
     if mut_profile_path is not None:
         # Compute dict from mut profile of the cohort and dna sequences
         mut_profile = json.load(open(mut_profile_path))
-        print(f"\nComputing missense mut probabilities..")
+        logger.info(f"Computing missense mut probabilities..")
         if not isinstance(mut_profile, dict):
             mut_profile = mut_rate_vec_to_dict(mut_profile)
         miss_prob_dict = get_miss_mut_prob_dict(mut_rate_dict=mut_profile, seq_df=seq_df)
@@ -209,7 +264,7 @@ def main(input_maf_path,
 
     # Run 3D-clustering
     if len(genes_to_process) > 0:
-        print(f"Performing 3D clustering on [{len(seq_df)}] proteins..")
+        logger.info(f"Performing 3D clustering on [{len(seq_df)}] proteins..")
         result_pos, result_gene = clustering_3d_mp_wrapper(genes_to_process, data, cmap_path, 
                                                            miss_prob_dict, gene_to_uniprot_dict, plddt_df,
                                                            num_cores, alpha=alpha, num_iteration=n_iterations, 
@@ -222,17 +277,24 @@ def main(input_maf_path,
 
 
     ## Save 
-    print("\nSaving..")
+    logger.info(f"Saving to {output_path}")
+
+    if not os.path.exists(output_path):
+        os.makedirs(os.path.join(output_path))
+        logger.warning(f"Directory '{output_path}' does not exists. Creating...")
+    
     result_gene["Cancer"] = cancer_type
     result_gene["Cohort"] = cohort
 
     if result_pos is None:
-        print(f"Did not processed any genes\n")
+        logger.warning(f"Did not processed any genes\n")
         result_gene = add_nan_clust_cols(result_gene).drop(columns = ["Max_mut_pos", "Structure_max_pos"])
         result_gene = sort_cols(result_gene)
         if no_fragments == True:
             result_gene = result_gene.drop(columns=[col for col in ["F", "Mut_in_top_F", "Top_F"] if col in result_gene.columns])
         result_gene.to_csv(f"{output_path}/{cohort}.3d_clustering_genes.csv", index=False)
+        logger.info(f"Saving to {output_path}/{cohort}.3d_clustering_genes.csv")
+
         
     else:
         # Save res-level result
@@ -249,6 +311,11 @@ def main(input_maf_path,
         with np.printoptions(linewidth=10000):
             result_gene.to_csv(f"{output_path}/{cohort}.3d_clustering_genes.csv", index=False)
 
+        logger.info(f"Saving to {output_path}/{cohort}.3d_clustering_pos.csv")
+        logger.info(f"Saving to {output_path}/{cohort}.3d_clustering_genes.csv")
+
+
+
 if __name__ == "__main__":
-    main()
+    oncodrive3D()
  

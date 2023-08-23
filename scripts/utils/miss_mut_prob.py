@@ -4,8 +4,20 @@ mutation of any protein given the mutation profile of the cohort.
 """
 
 
-import numpy as np
+import argparse
+import json
+import logging
+import os
 from itertools import product
+
+import numpy as np
+import pandas as pd
+from progressbar import progressbar
+
+from scripts import __logger_name__
+
+logger = logging.getLogger(__logger_name__)
+
 
 def get_unif_gene_miss_prob(size):
     """
@@ -29,7 +41,7 @@ def mut_rate_vec_to_dict(mut_rate, v=False):
     """
     
     cb  = dict(zip('ACGT', 'TGCA'))
-    if v: print("Mut1\tMut2\tN_context\tMut_rate")
+    if v: logger.debug("Mut1\tMut2\tN_context\tMut_rate")
     mut_rate_dict = {}
     i = 0
     for ref in ['C', 'T']:
@@ -42,7 +54,7 @@ def mut_rate_vec_to_dict(mut_rate, v=False):
                     cmut = f"{cb[p[1]]}{cb[ref]}{cb[p[0]]}>{cb[alt]}"
                     mut_rate_dict[mut] = mut_rate[i]
                     mut_rate_dict[cmut] = mut_rate[i]
-                    if v: print(f"{mut}\t{cmut}\t{i}\t\t{mut_rate[i]}")
+                    if v: logger.debug(f"{mut}\t{cmut}\t{i}\t\t{mut_rate[i]}")
                     i +=1
                     
     return mut_rate_dict
@@ -127,21 +139,21 @@ def get_miss_mut_prob(dna_seq, mut_rate_dict, get_probability=True, v=False):
 
         # Print codon info
         if v:
-            print(f"\n{colored('>>>')} Codon n: {c}", "\tRef AA:", aa, "\tCodon:", colored(codon))
-            print("")
-            print(f"\t\t{codons[c-1]}{colored(codons[c])}{codons[c+1]}")
-            print(f"\t\t..{colored(trinucl0, 0, 0, 255)}....")
-            print(f"\t\t...{colored(trinucl1, 0, 0, 255)}...")
-            print(f"\t\t....{colored(trinucl2, 0, 0, 255)}..")
-            print("")
+            logger.debug(f"\n{colored('>>>')} Codon n: {c}", "\tRef AA:", aa, "\tCodon:", colored(codon))
+            logger.debug("")
+            logger.debug(f"\t\t{codons[c-1]}{colored(codons[c])}{codons[c+1]}")
+            logger.debug(f"\t\t..{colored(trinucl0, 0, 0, 255)}....")
+            logger.debug(f"\t\t...{colored(trinucl1, 0, 0, 255)}...")
+            logger.debug(f"\t\t....{colored(trinucl2, 0, 0, 255)}..")
+            logger.debug("")
 
         # Iterate through the possible contexts of a missense mut
         for i, trinucl in enumerate([trinucl0, trinucl1, trinucl2]):
             ref = trinucl[1]
             aa = gencode[codon]
             if v: 
-                print(">> Context:", colored(trinucl, 0, 0, 255), "\n   Ref:", ref, "\n")
-                print("Mut      Mut_prob                Alt_codon   Alt_AA")
+                logger.debug(">> Context:", colored(trinucl, 0, 0, 255), "\n   Ref:", ref, "\n")
+                logger.debug("Mut      Mut_prob                Alt_codon   Alt_AA")
 
             # Iterate through the possible alt 
             for alt in "ACGT":
@@ -158,9 +170,9 @@ def get_miss_mut_prob(dna_seq, mut_rate_dict, get_probability=True, v=False):
                             missense_prob += mut_rate_dict[mut]
                         else:
                             missense_prob += 0
-            if v: print("")
+            if v: logger.debug("")
 
-        if v: print(f">> Prob of missense mut: {missense_prob:.3}\n")
+        if v: logger.debug(f">> Prob of missense mut: {missense_prob:.3}\n")
         missense_prob_vec.append(missense_prob)
     missense_prob_vec.append(0)                               # Assign 0 prob to the last residu
 
@@ -188,3 +200,65 @@ def get_miss_mut_prob_dict(mut_rate_dict, seq_df, v=False):
             miss_prob_dict[f"{row.Uniprot_ID}"] = get_miss_mut_prob(row.Seq_dna, mut_rate_dict, v=v)
 
     return miss_prob_dict
+
+
+def main():
+    
+    ## Parser
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-i", "--input", 
+                        help="Input path to the directory including the mutation profile of the cohorts (list of 96 floats or dict of 192 items)", 
+                        type=str, required=True)
+    parser.add_argument("-o", "--output", 
+                        help="Output path to save the dictionaries of missense mutation probability of each protein of the cohorts", 
+                        type=str, required=True)                        
+    parser.add_argument("-s", "--seq_df", 
+                        help="Path to the dataframe including DNA and protein seq of all gene/proteins (all AF predicted ones)", 
+                        type=str, 
+                        default="../../datasets/seq_for_mut_prob.csv")                                         
+    parser.add_argument("-v", "--verbose", help="Verbose", type=int, default=0)          
+
+    args = parser.parse_args()
+    input_path = args.input
+    output_path = args.output
+    path_seq_df = args.seq_df
+    verbose = args.verbose
+
+
+    logger.info("Input directory:", input_path)
+    logger.info("Output directory:", output_path)
+    logger.info("Path to DNA sequences df", path_seq_df, "\n")
+
+    # Create necessary folder
+    if not os.path.exists(output_path):
+        os.makedirs(output_path)
+
+
+    # Iterate through all mut profiles path in the directory
+    path_profiles = [f"{input_path}/{file}" for file in os.listdir(input_path) if file.endswith(".json")]
+    for path_mut_profile in progressbar(path_profiles):
+
+        # Filename
+        filename = path_mut_profile.split("/")
+        filename = filename[len(filename)-1]
+        filename = filename.split(".json")[0]
+
+        # Load mut profile (mut rate) and convert into dictionary
+        with open(path_mut_profile) as json_file:
+            mut_rate_dict = json.load(json_file)
+        if not isinstance(mut_rate_dict, dict):
+            mut_rate_dict = mut_rate_vec_to_dict(mut_rate_dict)
+
+        # Get the per-residue miss mut prob for each protein and add it to a dict
+        seq_df = pd.read_csv(path_seq_df)
+        miss_prob_dict = {}
+        logger.info(f" Processing {len(seq_df)} proteins/fragments in {filename}..")
+        miss_prob_dict = get_miss_mut_prob_dict(mut_rate_dict=mut_rate_dict, seq_df=seq_df, v=verbose)
+
+        # Save
+        with open(f"{output_path}/{filename}.miss_mut_prob.json", "w") as fp:
+            json.dump(miss_prob_dict, fp)
+
+
+if __name__ == "__main__":
+    main()
