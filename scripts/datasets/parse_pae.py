@@ -1,7 +1,12 @@
+"""
+Simple module to convert the predicted aligned error (PAE) 
+files produced by AlphaFold2 from json to npy format.
+"""
+
+
 import numpy as np
 import os
 import json
-import click
 import re
 from progressbar import progressbar
 
@@ -38,25 +43,16 @@ def json_to_npy(path):
     return np.array(pae[0]['predicted_aligned_error'])
 
 
-@click.command(context_settings=dict(help_option_names=['-h', '--help']),
-               help='Convert all predicted aligned error from .json dict to .npy array.')
-@click.option("-i", "--input_dir", type=click.Path(exists=True), required=True, 
-              help="Path to directory including the json files (predicted aligned error)")
-@click.option("-o", "--output", help="Path to output directory", type=str)
-def main(input_dir, output):
+def parse_pae(input, output=None):
     
     if output is None:
-        output = input_dir
+        output = input
         
     # Create necessary folder
     if not os.path.exists(output):
         os.makedirs(output)
         
-    path_files = get_pae_path_list_from_dir(input_dir)
+    path_files = get_pae_path_list_from_dir(input)
 
     for path in progressbar(path_files):
         np.save(path.replace(".json", ".npy"), json_to_npy(path))
-
-
-if __name__ == "__main__":
-    main()

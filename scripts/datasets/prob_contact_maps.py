@@ -1,30 +1,24 @@
 """
-Compute contact maps related features from AlphaFold predicted structures.
-The output can be either individual contact maps named with UniprotID_F 
-(.npy or .csv), where F is the number of AF fragment. It can generate, or
-a single dictionary having UniprotID_F as keys and contact maps as values. 
+Module to compute maps of probabilities of contact (pCMAPs) from 
+AlphaFold predicted structures and predicted aligned error (PAE).
 
-###################################### EXAMPLE USAGE ###################################################
-
-python3 contact_maps.py -i ../../datasets/pdb_structures/ -o ../../datasets/cmaps/ -c 10 -d 10
-    python3 prob_contact_maps.py -i ../../datasets_frag/pdb_structures/ -p ../../datasets_frag/pae/ -o ../../datasets_frag/prob_cmaps/ -c 10
-
-WARNING: requires good amount of memory
-
-########################################################################################################
+The pCMAPs is a dataframe including the probability of contact for 
+each pair of residue of a given protein. Given a threshold (10Å as 
+default) to define the contact, the probability that two residues i 
+and j are in contact is computed considering the distance between i 
+and j in the PDB structure and their predicted error in the PAE.
 """
 
 
 import os
 import numpy as np
-import click
 import multiprocessing
 from Bio.Data.IUPACData import protein_letters_3to1
 from Bio.PDB.PDBParser import PDBParser
 import re
 import warnings
 from math import pi
-from utils import get_pdb_path_list_from_dir, get_af_id_from_pdb
+from scripts.datasets.utils import get_pdb_path_list_from_dir, get_af_id_from_pdb
 
 
 # Functions to compute the probability of contact
@@ -123,7 +117,8 @@ def get_contact_map(chain, distance=10):
 def get_prob_contact(pae_value, dmap_value, distance=10):
     """
     Get probability of contact considering the distance 
-    between residues in the predicted structure and the Predicted Aligned Error (PAE).
+    between residues in the predicted structure and the 
+    Predicted Aligned Error (PAE).
     """
     if pae_value == 0 and dmap_value == 0:
         
@@ -199,38 +194,35 @@ def get_prob_cmaps(pdb_files, pae_path, output_path, distance=10, verbose=False,
         # Monitor processing
         if verbose and n % 100 == 0:
             if n == 0:
-                print(f"Process [{num_process}] starting..")
-            elif n == len(pdb_files):
-                print(f"Process [{num_process}] completed [{n}/{len(pdb_files)}] structures")
+                print(f"Process [{num_process}] starting processing [{len(pdb_files)}] structures..", flush=True)
             else:
-                print(f"Process [{num_process}] completed [{n}/{len(pdb_files)}] structures")
+                print(f"Process [{num_process}] completed [{n}/{len(pdb_files)}] structures..", flush=True)
+        elif verbose and n+1 == len(pdb_files):
+                print(f"Process [{num_process}] completed", flush=True)
+         
+                
 
+def get_prob_cmaps_mp(input_pdb,
+                      input_pae,
+                      output,
+                      distance = 10,
+                      num_cores = 1,
+                      verbose = False):
+    """
+    Given a list of path of PDB file, use multiprocessing to compute pCMAPs 
+    (maps or probabilities of contact between each residues) for each PDB 
+    non-fragmented structure and save it as individual .npy file in the given 
+    output path. For fragmented structures simply get cmaps.
+    """
 
-@click.command(context_settings=dict(help_option_names=['-h', '--help']),
-               help='Compute contact probabiltiy maps from AF predicted structures and predicted aligned error.')
-@click.option("-i", "--input_pdb", type=click.Path(exists=True), required=True, 
-              help="Input directory with PDB structures")
-@click.option("-i", "--input_pae", type=click.Path(exists=True), required=True, 
-              help="Input directory with PAE files")
-@click.option("-o", "--output", help="Path to output directory", type=str, default="../../datasets/prob_cmaps/")
-@click.option("-a", "--distance", help="Set the distance in angstrom to define a contact", type=int, default=10)
-@click.option("-u", "--num_cores", type=click.IntRange(min=1, max=os.cpu_count(), clamp=False), default=os.cpu_count(),
-              help="Set the number of cores to use in the computation")
-@click.option("-v", "--verbose", help="Verbose", is_flag=True)
-def main(input_pdb,
-         input_pae,
-         output,
-         distance,
-         num_cores,
-         verbose):
-
-    print("\nComputing prob cmaps of all structures in directory")
-    print("\nInput PDB directory:", input_pdb)
-    print("Input PAE directory:", input_pae)
-    print("Output:", output)
-    print("Distance:", distance)
-    print("Num cores:", num_cores)
-    print("Verbose:", verbose, "\n")
+    n_structures = len([pdb for pdb in os.listdir(input_pdb) if pdb.endswith(".pdb")])
+    if verbose:
+        print("Input PDB directory:", input_pdb)
+        print("Input PAE directory:", input_pae)
+        print("Output:", output)
+        print("Distance:", distance)
+        print("Cores:", num_cores)
+        print(f"Processing [{n_structures}] structures..")
 
     # Create necessary folder
     if not os.path.exists(output):
@@ -247,9 +239,3 @@ def main(input_pdb,
     with multiprocessing.Pool(processes = num_cores) as pool:
         results = pool.starmap(get_prob_cmaps, [(chunk, input_pae, output, distance, verbose, n) 
                                                   for n, chunk in enumerate(chunks)])
-
-    print(f"\nIndividual cmaps saved in {output}")
-
-
-if __name__ == "__main__":
-    main()

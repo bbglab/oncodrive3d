@@ -1,10 +1,16 @@
+"""
+Module including a collection of functions that provide 
+general-purpose functionalities that can be used across 
+different parts of the dataset building process.
+"""
+
+
 import re
 import pandas as pd
 import numpy as np
 import os
 import gzip
 import io
-import csv
 import time
 import requests
 from difflib import SequenceMatcher
@@ -98,7 +104,7 @@ def get_response_jobid(response):
     return job_id
 
 
-def get_mapping_jobid(uniprot_ids):
+def get_mapping_jobid(uniprot_ids, verbose):
     """
     Submit an ID Mapping job to UniprotKB.
     """
@@ -112,7 +118,7 @@ def get_mapping_jobid(uniprot_ids):
         time.sleep(1) 
         job_id = get_response_jobid(response)
         if i % 60 == 0:
-            print(f"Requesting ID mapping job to UniprotKB for IDs.. [waited {i-59}s]")
+            if verbose: print(f"Requesting ID mapping job to UniprotKB for IDs.. [waited {i-59}s]")
         i += 1
     
     return job_id
@@ -141,7 +147,7 @@ def split_lst_into_chunks(lst, batch_size = 5000):
     return [lst[i:i+batch_size] for i in range(0, len(lst), batch_size)]
 
 
-def uniprot_to_hudo_df(uniprot_ids):
+def uniprot_to_hudo_df(uniprot_ids, verbose):
     """
     Given a list of Uniprot IDs (from any species), request an Id 
     mapping job to UniprotKB to retrieve the corresponding Hugo 
@@ -149,7 +155,7 @@ def uniprot_to_hudo_df(uniprot_ids):
     It is recommended to provide batches of IDs up to 5000 elements.
     """
     
-    job_id = get_mapping_jobid(uniprot_ids)
+    job_id = get_mapping_jobid(uniprot_ids, verbose)
     url = f"https://rest.uniprot.org/idmapping/uniprotkb/results/stream/{job_id}?compressed=true&fields=accession%2Cid%2Cprotein_name%2Cgene_names%2Corganism_name%2Clength&format=tsv"
     df = load_df_from_url(url)
     
@@ -158,7 +164,7 @@ def uniprot_to_hudo_df(uniprot_ids):
         time.sleep(1)
         df = load_df_from_url(url)
         if i % 60 == 0:
-            print(f"Waiting for UniprotKB mapping job to produce url..")
+            if verbose: print(f"Waiting for UniprotKB mapping job to produce url..")
         i += 1 
         
     return df
@@ -181,7 +187,7 @@ def convert_dict_hugo_to_uniprot(dict_uniprot_hugo):
     return dict_hugo_uniprot
 
 
-def uniprot_to_hugo(uniprot_ids, hugo_as_keys=False, batch_size=5000):
+def uniprot_to_hugo(uniprot_ids, hugo_as_keys=False, batch_size=5000, verbose=False):
     """
     Given a list of Uniprot IDs (any species.), request an Id mapping 
     job to UniprotKB to retrieve the corresponding Hugo symbols. 
@@ -194,8 +200,8 @@ def uniprot_to_hugo(uniprot_ids, hugo_as_keys=False, batch_size=5000):
     # Get a dataframe including all IDs mapping info
     df_lst = []
     for i, ids in enumerate(uniprot_ids_lst):
-        print(f"Batch {i+1}/{len(uniprot_ids_lst)} ({len(ids)} IDs)..")
-        df = uniprot_to_hudo_df(ids)
+        if verbose: print(f"Batch {i+1}/{len(uniprot_ids_lst)} ({len(ids)} IDs)..")
+        df = uniprot_to_hudo_df(ids, verbose)
         df_lst.append(df)
     df = pd.concat(df_lst)
 

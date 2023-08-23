@@ -1,6 +1,7 @@
 datasets/cmaps
 datasets/temp
-datasets/pdb_structures*
+datasets/prob_cmaps
+datasets/pae
 datasets/af_uniprot_to_gene_id.json
 datasets/seq_for_mut_prob.csv
 datasets/confidence.csv
@@ -18,7 +19,6 @@ datasets_frag/cmaps_temp1
 datasets_frag/prob_cmaps
 datasets_frag/prob_cmaps_temp1
 datasets_frag/temp
-datasets_frag/pae
 datasets_frag/pae_v2
 datasets_frag/pdb_structures*
 datasets_frag/af_uniprot_to_gene_id.json
@@ -30,6 +30,8 @@ datasets_mouse/pdb_structures*
 datasets_mouse/af_uniprot_to_gene_id.json
 datasets_mouse/seq_for_mut_prob.csv
 datasets_mouse/confidence.csv
+datasets_build_test/*
+datasets_build_final/*
 backups
 tests/output/*
 !tests/output/.gitkeep
