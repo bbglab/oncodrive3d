@@ -1,33 +1,11 @@
-
 """
-Process all mutation profiles in a given directory and, for each one, 
-generate a dictionary having as keys UniprotID-Fragment (eg., P04217-F1)
-and as values the corresponding per-residue miss mutation probability.
-
-
-#### DEPRECATED use as direct script, use it as module ####
-
-
-###################################### EXAMPLE USAGE ############################################
-
-python3 miss_mut_prob.py -i ../../required_files/extra/mut_profile/ \
--o ../../required_files/extra/missense_mut_prob/ \
--s ../../required_files/seq_for_mut_prob.csv 
-
-#################################################################################################
-
+Contain functions to compute the per-residues probability of missense 
+mutation of any protein given the mutation profile of the cohort.
 """
 
 
-import json
-import pandas as pd
 import numpy as np
-import json
-import argparse
 from itertools import product
-import os
-from progressbar import progressbar
-
 
 def get_unif_gene_miss_prob(size):
     """
@@ -210,65 +188,3 @@ def get_miss_mut_prob_dict(mut_rate_dict, seq_df, v=False):
             miss_prob_dict[f"{row.Uniprot_ID}"] = get_miss_mut_prob(row.Seq_dna, mut_rate_dict, v=v)
 
     return miss_prob_dict
-
-
-def main():
-    
-    ## Parser
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-i", "--input", 
-                        help="Input path to the directory including the mutation profile of the cohorts (list of 96 floats or dict of 192 items)", 
-                        type=str, required=True)
-    parser.add_argument("-o", "--output", 
-                        help="Output path to save the dictionaries of missense mutation probability of each protein of the cohorts", 
-                        type=str, required=True)                        
-    parser.add_argument("-s", "--seq_df", 
-                        help="Path to the dataframe including DNA and protein seq of all gene/proteins (all AF predicted ones)", 
-                        type=str, 
-                        default="../../datasets/seq_for_mut_prob.csv")                                         
-    parser.add_argument("-v", "--verbose", help="Verbose", type=int, default=0)          
-
-    args = parser.parse_args()
-    input_path = args.input
-    output_path = args.output
-    path_seq_df = args.seq_df
-    verbose = args.verbose
-
-
-    print("Input directory:", input_path)
-    print("Output directory:", output_path)
-    print("Path to DNA sequences df", path_seq_df, "\n")
-
-    # Create necessary folder
-    if not os.path.exists(output_path):
-        os.makedirs(output_path)
-
-
-    # Iterate through all mut profiles path in the directory
-    path_profiles = [f"{input_path}/{file}" for file in os.listdir(input_path) if file.endswith(".json")]
-    for path_mut_profile in progressbar(path_profiles):
-
-        # Filename
-        filename = path_mut_profile.split("/")
-        filename = filename[len(filename)-1]
-        filename = filename.split(".json")[0]
-
-        # Load mut profile (mut rate) and convert into dictionary
-        with open(path_mut_profile) as json_file:
-            mut_rate_dict = json.load(json_file)
-        if not isinstance(mut_rate_dict, dict):
-            mut_rate_dict = mut_rate_vec_to_dict(mut_rate_dict)
-
-        # Get the per-residue miss mut prob for each protein and add it to a dict
-        seq_df = pd.read_csv(path_seq_df)
-        miss_prob_dict = {}
-        print(f" Processing {len(seq_df)} proteins/fragments in {filename}..")
-        miss_prob_dict = get_miss_mut_prob_dict(mut_rate_dict=mut_rate_dict, seq_df=seq_df, v=verbose)
-
-        # Save
-        with open(f"{output_path}/{filename}.miss_mut_prob.json", "w") as fp:
-            json.dump(miss_prob_dict, fp)
-
-
-if __name__ == "__main__":
-    main()

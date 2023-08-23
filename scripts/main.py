@@ -21,13 +21,14 @@ python3 /workspace/projects/clustering_3d/clustering_3d/scripts/main.py  \
     -i /workspace/projects/clustering_3d/evaluation/datasets/input/maf/HARTWIG_WGS_PANCREAS_2020.in.maf  \
         -o /workspace/projects/clustering_3d/dev_testing/output \
             -p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile/HARTWIG_WGS_PANCREAS_2020.mutrate.json \
-                -s /workspace/projects/clustering_3d/clustering_3d/datasets_frag/seq_for_mut_prob.csv \
-                    -c /workspace/projects/clustering_3d/clustering_3d/datasets_frag/prob_cmaps/ \
-                        -d /workspace/projects/clustering_3d/clustering_3d/datasets_frag/confidence.csv \
+                -s /workspace/projects/clustering_3d/clustering_3d/datasets/seq_for_mut_prob.csv \
+                    -c /workspace/projects/clustering_3d/clustering_3d/datasets/prob_cmaps/ \
+                        -d /workspace/projects/clustering_3d/clustering_3d/datasets/confidence.csv \
                             -t BLCA -C HARTWIG_WGS_PANCREAS_2020 \
-                                -e /workspace/projects/clustering_3d/clustering_3d/datasets_frag/pae/ \
+                                -e /workspace/projects/clustering_3d/clustering_3d/datasets/pae/ \
                                     -u 30 -S 128 -P 0.5
 
+                                    
 #################################################################################################
 """
 
@@ -45,18 +46,19 @@ from utils.pvalues import get_final_gene_result
 
 
 @click.command(context_settings=dict(help_option_names=['-h', '--help']),
-               help="Oncrodrive3D: software for the identification of 3D-clustering of missense mutations for cancer driver genes detection.")
+               help="Oncodrive3D: software for the identification of 3D-clustering of missense mutations for cancer driver genes detection.")
 @click.option("-i", "--input_maf_path", type=click.Path(exists=True), required=True, help="Path of the maf file used as input")
+@click.option("-o", "--output_path", help="Path to output directory", type=str, required=True)
 @click.option("-p", "--mut_profile_path", type=click.Path(exists=True), 
               help="Path to the mut profile (list of 96 floats) of the cohort (json)")
-@click.option("-o", "--output_path", help="Path to output directory", type=str, required=True)
 @click.option("-s", "--seq_df_path", type=click.Path(exists=True), 
-              help="Path to the dataframe including DNA and protein seq of all gene/proteins (all AF predicted ones)")
+              help="Path to the dataframe including DNA and protein seq of all genes and proteins")
 @click.option("-c", "--cmap_path", type=click.Path(exists=True), 
               help="Path to the directory containing the contact map of each protein")
 @click.option("-d", "--plddt_path", type=click.Path(exists=True), 
               help="Path to the pandas dataframe including the AF model confidence of all proteins")
-@click.option("-e", "--pae_path", help="Path to the directory including the AF Predicted Aligned Error (PAE) .npy files")
+@click.option("-e", "--pae_path", type=click.Path(exists=True), 
+              help="Path to the directory including the AF Predicted Aligned Error (PAE) .npy files")
 @click.option("-n", "--n_iterations", help="Number of densities to be simulated", type=int, default=10000)
 @click.option("-a", "--alpha", help="Significant threshold for the p-value of res and gene", type=float, default=0.01)
 @click.option("-P", "--cmap_prob_thr", type=float, default=0.5,
@@ -66,7 +68,7 @@ from utils.pvalues import get_final_gene_result
 @click.option("-u", "--num_cores", type=click.IntRange(min=1, max=os.cpu_count(), clamp=False), default=1,
               help="Set the number of cores to use in the computation")
 @click.option("-S", "--seed", help="Set seed to ensure reproducible results", type=int)
-@click.option("-v", "--verbose", help="Monitor the number of processed genes", is_flag=True)
+@click.option("-v", "--verbose", help="Verbose", is_flag=True)
 @click.option("-t", "--cancer_type", help="Cancer type", type=str)
 @click.option("-C", "--cohort", help="Name of the cohort", type=str)
 def main(input_maf_path, 
@@ -94,9 +96,11 @@ def main(input_maf_path,
     if plddt_path is None:
         plddt_path = f"{dir_path}/../datasets/confidence.csv"
     if cmap_path is None:
-        cmap_path = f"{dir_path}/../datasets/cmaps/"                                          
+        cmap_path = f"{dir_path}/../datasets/prob_cmaps/"                                          
     if seq_df_path is None:
         seq_df_path = f"{dir_path}/../datasets/seq_for_mut_prob.csv"
+    if pae_path is None:
+        pae_path = f"{dir_path}/../datasets/pae_path/"
     if cancer_type is None:
         cancer_type = np.nan
     if cohort is None:
@@ -108,10 +112,7 @@ def main(input_maf_path,
     print(f"Output directory: {output_path}")
     print(f"Path to CMAPs: {cmap_path}")
     print(f"Path to DNA sequences: {seq_df_path}")
-    if pae_path is not None:
-        print(f"Path to PAE: {pae_path}")
-    else:
-        print(f"Path to PAE: not defined, weighted average PAE of mutated volumes will not be calculated")
+    print(f"Path to PAE: {pae_path}")
     print(f"Path to pLDDT scores: {plddt_path}")
     if mut_profile_path is not None:
         path_prob = mut_profile_path
