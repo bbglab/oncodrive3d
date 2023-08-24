@@ -53,8 +53,8 @@ if [ "$verbose" = "True" ]; then
     wget -P $1 $AF_URL
     #timeout 2m wget -P $1 $AF_URL || true                                    ################## FOR TESTING  ###########
 else
-    wget -q -P $1 $AF_URL > /dev/null 2>&1
-    #timeout 2m wget -q -P $1 $AF_URL > /dev/null 2>&1 || true                ################## FOR TESTING  ###########
+    wget -q -P $1 $AF_URL #> /dev/null 2>&1
+    #timeout 2m wget -q -P $1 $AF_URL #> /dev/null 2>&1 || true                ################## FOR TESTING  ###########
 fi
 
 # Unzip files
