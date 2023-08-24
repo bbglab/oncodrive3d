@@ -63,6 +63,7 @@ LOG_DIR = user_log_dir(__logger_name__, appauthor='BBGlab')
 
 logger = daiquiri.getLogger(__logger_name__)
 
+
 def setup_logging(verbose: bool, fname: str) -> None:
     """Set up logging facilities.
 
@@ -81,6 +82,9 @@ def setup_logging(verbose: bool, fname: str) -> None:
     
 
 def startup_message(version, initializing_text):
+    """
+    Set startup message.
+    """
     
     author = "Biomedical Genomics Lab - IRB Barcelona"
     support_email = "stefano.pellegrini@irbbarcelona.com"
