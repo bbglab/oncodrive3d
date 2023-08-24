@@ -11,18 +11,6 @@ import re
 from progressbar import progressbar
 
 
-###################################### EXAMPLE USAGE ################################################
-
-# python3 parse_pae.py -i /workspace/projects/clustering_3d/clustering_3d/datasets_frag/pae
-
-#####################################################################################################
-
-##### NOTE #####
-# 1) In the final pipeline the PAE files in original format must be deleted after parsing
-# 2) I might want to enable multiprocessing in this step
-################
-
-
 def get_pae_path_list_from_dir(path_dir):
     """
     Takes as input the path of a directory and it 

@@ -17,7 +17,7 @@ from scripts.utils.score_and_simulations import (get_anomaly_score,
                                                  get_sim_anomaly_score)
 from scripts.utils.utils import add_samples_info, get_samples_info
 
-logger = logging.getLogger(__logger_name__ + ".clustering")
+logger = logging.getLogger(__logger_name__ + ".utils.clustering")
 
 def clustering_3d(gene, 
                   uniprot_id,
