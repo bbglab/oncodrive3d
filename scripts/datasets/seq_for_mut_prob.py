@@ -73,7 +73,7 @@ def backtranseq(protein_seqs, organism = "Homo sapiens"):
     result_url = "https://www.ebi.ac.uk/Tools/services/rest/emboss_backtranseq/result/"
     
     # Define the parameters for the API request (an email address must be included)
-    params = {"email": "emaple.email@irbbarcelona.org",
+    params = {"email": "example.email@irbbarcelona.org",
               "sequence": protein_seqs,
               "outseqformat": "plain",
               "molecule": "dna",

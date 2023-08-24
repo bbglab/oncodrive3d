@@ -59,6 +59,7 @@ from scripts.utils.utils import add_nan_clust_cols, parse_maf_input, sort_cols
 
 DATE = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 FORMAT = "%(asctime)s - %(color)s%(levelname)s%(color_stop)s | %(name)s - %(color)s%(message)s%(color_stop)s"
+LOG_DIR = user_log_dir(__logger_name__, appauthor='BBGlab')
 
 logger = daiquiri.getLogger(__logger_name__)
 
@@ -69,19 +70,14 @@ def setup_logging(verbose: bool, fname: str) -> None:
     # :param fname: str for log file
     """
 
-    log_dir = user_log_dir(__logger_name__, appauthor='BBGlab')
-    os.makedirs(log_dir, exist_ok=True)
-    
+    os.makedirs(LOG_DIR, exist_ok=True)
     level = logging.DEBUG if verbose else logging.INFO
-
     formatter = daiquiri.formatter.ColorFormatter(fmt=FORMAT)
 
     daiquiri.setup(level=level, outputs=(
         daiquiri.output.Stream(formatter=formatter), 
-        daiquiri.output.File(filename=log_dir + fname, formatter=formatter)
+        daiquiri.output.File(filename=LOG_DIR + fname, formatter=formatter)
     ))
-
-    logger.debug(f'Log path: {log_dir}')
     
 
 def startup_message(version, initializing_text):
@@ -143,6 +139,7 @@ def build_datasets(output_datasets,
     logger.info(f"AlphaFold version: {af_version}")
     logger.info(f"Keep PDB files: {keep_pdb_files}")
     logger.info(f"Verbose: {verbose}")
+    logger.info(f'Log path: {LOG_DIR}')
     logger.info("")
         
     build(output_datasets, 
@@ -231,6 +228,7 @@ def run(input_maf_path,
     logger.info(f"Cancer type: {cancer_type}")
     logger.info(f"Verbose: {bool(verbose)}")
     logger.info(f"Seed: {seed}")
+    logger.info(f'Log path: {LOG_DIR}')
     logger.info("")
 
 

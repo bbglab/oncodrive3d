@@ -32,6 +32,7 @@ datasets_mouse/seq_for_mut_prob.csv
 datasets_mouse/confidence.csv
 datasets_build_test/*
 datasets_build_final/*
+datasets_build*/*
 Oncodrive3D.egg-info/
 backups
 tests/output/*
