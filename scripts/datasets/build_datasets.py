@@ -21,6 +21,7 @@ The build is a pipeline that perform the following tasks:
 ### TO DO ###
 
 # Handle logging output in .sh files
+# Suppress warnings in merge_af.py for atoms
 
 #############
 
@@ -77,70 +78,69 @@ def build(output_datasets,
     """
     
     # Paths
-    dir_path = os.path.abspath(os.path.dirname(__file__))
-    output_datasets = output_datasets if not None else f"{dir_path}/../../datasets"
+    dir_path = os.path.abspath(os.path.dirname(__file__))                
     create_or_clean_dir(output_datasets)
         
     # Download PDB structures
-    logger.info("Downloading AF predicted structures..")
+    logger.info("Downloading AF predicted structures...")
     download_pdb = [f"{dir_path}/get_structures.sh", 
                     f"{output_datasets}/pdb_structures", 
                     organism,
                     str(af_version), 
                     str(verbose)]
     subprocess.run(download_pdb, check=True)                                ### >> Is this the correct way of handling error? <<
-    logger.info("Download of structures completed")
+    logger.info("Download of structures completed.")
         
     # Merge fragmented structures
-    logger.info("Merging fragmented structures..")
+    logger.info("Merging fragmented structures...")
     merge_af_fragments(input_dir = f"{output_datasets}/pdb_structures")
-    logger.info("Merge of structures completed")
+    logger.info("Merge of structures completed.")
     
     # Get model confidence
-    logger.info("Extracting AF model confidence..")                          # Decide what to do with default path
+    logger.info("Extracting AF model confidence...")                          # Decide what to do with default path
     get_confidence(input = f"{output_datasets}/pdb_structures", 
                    output = f"{output_datasets}/confidence.csv")
-    logger.info("Extraction of model confidence completed")
+    logger.info("Extraction of model confidence completed.")
     
     # Create df including genes and proteins sequences & Hugo to Uniprot_ID mapping 
-    logger.info("Generating dataframe for genes and proteins sequences..")
+    logger.info("Generating dataframe for genes and proteins sequences...")
     get_seq_df(input_dir = f"{output_datasets}/pdb_structures", 
                output_seq_df = f"{output_datasets}/seq_for_mut_prob.csv", 
                uniprot_to_gene_dict = uniprot_to_hugo, 
                organism = organism)
-    logger.info("Generation of sequences dataframe completed!")
+    logger.info("Generation of sequences dataframe completed.")
     
     # Get PAE
-    logger.info("Downloading AF predicted aligned error (PAE)..")
+    logger.info("Downloading AF predicted aligned error (PAE)...")
     get_pae = [f"{dir_path}/get_pae.sh", 
                f"{output_datasets}/pdb_structures",
                f"{output_datasets}/pae",
                str(af_version),
                str(verbose)]
     subprocess.run(get_pae, check=True)
-    logger.info("Download of PAE completed!")
+    logger.info("Download of PAE completed.")
     
     # Parse PAE
-    logger.info("Parsing PAE..")                 # Might want to add multiprocessing
+    logger.info("Parsing PAE...")                 # Might want to add multiprocessing
     parse_pae(input = f"{output_datasets}/pae")
-    logger.info("Parsing PAE completed")
+    logger.info("Parsing PAE completed.")
     
     # Get pCAMPs
-    logger.info("Generating contact probability maps (pCMAPs)..")
+    logger.info("Generating contact probability maps (pCMAPs)...")
     get_prob_cmaps_mp(input_pdb = f"{output_datasets}/pdb_structures",
                       input_pae = f"{output_datasets}/pae",
                       output = f"{output_datasets}/prob_cmaps",
                       distance = 10,
                       num_cores = num_cores)
-    logger.info("Generation pCMAPs completed")
+    logger.info("Generation pCMAPs completed.")
     
     # Clean datasets
-    logger.info("Cleaning datasets..")
+    logger.info("Cleaning datasets...")
     if not keep_pdb_files:
         clean_pdb = ["rm", "-rf", f"{output_datasets}/pdb_structures/"]
         subprocess.run(clean_pdb)
     clean_pae = ["rm", "-rf", f"{output_datasets}/pae/*.json"]
     subprocess.run(clean_pae) 
-    logger.info("Datasets cleaning completed")
+    logger.info("Datasets cleaning completed.")
         
     logger.info("Datasets have been successfully built and are ready for analysis!")
