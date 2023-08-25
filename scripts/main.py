@@ -46,7 +46,6 @@ import click
 import numpy as np
 import pandas as pd
 import daiquiri
-from platformdirs import user_log_dir, user_log_path
 
 from scripts import __logger_name__, __version__
 from scripts.datasets.build_datasets import build
@@ -56,52 +55,9 @@ from scripts.utils.miss_mut_prob import (get_miss_mut_prob_dict,
 from scripts.utils.pvalues import get_final_gene_result
 from scripts.utils.utils import add_nan_clust_cols, parse_maf_input, sort_cols
 
-
-DATE = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-FORMAT = "%(asctime)s - %(color)s%(levelname)s%(color_stop)s | %(name)s - %(color)s%(message)s%(color_stop)s"
+from scripts.globals import DATE, setup_logging_decorator, startup_message
 
 logger = daiquiri.getLogger(__logger_name__)
-
-def setup_logging(verbose: bool, fname: str) -> None:
-    """Set up logging facilities.
-
-    :param verbose: verbosity (bool)
-    # :param fname: str for log file
-    """
-
-    log_dir = user_log_dir(__logger_name__, appauthor='BBGlab')
-    os.makedirs(log_dir, exist_ok=True)
-    
-    level = logging.DEBUG if verbose else logging.INFO
-
-    formatter = daiquiri.formatter.ColorFormatter(fmt=FORMAT)
-
-    daiquiri.setup(level=level, outputs=(
-        daiquiri.output.Stream(formatter=formatter), 
-        daiquiri.output.File(filename=log_dir + fname, formatter=formatter)
-    ))
-
-    logger.debug(f'Log path: {log_dir}')
-    
-
-def startup_message(version, initializing_text):
-    
-    author = "Biomedical Genomics Lab - IRB Barcelona"
-    support_email = "stefano.pellegrini@irbbarcelona.com"
-    banner_width = 70
-
-    logger.info("#" * banner_width)
-    logger.info(f"{'#' + ' ' * (banner_width - 2) + '#'}")
-    logger.info(f"{'#' + f'Welcome to Oncodrive3D!'.center(banner_width - 2) + '#'}")
-    logger.info(f"{'#' + ' ' * (banner_width - 2) + '#'}")
-    logger.info(f"{'#' + initializing_text.center(banner_width - 2) + '#'}")
-    logger.info(f"{'#' + f'Version: {version}'.center(banner_width - 2) + '#'}")
-    logger.info(f"{'#' + f'Author: {author}'.center(banner_width - 2) + '#'}")
-    logger.info(f"{'#' + f'Support: {support_email}'.center(banner_width - 2) + '#'}")
-    logger.info(f"{'#' + ' ' * (banner_width - 2) + '#'}")
-    logger.info("#" * banner_width)
-    logger.info("")
-
 
 
 @click.group(context_settings={'help_option_names': ['-h', '--help']})
@@ -110,22 +66,22 @@ def oncodrive3D():
     """Oncodrive3D: software for the identification of 3D-clustering of missense mutations for cancer driver genes detection."""
     pass
 
+
 @oncodrive3D.command(context_settings=dict(help_option_names=['-h', '--help']),
                help="Build datasets - Required once after installation") # CHANGE ACCORDINGLY
-@click.option("-o", "--output_datasets", help="Directory where to save the files", type=str)
+@click.option("-o", "--output_path", help="Directory where to save the files", type=str, default='datasets/')
 @click.option("-s", "--organism", type=click.Choice(['human', 'mouse']), 
               help="Organism name", default="human")
 @click.option("-u", "--uniprot_to_hugo", type=click.Path(exists=True), 
               help="Optional path to custom dict including Uniprot to HUGO IDs mapping")
-@click.option("-c", "--num_cores", type=click.IntRange(min=1, max=os.cpu_count(), clamp=False), default=1,
-              help="Set the number of cores to use in the computation")
-@click.option("-c", "--num_cores", type=click.IntRange(min=1, max=os.cpu_count(), clamp=False), default=1,
+@click.option("-c", "--num_cores", type=click.IntRange(min=1, max=os.cpu_count(), clamp=False), default=os.cpu_count(),
               help="Set the number of cores to use in the computation")
 @click.option("-a", "--af_version", type=click.IntRange(min=1, max=4, clamp=False), default=4,
               help="Specify the version of AlphaFold 2")
 @click.option("-k", "--keep_pdb_files", help="Keep original PDB files", is_flag=True)
 @click.option("-v", "--verbose", help="Verbose", is_flag=True)
-def build_datasets(output_datasets, 
+@setup_logging_decorator
+def build_datasets(output_path, 
                    organism, 
                    uniprot_to_hugo, 
                    num_cores, af_version, 
@@ -133,10 +89,9 @@ def build_datasets(output_datasets,
                    verbose):
     """"Build datasets necessary to run Oncodrive3D."""
     
-    setup_logging(verbose, f'/build_datasets-{DATE}.log')
     startup_message(__version__, "Initializing building datasets...")
     
-    logger.info(f"Datasets path: {output_datasets}")
+    logger.info(f"Datasets path: {output_path}")
     logger.info(f"Organism: {organism}")
     logger.info(f"Custom IDs mapping: {uniprot_to_hugo}")
     logger.info(f"CPU cores: {num_cores}")
@@ -145,7 +100,7 @@ def build_datasets(output_datasets,
     logger.info(f"Verbose: {verbose}")
     logger.info("")
         
-    build(output_datasets, 
+    build(output_path, 
           organism, 
           uniprot_to_hugo, 
           num_cores, af_version, 
@@ -180,6 +135,7 @@ def build_datasets(output_datasets,
 @click.option("-v", "--verbose", help="Verbose", is_flag=True)
 @click.option("-t", "--cancer_type", help="Cancer type", type=str)
 @click.option("-C", "--cohort", help="Name of the cohort", type=str)
+@setup_logging_decorator
 def run(input_maf_path, 
         mut_profile_path, 
         output_path,
@@ -210,7 +166,6 @@ def run(input_maf_path,
     cohort = cohort if not None else f"cohort_{DATE}"
     
     # Log
-    setup_logging(verbose, f'/{cohort}-{DATE}.log')
     startup_message(__version__, "Initializing analysis...")
 
     logger.info(f"Input MAF: {input_maf_path}")
