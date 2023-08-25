@@ -163,6 +163,7 @@ cython_debug/
 dataset*
 !scripts/datasets 
 backups
+results
 tests/output/*
 !tests/output/.gitkeep
 scripts/test.qmap

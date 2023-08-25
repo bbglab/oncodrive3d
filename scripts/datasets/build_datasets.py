@@ -52,9 +52,7 @@ def build(output_datasets,
     Build datasets necessary to run Oncodrive3D.
     """
 
-    # Paths
-    dir_path = os.path.abspath(os.path.dirname(__file__))
-    output_datasets = output_datasets if not None else f"{dir_path}/../../datasets"
+    # empty directory
     clean_dir(output_datasets, 'd')
 
     # Download PDB structures

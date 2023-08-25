@@ -69,7 +69,7 @@ def oncodrive3D():
 
 @oncodrive3D.command(context_settings=dict(help_option_names=['-h', '--help']),
                help="Build datasets - Required once after installation") # CHANGE ACCORDINGLY
-@click.option("-o", "--output_path", help="Directory where to save the files", type=str, default='datasets/')
+@click.option("-o", "--output_path", help="Directory where to save the files", type=str, default='datasets')
 @click.option("-s", "--organism", type=click.Choice(['human', 'mouse']), 
               help="Organism name", default="human")
 @click.option("-u", "--uniprot_to_hugo", type=click.Path(exists=True), 
@@ -113,26 +113,18 @@ def build_datasets(output_path,
 @oncodrive3D.command(context_settings=dict(help_option_names=['-h', '--help']),
                      help="Run 3D-clustering analysis") # CHANGE ACCORDINGLY
 @click.option("-i", "--input_maf_path", type=click.Path(exists=True), required=True, help="Path of the maf file used as input")
-@click.option("-o", "--output_path", help="Path to output directory", type=str, required=True)
-@click.option("-p", "--mut_profile_path", type=click.Path(exists=True), 
-              help="Path to the mut profile (list of 96 floats) of the cohort (json)")
-@click.option("-s", "--seq_df_path", type=click.Path(exists=True), 
-              help="Path to the dataframe including DNA and protein seq of all genes and proteins")
-@click.option("-c", "--cmap_path", type=click.Path(exists=True), 
-              help="Path to the directory containing the contact map of each protein")
-@click.option("-d", "--plddt_path", type=click.Path(exists=True), 
-              help="Path to the pandas dataframe including the AF model confidence of all proteins")
-@click.option("-e", "--pae_path", type=click.Path(exists=True), 
-              help="Path to the directory including the AF Predicted Aligned Error (PAE) .npy files")
+@click.option("-p", "--mut_profile_path", type=click.Path(exists=True))
+@click.option("-o", "--output_path", help="Path to output directory", type=str, default='results')
+@click.option("-d", "--data_dir", help="Path to datasets", type=click.Path(exists=True), default = os.path.join('datasets'))
 @click.option("-n", "--n_iterations", help="Number of densities to be simulated", type=int, default=10000)
 @click.option("-a", "--alpha", help="Significant threshold for the p-value of res and gene", type=float, default=0.01)
 @click.option("-P", "--cmap_prob_thr", type=float, default=0.5,
               help="Threshold to define AAs contacts based on distance on predicted structure and PAE")
 @click.option("-H", "--hits_only", help="Returns only positions in clusters", is_flag=True)
 @click.option("-f", "--no_fragments", help="Disable processing of fragmented (AF-F) proteins", is_flag=True)
-@click.option("-u", "--num_cores", type=click.IntRange(min=1, max=len(os.sched_getaffinity(0)), clamp=False), default=1,
+@click.option("-u", "--num_cores", type=click.IntRange(min=1, max=len(os.sched_getaffinity(0)), clamp=False), default=len(os.sched_getaffinity(0)),
               help="Set the number of cores to use in the computation")
-@click.option("-S", "--seed", help="Set seed to ensure reproducible results", type=int)
+@click.option("-S", "--seed", help="Set seed to ensure reproducible results", type=int, default=123)
 @click.option("-v", "--verbose", help="Verbose", is_flag=True)
 @click.option("-t", "--cancer_type", help="Cancer type", type=str)
 @click.option("-C", "--cohort", help="Name of the cohort", type=str)
@@ -140,10 +132,7 @@ def build_datasets(output_path,
 def run(input_maf_path, 
         mut_profile_path, 
         output_path,
-        seq_df_path,
-        cmap_path,
-        plddt_path,
-        pae_path,
+        data_dir,
         n_iterations,
         alpha,
         cmap_prob_thr,
@@ -157,20 +146,20 @@ def run(input_maf_path,
     """Run Oncodrive3D."""
 
     ## Initialize
-    
-    dir_path = os.path.abspath(os.path.dirname(__file__))
-    plddt_path = plddt_path if not None else f"{dir_path}/../datasets/confidence.csv"
-    cmap_path = cmap_path if not None else f"{dir_path}/../datasets/prob_cmaps/"   
-    seq_df_path = seq_df_path if not None else f"{dir_path}/../datasets/seq_for_mut_prob.csv"                                    
-    pae_path = pae_path if not None else f"{dir_path}/../datasets/pae/"     
-    cancer_type = cancer_type if not None else np.nan
-    cohort = cohort if not None else f"cohort_{DATE}"
-    
+     
+    dir_path = data_dir
+    plddt_path = os.path.join(dir_path, "confidence.csv")
+    cmap_path = os.path.join(dir_path, "prob_cmaps/")  
+    seq_df_path = os.path.join(dir_path, "seq_for_mut_prob.csv")                              
+    pae_path = os.path.join(dir_path, "pae/")
+    cancer_type = cancer_type if not 'None' else np.nan
+    cohort = cohort if not 'None' else f"cohort_{DATE}"
+    path_prob = mut_profile_path if not 'None' else "Not provided, uniform distribution will be used"
+
     # Log
     startup_message(__version__, "Initializing analysis...")
 
     logger.info(f"Input MAF: {input_maf_path}")
-    path_prob = mut_profile_path if not None else "Not provided, uniform distribution will be used"
     logger.info(f"Input mut profile: {path_prob}")
     logger.info(f"Output directory: {output_path}")
     logger.info(f"Path to CMAPs: {cmap_path}")
@@ -187,7 +176,7 @@ def run(input_maf_path,
     logger.info(f"Cancer type: {cancer_type}")
     logger.info(f"Verbose: {bool(verbose)}")
     logger.info(f"Seed: {seed}")
-    logger.info(f'Log path: {LOG_DIR}')
+    logger.info(f'Log path: {output_path}/log/')
     logger.info("")
 
 
