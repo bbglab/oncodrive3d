@@ -10,15 +10,20 @@ and j in the PDB structure and their predicted error in the PAE.
 """
 
 
+import logging
 import os
 import numpy as np
 import multiprocessing
+import re
+
+from math import pi
 from Bio.Data.IUPACData import protein_letters_3to1
 from Bio.PDB.PDBParser import PDBParser
-import re
-import warnings
-from math import pi
+from scripts import __logger_name__
 from scripts.datasets.utils import get_pdb_path_list_from_dir, get_af_id_from_pdb
+
+
+logger = logging.getLogger(__logger_name__ + ".datasets.prob_contact_maps")
 
 
 # Functions to compute the probability of contact
@@ -151,7 +156,7 @@ def get_prob_cmap(chain, pae, distance=10) :
             
     return m
 
-def get_prob_cmaps(pdb_files, pae_path, output_path, distance=10, verbose=False, num_process=0):
+def get_prob_cmaps(pdb_files, pae_path, output_path, distance=10, num_process=0):
     """
     Given a list of path of PDB file, compute the probabilistic cmap of 
     each PDB non-fragmented structure and save it as individual .npy file 
@@ -175,7 +180,7 @@ def get_prob_cmaps(pdb_files, pae_path, output_path, distance=10, verbose=False,
                 cmap = get_contact_map(get_structure(file)["A"], distance=distance)    
                 np.save(f"{output_path}/{identifier}.npy", cmap)
             except:
-                warnings.warn(f"WARNING........... could not process {identifier}")
+                logger.warning(f"Could not process {identifier}")
                 with open(f"{output_path}/ids_not_processed.txt", 'a+') as file:
                     file.write(identifier + '\n')
                     
@@ -187,18 +192,18 @@ def get_prob_cmaps(pdb_files, pae_path, output_path, distance=10, verbose=False,
                 prob_cmap = get_prob_cmap(chain, pae, distance=distance)        
                 np.save(f"{output_path}/{identifier}.npy", prob_cmap)
             except:
-                warnings.warn(f"WARNING........... could not process {identifier}")
+                logger.warning(f"Could not process {identifier}")
                 with open(f"{output_path}/ids_not_processed.txt", 'a+') as file:
                     file.write(identifier + '\n')
 
         # Monitor processing
-        if verbose and n % 100 == 0:
+        if n % 100 == 0:
             if n == 0:
-                print(f"Process [{num_process}] starting processing [{len(pdb_files)}] structures..", flush=True)
+                logger.debug(f"Process [{num_process}] starting processing [{len(pdb_files)}] structures..")
             else:
-                print(f"Process [{num_process}] completed [{n}/{len(pdb_files)}] structures..", flush=True)
-        elif verbose and n+1 == len(pdb_files):
-                print(f"Process [{num_process}] completed", flush=True)
+                logger.debug(f"Process [{num_process}] completed [{n}/{len(pdb_files)}] structures..")
+        elif n+1 == len(pdb_files):
+            logger.debug(f"Process [{num_process}] completed")
          
                 
 
@@ -206,8 +211,7 @@ def get_prob_cmaps_mp(input_pdb,
                       input_pae,
                       output,
                       distance = 10,
-                      num_cores = 1,
-                      verbose = False):
+                      num_cores = 1):
     """
     Given a list of path of PDB file, use multiprocessing to compute pCMAPs 
     (maps or probabilities of contact between each residues) for each PDB 
@@ -216,13 +220,11 @@ def get_prob_cmaps_mp(input_pdb,
     """
 
     n_structures = len([pdb for pdb in os.listdir(input_pdb) if pdb.endswith(".pdb")])
-    if verbose:
-        print("Input PDB directory:", input_pdb)
-        print("Input PAE directory:", input_pae)
-        print("Output:", output)
-        print("Distance:", distance)
-        print("Cores:", num_cores)
-        print(f"Processing [{n_structures}] structures..")
+    logger.debug(f"Input PDB directory: {input_pdb}")
+    logger.debug(f"Input PAE directory: {input_pae}")
+    logger.debug(f"Output: {output}")
+    logger.debug(f"Distance: {distance}")
+    logger.debug(f"Cores: {num_cores}")
 
     # Create necessary folder
     if not os.path.exists(output):
@@ -236,6 +238,7 @@ def get_prob_cmaps_mp(input_pdb,
     chunks = [pdb_path_lst[i : i + chunk_size] for i in range(0, len(pdb_path_lst), chunk_size)]
 
     # Create a pool of processes and compute the cmaps in parallel
+    logger.debug(f"Processing [{n_structures}] structures by [{len(chunks)}] processes..")
     with multiprocessing.Pool(processes = num_cores) as pool:
-        results = pool.starmap(get_prob_cmaps, [(chunk, input_pae, output, distance, verbose, n) 
+        results = pool.starmap(get_prob_cmaps, [(chunk, input_pae, output, distance, n) 
                                                   for n, chunk in enumerate(chunks)])

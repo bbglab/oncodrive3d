@@ -4,12 +4,18 @@ predicted structures contained in a given directory.
 """
 
 
+import logging
+import os
 import pandas as pd
+
 from Bio.Data.IUPACData import protein_letters_3to1
 from Bio.PDB.PDBParser import PDBParser
 from progressbar import progressbar
-import os
+from scripts import __logger_name__
 from scripts.datasets.utils import get_pdb_path_list_from_dir
+
+
+logger = logging.getLogger(__logger_name__ + ".datasets.model_confidence")
 
 
 def get_3to1_protein_id(protein_id):
@@ -37,7 +43,7 @@ def get_confidence_one_chain(chain):
     return pd.DataFrame({"Res" : res_ids, "Confidence" : confidence_scores})
 
 
-def get_confidence(input, output, verbose):
+def get_confidence(input, output):
     """
     Get per-residue model confidence from all AlphaFold 
     predicted structures contained in a given directory.
@@ -47,9 +53,8 @@ def get_confidence(input, output, verbose):
         dir_path = os.path.abspath(os.path.dirname(__file__))
         output = f"{dir_path}/../../datasets/confidence.csv"
         
-    if  verbose:
-        print("Input directory:", input)
-        print("Output:", output)
+    logger.debug(f"Input directory: {input}")
+    logger.debug(f"Output: {output}")
     
     # Get model confidence
 

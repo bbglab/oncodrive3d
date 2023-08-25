@@ -98,6 +98,7 @@ def build_datasets(output_path,
     logger.info(f"AlphaFold version: {af_version}")
     logger.info(f"Keep PDB files: {keep_pdb_files}")
     logger.info(f"Verbose: {verbose}")
+    logger.info(f'Log path: {LOG_DIR}')
     logger.info("")
         
     build(output_path, 
@@ -186,6 +187,7 @@ def run(input_maf_path,
     logger.info(f"Cancer type: {cancer_type}")
     logger.info(f"Verbose: {bool(verbose)}")
     logger.info(f"Seed: {seed}")
+    logger.info(f'Log path: {LOG_DIR}')
     logger.info("")
 
 

@@ -8,20 +8,25 @@ DEGRONOPEDIA - a web server for proteome-wide inspection of degrons
 doi: 10.1101/2022.05.19.492622.
 """
 
-from Bio.PDB import Structure
-from Bio.PDB import *
+import logging
 import gzip
-from os import listdir, sep
-from os.path import isfile, join
 import subprocess
 import os 
 import re
 import pandas as pd
 import subprocess
-from progressbar import progressbar
 import shutil
-import warnings
+
 from Bio.PDB import PDBParser
+from progressbar import progressbar
+from os import listdir, sep
+from os.path import isfile, join
+from Bio.PDB import Structure
+from Bio.PDB import *
+from scripts import __logger_name__
+
+
+logger = logging.getLogger(__logger_name__ + ".datasets.af_merge")
 
 
 ## DEGRONOPEDIA script
@@ -291,7 +296,7 @@ def merge_af_fragments(input_dir, output_dir=None, af_version=4, gzip=False):
             degronopedia_af_merge(uni_id, input_dir, af_version, output_dir, gzip)
             processed = 1
         except:
-            warnings.warn(f"WARNING........... could not process {uni_id} ({max_f} fragments)")
+            logger.warning(f"Could not process {uni_id} ({max_f} fragments)")
             not_processed.append(uni_id)
             os.remove(f"{output_dir}/AF-{uni_id}-FM-model_v{af_version}.pdb")
         

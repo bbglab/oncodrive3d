@@ -14,16 +14,22 @@ then used to get the probability of a certain volume to be hit by
 a missense mutation.
 """
 
+
+import logging
 import json
 import pandas as pd
 import json
-import warnings
-from progressbar import progressbar
 import requests
 import time
 import os
 import re
+
+from progressbar import progressbar
+from scripts import __logger_name__
 from scripts.datasets.utils import uniprot_to_hugo, get_pdb_path_list_from_dir, get_af_id_from_pdb, get_seq_from_pdb, get_seq_similarity, translate_dna
+
+
+logger = logging.getLogger(__logger_name__ + ".datasets.seq_for_mut_prob")
 
 
 def initialize_seq_df(input_path, uniprot_to_gene_dict):
@@ -39,7 +45,7 @@ def initialize_seq_df(input_path, uniprot_to_gene_dict):
     pdb_not_mapped = set([get_af_id_from_pdb(path).split("-F")[0] 
                           for path in list_prot_path if get_af_id_from_pdb(path).split("-F")[0] not in uniprot_to_gene_dict.keys()])
     if len(pdb_not_mapped) > 0:                                 
-        warnings.warn(f"{len(pdb_not_mapped)} Uniprot-ID not found in the Uniprot-HUGO mapping dictionary")
+        logger.warning(f"{len(pdb_not_mapped)} Uniprot-ID not found in the Uniprot-HUGO mapping dictionary.")
 
     # Get Uniprot ID, HUGO, F and protein sequence of any PDB in dir
     gene_lst = []
@@ -73,7 +79,7 @@ def backtranseq(protein_seqs, organism = "Homo sapiens"):
     result_url = "https://www.ebi.ac.uk/Tools/services/rest/emboss_backtranseq/result/"
     
     # Define the parameters for the API request (an email address must be included)
-    params = {"email": "emaple.email@irbbarcelona.org",
+    params = {"email": "example.email@irbbarcelona.org",
               "sequence": protein_seqs,
               "outseqformat": "plain",
               "molecule": "dna",
@@ -155,24 +161,23 @@ def add_extra_genes_to_seq_df(seq_df, uniprot_to_gene_dict):
 def get_seq_df(input_dir, 
                output_seq_df, 
                uniprot_to_gene_dict = None, 
-               organism = "Homo sapiens",
-               verbose = False):
+               organism = "Homo sapiens"):
 
     # Load Uniprot ID to HUGO mapping
     if uniprot_to_gene_dict is not None and uniprot_to_gene_dict != "None":
         uniprot_to_gene_dict = json.load(open(uniprot_to_gene_dict)) 
     else:
-        if verbose: print("Retrieving Uniprot_ID to Hugo symbol mapping information..")
+        logger.debug("Retrieving Uniprot_ID to Hugo symbol mapping information..")
         uniprot_ids = os.listdir(input_dir)
         uniprot_ids = [uni_id.split("-")[1] for uni_id in list(set(uniprot_ids)) if uni_id.endswith(".pdb")]
-        uniprot_to_gene_dict = uniprot_to_hugo(uniprot_ids, verbose=verbose)  
+        uniprot_to_gene_dict = uniprot_to_hugo(uniprot_ids)  
 
     # Create a dataframe with protein sequences
-    if verbose: print("Generating sequence df..")
+    logger.debug("Generating sequence df..")
     seq_df = initialize_seq_df(input_dir, uniprot_to_gene_dict)
 
     # Annotate df with DNA sequences
-    if verbose: print("Performing back translation..")
+    logger.debug("Performing back translation..")
     seq_df = batch_backtranseq(seq_df, 500, organism=organism)
     
     # Add multiple genes mapping to the same Uniprot_ID
@@ -183,5 +188,5 @@ def get_seq_df(input_dir,
     seq_df.to_csv(output_seq_df, index=False)
     sim_ratio = sum(seq_df.apply(lambda x: get_seq_similarity(x.Seq, translate_dna(x.Seq_dna)), axis=1)) / len(seq_df)
     if sim_ratio < 1:                       
-        warnings.warn(f"WARNING........... some problems occurred during back translation, protein and translated DNA similarity: {sim_ratio}")
-    if verbose: print(f"Dataframe including sequences is saved in: {output_seq_df}")
+        logger.warning(f"Some problems occurred during back translation. Protein and translated DNA similarity < 1: {sim_ratio}.")
+    logger.debug(f"Dataframe including sequences is saved in: {output_seq_df}")
