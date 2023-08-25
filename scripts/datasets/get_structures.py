@@ -1,11 +1,14 @@
 import os
 import tarfile
+import logging
 from scripts import __logger_name__
 from scripts.datasets.utils import calculate_hash
 import daiquiri
 from pypdl import Downloader
 
-logger = daiquiri.getLogger(__logger_name__ + ".build_datasets")
+logger = daiquiri.getLogger(__logger_name__ + ".build.AF-pdb")
+
+logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
 
 CHECKSUM = 'bf62d5402cb1c4580d219335a9af1ac831416edfbf2892391c8197a8356091f2'
 

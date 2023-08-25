@@ -74,7 +74,7 @@ def oncodrive3D():
               help="Organism name", default="human")
 @click.option("-u", "--uniprot_to_hugo", type=click.Path(exists=True), 
               help="Optional path to custom dict including Uniprot to HUGO IDs mapping")
-@click.option("-c", "--num_cores", type=click.IntRange(min=1, max=os.cpu_count(), clamp=False), default=os.cpu_count(),
+@click.option("-c", "--num_cores", type=click.IntRange(min=1, max=len(os.sched_getaffinity(0)), clamp=False), default=len(os.sched_getaffinity(0)),
               help="Set the number of cores to use in the computation")
 @click.option("-a", "--af_version", type=click.IntRange(min=1, max=4, clamp=False), default=4,
               help="Specify the version of AlphaFold 2")
@@ -98,7 +98,7 @@ def build_datasets(output_path,
     logger.info(f"AlphaFold version: {af_version}")
     logger.info(f"Keep PDB files: {keep_pdb_files}")
     logger.info(f"Verbose: {verbose}")
-    logger.info(f'Log path: {LOG_DIR}')
+    logger.info(f'Log path: {output_path}/log/')
     logger.info("")
         
     build(output_path, 
@@ -130,7 +130,7 @@ def build_datasets(output_path,
               help="Threshold to define AAs contacts based on distance on predicted structure and PAE")
 @click.option("-H", "--hits_only", help="Returns only positions in clusters", is_flag=True)
 @click.option("-f", "--no_fragments", help="Disable processing of fragmented (AF-F) proteins", is_flag=True)
-@click.option("-u", "--num_cores", type=click.IntRange(min=1, max=os.cpu_count(), clamp=False), default=1,
+@click.option("-u", "--num_cores", type=click.IntRange(min=1, max=len(os.sched_getaffinity(0)), clamp=False), default=1,
               help="Set the number of cores to use in the computation")
 @click.option("-S", "--seed", help="Set seed to ensure reproducible results", type=int)
 @click.option("-v", "--verbose", help="Verbose", is_flag=True)

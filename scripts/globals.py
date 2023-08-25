@@ -11,8 +11,11 @@ from scripts import __logger_name__
 logger = daiquiri.getLogger(__logger_name__)
 
 DATE = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-FORMAT = "%(asctime)s - %(color)s%(levelname)s%(color_stop)s | %(name)s - %(color)s%(message)s%(color_stop)s"
+FORMAT = "%(asctime)s - %(color)s%(levelname)-7s%(color_stop)s | %(name)s - %(color)s%(message)s%(color_stop)s"
 
+# =========
+#  Logging
+# =========
 def setup_logging_decorator(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
