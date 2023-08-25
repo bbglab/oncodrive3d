@@ -16,9 +16,27 @@ import requests
 from difflib import SequenceMatcher
 from Bio import SeqIO
 from Bio.Seq import Seq
+import hashlib
 
 
 # General utils
+def calculate_hash(filepath: str, hash_func=hashlib.sha256) -> str:
+    """
+    Calculate the hash of a file using the specified hash function.
+
+    Args:
+        filepath (str): The path to the file for which to calculate the hash.
+        hash_func (hashlib.Hash): The hash function to use (default is hashlib.sha256).
+
+    Returns:
+        str: The hexadecimal representation of the calculated hash.
+    """
+    with open(filepath, 'rb') as file:
+        hash_obj = hash_func()
+        for chunk in iter(lambda: file.read(8192), b''):
+            hash_obj.update(chunk)
+    return hash_obj.hexdigest()
+
 
 def rounded_up_division(num, den):
     """

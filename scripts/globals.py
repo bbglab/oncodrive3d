@@ -17,7 +17,6 @@ def setup_logging_decorator(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         log_dir = os.path.join(click.get_current_context().params['output_path'], 'log/')
-        print(click.get_current_context().params)
         command_name = click.get_current_context().command.name
 
         if command_name == 'run':
