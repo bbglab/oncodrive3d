@@ -31,6 +31,7 @@ import subprocess
 import os
 
 from scripts import __logger_name__
+from scripts.globals import clean_dir
 from scripts.datasets.af_merge import merge_af_fragments
 from scripts.datasets.model_confidence import get_confidence
 from scripts.datasets.seq_for_mut_prob import get_seq_df
@@ -54,7 +55,7 @@ def build(output_datasets,
     # Paths
     dir_path = os.path.abspath(os.path.dirname(__file__))
     output_datasets = output_datasets if not None else f"{dir_path}/../../datasets"
-    create_or_clean_dir(output_datasets)
+    clean_dir(output_datasets, 'd')
 
     # Download PDB structures
     logger.info("Downloading AlphaFold (AF) predicted structures..")
