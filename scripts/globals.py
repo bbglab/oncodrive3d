@@ -24,7 +24,7 @@ def setup_logging_decorator(func):
 
         if command_name == 'run':
             cohort = click.get_current_context().params["cohort"]
-            fname = f'{cohort if not "None" else "run"}_{DATE}.log'
+            fname = f'{cohort if not "None" else command_name}_{DATE}.log'
         else: 
             fname = f"{command_name}_{DATE}.log"
 
@@ -39,7 +39,6 @@ def setup_logging_decorator(func):
             daiquiri.output.File(filename=os.path.join(log_dir, fname), formatter=formatter)
         ))
         
-        logger.debug(f'Log path: {os.path.join(str(log_dir), fname)}')
         return func(*args, **kwargs)
 
     return wrapper
@@ -115,7 +114,7 @@ def clean_dir(path: str, loc: str = 'd') -> None:
         
         logger.warning(f"Directory {path} already exists and is not empty.")
 
-        overwrite = input("Clean existing directory? (y/n): ")
+        overwrite = "y" if click.get_current_context().params['yes'] else input("Clean existing directory? (y/n): ")
         while overwrite.lower() not in ["y", "yes", "n", "no"]:
             print("Please choose yes or no")
             overwrite = input("Clean existing directory? (y/n): ")

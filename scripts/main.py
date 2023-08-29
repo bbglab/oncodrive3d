@@ -79,6 +79,7 @@ def oncodrive3D():
 @click.option("-a", "--af_version", type=click.IntRange(min=1, max=4, clamp=False), default=4,
               help="Specify the version of AlphaFold 2")
 @click.option("-k", "--keep_pdb_files", help="Keep original PDB files", is_flag=True)
+@click.option("-y", "--yes", help="no interaction", is_flag=True)
 @click.option("-v", "--verbose", help="Verbose", is_flag=True)
 @setup_logging_decorator
 def build_datasets(output_path, 
@@ -86,6 +87,7 @@ def build_datasets(output_path,
                    uniprot_to_hugo, 
                    num_cores, af_version, 
                    keep_pdb_files, 
+                   yes,
                    verbose):
     """"Build datasets necessary to run Oncodrive3D."""
     
@@ -106,7 +108,7 @@ def build_datasets(output_path,
           uniprot_to_hugo, 
           num_cores, af_version, 
           keep_pdb_files, 
-          verbose)
+          )
     
 
 
