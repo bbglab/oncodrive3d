@@ -47,7 +47,7 @@ def build(output_datasets,
           num_cores,
           af_version,
           keep_pdb_files,
-          verbose):
+          ):
     """
     Build datasets necessary to run Oncodrive3D.
     """
@@ -65,7 +65,7 @@ def build(output_datasets,
 
     # Merge fragmented structures
     logger.info("Merging fragmented structures..")
-    merge_af_fragments(input_dir=f"{output_datasets}/pdb_structures")
+    merge_af_fragments(input_dir=f"{output_datasets}/pdb_structures", gzip=True)
     logger.info("Merge of structures completed")
 
     # Get model confidence

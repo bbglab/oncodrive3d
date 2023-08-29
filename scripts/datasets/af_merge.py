@@ -8,25 +8,27 @@ DEGRONOPEDIA - a web server for proteome-wide inspection of degrons
 doi: 10.1101/2022.05.19.492622.
 """
 
-import logging
 import gzip
-import subprocess
-import os 
+import logging
+import os
 import re
-import pandas as pd
-import subprocess
 import shutil
-
-from Bio.PDB import PDBParser
-from progressbar import progressbar
+import subprocess
+# from multiprocessing import Pool
 from os import listdir, sep
 from os.path import isfile, join
-from Bio.PDB import Structure
+
+import daiquiri
+import pandas as pd
 from Bio.PDB import *
+from Bio.PDB import PDBParser, Structure
+from progressbar import progressbar
+
 from scripts import __logger_name__
 
+logger = daiquiri.getLogger(__logger_name__ + ".build.af_merge")
 
-logger = logging.getLogger(__logger_name__ + ".datasets.af_merge")
+daiquiri.getLogger('py.warnings').setLevel(logging.ERROR)
 
 
 ## DEGRONOPEDIA script
@@ -55,7 +57,10 @@ def degronopedia_af_merge(struct_name, input_path, afold_version, output_path, z
     ### FIND OUT HOW MANY PIECES ###
 
     how_many_pieces = 0
-    onlyfiles = [f for f in listdir(input_path) if isfile(join(input_path, f))]
+    if zip:
+        onlyfiles = [f for f in os.listdir(input_path) if f.endswith(".pdb.gz") and os.path.isfile(os.path.join(input_path, f))]
+    else:
+        onlyfiles = [f for f in os.listdir(input_path) if f.endswith(".pdb") and os.path.isfile(os.path.join(input_path, f))]
 
     for f in onlyfiles:
         if struct_name in f and f[0] != '.': # do not include hidden files
@@ -276,40 +281,49 @@ def merge_af_fragments(input_dir, output_dir=None, af_version=4, gzip=False):
     if output_dir is None:
         output_dir = input_dir
     if gzip:
-        zip_ext = ".gzip"
+        zip_ext = ".gz"
     else:
         zip_ext = ""
-        
+
     # Create dir where to move original fragmented structures    
-    path_original_frag = f"{output_dir}/fragmented_pdbs/"
+    path_original_frag = os.path.join(output_dir, "fragmented_pdbs")
     if not os.path.exists(path_original_frag):
         os.makedirs(path_original_frag)
-        
-    # Get list of fragmented Uniprot ID and max AF-F
-    not_processed = []
-    fragments = get_list_fragmented_pdb(input_dir)
-    for uni_id, max_f in progressbar(fragments):
-        
-        processed = 0
-        
-        try:
-            degronopedia_af_merge(uni_id, input_dir, af_version, output_dir, gzip)
-            processed = 1
-        except:
-            logger.warning(f"Could not process {uni_id} ({max_f} fragments)")
-            not_processed.append(uni_id)
-            os.remove(f"{output_dir}/AF-{uni_id}-FM-model_v{af_version}.pdb")
-        
-        # Move the original fragmented structures
-        for f in range(1, max_f+1):
-            file = f"AF-{uni_id}-F{f}-model_v{af_version}.pdb{zip_ext}"
-            shutil.move(f"{input_dir}/{file}", path_original_frag)
-            
-        # Rename merged structure and add refseq records to pdb
-        if processed:
-            tmp_name = f"{output_dir}/AF-{uni_id}-FM-model_v{af_version}.pdb"
-            name = f"{output_dir}/AF-{uni_id}-F{max_f}M-model_v{af_version}.pdb"
-            os.rename(tmp_name, name)
-            add_refseq_record_to_pdb(name)
 
-   # save_unprocessed_ids(not_processed, f"{output_dir}/fragmented_pdbs/ids_not_merged.txt")
+    checkpoint = os.path.join(path_original_frag, '.checkpoint.txt')
+    if os.path.exists(checkpoint):
+        logger.debug("Merge fragments performed. Skipping")
+    
+    else:
+        # Get list of fragmented Uniprot ID and max AF-F
+        not_processed = []
+        fragments = get_list_fragmented_pdb(input_dir)
+        for uni_id, max_f in progressbar(fragments):
+            
+            processed = False
+            
+            try:
+                degronopedia_af_merge(uni_id, input_dir, af_version, output_dir, gzip)
+                processed = True
+            except:
+                logger.warning(f"Could not process {uni_id} ({max_f} fragments)")
+                not_processed.append(uni_id)
+                os.remove(f"{output_dir}/AF-{uni_id}-FM-model_v{af_version}.pdb")
+            
+            # Move the original fragmented structures
+            for f in range(1, max_f+1):
+                file = f"AF-{uni_id}-F{f}-model_v{af_version}.pdb{zip_ext}"
+                shutil.move(f"{input_dir}/{file}", path_original_frag)
+                
+            # Rename merged structure and add refseq records to pdb
+            if processed:
+                tmp_name = f"{output_dir}/AF-{uni_id}-FM-model_v{af_version}.pdb"
+                name = f"{output_dir}/AF-{uni_id}-F{max_f}M-model_v{af_version}.pdb"
+                os.rename(tmp_name, name)
+                add_refseq_record_to_pdb(name)
+        
+        logger.warning(f"{not_processed}")
+        with open(checkpoint, "w") as f:
+                f.write('')
+
+        save_unprocessed_ids(not_processed, f"{output_dir}/fragmented_pdbs/ids_not_merged.txt")
