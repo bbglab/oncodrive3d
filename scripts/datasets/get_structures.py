@@ -1,10 +1,12 @@
+import logging
 import os
 import tarfile
-import logging
-from scripts import __logger_name__
-from scripts.datasets.utils import calculate_hash
+
 import daiquiri
 from pypdl import Downloader
+
+from scripts import __logger_name__
+from scripts.datasets.utils import calculate_hash
 
 logger = daiquiri.getLogger(__logger_name__ + ".build.AF-pdb")
 
@@ -16,9 +18,18 @@ CHECKSUM = 'bf62d5402cb1c4580d219335a9af1ac831416edfbf2892391c8197a8356091f2'
 
 def extract_file(file_path, path):
      
-     with tarfile.open(file_path, "r") as tar:
+    checkpoint = os.path.join(path, ".checkpoint.txt")
+
+    if os.path.exists(checkpoint):
+         logger.debug('Tar already extracted. Skipping')
+    else:
+        with tarfile.open(file_path, "r") as tar:
             tar.extractall(path)
             logger.debug(f'Extracted { int(len(tar.getnames())/2)} structure')
+            with open(checkpoint, "w") as f:
+                f.write('')
+
+
 
 
 def download_file(url: str, destination: str, threads: int) -> None:
@@ -32,7 +43,7 @@ def download_file(url: str, destination: str, threads: int) -> None:
     num_connections = 40 if threads > 40 else threads
 
     if os.path.exists(destination):
-        logger.info(f"File {destination} already exists. Skipping download.")
+        logger.debug(f"File {destination} already exists. Skipping download.")
     else:
         logger.debug(f'download from {url}')
         dl = Downloader()
@@ -61,7 +72,7 @@ def get_structures(path: str, species: str = 'human', af_version: str = '4', thr
     """
 
     logger.info(f"Selected species: {species}")
-    logger.info(
+    logger.debug(
         f"Proteome to download: {'UP000005640_9606_HUMAN_v' + af_version}")
 
     if not os.path.isdir(path):
@@ -85,7 +96,7 @@ def get_structures(path: str, species: str = 'human', af_version: str = '4', thr
         # os.remove(file_path)
 
         logger.info('Download structure: SUCCESS')
-        logger.info(f"Structures downloaded in directory {path}")
+        logger.debug(f"Structures downloaded in directory {path}")
 
     except Exception as e:
         logger.error('Download structure: FAIL')
