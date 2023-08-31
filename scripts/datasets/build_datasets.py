@@ -71,8 +71,8 @@ def build(output_datasets,
     # Get model confidence
     # Decide what to do with default path
     logger.info("Extracting AF model confidence..")
-    get_confidence(input=f"{output_datasets}/pdb_structures",
-                   output=f"{output_datasets}/confidence.csv")
+    get_confidence(input=os.path.join(output_datasets, "pdb_structures"),
+                   output_dir=os.path.join(output_datasets))
     logger.info("Extraction of model confidence completed")
 
     # Create df including genes and proteins sequences & Hugo to Uniprot_ID mapping
