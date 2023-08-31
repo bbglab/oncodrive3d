@@ -12,9 +12,25 @@ logger = daiquiri.getLogger(__logger_name__ + ".build.AF-pdb")
 
 logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
 
-CHECKSUM = 'bf62d5402cb1c4580d219335a9af1ac831416edfbf2892391c8197a8356091f2'
+CHECKSUM = {
+    "UP000005640_9606_HUMAN_v4": 'bf62d5402cb1c4580d219335a9af1ac831416edfbf2892391c8197a8356091f2',
+}
 
 # Usage
+
+def assert_integrity_human(file_path, proteome):
+
+    if proteome in CHECKSUM.keys():
+        logger.debug('Asserting integrity of file:')
+        try:
+            assert CHECKSUM[proteome] == calculate_hash(file_path)
+            logger.debug('File integrity check: PASS')
+        except Exception as e:
+            logger.critical('File integrity check: FAIL')
+            logger.critical('error: ', e) 
+    else:
+        logger.warning("Assertion skipped. Proteome checksum not in records.")
+
 
 def extract_file(file_path, path):
      
@@ -49,14 +65,6 @@ def download_file(url: str, destination: str, threads: int) -> None:
         dl = Downloader()
         dl.start(url, destination, num_connections=num_connections)
 
-    logger.debug('Asserting integrity of file:')
-    try:
-        assert CHECKSUM == calculate_hash(destination)
-        logger.debug('File integrity check: PASS')
-    except Exception as e:
-        logger.critical('File integrity check: FAIL')
-        logger.critical('error: ', e) 
-
 def get_structures(path: str, species: str = 'human', af_version: str = '4', threads: int = 1) -> None:
     """
     Downloads AlphaFold predicted structures for a given organism and version.
@@ -87,6 +95,8 @@ def get_structures(path: str, species: str = 'human', af_version: str = '4', thr
         ## STEP1 --- Download file
         logger.info(f'Download to {file_path}')
         download_file(af_url, file_path, threads)
+
+        assert_integrity_human(file_path, proteome)
 
         ## STEP2 --- Extract structures
         logger.info(f'Extracting {file_path}')
