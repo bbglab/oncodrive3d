@@ -6,17 +6,17 @@ mutation of any protein given the mutation profile of the cohort.
 
 import argparse
 import json
-import logging
 import os
+from itertools import product
+
+import daiquiri
 import numpy as np
 import pandas as pd
-
-from itertools import product
 from progressbar import progressbar
 
 from scripts import __logger_name__
 
-logger = logging.getLogger(__logger_name__ + ".utils.miss_mut_prob")
+logger = daiquiri.getLogger(__logger_name__ + ".utils.miss_mut_prob")
 
 
 def get_unif_gene_miss_prob(size):

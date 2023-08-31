@@ -2,10 +2,10 @@
 Contains functions to perform the 3D clustering of missense mutations.
 """
 
-import logging
 import multiprocessing
 import os
 
+import daiquiri
 import networkx.algorithms.community as nx_comm
 import numpy as np
 import pandas as pd
@@ -17,7 +17,7 @@ from scripts.utils.score_and_simulations import (get_anomaly_score,
                                                  get_sim_anomaly_score)
 from scripts.utils.utils import add_samples_info, get_samples_info
 
-logger = logging.getLogger(__logger_name__ + ".utils.clustering")
+logger = daiquiri.getLogger(__logger_name__ + ".utils.clustering")
 
 def clustering_3d(gene, 
                   uniprot_id,

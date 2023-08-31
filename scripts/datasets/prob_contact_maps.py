@@ -11,7 +11,7 @@ and j in the PDB structure and their predicted error in the PAE.
 
 
 import gzip
-import logging
+import daiquiri
 import multiprocessing
 import os
 import re
@@ -25,7 +25,7 @@ from scripts import __logger_name__
 from scripts.datasets.utils import (get_af_id_from_pdb,
                                     get_pdb_path_list_from_dir)
 
-logger = logging.getLogger(__logger_name__ + ".build.prob_contact_maps")
+logger = daiquiri.getLogger(__logger_name__ + ".build.prob_contact_maps")
 
 
 # Functions to compute the probability of contact

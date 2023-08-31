@@ -5,6 +5,7 @@ Contains function to initialize a network for communities detection.
 import networkx as nx
 import numpy as np
 
+
 def get_network(nodes, mut_count_v, cmap):
     """
     Generate a network with significative pos as nodes 
