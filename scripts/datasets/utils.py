@@ -4,23 +4,23 @@ general-purpose functionalities that can be used across
 different parts of the dataset building process.
 """
 
-import logging
-import re
-import pandas as pd
-import numpy as np
-import os
 import gzip
+import hashlib
 import io
+import os
 import time
-import requests
 from difflib import SequenceMatcher
+
+import daiquiri
+import numpy as np
+import pandas as pd
+import requests
 from Bio import SeqIO
 from Bio.Seq import Seq
-import hashlib
+
 from scripts import __logger_name__
 
-
-logger = logging.getLogger(__logger_name__ + ".datasets.utils")
+logger = daiquiri.getLogger(__logger_name__ + ".build.utils")
 
 
 # General utils
@@ -76,8 +76,12 @@ def get_seq_from_pdb(path_structure):
     """
     Get sequense of amino acid residues from PDB structure.
     """
-    
-    return np.array([record.seq for record in SeqIO.parse(path_structure, 'pdb-seqres')][0])
+    if path_structure.endswith("gz"):  
+        with gzip.open(path_structure, 'rt') as handle:
+            return np.array([record.seq for record in SeqIO.parse(handle, 'pdb-seqres')][0])
+    else:
+        with open(path_structure, 'r') as handle:
+            return np.array([record.seq for record in SeqIO.parse(handle, 'pdb-seqres')][0])
 
 
 def get_pdb_path_list_from_dir(path_dir):
@@ -87,7 +91,7 @@ def get_pdb_path_list_from_dir(path_dir):
     """
 
     pdb_files = os.listdir(path_dir)
-    pdb_path_list = [f"{path_dir}/{f}" for f in pdb_files if re.search('.\.pdb$', f) is not None]
+    pdb_path_list = [f"{os.path.join(path_dir, f)}" for f in pdb_files if ".pdb" in f and not os.path.isdir(os.path.join(path_dir, f))]
     return pdb_path_list
 
 
