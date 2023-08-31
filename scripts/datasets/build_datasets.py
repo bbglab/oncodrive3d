@@ -94,7 +94,7 @@ def build(output_datasets,
     # Parse PAE
     # Might want to add multiprocessing
     logger.info("Parsing PAE..")
-    parse_pae(input=f"{output_datasets}/pae")
+    parse_pae(input=os.path.join(output_datasets, 'pae'))
     logger.info("Parsing PAE completed")
 
     # Get pCAMPs

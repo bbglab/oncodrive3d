@@ -4,12 +4,16 @@ files produced by AlphaFold2 from json to npy format.
 """
 
 
-import numpy as np
-import os
 import json
-import re
+import os
+
+import daiquiri
+import numpy as np
 from progressbar import progressbar
 
+from scripts import __logger_name__
+
+logger = daiquiri.getLogger(__logger_name__ + ".build.parse-pae")
 
 def get_pae_path_list_from_dir(path_dir):
     """
@@ -18,7 +22,7 @@ def get_pae_path_list_from_dir(path_dir):
     """
 
     pae_files = os.listdir(path_dir)
-    pae_files = [f"{path_dir}/{f}" for f in pae_files if re.search('-predicted_aligned_error.json$', f) is not None]
+    pae_files = [os.path.join(path_dir, f) for f in pae_files if f.endswith('-predicted_aligned_error.json')]
     
     return pae_files
 
@@ -35,12 +39,20 @@ def parse_pae(input, output=None):
     
     if output is None:
         output = input
-        
-    # Create necessary folder
-    if not os.path.exists(output):
-        os.makedirs(output)
-        
-    path_files = get_pae_path_list_from_dir(input)
 
-    for path in progressbar(path_files):
-        np.save(path.replace(".json", ".npy"), json_to_npy(path))
+    checkpoint = os.path.join(output, '.checkpoint.txt')
+    if os.path.exists(checkpoint):
+        logger.debug("PAE already downloaded. Skipping")
+
+    else:
+        # Create necessary folder
+        if not os.path.exists(output):
+            os.makedirs(output)
+            
+        path_files = get_pae_path_list_from_dir(input)
+
+        for path in progressbar(path_files):
+            np.save(path.replace(".json", ".npy"), json_to_npy(path))
+
+        with open(checkpoint, "w") as f:
+                    f.write('')
