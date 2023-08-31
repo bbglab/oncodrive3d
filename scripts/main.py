@@ -37,25 +37,21 @@ oncodrive3D run -i /workspace/projects/clustering_3d/evaluation/datasets/input/m
 """
 
 import json
-import logging
 import os
-import sys
-from datetime import datetime
 
 import click
+import daiquiri
 import numpy as np
 import pandas as pd
-import daiquiri
 
 from scripts import __logger_name__, __version__
 from scripts.datasets.build_datasets import build
+from scripts.globals import DATE, setup_logging_decorator, startup_message
 from scripts.utils.clustering import clustering_3d_mp_wrapper
 from scripts.utils.miss_mut_prob import (get_miss_mut_prob_dict,
                                          mut_rate_vec_to_dict)
 from scripts.utils.pvalues import get_final_gene_result
 from scripts.utils.utils import add_nan_clust_cols, parse_maf_input, sort_cols
-
-from scripts.globals import DATE, setup_logging_decorator, startup_message
 
 logger = daiquiri.getLogger(__logger_name__)
 
@@ -154,9 +150,9 @@ def run(input_maf_path,
     cmap_path = os.path.join(dir_path, "prob_cmaps/")  
     seq_df_path = os.path.join(dir_path, "seq_for_mut_prob.csv")                              
     pae_path = os.path.join(dir_path, "pae/")
-    cancer_type = cancer_type if not 'None' else np.nan
-    cohort = cohort if not 'None' else f"cohort_{DATE}"
-    path_prob = mut_profile_path if not 'None' else "Not provided, uniform distribution will be used"
+    cancer_type = cancer_type if cancer_type else np.nan
+    cohort = cohort if cohort else f"cohort_{DATE}"
+    path_prob = mut_profile_path if mut_profile_path else "Not provided, uniform distribution will be used"
 
     # Log
     startup_message(__version__, "Initializing analysis...")
