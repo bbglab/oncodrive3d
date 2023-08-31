@@ -85,12 +85,10 @@ def build(output_datasets,
 
     # Get PAE
     logger.info("Downloading AF predicted aligned error (PAE)..")
-    get_pae = [f"{dir_path}/get_pae.sh",
-               f"{output_datasets}/pdb_structures",
-               f"{output_datasets}/pae",
-               str(af_version),
-               str(verbose)]
-    subprocess.run(get_pae, check=True)
+    get_pae(input_dir=os.path.join(output_datasets,"pdb_structures"),
+            output_dir=os.path.join(output_datasets,"pae"),
+            af_version=str(af_version),
+            )
     logger.info("Download of PAE completed!")
 
     # Parse PAE
