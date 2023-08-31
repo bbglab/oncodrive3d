@@ -10,10 +10,12 @@ and rank based comparison.
 
 ## CH
 
-python3 main.py -i /workspace/projects/clustering_3d/evaluation/datasets/datasets_ch/input/maf/OTHER_WXS_CH_IMPACT_PANEL.in.maf \
--o /workspace/projects/clustering_3d/dev_testing/output/ \
--p /workspace/projects/clustering_3d/evaluation/datasets/datasets_ch/input/mut_profile/OTHER_WXS_CH_IMPACT_PANEL.mutrate.json \
--H 0 -t CH -C OTHER_WXS_CH_IMPACT_PANEL -e 1
+oncodrive3D run -i /workspace/projects/clustering_3d/evaluation/datasets/datasets_ch/input/maf/OTHER_WXS_CH_IMPACT_PANEL.in.maf \
+    -o /workspace/projects/clustering_3d/dev_testing/output/ \
+        -p /workspace/projects/clustering_3d/evaluation/datasets/datasets_ch/input/mut_profile/OTHER_WXS_CH_IMPACT_PANEL.mutrate.json \
+            -t CH -C OTHER_WXS_CH_IMPACT_PANEL \
+                -e /workspace/projects/clustering_3d/clustering_3d/datasets_build_full_v/pae/ \
+                    -u 48 -S 128 
 
 
 ## Build datasets
@@ -25,12 +27,12 @@ oncodrive3D build-datasets -o /workspace/projects/clustering_3d/clustering_3d/da
 oncodrive3D run -i /workspace/projects/clustering_3d/evaluation/datasets/input/maf/HARTWIG_WGS_PANCREAS_2020.in.maf  \
         -o /workspace/projects/clustering_3d/dev_testing/output \
             -p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile/HARTWIG_WGS_PANCREAS_2020.mutrate.json \
-                -s /workspace/projects/clustering_3d/clustering_3d/datasets/seq_for_mut_prob.csv \
-                    -c /workspace/projects/clustering_3d/clustering_3d/datasets/prob_cmaps/ \
-                        -d /workspace/projects/clustering_3d/clustering_3d/datasets/confidence.csv \
+                -s /workspace/projects/clustering_3d/clustering_3d/datasets_build_full_v/seq_for_mut_prob.csv \
+                    -c /workspace/projects/clustering_3d/clustering_3d/datasets_build_full_v/prob_cmaps/ \
+                        -d /workspace/projects/clustering_3d/clustering_3d/datasets_build_full_v/confidence.csv \
                             -t BLCA -C HARTWIG_WGS_PANCREAS_2020 \
-                                -e /workspace/projects/clustering_3d/clustering_3d/datasets/pae/ \
-                                    -u 30 -S 128 -P 0.5
+                                -e /workspace/projects/clustering_3d/clustering_3d/datasets_build_full_v/pae/ \
+                                    -u 48 -S 128 
                                     
                                     
 #################################################################################################
@@ -88,6 +90,8 @@ def build_datasets(output_path,
     """"Build datasets necessary to run Oncodrive3D."""
     
     startup_message(__version__, "Initializing building datasets...")
+    dir_path = os.path.abspath(os.path.dirname(__file__))    
+    output_datasets = output_datasets if output_datasets is not None else f"{dir_path}/../datasets"
     
     logger.info(f"Datasets path: {output_path}")
     logger.info(f"Organism: {organism}")
@@ -242,7 +246,7 @@ def run(input_maf_path,
     if mut_profile_path is not None:
         # Compute dict from mut profile of the cohort and dna sequences
         mut_profile = json.load(open(mut_profile_path))
-        logger.info(f"Computing missense mut probabilities..")
+        logger.info(f"Computing missense mut probabilities...")
         if not isinstance(mut_profile, dict):
             mut_profile = mut_rate_vec_to_dict(mut_profile)
         miss_prob_dict = get_miss_mut_prob_dict(mut_rate_dict=mut_profile, seq_df=seq_df)
@@ -251,7 +255,7 @@ def run(input_maf_path,
 
     # Run 3D-clustering
     if len(genes_to_process) > 0:
-        logger.info(f"Performing 3D-clustering on [{len(seq_df)}] proteins..")
+        logger.info(f"Performing 3D-clustering on [{len(seq_df)}] proteins...")
         result_pos, result_gene = clustering_3d_mp_wrapper(genes_to_process, data, cmap_path, 
                                                            miss_prob_dict, gene_to_uniprot_dict, plddt_df,
                                                            num_cores, alpha=alpha, num_iteration=n_iterations, 
@@ -281,7 +285,6 @@ def run(input_maf_path,
         result_gene.to_csv(f"{output_path}/{cohort}.3d_clustering_genes.csv", index=False)
         logger.info(f"Saving to {output_path}/{cohort}.3d_clustering_genes.csv")
 
-        
     else:
         # Save res-level result
         result_pos["Cancer"] = cancer_type
@@ -299,6 +302,8 @@ def run(input_maf_path,
 
         logger.info(f"Saving {output_path}/{cohort}.3d_clustering_pos.csv")
         logger.info(f"Saving {output_path}/{cohort}.3d_clustering_genes.csv")
+        
+    logger.info("3D-clustering analysis completed!")
 
 
 

@@ -18,16 +18,8 @@ The build is a pipeline that perform the following tasks:
 """
 
 
-### TO DO ###
-
-# Handle logging output in .sh files
-
-#############
-
-
 import os
 import subprocess
-
 import daiquiri
 
 from scripts import __logger_name__
