@@ -90,8 +90,6 @@ def build_datasets(output_path,
     """"Build datasets necessary to run Oncodrive3D."""
     
     startup_message(__version__, "Initializing building datasets...")
-    dir_path = os.path.abspath(os.path.dirname(__file__))    
-    output_datasets = output_datasets if output_datasets is not None else f"{dir_path}/../datasets"
     
     logger.info(f"Datasets path: {output_path}")
     logger.info(f"Organism: {organism}")
