@@ -15,21 +15,23 @@ a missense mutation.
 """
 
 
-import logging
 import json
-import pandas as pd
-import json
-import requests
-import time
 import os
 import re
+import time
 
+import daiquiri
+import pandas as pd
+import requests
 from progressbar import progressbar
+
 from scripts import __logger_name__
-from scripts.datasets.utils import uniprot_to_hugo, get_pdb_path_list_from_dir, get_af_id_from_pdb, get_seq_from_pdb, get_seq_similarity, translate_dna
+from scripts.datasets.utils import (get_af_id_from_pdb,
+                                    get_pdb_path_list_from_dir,
+                                    get_seq_from_pdb, get_seq_similarity,
+                                    translate_dna, uniprot_to_hugo)
 
-
-logger = logging.getLogger(__logger_name__ + ".datasets.seq_for_mut_prob")
+logger = daiquiri.getLogger(__logger_name__ + ".build.seq_for_mut_prob")
 
 
 def initialize_seq_df(input_path, uniprot_to_gene_dict):
@@ -169,7 +171,7 @@ def get_seq_df(input_dir,
     else:
         logger.debug("Retrieving Uniprot_ID to Hugo symbol mapping information..")
         uniprot_ids = os.listdir(input_dir)
-        uniprot_ids = [uni_id.split("-")[1] for uni_id in list(set(uniprot_ids)) if uni_id.endswith(".pdb")]
+        uniprot_ids = [uni_id.split("-")[1] for uni_id in list(set(uniprot_ids)) if ".pdb" in uni_id]
         uniprot_to_gene_dict = uniprot_to_hugo(uniprot_ids)  
 
     # Create a dataframe with protein sequences

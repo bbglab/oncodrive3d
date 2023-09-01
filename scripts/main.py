@@ -39,71 +39,23 @@ oncodrive3D run -i /workspace/projects/clustering_3d/evaluation/datasets/input/m
 """
 
 import json
-import logging
 import os
-import sys
-from datetime import datetime
 
 import click
+import daiquiri
 import numpy as np
 import pandas as pd
-import daiquiri
-from platformdirs import user_log_dir, user_log_path
 
 from scripts import __logger_name__, __version__
 from scripts.datasets.build_datasets import build
+from scripts.globals import DATE, setup_logging_decorator, startup_message
 from scripts.utils.clustering import clustering_3d_mp_wrapper
 from scripts.utils.miss_mut_prob import (get_miss_mut_prob_dict,
                                          mut_rate_vec_to_dict)
 from scripts.utils.pvalues import get_final_gene_result
 from scripts.utils.utils import add_nan_clust_cols, parse_maf_input, sort_cols
 
-
-DATE = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-FORMAT = "%(asctime)s - %(color)s%(levelname)s%(color_stop)s | %(name)s - %(color)s%(message)s%(color_stop)s"
-LOG_DIR = user_log_dir(__logger_name__, appauthor='BBGlab')
-
 logger = daiquiri.getLogger(__logger_name__)
-
-
-def setup_logging(verbose: bool, fname: str) -> None:
-    """Set up logging facilities.
-
-    :param verbose: verbosity (bool)
-    # :param fname: str for log file
-    """
-
-    os.makedirs(LOG_DIR, exist_ok=True)
-    level = logging.DEBUG if verbose else logging.INFO
-    formatter = daiquiri.formatter.ColorFormatter(fmt=FORMAT)
-
-    daiquiri.setup(level=level, outputs=(
-        daiquiri.output.Stream(formatter=formatter), 
-        daiquiri.output.File(filename=LOG_DIR + fname, formatter=formatter)
-    ))
-    
-
-def startup_message(version, initializing_text):
-    """
-    Set startup message.
-    """
-    
-    author = "Biomedical Genomics Lab - IRB Barcelona"
-    support_email = "stefano.pellegrini@irbbarcelona.com"
-    banner_width = 70
-
-    logger.info("#" * banner_width)
-    logger.info(f"{'#' + ' ' * (banner_width - 2) + '#'}")
-    logger.info(f"{'#' + f'Welcome to Oncodrive3D!'.center(banner_width - 2) + '#'}")
-    logger.info(f"{'#' + ' ' * (banner_width - 2) + '#'}")
-    logger.info(f"{'#' + initializing_text.center(banner_width - 2) + '#'}")
-    logger.info(f"{'#' + f'Version: {version}'.center(banner_width - 2) + '#'}")
-    logger.info(f"{'#' + f'Author: {author}'.center(banner_width - 2) + '#'}")
-    logger.info(f"{'#' + f'Support: {support_email}'.center(banner_width - 2) + '#'}")
-    logger.info(f"{'#' + ' ' * (banner_width - 2) + '#'}")
-    logger.info("#" * banner_width)
-    logger.info("")
-
 
 
 @click.group(context_settings={'help_option_names': ['-h', '--help']})
@@ -112,86 +64,77 @@ def oncodrive3D():
     """Oncodrive3D: software for the identification of 3D-clustering of missense mutations for cancer driver genes detection."""
     pass
 
+
 @oncodrive3D.command(context_settings=dict(help_option_names=['-h', '--help']),
                help="Build datasets - Required once after installation") # CHANGE ACCORDINGLY
-@click.option("-o", "--output_datasets", help="Directory where to save the files", type=str)
+@click.option("-o", "--output_path", help="Directory where to save the files", type=str, default='datasets')
 @click.option("-s", "--organism", type=click.Choice(['human', 'mouse']), 
               help="Organism name", default="human")
 @click.option("-u", "--uniprot_to_hugo", type=click.Path(exists=True), 
               help="Optional path to custom dict including Uniprot to HUGO IDs mapping")
-@click.option("-c", "--num_cores", type=click.IntRange(min=1, max=os.cpu_count(), clamp=False), default=1,
-              help="Set the number of cores to use in the computation")
-@click.option("-c", "--num_cores", type=click.IntRange(min=1, max=os.cpu_count(), clamp=False), default=1,
+@click.option("-c", "--num_cores", type=click.IntRange(min=1, max=len(os.sched_getaffinity(0)), clamp=False), default=len(os.sched_getaffinity(0)),
               help="Set the number of cores to use in the computation")
 @click.option("-a", "--af_version", type=click.IntRange(min=1, max=4, clamp=False), default=4,
               help="Specify the version of AlphaFold 2")
 @click.option("-k", "--keep_pdb_files", help="Keep original PDB files", is_flag=True)
+@click.option("-y", "--yes", help="no interaction", is_flag=True)
 @click.option("-v", "--verbose", help="Verbose", is_flag=True)
-def build_datasets(output_datasets, 
+@setup_logging_decorator
+def build_datasets(output_path, 
                    organism, 
                    uniprot_to_hugo, 
                    num_cores, af_version, 
                    keep_pdb_files, 
+                   yes,
                    verbose):
     """"Build datasets necessary to run Oncodrive3D."""
     
-    setup_logging(verbose, f'/build_datasets-{DATE}.log')
     startup_message(__version__, "Initializing building datasets...")
     dir_path = os.path.abspath(os.path.dirname(__file__))    
     output_datasets = output_datasets if output_datasets is not None else f"{dir_path}/../datasets"
     
-    logger.info(f"Datasets path: {output_datasets}")
+    logger.info(f"Datasets path: {output_path}")
     logger.info(f"Organism: {organism}")
     logger.info(f"Custom IDs mapping: {uniprot_to_hugo}")
     logger.info(f"CPU cores: {num_cores}")
     logger.info(f"AlphaFold version: {af_version}")
     logger.info(f"Keep PDB files: {keep_pdb_files}")
     logger.info(f"Verbose: {verbose}")
-    logger.info(f'Log path: {LOG_DIR}')
+    logger.info(f'Log path: {output_path}/log/')
     logger.info("")
         
-    build(output_datasets, 
+    build(output_path, 
           organism, 
           uniprot_to_hugo, 
           num_cores, af_version, 
           keep_pdb_files, 
-          verbose)
+          )
     
 
 
 @oncodrive3D.command(context_settings=dict(help_option_names=['-h', '--help']),
                      help="Run 3D-clustering analysis") # CHANGE ACCORDINGLY
 @click.option("-i", "--input_maf_path", type=click.Path(exists=True), required=True, help="Path of the maf file used as input")
-@click.option("-o", "--output_path", help="Path to output directory", type=str, required=True)
-@click.option("-p", "--mut_profile_path", type=click.Path(exists=True), 
-              help="Path to the mut profile (list of 96 floats) of the cohort (json)")
-@click.option("-s", "--seq_df_path", type=click.Path(exists=True), 
-              help="Path to the dataframe including DNA and protein seq of all genes and proteins")
-@click.option("-c", "--cmap_path", type=click.Path(exists=True), 
-              help="Path to the directory containing the contact map of each protein")
-@click.option("-d", "--plddt_path", type=click.Path(exists=True), 
-              help="Path to the pandas dataframe including the AF model confidence of all proteins")
-@click.option("-e", "--pae_path", type=click.Path(exists=True), 
-              help="Path to the directory including the AF Predicted Aligned Error (PAE) .npy files")
+@click.option("-p", "--mut_profile_path", type=click.Path(exists=True))
+@click.option("-o", "--output_path", help="Path to output directory", type=str, default='results')
+@click.option("-d", "--data_dir", help="Path to datasets", type=click.Path(exists=True), default = os.path.join('datasets'))
 @click.option("-n", "--n_iterations", help="Number of densities to be simulated", type=int, default=10000)
 @click.option("-a", "--alpha", help="Significant threshold for the p-value of res and gene", type=float, default=0.01)
 @click.option("-P", "--cmap_prob_thr", type=float, default=0.5,
               help="Threshold to define AAs contacts based on distance on predicted structure and PAE")
 @click.option("-H", "--hits_only", help="Returns only positions in clusters", is_flag=True)
 @click.option("-f", "--no_fragments", help="Disable processing of fragmented (AF-F) proteins", is_flag=True)
-@click.option("-u", "--num_cores", type=click.IntRange(min=1, max=os.cpu_count(), clamp=False), default=1,
+@click.option("-u", "--num_cores", type=click.IntRange(min=1, max=len(os.sched_getaffinity(0)), clamp=False), default=len(os.sched_getaffinity(0)),
               help="Set the number of cores to use in the computation")
-@click.option("-S", "--seed", help="Set seed to ensure reproducible results", type=int)
+@click.option("-S", "--seed", help="Set seed to ensure reproducible results", type=int, default=123)
 @click.option("-v", "--verbose", help="Verbose", is_flag=True)
 @click.option("-t", "--cancer_type", help="Cancer type", type=str)
 @click.option("-C", "--cohort", help="Name of the cohort", type=str)
+@setup_logging_decorator
 def run(input_maf_path, 
         mut_profile_path, 
         output_path,
-        seq_df_path,
-        cmap_path,
-        plddt_path,
-        pae_path,
+        data_dir,
         n_iterations,
         alpha,
         cmap_prob_thr,
@@ -205,21 +148,20 @@ def run(input_maf_path,
     """Run Oncodrive3D."""
 
     ## Initialize
-    
-    dir_path = os.path.abspath(os.path.dirname(__file__))
-    plddt_path = plddt_path if plddt_path is not None else f"{dir_path}/../datasets/confidence.csv"
-    cmap_path = cmap_path if cmap_path is not None else f"{dir_path}/../datasets/prob_cmaps/"   
-    seq_df_path = seq_df_path if seq_df_path is not None else f"{dir_path}/../datasets/seq_for_mut_prob.csv"                                    
-    pae_path = pae_path if pae_path is not None else f"{dir_path}/../datasets/pae/"     
-    cancer_type = cancer_type if cancer_type is not None else np.nan
-    cohort = cohort if cohort is not None else f"cohort_{DATE}"
+     
+    dir_path = data_dir
+    plddt_path = os.path.join(dir_path, "confidence.csv")
+    cmap_path = os.path.join(dir_path, "prob_cmaps/")  
+    seq_df_path = os.path.join(dir_path, "seq_for_mut_prob.csv")                              
+    pae_path = os.path.join(dir_path, "pae/")
+    cancer_type = cancer_type if cancer_type else np.nan
+    cohort = cohort if cohort else f"cohort_{DATE}"
+    path_prob = mut_profile_path if mut_profile_path else "Not provided, uniform distribution will be used"
 
     # Log
-    setup_logging(verbose, f'/{cohort}-{DATE}.log')
     startup_message(__version__, "Initializing analysis...")
 
     logger.info(f"Input MAF: {input_maf_path}")
-    path_prob = mut_profile_path if not None else "Not provided, uniform distribution will be used"
     logger.info(f"Input mut profile: {path_prob}")
     logger.info(f"Output directory: {output_path}")
     logger.info(f"Path to CMAPs: {cmap_path}")
@@ -236,7 +178,7 @@ def run(input_maf_path,
     logger.info(f"Cancer type: {cancer_type}")
     logger.info(f"Verbose: {bool(verbose)}")
     logger.info(f"Seed: {seed}")
-    logger.info(f'Log path: {LOG_DIR}')
+    logger.info(f'Log path: {output_path}/log/')
     logger.info("")
 
 

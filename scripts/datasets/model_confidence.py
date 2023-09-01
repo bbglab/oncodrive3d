@@ -4,18 +4,19 @@ predicted structures contained in a given directory.
 """
 
 
-import logging
+import gzip
 import os
-import pandas as pd
 
+import daiquiri
+import pandas as pd
 from Bio.Data.IUPACData import protein_letters_3to1
 from Bio.PDB.PDBParser import PDBParser
 from progressbar import progressbar
+
 from scripts import __logger_name__
 from scripts.datasets.utils import get_pdb_path_list_from_dir
 
-
-logger = logging.getLogger(__logger_name__ + ".datasets.model_confidence")
+logger = daiquiri.getLogger(__logger_name__ + ".build.model_confidence")
 
 
 def get_3to1_protein_id(protein_id):
@@ -43,38 +44,51 @@ def get_confidence_one_chain(chain):
     return pd.DataFrame({"Res" : res_ids, "Confidence" : confidence_scores})
 
 
-def get_confidence(input, output):
+def get_confidence(input, output_dir):
     """
     Get per-residue model confidence from all AlphaFold 
     predicted structures contained in a given directory.
     """
     
-    if output is None:                                                          ##### TO CHANGE WHEN CACHE PATH TO DATASETS WILL BE FINALIZED
-        dir_path = os.path.abspath(os.path.dirname(__file__))
-        output = f"{dir_path}/../../datasets/confidence.csv"
-        
-    logger.debug(f"Input directory: {input}")
-    logger.debug(f"Output: {output}")
-    
-    # Get model confidence
+    checkpoint = os.path.join(output_dir, '.checkpoint.conf.txt')
+    if os.path.exists(checkpoint):
+        logger.debug("Confidence extraction performed. Skipping")
 
-    df_list = []
-    pdb_path_list = get_pdb_path_list_from_dir(input)
-    
-    for file in progressbar(pdb_path_list):
-        identifier = file.split("AF-")[1].split("-model")[0].split("-F")
+    else:
+        output = os.path.join(output_dir, 'confidence.csv')
+            
+        logger.debug(f"Input directory: {input}")
+        logger.debug(f"Output: {output}")
         
-        # Get chain
-        parser = PDBParser()
-        structure = parser.get_structure("ID", file)
-        chain = structure[0]["A"]
+        # Get model confidence
 
-        # Get confidence
-        confidence_df = get_confidence_one_chain(chain).reset_index().rename(columns={"index": "Pos"})
-        confidence_df["Pos"] = confidence_df["Pos"] + 1
-        confidence_df["Uniprot_ID"] = identifier[0]
-        confidence_df["AF_F"] = identifier[1]            
-        df_list.append(confidence_df)
+        df_list = []
+        pdb_path_list = get_pdb_path_list_from_dir(input)
         
-    confidence_df = pd.concat(df_list).reset_index(drop=True)
-    confidence_df.to_csv(output, index=False)
+        for file in progressbar(pdb_path_list):
+            try:
+                identifier = file.split("AF-")[1].split("-model")[0].split("-F")
+            except Exception as e:
+                logger.error(f'{file}, {e}')
+            # Get chain
+            parser = PDBParser()
+            if file.endswith(".gz"):  
+                with gzip.open(file, 'rt') as handle:
+                    structure = parser.get_structure("ID", handle)
+            else:
+                with open(file, 'r') as handle:
+                    structure = parser.get_structure("ID", handle)
+            chain = structure[0]["A"]
+
+            # Get confidence
+            confidence_df = get_confidence_one_chain(chain).reset_index().rename(columns={"index": "Pos"})
+            confidence_df["Pos"] = confidence_df["Pos"] + 1
+            confidence_df["Uniprot_ID"] = identifier[0]
+            confidence_df["AF_F"] = identifier[1]            
+            df_list.append(confidence_df)
+            
+        confidence_df = pd.concat(df_list).reset_index(drop=True)
+        confidence_df.to_csv(output, index=False)
+
+        with open(checkpoint, "w") as f:
+                    f.write('')

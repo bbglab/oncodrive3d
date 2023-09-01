@@ -10,20 +10,22 @@ and j in the PDB structure and their predicted error in the PAE.
 """
 
 
-import logging
-import os
-import numpy as np
+import gzip
+import daiquiri
 import multiprocessing
+import os
 import re
-
 from math import pi
+
+import numpy as np
 from Bio.Data.IUPACData import protein_letters_3to1
 from Bio.PDB.PDBParser import PDBParser
+
 from scripts import __logger_name__
-from scripts.datasets.utils import get_pdb_path_list_from_dir, get_af_id_from_pdb
+from scripts.datasets.utils import (get_af_id_from_pdb,
+                                    get_pdb_path_list_from_dir)
 
-
-logger = logging.getLogger(__logger_name__ + ".datasets.prob_contact_maps")
+logger = daiquiri.getLogger(__logger_name__ + ".build.prob_contact_maps")
 
 
 # Functions to compute the probability of contact
@@ -82,8 +84,13 @@ def get_structure(file):
     """
     
     id = file.split("AF-")[1].split("-model_v1")[0]
-    
-    return PDBParser().get_structure(id=id, file = f"{file}")[0]
+
+    if file.endswith('.gz'):  
+        with gzip.open(file, 'rt') as handle:
+            return PDBParser().get_structure(id=id, file=handle)[0]
+    else:
+        with open(file, 'r') as handle:
+            return PDBParser().get_structure(id=id, file=handle)[0]
 
 
 def get_3to1_protein_id(protein_id):
@@ -179,8 +186,9 @@ def get_prob_cmaps(pdb_files, pae_path, output_path, distance=10, num_process=0)
             try:
                 cmap = get_contact_map(get_structure(file)["A"], distance=distance)    
                 np.save(f"{output_path}/{identifier}.npy", cmap)
-            except:
+            except Exception as e:
                 logger.warning(f"Could not process {identifier}")
+                logger.warning(f"Error: {e}")
                 with open(f"{output_path}/ids_not_processed.txt", 'a+') as file:
                     file.write(identifier + '\n')
                     
@@ -191,8 +199,10 @@ def get_prob_cmaps(pdb_files, pae_path, output_path, distance=10, num_process=0)
                 chain = get_structure(file)["A"]
                 prob_cmap = get_prob_cmap(chain, pae, distance=distance)        
                 np.save(f"{output_path}/{identifier}.npy", prob_cmap)
-            except:
+            except Exception as e:
                 logger.warning(f"Could not process {identifier}")
+                logger.warning(f"Error: {e}")
+
                 with open(f"{output_path}/ids_not_processed.txt", 'a+') as file:
                     file.write(identifier + '\n')
 
@@ -219,7 +229,7 @@ def get_prob_cmaps_mp(input_pdb,
     output path. For fragmented structures simply get cmaps.
     """
 
-    n_structures = len([pdb for pdb in os.listdir(input_pdb) if pdb.endswith(".pdb")])
+    n_structures = len([pdb for pdb in os.listdir(input_pdb) if ".pdb" in pdb])
     logger.debug(f"Input PDB directory: {input_pdb}")
     logger.debug(f"Input PAE directory: {input_pae}")
     logger.debug(f"Output: {output}")
