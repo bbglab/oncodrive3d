@@ -91,7 +91,8 @@ def build_datasets(output_path,
     
     startup_message(__version__, "Initializing building datasets...")
     
-    logger.info(f"Datasets path: {output_path}")
+    logger.info(f"Current working directory: {os.getcwd()}")
+    logger.info(f"Build folder path: {output_path}")
     logger.info(f"Organism: {organism}")
     logger.info(f"Custom IDs mapping: {uniprot_to_hugo}")
     logger.info(f"CPU cores: {num_cores}")
@@ -112,8 +113,8 @@ def build_datasets(output_path,
 
 @oncodrive3D.command(context_settings=dict(help_option_names=['-h', '--help']),
                      help="Run 3D-clustering analysis") # CHANGE ACCORDINGLY
-@click.option("-i", "--input_maf_path", type=click.Path(exists=True), required=True, help="Path of the maf file used as input")
-@click.option("-p", "--mut_profile_path", type=click.Path(exists=True))
+@click.option("-i", "--input_maf_path", type=click.Path(exists=True), required=True, help="Path of the MAF file used as input")
+@click.option("-p", "--mut_profile_path", type=click.Path(exists=True), help="Path of the mutation profile (192 trinucleotide contexts) used as optional input")
 @click.option("-o", "--output_path", help="Path to output directory", type=str, default='results')
 @click.option("-d", "--data_dir", help="Path to datasets", type=click.Path(exists=True), default = os.path.join('datasets'))
 @click.option("-n", "--n_iterations", help="Number of densities to be simulated", type=int, default=10000)
