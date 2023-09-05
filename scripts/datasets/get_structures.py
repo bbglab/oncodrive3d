@@ -59,7 +59,7 @@ def download_file(url: str, destination: str, threads: int) -> None:
     num_connections = 40 if threads > 40 else threads
 
     if os.path.exists(destination):
-        logger.debug(f"File {destination} already exists. Skipping download.")
+        logger.debug(f"File {destination} already exists: skipping download...")
     else:
         logger.debug(f'download from {url}')
         dl = Downloader()

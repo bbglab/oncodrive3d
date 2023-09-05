@@ -269,7 +269,7 @@ def run(input_maf_path,
 
     if not os.path.exists(output_path):
         os.makedirs(os.path.join(output_path))
-        logger.warning(f"Directory '{output_path}' does not exists. Creating...")
+        logger.warning(f"Directory '{output_path}' does not exists: creating...")
     
     result_gene["Cancer"] = cancer_type
     result_gene["Cohort"] = cohort

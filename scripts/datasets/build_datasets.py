@@ -58,29 +58,28 @@ def build(output_datasets,
     clean_dir(output_datasets, 'd')
 
     # Download PDB structures
-    logger.info("Downloading AlphaFold (AF) predicted structures..")
+    logger.info("Downloading AlphaFold (AF) predicted structures...")
     get_structures(path=os.path.join(output_datasets,"pdb_structures"),
                    species=organism,
                    af_version=str(af_version), 
                    threads=num_cores)
 
-    logger.info("Download of structures completed")
+    logger.info("Download of structures completed!")
 
     # Merge fragmented structures
-    logger.info("Merging fragmented structures..")
+    logger.info("Merging fragmented structures...")
     merge_af_fragments(input_dir=os.path.join(output_datasets,"pdb_structures"), 
                        gzip=True)
-    logger.info("Merge of structures completed")
+    logger.info("Merge of structures completed!")
 
     # Get model confidence
     # Decide what to do with default path
-    logger.info("Extracting AF model confidence..")
+    logger.info("Extracting AF model confidence...")
     get_confidence(input=os.path.join(output_datasets, "pdb_structures"),
                    output_dir=os.path.join(output_datasets))
-    logger.info("Extraction of model confidence completed")
 
     # Create df including genes and proteins sequences & Hugo to Uniprot_ID mapping
-    logger.info("Generating dataframe for genes and proteins sequences..")
+    logger.info("Generating dataframe for genes and proteins sequences...")
     get_seq_df(input_dir=os.path.join(output_datasets,"pdb_structures"),
                output_seq_df=os.path.join(output_datasets, "seq_for_mut_prob.csv"),
                uniprot_to_gene_dict=uniprot_to_hugo,
@@ -88,18 +87,17 @@ def build(output_datasets,
     logger.info("Generation of sequences dataframe completed!")
 
     # Get PAE
-    logger.info("Downloading AF predicted aligned error (PAE)..")
+    logger.info("Downloading AF predicted aligned error (PAE)...")
     get_pae(input_dir=os.path.join(output_datasets,"pdb_structures"),
             output_dir=os.path.join(output_datasets,"pae"),
             af_version=str(af_version),
             )
-    logger.info("Download of PAE completed!")
 
     # Parse PAE
     # Might want to add multiprocessing
-    logger.info("Parsing PAE..")
+    logger.info("Parsing PAE...")
     parse_pae(input=os.path.join(output_datasets, 'pae'))
-    logger.info("Parsing PAE completed")
+    logger.info("Parsing PAE completed!")
 
     # Get pCAMPs
     logger.info("Generating contact probability maps (pCMAPs)..")
@@ -108,7 +106,7 @@ def build(output_datasets,
                       output=os.path.join(output_datasets,"prob_cmaps"),
                       distance=10,
                       num_cores=num_cores)
-    logger.info("Generation pCMAPs completed")
+    logger.info("Generation pCMAPs completed!")
 
     # Clean datasets
     logger.info("Cleaning datasets...")
@@ -117,7 +115,7 @@ def build(output_datasets,
         subprocess.run(clean_pdb)
     clean_pae = ["rm", "-rf", f"{output_datasets}/pae/*.json"]
     subprocess.run(clean_pae)
-    logger.info("Datasets cleaning completed")
+    logger.info("Datasets cleaning completed!")
 
     logger.info(
         "Datasets have been successfully built and are ready for analysis!")

@@ -190,7 +190,7 @@ def uniprot_to_hudo_df(uniprot_ids):
         time.sleep(1)
         df = load_df_from_url(url)
         if i % 60 == 0:
-            logger.debug(f"Waiting for UniprotKB mapping job to produce url..")
+            logger.debug(f"Waiting for UniprotKB mapping job to produce url...")
         i += 1 
         
     return df
@@ -226,7 +226,7 @@ def uniprot_to_hugo(uniprot_ids, hugo_as_keys=False, batch_size=5000):
     # Get a dataframe including all IDs mapping info
     df_lst = []
     for i, ids in enumerate(uniprot_ids_lst):
-        logger.debug(f"Batch {i+1}/{len(uniprot_ids_lst)} ({len(ids)} IDs)..")
+        logger.debug(f"Batch {i+1}/{len(uniprot_ids_lst)} ({len(ids)} IDs)...")
         df = uniprot_to_hudo_df(ids)
         df_lst.append(df)
     df = pd.concat(df_lst)

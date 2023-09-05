@@ -209,11 +209,11 @@ def get_prob_cmaps(pdb_files, pae_path, output_path, distance=10, num_process=0)
         # Monitor processing
         if n % 100 == 0:
             if n == 0:
-                logger.debug(f"Process [{num_process}] starting processing [{len(pdb_files)}] structures..")
+                logger.debug(f"Process [{num_process}] starting processing [{len(pdb_files)}] structures...")
             else:
-                logger.debug(f"Process [{num_process}] completed [{n}/{len(pdb_files)}] structures..")
+                logger.debug(f"Process [{num_process}] completed [{n}/{len(pdb_files)}] structures...")
         elif n+1 == len(pdb_files):
-            logger.debug(f"Process [{num_process}] completed")
+            logger.debug(f"Process [{num_process}] completed!")
          
                 
 
@@ -248,7 +248,7 @@ def get_prob_cmaps_mp(input_pdb,
     chunks = [pdb_path_lst[i : i + chunk_size] for i in range(0, len(pdb_path_lst), chunk_size)]
 
     # Create a pool of processes and compute the cmaps in parallel
-    logger.debug(f"Processing [{n_structures}] structures by [{len(chunks)}] processes..")
+    logger.debug(f"Processing [{n_structures}] structures by [{len(chunks)}] processes...")
     with multiprocessing.Pool(processes = num_cores) as pool:
         results = pool.starmap(get_prob_cmaps, [(chunk, input_pae, output, distance, n) 
                                                   for n, chunk in enumerate(chunks)])

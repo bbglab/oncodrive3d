@@ -264,11 +264,11 @@ def clustering_3d_mp(genes,
             
         # logging - monitor processing
         if n == 0:
-            logger.debug(f"Process [{num_process+1}] starting..")
+            logger.debug(f"Process [{num_process+1}] starting...")
         elif n % 10 == 0:
-            logger.debug(f"Process [{num_process+1}] completed [{n+1}/{len(genes)}] structures")
+            logger.debug(f"Process [{num_process+1}] completed [{n+1}/{len(genes)}] structures...")
         elif n+1 == len(genes):
-            logger.debug(f"Process [{num_process+1}] completed")
+            logger.debug(f"Process [{num_process+1}] completed!")
 
 
         
