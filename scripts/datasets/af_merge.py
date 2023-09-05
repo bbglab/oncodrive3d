@@ -290,7 +290,7 @@ def merge_af_fragments(input_dir, output_dir=None, af_version=4, gzip=False):
     if not os.path.exists(path_original_frag):
         os.makedirs(path_original_frag)
 
-    checkpoint = os.path.join(path_original_frag, '.checkpoint.txt')
+    checkpoint = os.path.join(path_original_frag, '.checkpoint.merge.txt')
     if os.path.exists(checkpoint):
         logger.debug("Merge fragments already performed: skipping...")
     
@@ -322,7 +322,7 @@ def merge_af_fragments(input_dir, output_dir=None, af_version=4, gzip=False):
                 os.rename(tmp_name, name)
                 add_refseq_record_to_pdb(name)
         
-        logger.warning(f"{not_processed}")
+        logger.warning(f"Not processed: {not_processed}")
         with open(checkpoint, "w") as f:
                 f.write('')
 
