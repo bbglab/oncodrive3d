@@ -81,7 +81,7 @@ def clean_directory(path: str, loc: str) -> None:
 
     if loc == "d":
 
-        clean_files = f"rm -rf {os.path.join(path, '*.csv')} {os.path.join(path, '*.json')}"
+        clean_files = f"rm -rf {os.path.join(path, '*.csv')} {os.path.join(path, '*.json')} {os.path.join(path, '*.txt')}"
         clean_pae = ["rm", "-rf", f"{path}/pae/"]
         clean_pdb = ["rm", "-rf", f"{path}/pdb_structures/"]
         clean_pcmaps = ["rm", "-rf", f"{path}/prob_cmaps/"]
