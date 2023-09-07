@@ -14,9 +14,7 @@ import os
 import re
 import shutil
 import subprocess
-# from multiprocessing import Pool
-from os import listdir, sep
-from os.path import isfile, join
+from os import sep
 
 import daiquiri
 import pandas as pd
@@ -72,24 +70,28 @@ def degronopedia_af_merge(struct_name, input_path, afold_version, output_path, z
     c = 1
     while c < how_many_pieces :
 
+        struct_save_path = os.path.join(save_path, f"AF-{struct_name}-FM-model_v{afold_version}.pdb")
+        
         # Read reference structure
         if c == 1:
+            struct_ref_path = os.path.join(input_path, f"AF-{struct_name}-F{c}-model_v{afold_version}.pdb")
             if zip:  
-                with gzip.open(f'{input_path}/AF-{struct_name}-F{c}-model_v{afold_version}.pdb.gz', 'rt') as handle:
-                    structure_ref = Bio_parser.get_structure("ref", handle)
+                with gzip.open(f'{struct_ref_path}.gz', 'rt') as handle:
+                    struct_ref = Bio_parser.get_structure("ref", handle)
             else:
-                with open(f'{input_path}/AF-{struct_name}-F{c}-model_v{afold_version}.pdb', 'r') as handle:
-                    structure_ref = Bio_parser.get_structure("ref", handle)
+                with open(struct_ref_path, 'r') as handle:
+                    struct_ref = Bio_parser.get_structure("ref", handle)
         else:
-            structure_ref = Bio_parser.get_structure("ref", f"{save_path}/AF-{struct_name}-FM-model_v{afold_version}.pdb")
-        model_ref = structure_ref[0]
+            struct_ref = Bio_parser.get_structure("ref", struct_save_path)
+        model_ref = struct_ref[0]
 
         # Read structure to superimpose
+        struct_si_path = os.path.join(input_path, f"AF-{struct_name}-F{c+1}-model_v{afold_version}.pdb")
         if zip:  
-            with gzip.open(f'{input_path}/AF-{struct_name}-F{c+1}-model_v{afold_version}.pdb.gz', 'rt') as handle:
+            with gzip.open(f'{struct_si_path}.gz', 'rt') as handle:
                 structure_to_superpose = Bio_parser.get_structure("ref", handle)
         else:
-            with open(f'{input_path}/AF-{struct_name}-F{c+1}-model_v{afold_version}.pdb', 'r') as handle:
+            with open(struct_si_path, 'r') as handle:
                 structure_to_superpose = Bio_parser.get_structure("ref", handle)
         model_to_super = structure_to_superpose[0]
 
@@ -143,34 +145,39 @@ def degronopedia_af_merge(struct_name, input_path, afold_version, output_path, z
 
         io = PDBIO()
         io.set_structure(merged)
-        io.save(f"{save_path}/AF-{struct_name}-FM-model_v{afold_version}.pdb")
+        io.save(struct_save_path)
 
-        # Unify models
-        bashCommand1 = f"sed '/TER/d' {save_path}/AF-{struct_name}-FM-model_v{afold_version}.pdb > {save_path}/tmp.pdb"
-        bashCommand2 = f"sed '/MODEL/d' {save_path}/tmp.pdb > {save_path}/tmp1.pdb"
-        bashCommand3 = f"sed '/ENDMDL/d' {save_path}/tmp1.pdb > {save_path}/tmp2.pdb"
+        # Unify models                                                                                                       
+        bashCommand1 = os.path.join("sed '", "TER", f"d' {save_path}", f"AF-{struct_name}-FM-model_v{afold_version}.pdb > {save_path}", "tmp.pdb")    
+        bashCommand2 = os.path.join("sed '", "MODEL", f"d' {save_path}", f"tmp.pdb > {save_path}", "tmp1.pdb")
+        bashCommand3 = os.path.join("sed '", "ENDMDL", f"d' {save_path}", f"tmp1.pdb > {save_path}", "tmp2.pdb")
 
         subprocess.run(bashCommand1, check=True, text=True, shell=True)
         subprocess.run(bashCommand2, check=True, text=True, shell=True)         
         subprocess.run(bashCommand3, check=True, text=True, shell=True)
 
         # Re-read the structure in Biopython and save
-        structure_ok = Bio_parser.get_structure("ok", f'{save_path}/tmp2.pdb')
+        structure_ok = Bio_parser.get_structure("ok", os.path.join(save_path, "tmp2.pdb"))
         io.set_structure(structure_ok)
-        io.save(f"{save_path}/AF-{struct_name}-FM-model_v{afold_version}.pdb")
+        io.save(struct_save_path)
 
         c += 1
 
     # Add MODEL 1 at the beggining of the file
-    subprocess.run(f"sed -i '1iMODEL        1                                                                  ' {save_path}/AF-{struct_name}-FM-model_v{afold_version}.pdb", check=True, shell=True)
+    bashCommand4 = os.path.join(f"sed -i '1iMODEL        1                                                                  ' {save_path}", f"AF-{struct_name}-FM-model_v{afold_version}.pdb")
+    subprocess.run(bashCommand4, check=True, shell=True)
 
     # Provide proper file ending
-    subprocess.run(f"sed -i '$ d' {save_path}/AF-{struct_name}-FM-model_v{afold_version}.pdb", check=True, shell=True)
-    subprocess.run(f"echo 'ENDMDL                                                                          ' >> {save_path}/AF-{struct_name}-FM-model_v{afold_version}.pdb", check=True, text=True, shell=True)
-    subprocess.run(f"echo 'END                                                                             ' >> {save_path}/AF-{struct_name}-FM-model_v{afold_version}.pdb", check=True, text=True, shell=True)
+    bashCommand5 = os.path.join(f"sed -i '$ d' {save_path}", f"AF-{struct_name}-FM-model_v{afold_version}.pdb")
+    bashCommand6 = os.path.join(f"echo 'ENDMDL                                                                          ' >> {save_path}", f"AF-{struct_name}-FM-model_v{afold_version}.pdb")
+    bashCommand7 = os.path.join(f"echo 'END                                                                             ' >> {save_path}", f"AF-{struct_name}-FM-model_v{afold_version}.pdb")
+    subprocess.run(bashCommand5, check=True, shell=True)
+    subprocess.run(bashCommand6, check=True, text=True, shell=True)
+    subprocess.run(bashCommand7, check=True, text=True, shell=True)
 
     # Delete tmp files
-    subprocess.run(f"rm {save_path}/tmp.pdb {save_path}/tmp1.pdb {save_path}/tmp2.pdb", check=True, text=True, shell=True)
+    bashCommand8 = os.path.join(f"rm {save_path}", f"tmp.pdb {save_path}", f"tmp1.pdb {save_path}", "tmp2.pdb") 
+    subprocess.run(bashCommand8, check=True, text=True, shell=True)
 
 
 ## In-house scripts
@@ -308,17 +315,17 @@ def merge_af_fragments(input_dir, output_dir=None, af_version=4, gzip=False):
             except:
                 logger.warning(f"Could not process {uni_id} ({max_f} fragments)")
                 not_processed.append(uni_id)
-                os.remove(f"{output_dir}/AF-{uni_id}-FM-model_v{af_version}.pdb")
+                os.remove(os.path.join(output_dir, f"AF-{uni_id}-FM-model_v{af_version}.pdb"))
             
             # Move the original fragmented structures
             for f in range(1, max_f+1):
                 file = f"AF-{uni_id}-F{f}-model_v{af_version}.pdb{zip_ext}"
-                shutil.move(f"{input_dir}/{file}", path_original_frag)
+                shutil.move(os.path.join(input_dir, file), path_original_frag)
                 
             # Rename merged structure and add refseq records to pdb
             if processed:
-                tmp_name = f"{output_dir}/AF-{uni_id}-FM-model_v{af_version}.pdb"
-                name = f"{output_dir}/AF-{uni_id}-F{max_f}M-model_v{af_version}.pdb"
+                tmp_name = os.path.join(output_dir, f"AF-{uni_id}-FM-model_v{af_version}.pdb")
+                name = os.path.join(output_dir, f"AF-{uni_id}-F{max_f}M-model_v{af_version}.pdb")
                 os.rename(tmp_name, name)
                 add_refseq_record_to_pdb(name)
         
@@ -326,4 +333,5 @@ def merge_af_fragments(input_dir, output_dir=None, af_version=4, gzip=False):
         with open(checkpoint, "w") as f:
                 f.write('')
 
-        save_unprocessed_ids(not_processed, f"{output_dir}/fragmented_pdbs/ids_not_merged.txt")
+        save_unprocessed_ids(not_processed, 
+                             os.path.join(output_dir, "fragmented_pdbs", "ids_not_merged.txt"))

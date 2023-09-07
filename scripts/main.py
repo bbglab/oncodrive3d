@@ -66,8 +66,8 @@ def oncodrive3D():
 
 
 @oncodrive3D.command(context_settings=dict(help_option_names=['-h', '--help']),
-               help="Build datasets - Required once after installation") # CHANGE ACCORDINGLY
-@click.option("-o", "--output_path", help="Directory where to save the files", type=str, default='datasets')
+               help="Build datasets - Required once after installation") 
+@click.option("-o", "--output_dir", help="Directory where to save the files", type=str, default='datasets')
 @click.option("-s", "--organism", type=click.Choice(['human', 'mouse']), 
               help="Organism name", default="human")
 @click.option("-u", "--uniprot_to_hugo", type=click.Path(exists=True), 
@@ -80,7 +80,7 @@ def oncodrive3D():
 @click.option("-y", "--yes", help="no interaction", is_flag=True)
 @click.option("-v", "--verbose", help="Verbose", is_flag=True)
 @setup_logging_decorator
-def build_datasets(output_path, 
+def build_datasets(output_dir, 
                    organism, 
                    uniprot_to_hugo, 
                    num_cores, af_version, 
@@ -92,17 +92,17 @@ def build_datasets(output_path,
     startup_message(__version__, "Initializing building datasets...")
     
     logger.info(f"Current working directory: {os.getcwd()}")
-    logger.info(f"Build folder path: {output_path}")
+    logger.info(f"Build folder path: {output_dir}")
     logger.info(f"Organism: {organism}")
     logger.info(f"Custom IDs mapping: {uniprot_to_hugo}")
     logger.info(f"CPU cores: {num_cores}")
     logger.info(f"AlphaFold version: {af_version}")
     logger.info(f"Keep PDB files: {keep_pdb_files}")
     logger.info(f"Verbose: {verbose}")
-    logger.info(f'Log path: {output_path}/log/')
+    logger.info(f'Log path: {os.path.join(output_dir, "log")}')
     logger.info("")
         
-    build(output_path, 
+    build(output_dir, 
           organism, 
           uniprot_to_hugo, 
           num_cores, af_version, 
@@ -112,10 +112,10 @@ def build_datasets(output_path,
 
 
 @oncodrive3D.command(context_settings=dict(help_option_names=['-h', '--help']),
-                     help="Run 3D-clustering analysis") # CHANGE ACCORDINGLY
+                     help="Run 3D-clustering analysis") 
 @click.option("-i", "--input_maf_path", type=click.Path(exists=True), required=True, help="Path of the MAF file used as input")
 @click.option("-p", "--mut_profile_path", type=click.Path(exists=True), help="Path of the mutation profile (192 trinucleotide contexts) used as optional input")
-@click.option("-o", "--output_path", help="Path to output directory", type=str, default='results')
+@click.option("-o", "--output_dir", help="Path to output directory", type=str, default='results')
 @click.option("-d", "--data_dir", help="Path to datasets", type=click.Path(exists=True), default = os.path.join('datasets'))
 @click.option("-n", "--n_iterations", help="Number of densities to be simulated", type=int, default=10000)
 @click.option("-a", "--alpha", help="Significant threshold for the p-value of res and gene", type=float, default=0.01)
@@ -125,14 +125,14 @@ def build_datasets(output_path,
 @click.option("-f", "--no_fragments", help="Disable processing of fragmented (AF-F) proteins", is_flag=True)
 @click.option("-u", "--num_cores", type=click.IntRange(min=1, max=len(os.sched_getaffinity(0)), clamp=False), default=len(os.sched_getaffinity(0)),
               help="Set the number of cores to use in the computation")
-@click.option("-S", "--seed", help="Set seed to ensure reproducible results", type=int, default=123)
+@click.option("-S", "--seed", help="Set seed to ensure reproducible results", type=int)
 @click.option("-v", "--verbose", help="Verbose", is_flag=True)
 @click.option("-t", "--cancer_type", help="Cancer type", type=str)
 @click.option("-C", "--cohort", help="Name of the cohort", type=str)
 @setup_logging_decorator
 def run(input_maf_path, 
         mut_profile_path, 
-        output_path,
+        output_dir,
         data_dir,
         n_iterations,
         alpha,
@@ -147,12 +147,15 @@ def run(input_maf_path,
     """Run Oncodrive3D."""
 
     ## Initialize
+    
+    # =========================================================================
+    # TODO: change back default data_dir path to a relative path of script loc?
+    # =========================================================================
      
-    dir_path = data_dir
-    plddt_path = os.path.join(dir_path, "confidence.csv")
-    cmap_path = os.path.join(dir_path, "prob_cmaps/")  
-    seq_df_path = os.path.join(dir_path, "seq_for_mut_prob.csv")                              
-    pae_path = os.path.join(dir_path, "pae/")
+    plddt_path = os.path.join(data_dir, "confidence.csv")
+    cmap_path = os.path.join(data_dir, "prob_cmaps")  
+    seq_df_path = os.path.join(data_dir, "seq_for_mut_prob.csv")                              
+    pae_path = os.path.join(data_dir, "pae")
     cancer_type = cancer_type if cancer_type else np.nan
     cohort = cohort if cohort else f"cohort_{DATE}"
     path_prob = mut_profile_path if mut_profile_path else "Not provided, uniform distribution will be used"
@@ -162,11 +165,12 @@ def run(input_maf_path,
 
     logger.info(f"Input MAF: {input_maf_path}")
     logger.info(f"Input mut profile: {path_prob}")
-    logger.info(f"Output directory: {output_path}")
-    logger.info(f"Path to CMAPs: {cmap_path}")
-    logger.info(f"Path to DNA sequences: {seq_df_path}")
-    logger.info(f"Path to PAE: {pae_path}")
-    logger.info(f"Path to pLDDT scores: {plddt_path}")
+    logger.info(f"Build directory: {output_dir}")
+    logger.info(f"Output directory: {output_dir}")
+    logger.debug(f"Path to CMAPs: {cmap_path}")
+    logger.debug(f"Path to DNA sequences: {seq_df_path}")
+    logger.debug(f"Path to PAE: {pae_path}")
+    logger.debug(f"Path to pLDDT scores: {plddt_path}")
     logger.info(f"CPU cores: {num_cores}")
     logger.info(f"Iterations: {n_iterations}")
     logger.info(f"Significant level: {alpha}")
@@ -177,7 +181,7 @@ def run(input_maf_path,
     logger.info(f"Cancer type: {cancer_type}")
     logger.info(f"Verbose: {bool(verbose)}")
     logger.info(f"Seed: {seed}")
-    logger.info(f'Log path: {output_path}/log/')
+    logger.info(f'Log path: {os.path.join(output_dir, "log")}')
     logger.info("")
 
 
@@ -268,39 +272,41 @@ def run(input_maf_path,
 
     ## Save 
 
-    if not os.path.exists(output_path):
-        os.makedirs(os.path.join(output_path))
-        logger.warning(f"Directory '{output_path}' does not exists: creating...")
+    if not os.path.exists(output_dir):
+        os.makedirs(os.path.join(output_dir))
+        logger.warning(f"Directory '{output_dir}' does not exists: creating...")
     
     result_gene["Cancer"] = cancer_type
     result_gene["Cohort"] = cohort
+    output_path_pos = os.path.join(output_dir, f"{cohort}.3d_clustering_pos.csv")
+    output_path_genes = os.path.join(output_dir, f"{cohort}.3d_clustering_genes.csv")
 
     if result_pos is None:
         logger.warning(f"Did not processed any genes\n")
         result_gene = add_nan_clust_cols(result_gene).drop(columns = ["Max_mut_pos", "Structure_max_pos"])
         result_gene = sort_cols(result_gene)
-        if no_fragments == True:
+        if no_fragments:
             result_gene = result_gene.drop(columns=[col for col in ["F", "Mut_in_top_F", "Top_F"] if col in result_gene.columns])
-        result_gene.to_csv(f"{output_path}/{cohort}.3d_clustering_genes.csv", index=False)
-        logger.info(f"Saving to {output_path}/{cohort}.3d_clustering_genes.csv")
+        result_gene.to_csv(output_path_genes, index=False)
+        logger.info(f"Saving to {output_path_genes}")
 
     else:
         # Save res-level result
         result_pos["Cancer"] = cancer_type
         result_pos["Cohort"] = cohort
-        result_pos.to_csv(f"{output_path}/{cohort}.3d_clustering_pos.csv", index=False)
+        result_pos.to_csv(output_path_pos, index=False)
    
         # Get gene global pval, qval, and clustering annotations and save gene-level result
         result_gene = get_final_gene_result(result_pos, result_gene, alpha)
         result_gene = result_gene.drop(columns = ["Max_mut_pos", "Structure_max_pos"]) 
         result_gene = sort_cols(result_gene) 
-        if no_fragments == True:
+        if no_fragments:
             result_gene = result_gene.drop(columns=[col for col in ["F", "Mut_in_top_F", "Top_F"] if col in result_gene.columns])
         with np.printoptions(linewidth=10000):
-            result_gene.to_csv(f"{output_path}/{cohort}.3d_clustering_genes.csv", index=False)
+            result_gene.to_csv(output_path_genes, index=False)
 
-        logger.info(f"Saving {output_path}/{cohort}.3d_clustering_pos.csv")
-        logger.info(f"Saving {output_path}/{cohort}.3d_clustering_genes.csv")
+        logger.info(f"Saving {output_path_pos}")
+        logger.info(f"Saving {output_path_genes}")
         
     logger.info("3D-clustering analysis completed!")
 

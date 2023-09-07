@@ -29,7 +29,7 @@ def assert_integrity_human(file_path, proteome):
             logger.critical('File integrity check: FAIL')
             logger.critical('error: ', e) 
     else:
-        logger.warning("Assertion skipped. Proteome checksum not in records.")
+        logger.warning("Assertion skipped: proteome checksum not in records.")
 
 
 def extract_file(file_path, path):
@@ -37,15 +37,13 @@ def extract_file(file_path, path):
     checkpoint = os.path.join(path, ".checkpoint.txt")
 
     if os.path.exists(checkpoint):
-         logger.debug('Tar already extracted. Skipping')
+         logger.debug('Tar already extracted: skipping...')
     else:
         with tarfile.open(file_path, "r") as tar:
             tar.extractall(path)
-            logger.debug(f'Extracted { int(len(tar.getnames())/2)} structure')
+            logger.debug(f'Extracted { int(len(tar.getnames())/2)} structure.')
             with open(checkpoint, "w") as f:
                 f.write('')
-
-
 
 
 def download_file(url: str, destination: str, threads: int) -> None:
@@ -65,6 +63,7 @@ def download_file(url: str, destination: str, threads: int) -> None:
         dl = Downloader()
         dl.start(url, destination, num_connections=num_connections)
 
+
 def get_structures(path: str, species: str = 'human', af_version: str = '4', threads: int = 1) -> None:
     """
     Downloads AlphaFold predicted structures for a given organism and version.
@@ -76,7 +75,7 @@ def get_structures(path: str, species: str = 'human', af_version: str = '4', thr
         verbose (str, optional): Verbose (True (default) or False). Defaults to 'False'.
 
     Example:
-        get_structures('../../datasets/pdb_structures', species='human', verbose='True')
+        get_structures('datasets/pdb_structures', species='human', verbose='True')
     """
 
     logger.info(f"Selected species: {species}")

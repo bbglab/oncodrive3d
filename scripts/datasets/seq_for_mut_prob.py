@@ -175,11 +175,11 @@ def get_seq_df(input_dir,
         uniprot_to_gene_dict = uniprot_to_hugo(uniprot_ids)  
 
     # Create a dataframe with protein sequences
-    logger.debug("Generating sequence df..")
+    logger.debug("Generating sequence df...")
     seq_df = initialize_seq_df(input_dir, uniprot_to_gene_dict)
 
     # Annotate df with DNA sequences
-    logger.debug("Performing back translation..")
+    logger.debug("Performing back translation...")
     seq_df = batch_backtranseq(seq_df, 500, organism=organism)
     
     # Add multiple genes mapping to the same Uniprot_ID

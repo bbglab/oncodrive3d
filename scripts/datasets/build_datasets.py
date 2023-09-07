@@ -27,7 +27,6 @@ The build is a pipeline that perform the following tasks:
 
 
 import os
-import subprocess
 
 import daiquiri
 
@@ -39,7 +38,7 @@ from scripts.datasets.model_confidence import get_confidence
 from scripts.datasets.parse_pae import parse_pae
 from scripts.datasets.prob_contact_maps import get_prob_cmaps_mp
 from scripts.datasets.seq_for_mut_prob import get_seq_df
-from scripts.globals import clean_dir
+from scripts.globals import clean_dir, clean_temp_files
 
 logger = daiquiri.getLogger(__logger_name__ + ".build")
 
@@ -110,12 +109,8 @@ def build(output_datasets,
 
     # Clean datasets
     logger.info("Cleaning datasets...")
-    if not keep_pdb_files:
-        clean_pdb = ["rm", "-rf", f"{output_datasets}/pdb_structures/"]
-        subprocess.run(clean_pdb)
-    clean_pae = ["rm", "-rf", f"{output_datasets}/pae/*.json"]
-    subprocess.run(clean_pae)
+    clean_temp_files(path=output_datasets,
+                     keep_pdb_files=keep_pdb_files)
     logger.info("Datasets cleaning completed!")
 
-    logger.info(
-        "Datasets have been successfully built and are ready for analysis!")
+    logger.info("Datasets have been successfully built and are ready for analysis!")

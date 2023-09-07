@@ -36,11 +36,13 @@ def cap(r, h):
     """
     return pi * (3 * r - h) * h ** 2 / 3
 
+
 def vol(r):
     """
     Volume of sphere with radius r
     """
     return 4 * pi * r ** 3 / 3
+
 
 def s2_minus_s1(r1, r2, d):
     
@@ -125,19 +127,19 @@ def get_contact_map(chain, distance=10):
     return dist_matrix < distance
 
 
-
 def get_prob_contact(pae_value, dmap_value, distance=10):
     """
     Get probability of contact considering the distance 
     between residues in the predicted structure and the 
     Predicted Aligned Error (PAE).
     """
+    
     if pae_value == 0 and dmap_value == 0:
         
         return 1
     
     else:
-    
+        
         # Get the volume of res2 outside of res1
         vol_s2_out_s1 = s2_minus_s1(r1=distance, r2=pae_value, d=dmap_value)
 
@@ -163,6 +165,7 @@ def get_prob_cmap(chain, pae, distance=10) :
             
     return m
 
+
 def get_prob_cmaps(pdb_files, pae_path, output_path, distance=10, num_process=0):
     """
     Given a list of path of PDB file, compute the probabilistic cmap of 
@@ -185,25 +188,24 @@ def get_prob_cmaps(pdb_files, pae_path, output_path, distance=10, num_process=0)
         if af_f > 1:
             try:
                 cmap = get_contact_map(get_structure(file)["A"], distance=distance)    
-                np.save(f"{output_path}/{identifier}.npy", cmap)
+                np.save(os.path.join(output_path, f"{identifier}.npy"), cmap)
             except Exception as e:
                 logger.warning(f"Could not process {identifier}")
                 logger.warning(f"Error: {e}")
-                with open(f"{output_path}/ids_not_processed.txt", 'a+') as file:
+                with open(os.path.join(output_path, "ids_not_processed.txt"), 'a+') as file:
                     file.write(identifier + '\n')
                     
         # Get probabilistic CMAP
         else:   
             try:
-                pae = np.load(f"{pae_path}/{identifier}-predicted_aligned_error.npy")
+                pae = np.load(os.path.join(pae_path, f"{identifier}-predicted_aligned_error.npy"))
                 chain = get_structure(file)["A"]
-                prob_cmap = get_prob_cmap(chain, pae, distance=distance)        
-                np.save(f"{output_path}/{identifier}.npy", prob_cmap)
+                prob_cmap = get_prob_cmap(chain, pae, distance=distance)    
+                np.save(os.path.join(output_path, f"{identifier}.npy"), prob_cmap)
             except Exception as e:
                 logger.warning(f"Could not process {identifier}")
                 logger.warning(f"Error: {e}")
-
-                with open(f"{output_path}/ids_not_processed.txt", 'a+') as file:
+                with open(os.path.join(output_path, "ids_not_processed.txt"), 'a+') as file:
                     file.write(identifier + '\n')
 
         # Monitor processing
@@ -250,5 +252,5 @@ def get_prob_cmaps_mp(input_pdb,
     # Create a pool of processes and compute the cmaps in parallel
     logger.debug(f"Processing [{n_structures}] structures by [{len(chunks)}] processes...")
     with multiprocessing.Pool(processes = num_cores) as pool:
-        results = pool.starmap(get_prob_cmaps, [(chunk, input_pae, output, distance, n) 
-                                                  for n, chunk in enumerate(chunks)])
+        results = pool.starmap(get_prob_cmaps, 
+                               [(chunk, input_pae, output, distance, n) for n, chunk in enumerate(chunks)])

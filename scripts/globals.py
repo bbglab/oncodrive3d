@@ -8,18 +8,21 @@ from functools import wraps
 
 from scripts import __logger_name__
 
+
 logger = daiquiri.getLogger(__logger_name__)
 
 DATE = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 FORMAT = "%(asctime)s - %(color)s%(levelname)-7s%(color_stop)s | %(name)s - %(color)s%(message)s%(color_stop)s"
 
+
 # =========
 #  Logging
 # =========
+
 def setup_logging_decorator(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
-        log_dir = os.path.join(click.get_current_context().params['output_path'], 'log/')
+        log_dir = os.path.join(click.get_current_context().params['output_path'], 'log')
         command_name = click.get_current_context().command.name
 
         if command_name == 'run':
@@ -62,6 +65,7 @@ def startup_message(version, initializing_text):
     logger.info("#" * banner_width)
     logger.info("")
 
+
 # =========
 #  Clean
 # =========
@@ -78,13 +82,12 @@ def clean_directory(path: str, loc: str) -> None:
         path (str): Path to the directory to be cleaned.
     """
 
-
     if loc == "d":
 
-        clean_files = f"rm -rf {os.path.join(path, '*.csv')} {os.path.join(path, '*.json')} {os.path.join(path, '*.txt')}"
-        clean_pae = ["rm", "-rf", f"{path}/pae/"]
-        clean_pdb = ["rm", "-rf", f"{path}/pdb_structures/"]
-        clean_pcmaps = ["rm", "-rf", f"{path}/prob_cmaps/"]
+        clean_files = f"rm -rf {os.path.join(path, '*.csv')} {os.path.join(path, '*.json')} {os.path.join(path, '.*.txt')}"
+        clean_pae = ["rm", "-rf", os.path.join(path, "pae")]
+        clean_pdb = ["rm", "-rf", os.path.join(path, "pdb_structures")]
+        clean_pcmaps = ["rm", "-rf", os.path.join(path, "prob_cmaps")]
 
         logger.debug(clean_files)
         subprocess.run(clean_files, shell=True)
@@ -102,6 +105,7 @@ def clean_directory(path: str, loc: str) -> None:
         # TODO: implement cleaning function for output
         pass
 
+
 def clean_dir(path: str, loc: str = 'd') -> None:
     """
     Clean it upon request if it already exists.
@@ -111,7 +115,6 @@ def clean_dir(path: str, loc: str = 'd') -> None:
     """
 
     if os.listdir(path) != ['log']:
-        
         logger.warning(f"Directory {path} already exists and is not empty.")
 
         overwrite = "y" if click.get_current_context().params['yes'] else input("Clean existing directory? (y/n): ")
@@ -126,3 +129,20 @@ def clean_dir(path: str, loc: str = 'd') -> None:
             logger.warning(f"Dataset files in {path} have not been removed.")
     else:
         pass
+    
+    
+def clean_temp_files(path: str, keep_pdb_files: bool) -> None:
+    """
+    Clean temp files from dir after completing building the datasets. 
+
+    Args:
+        path (str): Path to build directory to be cleaned.
+    """
+    
+    if not keep_pdb_files:
+        clean_pdb = ["rm", "-rf", os.path.join(path, "pdb_structures")]
+        logger.debug(' '.join(clean_pdb))
+        subprocess.run(clean_pdb)
+    clean_pae = ["rm", "-rf", os.path.join(path, "pae", "*.json")]
+    logger.debug(' '.join(clean_pae))
+    subprocess.run(clean_pae)
