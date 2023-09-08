@@ -1,115 +1,115 @@
-import csv
 import re
 
+import daiquiri
 import numpy as np
 import pandas as pd
-import requests
+import subprocess
+import io
+
+from scripts import __logger_name__
+
+logger = daiquiri.getLogger(__logger_name__ + ".utils.utils")
+
 
 ## Parsers
 
-def parse_maf_input(maf_input_path, keep_samples_id=False):
+def has_comments_as_header(filename):
     """
-    Parse in.maf file which is used as input for the HotMAPS method.
+    Check if the file start with comments as headers.
     """
 
-    # Load
-    maf = pd.read_csv(maf_input_path, sep="\t", dtype={'Chromosome': str})
+    with open(filename, 'r') as file:
+ 
+        for line in file:
+            if line.startswith("## "):
+                return True
+            else:
+                return False
+            
+            
+def read_csv_without_comments(path):
+    """
+    Read a csv file without any lines starting with '##' which 
+    are commonly used as comments (e.g., as in the output of VEP).
+    """
+    
+    # Run bash command
+    command = f"cat {path} | grep -v '^## '"
+    result = subprocess.run(command, shell=True, stdout=subprocess.PIPE)
 
-    # Select only missense mutation and extract Gene name and mut
-    maf = maf[maf['Variant_Classification'].str.contains('Missense_Mutation')]
+    # Parse result
+    captured_output = result.stdout.decode('utf-8')
+    df = pd.read_csv(io.StringIO(captured_output), sep='\t', dtype={'Chromosome': str})
+    
+    return df
+
+
+def parse_vep_output(df):
+    """
+    Parse the dataframe in case it is the direct output of VEP without any 
+    processing. Rename the columns to match the fields name of a MAF file, 
+    and select the canonical transcripts if multiple ones are present.
+    """
+    
+    rename_dict = {"SYMBOL": "Hugo_Symbol", 
+                   "Consequence": "Variant_Classification",
+                   "#Uploaded_variation" : "Tumor_Sample_Barcode"}
+
+    for key, value in rename_dict.items():
+        if key in df.columns and value not in df.columns:
+            df.rename(columns={key: value}, inplace=True)
+            
+    # Include only canonical transcripts
+    if "CANONICAL" in df.columns:
+        if (df["CANONICAL"] != "YES").any():
+            logger.warning("The 'CANONICAL' field is present in the MAF file: Selecting only canonical transcripts...")
+            df = df[df["CANONICAL"] == "YES"]
+            
+    # Get HGVSp
+    if "HGVSp_Short" not in df.columns:
+        if "Amino_acids" in df.columns and "Protein_position" in df.columns:
+            logger.debug("Input detected as direct VEP output: Parsing translational effect of variant...")
+            df["HGVSp_Short"] = df.apply(
+                lambda x: (
+                    "p." + x["Amino_acids"].split("/")[0] + str(x["Protein_position"]) + x["Amino_acids"].split("/")[1] 
+                    if len(x["Amino_acids"].split("/")) > 1 
+                    else np.nan), 
+                axis=1)
+        else:
+            logger.critical("Translational effect of variant allele not found: Input file must include either the field 'HGVSp_Short' or 'Amino_acids' and 'Protein_positions'.")
+        
+    return df
+
+
+def parse_maf_input(maf_input_path):
+    """
+    Parse the MAF file which is used as input for Oncodrive3D.
+    """
+
+    # Load and parse from VEP if needed
+    logger.debug(f"Reading input MAF...")
+    if has_comments_as_header(maf_input_path):
+        logger.debug("Detected '##' comments in the file header: Reading the file without comments...")
+        maf = read_csv_without_comments(maf_input_path)
+    else:
+        maf = pd.read_csv(maf_input_path, sep="\t", dtype={'Chromosome': str})
+    logger.debug(f"Processing [{len(maf)}] total mutations...")
+    maf = parse_vep_output(maf)
+
+    # Select only missense mutation and extract mutations
+    maf = maf[maf['Variant_Classification'].str.contains('Missense_Mutation')
+              | maf['Variant_Classification'].str.contains('missense_variant')]
+    logger.debug(f"Processing [{len(maf)}] missense mutations...")
     maf["Pos"] = maf.loc[:, "HGVSp_Short"].apply(lambda x: int(re.sub("\\D", "", (x[2:]))))
     maf["WT"] = maf["HGVSp_Short"].apply(lambda x: re.findall("\\D", x[2:])[0])
     maf["Mut"] = maf["HGVSp_Short"].apply(lambda x: re.findall("\\D", x[2:])[1])
     maf = maf[["Hugo_Symbol", "Pos", "WT", "Mut", "Tumor_Sample_Barcode"]]
     maf = maf.sort_values("Pos").rename(columns={"Hugo_Symbol" : "Gene"})
-
-    if keep_samples_id == False:
-        maf = maf.drop(columns=["Tumor_Sample_Barcode"])
     
     return maf.reset_index(drop=True)
 
 
-def parse_cluster_output(out_cluster_path):
-    """
-    Parse out.gz file which is the output of HotMAPS.
-    It will be used as ground truth for the new clustering method.
-    """
-    
-    # Select only necessary info and rename to match the input file
-    cluster = pd.read_csv(out_cluster_path, sep="\t")
-    cluster = cluster.copy().rename(columns={"CRAVAT Res" : "Pos"})[["Pos", "Ref AA", "HUGO Symbol", 
-                                                                     "Min p-value", "q-value"]]
-    cluster = cluster.rename(columns={"HUGO Symbol" : "Gene", "Ref AA" : "WT"})
-    
-    return cluster
-
-
-## Handle proteins fragments         ## IN THEORY DEPRECATED (TO CHECK)
-
-def rounded_up_division(num, den):
-    """
-    Simply round up the result of the division.
-    """
-    
-    return -(-num // den)
-
-
-def get_pos_fragments(mut_gene_df):
-    """
-    Get the corresponding fragment of each position of the protein.
-    """
-    
-    max_f = rounded_up_division(max(mut_gene_df["Pos"]), 1400)
-    bins = [n * 1400 for n in range(0, max_f+1)]
-    group_names = list(range(1, max_f+1))
-    
-    return pd.cut(mut_gene_df["Pos"], bins, labels = group_names)
-
-
-## GENE-Uniprot mapping
-
-def uniprot_to_hugo(uniprot_ids=None, hugo_as_keys=False, get_ensembl_id=False):
-    """
-    Returns a dictionary with UniProt IDs as keys and corresponding HUGO symbols as values.
-    """
-    # Download the latest HGNC gene symbols file
-    url = "https://www.genenames.org/cgi-bin/download/custom?col=gd_app_sym&col=gd_pub_ensembl_id&col=md_prot_id&status=Approved&hgnc_dbtag=on&order_by=gd_app_sym_sort&format=text&submit=submit"
-    response = requests.get(url)
-    csv_data = response.content.decode('utf-8')
-    
-    # Parse the CSV data into a dictionary of UniProt IDs to HUGO symbols
-    reader = csv.reader(csv_data.splitlines(), delimiter='\t')
-    next(reader)  # Skip the header row
-    dict_output = {}
-    for row in reader:
-        hugo_symbol, ensembl_id, uniprot_id = row
-        if uniprot_id and hugo_symbol:
-            
-            # Get Uniprot ID, HUGO symbol, Ensembl ID
-            if get_ensembl_id:
-                if not ensembl_id:
-                    ensembl_id = np.nan
-                
-                if hugo_as_keys:
-                    dict_output[hugo_symbol] = uniprot_id, ensembl_id
-                else:
-                    dict_output[uniprot_id] = hugo_symbol, ensembl_id
-                    
-            # Get Uniprot ID, HUGO symbol
-            else:
-                if hugo_as_keys:
-                    dict_output[hugo_symbol] = uniprot_id
-                else:
-                    dict_output[uniprot_id] = hugo_symbol
-    
-    # Filter the dictionary to only include UniProt IDs that were input
-    if uniprot_ids is not None and not hugo_as_keys:
-        dict_output = {k: v for k, v in dict_output.items() if k in uniprot_ids}
-    
-    return dict_output
-
-
-## Model confidence and PAE
+## Other utils
 
 def weighted_avg_plddt_vol(target_pos, mut_plddt_df, cmap):
     """
@@ -131,8 +131,6 @@ def weighted_avg_pae_vol(target_pos, mut_plddt_df, cmap, pae):
     
     return pae_vol
 
-
-## Other utils
 
 def get_samples_info(mut_gene_df, cmap):
     """

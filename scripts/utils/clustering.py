@@ -299,7 +299,7 @@ def clustering_3d_mp_wrapper(genes,
     
     # Create a pool of processes and run clustering in parallel
     with multiprocessing.Pool(processes = num_cores) as pool:
-        logger.debug(f'Starting {len(chunks)} processes..')
+        logger.debug(f'Starting [{len(chunks)}] processes...')
         results = pool.starmap(clustering_3d_mp, [(chunk, data, cmap_path, miss_prob_dict, 
                                                    gene_to_uniprot_dict, plddt_df, n_process,
                                                    alpha, num_iteration, cmap_prob_thr, 
