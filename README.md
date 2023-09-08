@@ -29,7 +29,7 @@ build a different dataset (e.g., compile the datasets for a different organism
 or using a different threshold to define contacts between residues). 
 
 ```bash
-oncodrive3D build-datasets
+oncodrive3D build-datasets -o build_folder/
 ```
 
 - **-o, --output_dir <path>**: Specifies the build folder where files will be saved. Default: `./datasets`.
