@@ -8,13 +8,13 @@ For detailed instructions on how to install, setup, and run the tool, how to obt
 
 ## Installation
 
-### Install using pip from PyPI
+Install using pip from PyPI:
 
 ```bash
 pip install oncodrive3d
 ```
 
-### Install using pip from repository
+Install using pip from repository:
 
 ```bash
 git clone https://github.com/bbglab/clustering_3d.git
