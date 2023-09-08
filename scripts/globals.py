@@ -22,7 +22,7 @@ FORMAT = "%(asctime)s - %(color)s%(levelname)-7s%(color_stop)s | %(name)s - %(co
 def setup_logging_decorator(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
-        log_dir = os.path.join(click.get_current_context().params['output_path'], 'log')
+        log_dir = os.path.join(click.get_current_context().params['output_dir'], 'log')
         command_name = click.get_current_context().command.name
 
         if command_name == 'run':
