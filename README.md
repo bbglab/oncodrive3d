@@ -24,15 +24,51 @@ pip install .
 
 ## Building datasets
 
+This step is required once after installation or any time the user wants to 
+build a different dataset (e.g., compile the datasets for a different organism 
+or using a different threshold to define contacts between residues). 
+
 ```bash
 oncodrive3D build-datasets
 ```
+
+- **-o, --output_dir <path>**: Specifies the build folder where files will be saved. Default: `./datasets`.
+
+- **-s, --organism <str>**: Sets the organism name (`human` or `mouse`). Default: `human`.
+
+- **-c, --num_cores <int>**: Determines the number of CPU cores to use in the computation. Default: Number of available CPU cores.
+
+- **-v, --verbose <flag: set to enable>**: Enables a more verbose output from the method.
 
 ## Running 3D-clustering analysis
 
 ```bash
 oncodrive3D run -i input.maf -p mut_profile.json -d build_folder/ -t cancer_type -C cohort_name
 ```
+
+- **-i, --input_maf_path <path (required)>**: Specifies the path to the MAF file of the cohort, including annotated mutations.
+
+- **-p, --mut_profile_path <path>**: Specifies the path to the Mut profile of the cohort, which is a dictionary of 192 key-value pairs in JSON format.
+
+- **-o, --output_dir <path>**: Sets the output directory. Default: `./results`.
+
+- **-d, --data_dir <path>**: Sets the build folder, including the files compiled during the [building datasets](#building-datasets) step. Default: `./datasets`.
+
+- **-n, --n_iterations <int>**: Specifies the number of densities to be simulated. Default: `10000`.
+
+- **-a, --alpha <float>**: Sets the significant threshold for the p-value of res and gene. Default: `0.01`.
+
+- **-P, --cmap_prob_thr <float>**: Defines the threshold to determine contacts between residues based on distance on predicted structure and PAE. Default: `0.5`.
+
+- **-u, --num_cores <int>**: Specifies the number of CPU cores to use in the computation. Default: Number of available CPU cores.
+
+- **-S, --seed <int>**: Sets the seed to be used for reproducibility.
+
+- **-v, --verbose <flag: set to enable>**: Enables a more verbose output from the method.
+
+- **-t, --cancer_type <str>**: Specifies the cancer type used as metadata in the output file.
+
+- **-C, --cohort <str>**: Specifies the cohort name used as metadata and filename for the output file.
 
 ## Input & output
 
