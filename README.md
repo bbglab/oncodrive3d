@@ -54,12 +54,6 @@ oncodrive3D run -i input.maf -p mut_profile.json -d build_folder/ -t cancer_type
 
 - **-d, --data_dir <path>**: Sets the build folder, including the files compiled during the [building datasets](#building-datasets) step. Default: `./datasets`.
 
-- **-n, --n_iterations <int>**: Specifies the number of densities to be simulated. Default: `10000`.
-
-- **-a, --alpha <float>**: Sets the significant threshold for the p-value of res and gene. Default: `0.01`.
-
-- **-P, --cmap_prob_thr <float>**: Defines the threshold to determine contacts between residues based on distance on predicted structure and PAE. Default: `0.5`.
-
 - **-u, --num_cores <int>**: Specifies the number of CPU cores to use in the computation. Default: Number of available CPU cores.
 
 - **-S, --seed <int>**: Sets the seed to be used for reproducibility.
