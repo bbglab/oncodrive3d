@@ -1,8 +1,8 @@
 # Oncodrive3D 
 
-Oncodrive3D is a method designed to analyse patterns of somatic mutations 
-across tumors to identify three-dimensional (3D) clusters of missense mutations 
-and detect genes that are under positive selection.
+__Oncodrive3D__ is a method designed to analyse patterns of somatic mutations 
+across tumors to __identify three-dimensional (3D) clusters of missense mutations__ 
+and __detect genes that are under positive selection__.
 
 For detailed instructions on how to install, setup, and run the tool, how to obtain the required input data and for comprehensive information about the output, please refer to the [Oncodrive3D documentation](https://readthedocs.org).
 
