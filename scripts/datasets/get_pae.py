@@ -43,7 +43,7 @@ def get_pae(input_dir: str, output_dir: str, af_version: int = 4) -> None:
 
     checkpoint = os.path.join(output_dir, '.checkpoint.txt')
     if os.path.exists(checkpoint):
-        logger.debug("PAE already downloaded: skipping...")
+        logger.debug("PAE already downloaded: Skipping...")
 
     else:
         for pdb_file in progressbar(os.listdir(input_dir)):

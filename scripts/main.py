@@ -107,8 +107,7 @@ def build_datasets(output_dir,
           organism, 
           uniprot_to_hugo, 
           num_cores, af_version, 
-          keep_pdb_files, 
-          )
+          keep_pdb_files)
     
 
 

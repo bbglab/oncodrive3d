@@ -299,7 +299,7 @@ def merge_af_fragments(input_dir, output_dir=None, af_version=4, gzip=False):
 
     checkpoint = os.path.join(path_original_frag, '.checkpoint.merge.txt')
     if os.path.exists(checkpoint):
-        logger.debug("Merge fragments already performed: skipping...")
+        logger.debug("Merge fragments already performed: Skipping...")
     
     else:
         # Get list of fragmented Uniprot ID and max AF-F

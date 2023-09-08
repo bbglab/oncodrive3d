@@ -29,7 +29,7 @@ def assert_integrity_human(file_path, proteome):
             logger.critical('File integrity check: FAIL')
             logger.critical('error: ', e) 
     else:
-        logger.warning("Assertion skipped: proteome checksum not in records.")
+        logger.warning("Assertion skipped: Proteome checksum not in records.")
 
 
 def extract_file(file_path, path):
@@ -57,7 +57,7 @@ def download_file(url: str, destination: str, threads: int) -> None:
     num_connections = 40 if threads > 40 else threads
 
     if os.path.exists(destination):
-        logger.debug(f"File {destination} already exists: skipping download...")
+        logger.debug(f"File {destination} already exists: Skipping download...")
     else:
         logger.debug(f'download from {url}')
         dl = Downloader()

@@ -190,5 +190,5 @@ def get_seq_df(input_dir,
     seq_df.to_csv(output_seq_df, index=False)
     sim_ratio = sum(seq_df.apply(lambda x: get_seq_similarity(x.Seq, translate_dna(x.Seq_dna)), axis=1)) / len(seq_df)
     if sim_ratio < 1:                       
-        logger.warning(f"Some problems occurred during back translation. Protein and translated DNA similarity < 1: {sim_ratio}.")
+        logger.warning(f"Some problems occurred during back translation: Protein and translated DNA similarity < 1: {sim_ratio}.")
     logger.debug(f"Dataframe including sequences is saved in: {output_seq_df}")

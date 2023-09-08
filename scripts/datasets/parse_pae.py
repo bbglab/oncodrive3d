@@ -42,7 +42,7 @@ def parse_pae(input, output=None):
 
     checkpoint = os.path.join(output, '.checkpoint.parse.txt')
     if os.path.exists(checkpoint):
-        logger.debug("PAE already downloaded: skipping...")
+        logger.debug("PAE already parsed: Skipping...")
 
     else:
         # Create necessary folder

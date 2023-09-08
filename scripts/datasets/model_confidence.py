@@ -52,7 +52,7 @@ def get_confidence(input, output_dir):
     
     checkpoint = os.path.join(output_dir, '.checkpoint.conf.txt')
     if os.path.exists(checkpoint):
-        logger.debug("Confidence extraction performed: skipping...")
+        logger.debug("Confidence extraction performed: Skipping...")
 
     else:
         output = os.path.join(output_dir, 'confidence.csv')
