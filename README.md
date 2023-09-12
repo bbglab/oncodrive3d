@@ -37,6 +37,8 @@ oncodrive3D build-datasets -o build_folder/
 
 - **-s, --organism <str>**: Sets the organism name (`human` or `mouse`). Default: `human`.
 
+- **-d, --distance_threshold <int>**: Distance threshold (Å) to define contact between amino acids. Default: `10`.
+
 - **-c, --num_cores <int>**: Determines the number of CPU cores to use in the computation. Default: Number of available CPU cores.
 
 - **-v, --verbose <flag: set to enable>**: Enables a more verbose output from the method.
