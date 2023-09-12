@@ -71,18 +71,21 @@ def oncodrive3D():
 @click.option("-o", "--output_dir", help="Directory where to save the files", type=str, default='datasets')
 @click.option("-s", "--organism", type=click.Choice(['human', 'mouse']), 
               help="Organism name", default="human")
+@click.option("-d", "--distance_threshold", type=click.INT, default=10,
+              help="Distance threshold (Å) to define contact between amino acids")
 @click.option("-u", "--uniprot_to_hugo", type=click.Path(exists=True), 
               help="Optional path to custom dict including Uniprot to HUGO IDs mapping")
 @click.option("-c", "--num_cores", type=click.IntRange(min=1, max=len(os.sched_getaffinity(0)), clamp=False), default=len(os.sched_getaffinity(0)),
-              help="Set the number of cores to use in the computation")
+              help="Number of cores to use in the computation")
 @click.option("-a", "--af_version", type=click.IntRange(min=1, max=4, clamp=False), default=4,
-              help="Specify the version of AlphaFold 2")
+              help="Version of AlphaFold 2 predictions")
 @click.option("-k", "--keep_pdb_files", help="Keep original PDB files", is_flag=True)
-@click.option("-y", "--yes", help="no interaction", is_flag=True)
+@click.option("-y", "--yes", help="No interaction", is_flag=True)
 @click.option("-v", "--verbose", help="Verbose", is_flag=True)
 @setup_logging_decorator
 def build_datasets(output_dir, 
                    organism, 
+                   distance_threshold,
                    uniprot_to_hugo, 
                    num_cores, af_version, 
                    keep_pdb_files, 
@@ -95,6 +98,7 @@ def build_datasets(output_dir,
     logger.info(f"Current working directory: {os.getcwd()}")
     logger.info(f"Build folder path: {output_dir}")
     logger.info(f"Organism: {organism}")
+    logger.info(f"Distance threshold: {distance_threshold}Å")
     logger.info(f"Custom IDs mapping: {uniprot_to_hugo}")
     logger.info(f"CPU cores: {num_cores}")
     logger.info(f"AlphaFold version: {af_version}")
@@ -105,8 +109,10 @@ def build_datasets(output_dir,
         
     build(output_dir, 
           organism, 
+          distance_threshold,
           uniprot_to_hugo, 
-          num_cores, af_version, 
+          num_cores, 
+          af_version, 
           keep_pdb_files)
     
 

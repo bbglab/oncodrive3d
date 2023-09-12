@@ -44,6 +44,7 @@ logger = daiquiri.getLogger(__logger_name__ + ".build")
 
 def build(output_datasets,
           organism,
+          distance_threshold,
           uniprot_to_hugo,
           num_cores,
           af_version,
@@ -103,7 +104,7 @@ def build(output_datasets,
     get_prob_cmaps_mp(input_pdb=os.path.join(output_datasets, "pdb_structures"),
                       input_pae=os.path.join(output_datasets, "pae"),
                       output=os.path.join(output_datasets,"prob_cmaps"),
-                      distance=10,
+                      distance=distance_threshold,
                       num_cores=num_cores)
     logger.info("Generation pCMAPs completed!")
 
