@@ -6,36 +6,21 @@ method that uses the the canonical predicted structure stored in
 AlphaFold db to perform 3D-clustering of mutations using simulations 
 and rank based comparison.
 
-###################################### EXAMPLE USAGE ############################################
+#==============
+# EXAMPLE USAGE
+===============
 
-## CH
+# Build datasets
 
-oncodrive3D run -i /workspace/projects/clustering_3d/evaluation/datasets/datasets_ch/input/maf/OTHER_WXS_CH_IMPACT_PANEL.in.maf \
-    -o /workspace/projects/clustering_3d/dev_testing/output/ \
-        -p /workspace/projects/clustering_3d/evaluation/datasets/datasets_ch/input/mut_profile/OTHER_WXS_CH_IMPACT_PANEL.mutrate.json \
-            -t CH -C OTHER_WXS_CH_IMPACT_PANEL \
-                -e /workspace/projects/clustering_3d/clustering_3d/datasets_build_full_v/pae/ \
-                    -u 48 -S 128 
+cd path/to/oncodrive3D
+oncodrive3D build-datasets
 
+# Run 
 
-## Build datasets
-
-oncodrive3D build-datasets -o /workspace/projects/clustering_3d/clustering_3d/datasets_build_final/
-
-## Run 
-
-oncodrive3D run -i /workspace/projects/clustering_3d/evaluation/datasets/input/maf/HARTWIG_WGS_PANCREAS_2020.in.maf  \
-        -o /workspace/projects/clustering_3d/dev_testing/output \
-            -p /workspace/projects/clustering_3d/evaluation/datasets/input/mut_profile/HARTWIG_WGS_PANCREAS_2020.mutrate.json \
-                -s /workspace/projects/clustering_3d/clustering_3d/datasets_build_full_v/seq_for_mut_prob.csv \
-                    -c /workspace/projects/clustering_3d/clustering_3d/datasets_build_full_v/prob_cmaps/ \
-                        -d /workspace/projects/clustering_3d/clustering_3d/datasets_build_full_v/confidence.csv \
-                            -t BLCA -C HARTWIG_WGS_PANCREAS_2020 \
-                                -e /workspace/projects/clustering_3d/clustering_3d/datasets_build_full_v/pae/ \
-                                    -u 48 -S 128 
-                                    
-                                    
-#################################################################################################
+oncodrive3D run \
+    -i test/maf/TCGA_WXS_ACC.in.maf  \
+        -p test/maf/TCGA_WXS_ACC.mutrate.json \
+            -o test/results
 """
 
 import json
@@ -121,7 +106,7 @@ def build_datasets(output_dir,
                      help="Run 3D-clustering analysis") 
 @click.option("-i", "--input_maf_path", type=click.Path(exists=True), required=True, help="Path of the MAF file used as input")
 @click.option("-p", "--mut_profile_path", type=click.Path(exists=True), help="Path of the mutation profile (192 trinucleotide contexts) used as optional input")
-@click.option("-o", "--output_dir", help="Path to output directory", type=str, default='./results')
+@click.option("-o", "--output_dir", help="Path to output directory", type=str, default='results')
 @click.option("-d", "--data_dir", help="Path to datasets", type=click.Path(exists=True), default = os.path.join('datasets'))
 @click.option("-n", "--n_iterations", help="Number of densities to be simulated", type=int, default=10000)
 @click.option("-a", "--alpha", help="Significant threshold for the p-value of res and gene", type=float, default=0.01)

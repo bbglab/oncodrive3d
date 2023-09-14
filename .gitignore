@@ -159,13 +159,12 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-
+# Oncodrive3D
 dataset*
 !scripts/datasets 
 backups
 results
-tests/output/*
-!tests/output/.gitkeep
+tests/results/*
 scripts/test.qmap
 scripts/run_*
 scripts/submit*
