@@ -39,7 +39,7 @@ oncodrive3D build-datasets -o build_folder/
 
 - **-d, --distance_threshold <int>**: Distance threshold (Å) to define contact between amino acids. Default: `10`.
 
-- **-c, --num_cores <int>**: Determines the number of CPU cores to use in the computation. Default: Number of available CPU cores.
+- **-c, --cores <int>**: Determines the number of CPU cores to use in the computation. Default: Number of available CPU cores.
 
 - **-v, --verbose <flag: set to enable>**: Enables a more verbose output from the method.
 
@@ -58,9 +58,9 @@ oncodrive3D run -i input.maf -p mut_profile.json -d build_folder/ -t cancer_type
 
 - **-d, --data_dir <path>**: Sets the build folder, including the files compiled during the [building datasets](#building-datasets) step. Default: `datasets/`.
 
-- **-u, --num_cores <int>**: Specifies the number of CPU cores to use in the computation. Default: Number of available CPU cores.
+- **-c, --num_cores <int>**: Specifies the number of CPU cores to use in the computation. Default: Number of available CPU cores.
 
-- **-S, --seed <int>**: Sets the seed to be used for reproducibility.
+- **-s, --seed <int>**: Sets the seed to be used for reproducibility.
 
 - **-v, --verbose <flag: set to enable>**: Enables a more verbose output from the method.
 

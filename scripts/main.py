@@ -6,9 +6,9 @@ method that uses the the canonical predicted structure stored in
 AlphaFold db to perform 3D-clustering of mutations using simulations 
 and rank based comparison.
 
-#==============
+# =============
 # EXAMPLE USAGE
-===============
+# =============
 
 # Build datasets
 
@@ -114,9 +114,9 @@ def build_datasets(output_dir,
               help="Threshold to define AAs contacts based on distance on predicted structure and PAE")
 @click.option("-H", "--hits_only", help="Returns only positions in clusters", is_flag=True)
 @click.option("-f", "--no_fragments", help="Disable processing of fragmented (AF-F) proteins", is_flag=True)
-@click.option("-u", "--num_cores", type=click.IntRange(min=1, max=len(os.sched_getaffinity(0)), clamp=False), default=len(os.sched_getaffinity(0)),
+@click.option("-c", "--cores", type=click.IntRange(min=1, max=len(os.sched_getaffinity(0)), clamp=False), default=len(os.sched_getaffinity(0)),
               help="Set the number of cores to use in the computation")
-@click.option("-S", "--seed", help="Set seed to ensure reproducible results", type=int)
+@click.option("-s", "--seed", help="Set seed to ensure reproducible results", type=int)
 @click.option("-v", "--verbose", help="Verbose", is_flag=True)
 @click.option("-t", "--cancer_type", help="Cancer type", type=str)
 @click.option("-C", "--cohort", help="Name of the cohort", type=str)
