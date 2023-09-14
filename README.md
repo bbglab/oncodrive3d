@@ -33,7 +33,7 @@ or using a different threshold to define contacts between residues).
 oncodrive3D build-datasets -o build_folder/
 ```
 
-- **-o, --output_dir <path>**: Specifies the build folder where files will be saved. Default: `./datasets`.
+- **-o, --output_dir <path>**: Specifies the build folder where files will be saved. Default: `datasets/`.
 
 - **-s, --organism <str>**: Sets the organism name (`human` or `mouse`). Default: `human`.
 
@@ -54,9 +54,9 @@ oncodrive3D run -i input.maf -p mut_profile.json -d build_folder/ -t cancer_type
 
 - **-p, --mut_profile_path <path>**: Specifies the path to the Mut profile of the cohort, which is a dictionary of 192 key-value pairs in JSON format.
 
-- **-o, --output_dir <path>**: Sets the output directory. Default: `./results`.
+- **-o, --output_dir <path>**: Sets the output directory. Default: `results/`.
 
-- **-d, --data_dir <path>**: Sets the build folder, including the files compiled during the [building datasets](#building-datasets) step. Default: `./datasets`.
+- **-d, --data_dir <path>**: Sets the build folder, including the files compiled during the [building datasets](#building-datasets) step. Default: `datasets/`.
 
 - **-u, --num_cores <int>**: Specifies the number of CPU cores to use in the computation. Default: Number of available CPU cores.
 
