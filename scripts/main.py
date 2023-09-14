@@ -60,7 +60,7 @@ def oncodrive3D():
               help="Distance threshold (Å) to define contact between amino acids")
 @click.option("-u", "--uniprot_to_hugo", type=click.Path(exists=True), 
               help="Optional path to custom dict including Uniprot to HUGO IDs mapping")
-@click.option("-c", "--num_cores", type=click.IntRange(min=1, max=len(os.sched_getaffinity(0)), clamp=False), default=len(os.sched_getaffinity(0)),
+@click.option("-c", "--cores", type=click.IntRange(min=1, max=len(os.sched_getaffinity(0)), clamp=False), default=len(os.sched_getaffinity(0)),
               help="Number of cores to use in the computation")
 @click.option("-a", "--af_version", type=click.IntRange(min=1, max=4, clamp=False), default=4,
               help="Version of AlphaFold 2 predictions")
