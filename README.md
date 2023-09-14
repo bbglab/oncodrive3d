@@ -82,3 +82,13 @@ oncodrive3D run -i input.maf -p mut_profile.json -d build_folder/ -t cancer_type
 - **cohort_filename.3d_clustering_genes.csv**: This is a Comma-Separated Values (CSV) file containing the results of the analysis at the gene level.
   
 - **cohort_filename.3d_clustering_pos.csv**: This is a Comma-Separated Values (CSV) file containing the results of the analysis at the level of mutated positions.
+
+
+## Testing
+
+To ensure that Oncodrive3D is correctly installed and configured, you can 
+perform a test run using the provided test input file. 
+
+```bash
+   oncodrive3D run -i test/TCGA_WXS_ACC.in.maf -p test/TCGA_WXS_ACC.mutrate.json -o test/results/
+```
