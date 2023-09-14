@@ -87,7 +87,7 @@ oncodrive3D run -i input.maf -p mut_profile.json -d build_folder/ -t cancer_type
 ## Testing
 
 To ensure that Oncodrive3D is correctly installed and configured, you can 
-perform a test run using the provided test input file. 
+perform a test run using the provided test input files. 
 
 ```bash
    oncodrive3D run -i test/TCGA_WXS_ACC.in.maf -p test/TCGA_WXS_ACC.mutrate.json -o test/results/
