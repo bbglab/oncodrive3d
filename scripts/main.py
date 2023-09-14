@@ -72,7 +72,7 @@ def build_datasets(output_dir,
                    organism, 
                    distance_threshold,
                    uniprot_to_hugo, 
-                   num_cores, af_version, 
+                   cores, af_version, 
                    keep_pdb_files, 
                    yes,
                    verbose):
@@ -85,7 +85,7 @@ def build_datasets(output_dir,
     logger.info(f"Organism: {organism}")
     logger.info(f"Distance threshold: {distance_threshold}Å")
     logger.info(f"Custom IDs mapping: {uniprot_to_hugo}")
-    logger.info(f"CPU cores: {num_cores}")
+    logger.info(f"CPU cores: {cores}")
     logger.info(f"AlphaFold version: {af_version}")
     logger.info(f"Keep PDB files: {keep_pdb_files}")
     logger.info(f"Verbose: {verbose}")
@@ -96,7 +96,7 @@ def build_datasets(output_dir,
           organism, 
           distance_threshold,
           uniprot_to_hugo, 
-          num_cores, 
+          cores, 
           af_version, 
           keep_pdb_files)
     
@@ -130,7 +130,7 @@ def run(input_maf_path,
         cmap_prob_thr,
         hits_only,
         no_fragments,
-        num_cores,
+        cores,
         seed,
         verbose,
         cancer_type,
@@ -162,7 +162,7 @@ def run(input_maf_path,
     logger.debug(f"Path to DNA sequences: {seq_df_path}")
     logger.debug(f"Path to PAE: {pae_path}")
     logger.debug(f"Path to pLDDT scores: {plddt_path}")
-    logger.info(f"CPU cores: {num_cores}")
+    logger.info(f"CPU cores: {cores}")
     logger.info(f"Iterations: {n_iterations}")
     logger.info(f"Significant level: {alpha}")
     logger.info(f"Probability threshold for CMAPs: {cmap_prob_thr}")
@@ -267,7 +267,7 @@ def run(input_maf_path,
                                                             miss_prob_dict, 
                                                             gene_to_uniprot_dict, 
                                                             plddt_df,
-                                                            num_cores, 
+                                                            cores, 
                                                             alpha=alpha, 
                                                             num_iteration=n_iterations, 
                                                             cmap_prob_thr=cmap_prob_thr, 
