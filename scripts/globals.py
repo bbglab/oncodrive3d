@@ -50,7 +50,7 @@ def setup_logging_decorator(func):
 def startup_message(version, initializing_text):
     
     author = "Biomedical Genomics Lab - IRB Barcelona"
-    support_email = "stefano.pellegrini@irbbarcelona.com"
+    support_email = "stefano.pellegrini@irbbarcelona.org"
     banner_width = 70
 
     logger.info("#" * banner_width)
