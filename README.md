@@ -95,7 +95,7 @@ perform a test run using the provided test input files.
 
 ## Parallel processing on multiple cohort
 
-It is possible to run Oncodrive3D in parallel on multiple cohorts by using [nextflow](https://www.nextflow.io/docs/latest/getstarted.html).
+It is possible to run Oncodrive3D in parallel on multiple cohorts by using [nextflow](https://www.nextflow.io/).
 
 1. Install [nextflow](https://www.nextflow.io/docs/latest/getstarted.html) and [Singularity](https://www.nextflow.io/docs/latest/getstarted.html) (versions `23.04.3.5875` and `3.5.3` were used respectively).
 
