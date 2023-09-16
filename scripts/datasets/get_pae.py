@@ -46,10 +46,11 @@ def get_pae(input_dir: str, output_dir: str, af_version: int = 4) -> None:
         logger.debug("PAE already downloaded: Skipping...")
 
     else:
-        for pdb_file in progressbar(os.listdir(input_dir)):
-            if pdb_file.startswith("AF-") and pdb_file.endswith(f"-model_v{af_version}.pdb.gz"):
-                uniprot_id = pdb_file.split("-")[1]
-                download_pae(uniprot_id, af_version, output_dir)
+        for pdb_file in progressbar([file for file in os.listdir(input_dir) 
+                                     if file.startswith("AF-") and file.endswith(f"-model_v{af_version}.pdb.gz")]):
+           # if pdb_file.startswith("AF-") and pdb_file.endswith(f"-model_v{af_version}.pdb.gz"):
+            uniprot_id = pdb_file.split("-")[1]
+            download_pae(uniprot_id, af_version, output_dir)
 
         with open(checkpoint, "w") as f:
                     f.write('')
