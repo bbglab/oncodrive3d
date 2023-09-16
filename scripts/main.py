@@ -52,7 +52,7 @@ def oncodrive3D():
 
 
 @oncodrive3D.command(context_settings=dict(help_option_names=['-h', '--help']),
-               help="Build datasets - Required once after installation") 
+               help="Build datasets - Required once after installation.") 
 @click.option("-o", "--output_dir", help="Directory where to save the files", type=str, default='datasets')
 @click.option("-s", "--organism", type=click.Choice(['human', 'mouse']), 
               help="Organism name", default="human")
@@ -103,7 +103,7 @@ def build_datasets(output_dir,
 
 
 @oncodrive3D.command(context_settings=dict(help_option_names=['-h', '--help']),
-                     help="Run 3D-clustering analysis") 
+                     help="Run 3D-clustering analysis.") 
 @click.option("-i", "--input_maf_path", type=click.Path(exists=True), required=True, help="Path of the MAF file used as input")
 @click.option("-p", "--mut_profile_path", type=click.Path(exists=True), help="Path of the mutation profile (192 trinucleotide contexts) used as optional input")
 @click.option("-o", "--output_dir", help="Path to output directory", type=str, default='results')

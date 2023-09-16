@@ -8,7 +8,7 @@ __pycache__/
 
 # Distribution / packaging
 .Python
-build/
+#build/
 develop-eggs/
 dist/
 downloads/
@@ -168,3 +168,16 @@ tests/results/*
 scripts/test.qmap
 scripts/run_*
 scripts/submit*
+
+# Nextflow
+work
+report*
+timeline*
+trace*
+*.log
+.nextflow*
+
+# Containers
+*.def
+*.simg
+*.sif
