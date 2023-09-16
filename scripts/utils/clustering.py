@@ -27,7 +27,6 @@ def clustering_3d(gene,
                   alpha=0.01,
                   num_iteration=10000,
                   cmap_prob_thr=0.5,
-                  hits_only=True,
                   seed=None,
                   pae_path=None):
     """
@@ -210,10 +209,6 @@ def clustering_3d(gene,
     result_gene_df["Clust_mut"] = clustered_mut
     result_gene_df["Status"] = "Processed"
 
-    # Keep only positions in clusters           
-    if hits_only:
-        result_pos_df = result_pos_df[result_pos_df["C"] == 1]
-
     return result_pos_df, result_gene_df
 
 
@@ -227,8 +222,6 @@ def clustering_3d_mp(genes,
                      alpha=0.01,
                      num_iteration=10000,
                      cmap_prob_thr=0.5,
-                     hits_only=1,
-                     verbose=0,
                      seed=None,
                      pae_path=None):
     """
@@ -255,7 +248,6 @@ def clustering_3d_mp(genes,
                                                 alpha=alpha,
                                                 num_iteration=num_iteration,
                                                 cmap_prob_thr=cmap_prob_thr,
-                                                hits_only=hits_only,
                                                 seed=seed,
                                                 pae_path=pae_path)
         result_gene_lst.append(result_gene)
@@ -285,8 +277,6 @@ def clustering_3d_mp_wrapper(genes,
                              alpha=0.01,
                              num_iteration=10000,
                              cmap_prob_thr=0.5,
-                             hits_only=0,
-                             verbose=0,
                              seed=None,
                              pae_path=None):
     """
@@ -300,11 +290,19 @@ def clustering_3d_mp_wrapper(genes,
     # Create a pool of processes and run clustering in parallel
     with multiprocessing.Pool(processes = num_cores) as pool:
         logger.debug(f'Starting [{len(chunks)}] processes...')
-        results = pool.starmap(clustering_3d_mp, [(chunk, data, cmap_path, miss_prob_dict, 
-                                                   gene_to_uniprot_dict, plddt_df, n_process,
-                                                   alpha, num_iteration, cmap_prob_thr, 
-                                                   hits_only, verbose, seed, pae_path) 
-                                                 for n_process, chunk in enumerate(chunks)])
+        results = pool.starmap(clustering_3d_mp, [(chunk, 
+                                                   data, 
+                                                   cmap_path, 
+                                                   miss_prob_dict, 
+                                                   gene_to_uniprot_dict, 
+                                                   plddt_df, 
+                                                   n_process,
+                                                   alpha, 
+                                                   num_iteration, 
+                                                   cmap_prob_thr, 
+                                                   seed, 
+                                                   pae_path) 
+                                                  for n_process, chunk in enumerate(chunks)])
         
     # Parse output
     result_pos_lst = [pd.concat(r[1]) for r in results if len(r[1]) > 0]

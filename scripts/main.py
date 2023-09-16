@@ -112,7 +112,6 @@ def build_datasets(output_dir,
 @click.option("-a", "--alpha", help="Significant threshold for the p-value of res and gene", type=float, default=0.01)
 @click.option("-P", "--cmap_prob_thr", type=float, default=0.5,
               help="Threshold to define AAs contacts based on distance on predicted structure and PAE")
-@click.option("-H", "--hits_only", help="Returns only positions in clusters", is_flag=True)
 @click.option("-f", "--no_fragments", help="Disable processing of fragmented (AF-F) proteins", is_flag=True)
 @click.option("-c", "--cores", type=click.IntRange(min=1, max=len(os.sched_getaffinity(0)), clamp=False), default=len(os.sched_getaffinity(0)),
               help="Set the number of cores to use in the computation")
@@ -128,7 +127,6 @@ def run(input_maf_path,
         n_iterations,
         alpha,
         cmap_prob_thr,
-        hits_only,
         no_fragments,
         cores,
         seed,
@@ -166,7 +164,6 @@ def run(input_maf_path,
     logger.info(f"Iterations: {n_iterations}")
     logger.info(f"Significant level: {alpha}")
     logger.info(f"Probability threshold for CMAPs: {cmap_prob_thr}")
-    logger.info(f"Output hits only: {bool(hits_only)}")
     logger.info(f"Disable fragments: {bool(no_fragments)}")
     logger.info(f"Cohort: {cohort}")
     logger.info(f"Cancer type: {cancer_type}")
@@ -271,8 +268,6 @@ def run(input_maf_path,
                                                             alpha=alpha, 
                                                             num_iteration=n_iterations, 
                                                             cmap_prob_thr=cmap_prob_thr, 
-                                                            hits_only=hits_only, 
-                                                            verbose=verbose, 
                                                             seed=seed, 
                                                             pae_path=pae_path)
             result_gene = pd.concat((result_gene, pd.concat(result_np_gene_lst)))
