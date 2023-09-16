@@ -96,9 +96,17 @@ perform a test run using the provided test input files.
 ## Parallel processing on multiple cohort
 
 It is possible to run Oncodrive3D in parallel on multiple cohorts by using 
-the provided [nextflow](https://docs.gdc.cancer.gov/Data/File_Formats/MAF_Format/#introduction) 
-script:
+the provided [nextflow](https://docs.gdc.cancer.gov/Data/File_Formats/MAF_Format/#introduction).
 
+1. Install [nextflow](https://www.nextflow.io/docs/latest/getstarted.html) and [Singularity](https://www.nextflow.io/docs/latest/getstarted.html) (versions `23.04.3.5875` and `3.5.3` were used respectively).
+
+2. Pull Oncodrive3D image from Singularity Cloud Library:
+
+```bash
+   singularity pull build/containers/oncodrive3d.sif library://st3451/oncodrive3d/oncodrive3d:0.0.0
+```
+
+3. Run Oncodrive3D in parallel by using the provided nextflow script:
 
 ```bash
    nextflow run oncodrive3d.nf --indir test/ --outdir test/results/
