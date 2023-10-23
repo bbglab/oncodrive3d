@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import subprocess
 import io
+import gzip
 
 from scripts import __logger_name__
 
@@ -17,14 +18,21 @@ def has_comments_as_header(filename):
     """
     Check if the file start with comments as headers.
     """
-
-    with open(filename, 'r') as file:
- 
-        for line in file:
-            if line.startswith("## "):
-                return True
-            else:
-                return False
+    
+    if filename.endswith('.gz') or filename.endswith('.gzip'):
+        with gzip.open(filename, 'rt') as file:
+            for line in file:
+                if line.startswith("## "):
+                    return True
+                else:
+                    return False  
+    else:
+        with open(filename, 'r') as file:
+            for line in file:
+                if line.startswith("## "):
+                    return True
+                else:
+                    return False
             
             
 def read_csv_without_comments(path):
