@@ -113,6 +113,7 @@ def build_datasets(output_dir,
 @click.option("-P", "--cmap_prob_thr", type=float, default=0.5,
               help="Threshold to define AAs contacts based on distance on predicted structure and PAE")
 @click.option("-f", "--no_fragments", help="Disable processing of fragmented (AF-F) proteins", is_flag=True)
+@click.option("-x", "--only_processed", help="Include only processed genes in the output", is_flag=True)
 @click.option("-c", "--cores", type=click.IntRange(min=1, max=len(os.sched_getaffinity(0)), clamp=False), default=len(os.sched_getaffinity(0)),
               help="Set the number of cores to use in the computation")
 @click.option("-s", "--seed", help="Set seed to ensure reproducible results", type=int)
@@ -128,6 +129,7 @@ def run(input_maf_path,
         alpha,
         cmap_prob_thr,
         no_fragments,
+        only_processed,
         cores,
         seed,
         verbose,
@@ -165,6 +167,7 @@ def run(input_maf_path,
     logger.info(f"Significant level: {alpha}")
     logger.info(f"Probability threshold for CMAPs: {cmap_prob_thr}")
     logger.info(f"Disable fragments: {bool(no_fragments)}")
+    logger.info(f"Output only processed genes: {bool(only_processed)}")
     logger.info(f"Cohort: {cohort}")
     logger.info(f"Cancer type: {cancer_type}")
     logger.info(f"Verbose: {bool(verbose)}")
@@ -221,7 +224,7 @@ def run(input_maf_path,
             result_np_gene_lst.append(result_gene)
         
         # Filter on fragmented (AF-F) genes
-        if no_fragments == True:
+        if no_fragments:
             # Return the fragmented genes as non processed output
             genes_frag = seq_df[seq_df.F.str.extract(r'(\d+)', expand=False).astype(int) > 1]
             genes_frag = genes_frag.Gene.reset_index(drop=True).values
@@ -286,8 +289,12 @@ def run(input_maf_path,
         result_gene["Cohort"] = cohort
         output_path_pos = os.path.join(output_dir, f"{cohort}.3d_clustering_pos.csv")
         output_path_genes = os.path.join(output_dir, f"{cohort}.3d_clustering_genes.csv")
+        
+        if only_processed:
+            result_gene = result_gene[result_gene["Status"] == "Processed"]
 
         if result_pos is None:
+            # Save gene-level result and empty res-level result
             logger.warning(f"Did not processed any genes!")
             result_gene = add_nan_clust_cols(result_gene).drop(columns = ["Max_mut_pos", "Structure_max_pos"])
             result_gene = sort_cols(result_gene)
