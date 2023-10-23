@@ -251,3 +251,17 @@ def sort_cols(result_gene):
             'F', 'Status', 'Cancer', 'Cohort']
 
     return result_gene[[col for col in cols if col in result_gene.columns]]
+
+
+def empty_result_pos():
+    """
+    Get an empty position-level result of the clustering method.
+    """
+    
+    cols = ['Gene', 'Uniprot_ID', 'F', 'Pos', 'Mut_in_gene', 'Mut_in_res',
+            'Mut_in_vol', 'Obs_anomaly', 'Ratio_obs_sim', 'pval', 'C', 'C_ext',
+            'Cluster', 'Rank', 'Tot_samples', 'Samples_in_vol', 'Samples_in_cl_vol',
+            'Mut_in_cl_vol', 'Res_in_cl', 'PAE_vol', 'pLDDT_res', 'pLDDT_vol',
+            'pLDDT_cl_vol', 'Cancer', 'Cohort']
+    
+    return pd.DataFrame(columns=cols)

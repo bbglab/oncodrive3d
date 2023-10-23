@@ -38,7 +38,7 @@ from scripts.utils.clustering import clustering_3d_mp_wrapper
 from scripts.utils.miss_mut_prob import (get_miss_mut_prob_dict,
                                          mut_rate_vec_to_dict)
 from scripts.utils.pvalues import get_final_gene_result
-from scripts.utils.utils import add_nan_clust_cols, parse_maf_input, sort_cols
+from scripts.utils.utils import add_nan_clust_cols, parse_maf_input, sort_cols, empty_result_pos
 
 logger = daiquiri.getLogger(__logger_name__)
 
@@ -293,8 +293,11 @@ def run(input_maf_path,
             result_gene = sort_cols(result_gene)
             if no_fragments:
                 result_gene = result_gene.drop(columns=[col for col in ["F", "Mut_in_top_F", "Top_F"] if col in result_gene.columns])
+            empty_result_pos().to_csv(output_path_pos, index=False)
             result_gene.to_csv(output_path_genes, index=False)
-            logger.info(f"Saving to {output_path_genes}")
+            
+            logger.info(f"Saving (empty) {output_path_pos}")
+            logger.info(f"Saving {output_path_genes}")
 
         else:
             # Save res-level result
