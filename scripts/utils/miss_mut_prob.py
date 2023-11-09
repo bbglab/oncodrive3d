@@ -183,7 +183,20 @@ def get_miss_mut_prob(dna_seq, mut_rate_dict, get_probability=True, v=False):
     return list(missense_prob_vec)
 
 
-def get_miss_mut_prob_dict(mut_rate_dict, seq_df, v=False):
+def get_miss_mut_prob_mutability(dna_seq, chr, exons_coord, get_probability=True, v=False):
+
+    ## do stuff here
+
+
+    # Convert into probabilities
+    if get_probability:
+        missense_prob_vec = np.array(missense_prob_vec) / sum(missense_prob_vec)
+    
+    return list(missense_prob_vec)
+
+
+
+def get_miss_mut_prob_dict(mut_rate_dict, seq_df, mutability=False, v=False):
     """
     Given a dictionary of mut rate in 96 contexts (mut profile) and a 
     dataframe including Uniprot ID, HUGO symbol and DNA sequences, 
@@ -192,12 +205,24 @@ def get_miss_mut_prob_dict(mut_rate_dict, seq_df, v=False):
     """
 
     miss_prob_dict = {}
-    # Process any Protein/fragment in the sequence df
-    for _, row in seq_df.iterrows():
+
+    if mutability:
+        # Process any Protein/fragment in the sequence df
         if "F" in seq_df.columns:
-            miss_prob_dict[f"{row.Uniprot_ID}-F{row.F}"] = get_miss_mut_prob(row.Seq_dna, mut_rate_dict, v=v)
+            for _, row in seq_df.iterrows():
+                miss_prob_dict[f"{row.Uniprot_ID}-F{row.F}"] = get_miss_mut_prob_mutability(row.Seq_dna, row.Chr, row.Exons_coord, v=v)
         else:
-            miss_prob_dict[f"{row.Uniprot_ID}"] = get_miss_mut_prob(row.Seq_dna, mut_rate_dict, v=v)
+            for _, row in seq_df.iterrows():
+                miss_prob_dict[f"{row.Uniprot_ID}"] = get_miss_mut_prob_mutability(row.Seq_dna, row.Chr, row.Exons_coord, v=v)
+
+    else:
+        # Process any Protein/fragment in the sequence df
+        if "F" in seq_df.columns:
+            for _, row in seq_df.iterrows():
+                miss_prob_dict[f"{row.Uniprot_ID}-F{row.F}"] = get_miss_mut_prob(row.Seq_dna, mut_rate_dict, v=v)
+        else:
+            for _, row in seq_df.iterrows():
+                miss_prob_dict[f"{row.Uniprot_ID}"] = get_miss_mut_prob(row.Seq_dna, mut_rate_dict, v=v)
 
     return miss_prob_dict
 
