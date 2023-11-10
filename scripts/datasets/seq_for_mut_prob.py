@@ -20,6 +20,9 @@ import os
 import re
 import time
 
+import requests
+import sys
+import numpy as np
 import daiquiri
 import pandas as pd
 import requests
@@ -69,10 +72,107 @@ def initialize_seq_df(input_path, uniprot_to_gene_dict):
     return seq_df
 
 
+def _uniprot_request_coord(lst_uniprot_ids):
+    """
+    Use Coordinates from EMBL-EBI Proteins API to get 
+    a json including exons coordinate and protein info.
+    
+    https://www.ebi.ac.uk/proteins/api/doc/#coordinatesApi
+    https://doi.org/10.1093/nar/gkx237
+    """
+    
+    prot_request = [f"{prot}" if i == 0 else f"%2C{prot}" for i, prot in enumerate(lst_uniprot_ids)]
+    requestURL = f"https://www.ebi.ac.uk/proteins/api/coordinates?offset=0&size=100&accession={''.join(prot_request)}"
+    r = requests.get(requestURL, headers={ "Accept" : "application/json"})
+
+    if not r.ok:
+      r.raise_for_status()
+      sys.exit()
+    
+    for dictio in json.loads(r.text):
+        
+        yield dictio
+
+
+def get_batch_exons_coord(batch_ids):
+    """
+    Parse the json obtained from the Coordinates 
+    service extracting exons coordinates and protein info.
+    
+    https://www.ebi.ac.uk/proteins/api/doc/#coordinatesApi
+    https://doi.org/10.1093/nar/gkx237
+    """
+    
+    lsts_gene = []
+    lst_uni_id = []
+    lst_seq = []
+    lst_chr = []
+    lst_ranges = []
+    
+    for dic in _uniprot_request_coord(batch_ids):
+
+        gene = dic["gene"][0]["value"]
+        uni_id = dic["accession"]
+        seq = dic["sequence"]
+        dic = dic["gnCoordinate"][0]["genomicLocation"]
+        exons = dic["exon"]
+        chromosome = dic["chromosome"]
+        ranges = []
+
+        for exon in exons:
+            exon = exon["genomeLocation"]
+            if "begin" in exon.keys():
+                begin = exon["begin"]["position"]
+                end = exon["end"]["position"]
+            else:
+                begin = exon["position"]["position"]
+                end = exon["position"]["position"]
+            ranges.append((begin, end))
+            
+        lsts_gene.append(gene)
+        lst_uni_id.append(uni_id)
+        lst_seq.append(seq)
+        lst_chr.append(chromosome)
+        lst_ranges.append(str(ranges))
+
+    return pd.DataFrame({"Gene" : lsts_gene, "Uniprot_ID" : lst_uni_id, 
+                         "Seq" : lst_seq, "Chr" : lst_chr, "Exons_coord" : lst_ranges})
+
+
+def get_all_ids_coord(ids, batch_size=100):
+    """
+    Use the Coordinates service from Proteins API of EMBL-EBI to get 
+    exons coordinate and proteins info of all provided Uniprot IDs.
+    
+    https://www.ebi.ac.uk/proteins/api/doc/#coordinatesApi
+    https://doi.org/10.1093/nar/gkx237
+    """
+    
+    lst_df = []
+    batches_ids = [ids[i:i+batch_size] for i in range(0, len(ids), batch_size)]
+
+    for batch_ids in batches_ids:
+        
+        batch_df = get_batch_exons_coord(batch_ids)
+        
+        # Identify unmapped IDs and add them as NaN rows
+        unmapped_ids = list(set(batch_ids).difference(set(batch_df.Uniprot_ID.unique())))
+        
+        nan_rows = pd.DataFrame({'Gene': np.repeat(np.nan, len(unmapped_ids)),
+                                 'Uniprot_ID': unmapped_ids,
+                                 'Seq': np.repeat(np.nan, len(unmapped_ids)),
+                                 'Chr': np.repeat(np.nan, len(unmapped_ids)),
+                                 'Exons_coord': np.repeat(np.nan, len(unmapped_ids))})
+
+        batch_df = pd.concat([batch_df, nan_rows], ignore_index=True)
+        lst_df.append(batch_df)
+    
+    return pd.concat(lst_df).reset_index(drop=True)
+
+
 def backtranseq(protein_seqs, organism = "Homo sapiens"):
     """
-    Perform backtranslation from proteins to 
-    DNA sequences using EMBOS backtranseq.    
+    Perform backtranslation from proteins to DNA sequences using EMBOS backtranseq.    
     """
     
     # Define the API endpoints
@@ -156,8 +256,12 @@ def add_extra_genes_to_seq_df(seq_df, uniprot_to_gene_dict):
                         lst_extra_genes.append((gene, seq_row["Uniprot_ID"], seq_row["F"], seq_row["Seq"], seq_row["Seq_dna"]))
 
     seq_df_extra_genes = pd.DataFrame(lst_extra_genes, columns=["Gene", "Uniprot_ID", "F", "Seq", "Seq_dna"])
+    seq_df = pd.concat((seq_df, seq_df_extra_genes))
+    seq_df = seq_df[seq_df.apply(lambda x: len(x["Gene"].split(" ")), axis =1) == 1].reset_index(drop=True)
+    seq_df = seq_df.dropna(subset=["Gene"])
+    seq_df = seq_df.drop_duplicates().reset_index(drop=True)
     
-    return pd.concat((seq_df, seq_df_extra_genes))
+    return seq_df
 
 
 def get_seq_df(input_dir, 
@@ -166,12 +270,12 @@ def get_seq_df(input_dir,
                organism = "Homo sapiens"):
 
     # Load Uniprot ID to HUGO mapping
+    uniprot_ids = os.listdir(input_dir)
+    uniprot_ids = [uni_id.split("-")[1] for uni_id in list(set(uniprot_ids)) if ".pdb" in uni_id]
     if uniprot_to_gene_dict is not None and uniprot_to_gene_dict != "None":
         uniprot_to_gene_dict = json.load(open(uniprot_to_gene_dict)) 
     else:
         logger.debug("Retrieving Uniprot_ID to Hugo symbol mapping information..")
-        uniprot_ids = os.listdir(input_dir)
-        uniprot_ids = [uni_id.split("-")[1] for uni_id in list(set(uniprot_ids)) if ".pdb" in uni_id]
         uniprot_to_gene_dict = uniprot_to_hugo(uniprot_ids)  
 
     # Create a dataframe with protein sequences
@@ -184,7 +288,10 @@ def get_seq_df(input_dir,
     
     # Add multiple genes mapping to the same Uniprot_ID
     seq_df = add_extra_genes_to_seq_df(seq_df, uniprot_to_gene_dict)
-    seq_df = seq_df.dropna(subset=["Gene"])
+    
+    # Get coordinates for mutability integration (used to correct for seq depth in normal tissue)
+    coord_df = get_all_ids_coord(uniprot_ids)
+    seq_df = seq_df.merge(coord_df.drop(columns=["Gene"]), on=["Seq", "Uniprot_ID"], how="left").reset_index(drop=True)
     
     # Save and assess similarity
     seq_df.to_csv(output_seq_df, index=False)
