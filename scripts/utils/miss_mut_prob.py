@@ -84,7 +84,7 @@ def colored(text, r=255, g=0, b=0):
     return f"{start}{text}{end}"
 
 
-def get_miss_mut_prob(dna_seq, mut_rate_dict, get_probability=True, v=False):
+def get_miss_mut_prob(dna_seq, mut_rate_dict, mutability=False, get_probability=True, v=False):
     """
     Generate a list including the probabilities that the 
     codons can mutate resulting into a missense mutations.
@@ -164,12 +164,21 @@ def get_miss_mut_prob(dna_seq, mut_rate_dict, get_probability=True, v=False):
                     alt_aa = gencode[alt_codon]  
                     # If there is a missense mut, get prob from context and sum it
                     if alt_aa != aa and alt_aa != "_":
-                        mut = f"{trinucl}>{alt}"
-                        if v: print(mut, "\t", mut_rate_dict[mut], "\t", alt_codon, "\t    ", alt_aa, )
-                        if mut in mut_rate_dict:
-                            missense_prob += mut_rate_dict[mut]
+                        if not mutability:
+                            mut = f"{trinucl}>{alt}"
+                            if v: print(mut, "\t", mut_rate_dict[mut], "\t", alt_codon, "\t    ", alt_aa, )
+                            if mut in mut_rate_dict:
+                                missense_prob += mut_rate_dict[mut]
+                            else:
+                                missense_prob += 0
                         else:
-                            missense_prob += 0
+                            cdna_pos = (c * 3) - (i-3)
+                            mut = f"{trinucl}>{alt}"
+                            if v: print(mut, "\t", mut_rate_dict[mut], "\t", alt_codon, "\t    ", alt_aa, )
+                            if mut in mut_rate_dict:
+                                missense_prob += mut_rate_dict[mut]
+                            else:
+                                missense_prob += 0
             if v: logger.debug("")
 
         if v: logger.debug(f">> Prob of missense mut: {missense_prob:.3}\n")
@@ -183,7 +192,7 @@ def get_miss_mut_prob(dna_seq, mut_rate_dict, get_probability=True, v=False):
     return list(missense_prob_vec)
 
 
-def get_miss_mut_prob_mutability(dna_seq, chr, exons_coord, get_probability=True, v=False):
+def get_miss_mut_prob_mutability(dna_seq, mutabilities_per_site, get_probability=True, v=False):
 
     ## do stuff here
 
@@ -210,10 +219,13 @@ def get_miss_mut_prob_dict(mut_rate_dict, seq_df, mutability=False, v=False):
         # Process any Protein/fragment in the sequence df
         if "F" in seq_df.columns:
             for _, row in seq_df.iterrows():
-                miss_prob_dict[f"{row.Uniprot_ID}-F{row.F}"] = get_miss_mut_prob_mutability(row.Seq_dna, row.Chr, row.Exons_coord, v=v)
+                # Mutabilities
+                # mutability_config
+                mutability_dict = Mutabilities(row.Chr, row.Exons_coord, mutability_config).get_mutabilities_cdna_positions()
+                miss_prob_dict[f"{row.Uniprot_ID}-F{row.F}"] = get_miss_mut_prob_mutability(row.Seq_dna, mutability_dict, v=v)
         else:
             for _, row in seq_df.iterrows():
-                miss_prob_dict[f"{row.Uniprot_ID}"] = get_miss_mut_prob_mutability(row.Seq_dna, row.Chr, row.Exons_coord, v=v)
+                miss_prob_dict[f"{row.Uniprot_ID}"] = get_miss_mut_prob_mutability(row.Seq_dna, mutability_dict, v=v)
 
     else:
         # Process any Protein/fragment in the sequence df
