@@ -165,37 +165,20 @@ def get_miss_mut_prob(dna_seq, mut_rate_dict, mutability=False, get_probability=
                     # If there is a missense mut, get prob from context and sum it
                     if alt_aa != aa and alt_aa != "_":
                         if not mutability:
-                            mut = f"{trinucl}>{alt}"
-                            if v: print(mut, "\t", mut_rate_dict[mut], "\t", alt_codon, "\t    ", alt_aa, )
-                            if mut in mut_rate_dict:
-                                missense_prob += mut_rate_dict[mut]
-                            else:
-                                missense_prob += 0
+                            mut = f"{trinucl}>{alt}"    # query using only the trinucleotide change
                         else:
-                            cdna_pos = (c * 3) - (i-3)
-                            mut = f"{trinucl}>{alt}"
-                            if v: print(mut, "\t", mut_rate_dict[mut], "\t", alt_codon, "\t    ", alt_aa, )
-                            if mut in mut_rate_dict:
-                                missense_prob += mut_rate_dict[mut]
-                            else:
-                                missense_prob += 0
+                            cdna_pos = ((c-1) * 3) + i  # compute the cDNA position of the residue
+                            mut = (cdna_pos, alt)       # query using cDNA position
+
+                        if v: print(f"{trinucl}>{alt}", "\t", mut_rate_dict[mut], "\t", alt_codon, "\t    ", alt_aa, )                        if mut in mut_rate_dict:
+                            missense_prob += mut_rate_dict[mut]
+                        else:
+                            missense_prob += 0
             if v: logger.debug("")
 
         if v: logger.debug(f">> Prob of missense mut: {missense_prob:.3}\n")
         missense_prob_vec.append(missense_prob)
-    missense_prob_vec.append(0)                               # Assign 0 prob to the last residu
-
-    # Convert into probabilities
-    if get_probability:
-        missense_prob_vec = np.array(missense_prob_vec) / sum(missense_prob_vec)
-    
-    return list(missense_prob_vec)
-
-
-def get_miss_mut_prob_mutability(dna_seq, mutabilities_per_site, get_probability=True, v=False):
-
-    ## do stuff here
-
+    missense_prob_vec.append(0)                               # Assign 0 prob to the last residue
 
     # Convert into probabilities
     if get_probability:
@@ -205,7 +188,7 @@ def get_miss_mut_prob_mutability(dna_seq, mutabilities_per_site, get_probability
 
 
 
-def get_miss_mut_prob_dict(mut_rate_dict, seq_df, mutability=False, v=False):
+def get_miss_mut_prob_dict(mut_rate_dict, seq_df, mutability=False, mutability_config=None, v=False):
     """
     Given a dictionary of mut rate in 96 contexts (mut profile) and a 
     dataframe including Uniprot ID, HUGO symbol and DNA sequences, 
@@ -220,12 +203,13 @@ def get_miss_mut_prob_dict(mut_rate_dict, seq_df, mutability=False, v=False):
         if "F" in seq_df.columns:
             for _, row in seq_df.iterrows():
                 # Mutabilities
-                # mutability_config
-                mutability_dict = Mutabilities(row.Chr, row.Exons_coord, mutability_config).get_mutabilities_cdna_positions()
-                miss_prob_dict[f"{row.Uniprot_ID}-F{row.F}"] = get_miss_mut_prob_mutability(row.Seq_dna, mutability_dict, v=v)
+                # mutability_dict = Mutabilities(row.Uniprot_ID, row.Chr, row.Exons_coord, len(row.Seq_dna), row.strand, mutability_config).mutabilities_by_pos
+                mutability_dict = Mutabilities(row.Uniprot_ID, row.Chr, row.Exons_coord, len(row.Seq_dna), False, mutability_config).mutabilities_by_pos
+                miss_prob_dict[f"{row.Uniprot_ID}-F{row.F}"] = get_miss_mut_prob(row.Seq_dna, mutability_dict, mutability=True, v=v)
         else:
             for _, row in seq_df.iterrows():
-                miss_prob_dict[f"{row.Uniprot_ID}"] = get_miss_mut_prob_mutability(row.Seq_dna, mutability_dict, v=v)
+                mutability_dict = Mutabilities(row.Uniprot_ID, row.Chr, row.Exons_coord, len(row.Seq_dna), False, mutability_config).mutabilities_by_pos
+                miss_prob_dict[f"{row.Uniprot_ID}"] = get_miss_mut_prob(row.Seq_dna, mutability_dict, mutability=True, v=v)
 
     else:
         # Process any Protein/fragment in the sequence df

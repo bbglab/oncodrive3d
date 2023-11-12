@@ -106,6 +106,7 @@ def build_datasets(output_dir,
                      help="Run 3D-clustering analysis.") 
 @click.option("-i", "--input_maf_path", type=click.Path(exists=True), required=True, help="Path of the MAF file used as input")
 @click.option("-p", "--mut_profile_path", type=click.Path(exists=True), help="Path of the mutation profile (192 trinucleotide contexts) used as optional input")
+@click.option("-m", "--mutability_config_path", type=click.Path(exists=True), help="Path of the config file with information on mutability")
 @click.option("-o", "--output_dir", help="Path to output directory", type=str, default='results')
 @click.option("-d", "--data_dir", help="Path to datasets", type=click.Path(exists=True), default = os.path.join('datasets'))
 @click.option("-n", "--n_iterations", help="Number of densities to be simulated", type=int, default=10000)
@@ -122,7 +123,8 @@ def build_datasets(output_dir,
 @click.option("-C", "--cohort", help="Name of the cohort", type=str)
 @setup_logging_decorator
 def run(input_maf_path, 
-        mut_profile_path, 
+        mut_profile_path,
+        mutability_config_path,
         output_dir,
         data_dir,
         n_iterations,
@@ -150,12 +152,14 @@ def run(input_maf_path,
     cancer_type = cancer_type if cancer_type else np.nan
     cohort = cohort if cohort else f"cohort_{DATE}"
     path_prob = mut_profile_path if mut_profile_path else "Not provided, uniform distribution will be used"
+    path_mutability_config = mutability_config_path if mutability_config_path else "Not provided, mutabilities will not be used"
 
     # Log
     startup_message(__version__, "Initializing analysis...")
 
     logger.info(f"Input MAF: {input_maf_path}")
     logger.info(f"Input mut profile: {path_prob}")
+    logger.info(f"Input mutability config: {path_mutability_config}")
     logger.info(f"Build directory: {data_dir}")
     logger.info(f"Output directory: {output_dir}")
     logger.debug(f"Path to CMAPs: {cmap_path}")
@@ -246,8 +250,16 @@ def run(input_maf_path,
                 seq_df = seq_df[[gene in genes_to_process for gene in seq_df["Gene"]]].reset_index(drop=True)
                 
 
-        # Missense mut prob  
-        if mut_profile_path is not None:
+        # Missense mut prob
+        # using mutabilities if provided
+        if mutability:
+            logger.info(f"Computing missense mut probabilities using mutabilities...")
+            mutab_config = json.load(open(mutability_config_path))
+            init_mutabilities_module(mutab_config)
+            miss_prob_dict = get_miss_mut_prob_dict(mut_rate_dict=None, seq_df=seq_df,
+                                                    mutability=True, mutability_config=mutability_configuration)
+        # using mutational profiles
+        elif mut_profile_path is not None:
             # Compute dict from mut profile of the cohort and dna sequences
             mut_profile = json.load(open(mut_profile_path))
             logger.info(f"Computing missense mut probabilities...")
