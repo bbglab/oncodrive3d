@@ -110,7 +110,6 @@ def get_batch_exons_coord(batch_ids):
     lst_ranges = []
     
     for dic in _uniprot_request_coord(batch_ids):
-
         gene = dic["gene"][0]["value"]
         uni_id = dic["accession"]
         seq = dic["sequence"]
@@ -151,7 +150,7 @@ def get_all_ids_coord(ids, batch_size=100):
     lst_df = []
     batches_ids = [ids[i:i+batch_size] for i in range(0, len(ids), batch_size)]
 
-    for batch_ids in batches_ids:
+    for batch_ids in progressbar(batches_ids):
         
         batch_df = get_batch_exons_coord(batch_ids)
         
@@ -181,7 +180,7 @@ def backtranseq(protein_seqs, organism = "Homo sapiens"):
     result_url = "https://www.ebi.ac.uk/Tools/services/rest/emboss_backtranseq/result/"
     
     # Define the parameters for the API request (an email address must be included)
-    params = {"email": "example.email@irbbarcelona.org",
+    params = {"email": "stefano.pellegrini@irbbarcelona.org",
               "sequence": protein_seqs,
               "outseqformat": "plain",
               "molecule": "dna",
@@ -189,12 +188,15 @@ def backtranseq(protein_seqs, organism = "Homo sapiens"):
     
     # Submit the job request and retrieve the job ID
     response = requests.post(run_url, data=params)
+    while str(response) != "<Response [200]>":
+        time.sleep(5)
+        response = requests.post(run_url, data=params)
     job_id = response.text.strip()
 
     # Wait for the job to complete
     status = ""
     while status != "FINISHED":
-        time.sleep(10)
+        time.sleep(5)
         result = requests.get(status_url + job_id)
         status = result.text.strip()
 
@@ -215,10 +217,14 @@ def batch_backtranseq(df, batch_size, organism = "Homo sapiens"):
     
     batches = df.groupby(df.index // batch_size)
     lst_batches = []
-        
-    # Iterate over batches
-    for _, batch in progressbar(batches):
 
+    # Iterate over batches
+    for i, batch in progressbar(batches):
+        
+        # Avoid sending too many request
+        if i+1 == 30:
+            time.sleep(180)
+            
         # Get input format for backtranseq 
         batch_seq = "\n".join(batch.reset_index(drop=True).apply(lambda x: f'>\n{x["Seq"]}', axis=1).values)
 
@@ -243,22 +249,22 @@ def add_extra_genes_to_seq_df(seq_df, uniprot_to_gene_dict):
     lst_extra_genes = []
 
     for _, seq_row in seq_df.iterrows():
-
         uni_id = seq_row["Uniprot_ID"]
         gene_id = uniprot_to_gene_dict[uni_id]
         if pd.isnull(gene_id) == False:
 
             gene_id = gene_id.split(" ")
             if len(gene_id) > 1:
-
                 for gene in gene_id:
                     if gene != seq_row["Gene"]:
                         lst_extra_genes.append((gene, seq_row["Uniprot_ID"], seq_row["F"], seq_row["Seq"], seq_row["Seq_dna"]))
 
     seq_df_extra_genes = pd.DataFrame(lst_extra_genes, columns=["Gene", "Uniprot_ID", "F", "Seq", "Seq_dna"])
     seq_df = pd.concat((seq_df, seq_df_extra_genes))
-    seq_df = seq_df[seq_df.apply(lambda x: len(x["Gene"].split(" ")), axis =1) == 1].reset_index(drop=True)
+    
+    # Remove rows with multiple symbles and drop duplicated ones
     seq_df = seq_df.dropna(subset=["Gene"])
+    seq_df = seq_df[seq_df.apply(lambda x: len(x["Gene"].split(" ")), axis =1) == 1].reset_index(drop=True)
     seq_df = seq_df.drop_duplicates().reset_index(drop=True)
     
     return seq_df
@@ -268,6 +274,12 @@ def get_seq_df(input_dir,
                output_seq_df, 
                uniprot_to_gene_dict = None, 
                organism = "Homo sapiens"):
+    """
+    Generate a dataframe including IDs mapping information (Gene and Uniprot_ID),
+    AlphaFold 2 fragment number (F); the protein (Seq) and DNA sequence (DNA_seq) 
+    as well as the genomic coordinate of the exons (Chr and Exons_coord), which 
+    are used to compute the per-residue probability of missense mutation.
+    """
 
     # Load Uniprot ID to HUGO mapping
     uniprot_ids = os.listdir(input_dir)
@@ -281,7 +293,7 @@ def get_seq_df(input_dir,
     # Create a dataframe with protein sequences
     logger.debug("Generating sequence df...")
     seq_df = initialize_seq_df(input_dir, uniprot_to_gene_dict)
-
+    
     # Annotate df with DNA sequences
     logger.debug("Performing back translation...")
     seq_df = batch_backtranseq(seq_df, 500, organism=organism)
@@ -290,7 +302,8 @@ def get_seq_df(input_dir,
     seq_df = add_extra_genes_to_seq_df(seq_df, uniprot_to_gene_dict)
     
     # Get coordinates for mutability integration (used to correct for seq depth in normal tissue)
-    coord_df = get_all_ids_coord(uniprot_ids)
+    logger.debug("Retrieving exons coordinate..")
+    coord_df = get_all_ids_coord(seq_df["Uniprot_ID"].unique())
     seq_df = seq_df.merge(coord_df.drop(columns=["Gene"]), on=["Seq", "Uniprot_ID"], how="left").reset_index(drop=True)
     
     # Save and assess similarity
