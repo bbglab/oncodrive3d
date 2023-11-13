@@ -130,7 +130,7 @@ def get_miss_mut_prob(dna_seq, mut_rate_dict, mutability=False, get_probability=
 
     # Iterate through all codons except the first and last
     missense_prob_vec = [0]                                 # Assign 0 prob to the first residue
-    for c in range(1, len(codons)-1):
+    for c in range(1, len(codons)-1): # TODO revise whether these needs to be len(codons)-1 or len(codons) since the range already does -1
         missense_prob = 0
         codon = codons[c]
         trinucl0 = f"{codons[c-1][2]}{codons[c][0:2]}"
@@ -166,14 +166,22 @@ def get_miss_mut_prob(dna_seq, mut_rate_dict, mutability=False, get_probability=
                     if alt_aa != aa and alt_aa != "_":
                         if not mutability:
                             mut = f"{trinucl}>{alt}"    # query using only the trinucleotide change
-                        else:
-                            cdna_pos = ((c-1) * 3) + i  # compute the cDNA position of the residue
-                            mut = (cdna_pos, alt)       # query using cDNA position
+                            if v: print(f"{trinucl}>{alt}", "\t", mut_rate_dict[mut], "\t", alt_codon, "\t    ", alt_aa, )
+                            if mut in mut_rate_dict:
+                                missense_prob += mut_rate_dict[mut]
+                            else:
+                                missense_prob += 0
 
-                        if v: print(f"{trinucl}>{alt}", "\t", mut_rate_dict[mut], "\t", alt_codon, "\t    ", alt_aa, )                        if mut in mut_rate_dict:
-                            missense_prob += mut_rate_dict[mut]
                         else:
-                            missense_prob += 0
+                            # TODO this has not been tested
+                            cdna_pos = ((c-1) * 3) + i  # compute the cDNA position of the residue
+                            if v: print(f"{trinucl}>{alt}", "\t", mut_rate_dict[cdna_pos][alt], "\t", alt_codon, "\t    ", alt_aa, )
+                            if cdna_pos in mut_rate_dict:
+                                missense_prob += mut_rate_dict[cdna_pos].get(alt, 0)
+                            else:
+                                missense_prob += 0
+
+
             if v: logger.debug("")
 
         if v: logger.debug(f">> Prob of missense mut: {missense_prob:.3}\n")
