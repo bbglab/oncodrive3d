@@ -26,6 +26,7 @@ import tabix
 
 # logger = logging.getLogger(__logger_name__)
 
+transcribe = {"A":"T", "C":"G", "G":"C", "T":"A"}
 
 MutabilityValue = namedtuple('MutabilityValue', ['ref', 'alt', 'value'])
 """
@@ -209,7 +210,7 @@ class Mutabilities(object):
             dict: for each positions get a list of MutabilityValue
             (see :attr:`mutabilities_by_pos`)
         """
-        cdna_pos = -1 if self.gene_strand else self.gene_length
+        segment_starting_pos = 0
         start = 0 if self.gene_strand else 1
         end = 1 if self.gene_strand else 0
         update_pos = 1 if self.gene_strand else -1
@@ -217,30 +218,40 @@ class Mutabilities(object):
         try:
             with mutabilities_reader as reader:
                 for region in self.segments:
+                    # region  # this would be an exon
                     try:
-                        # region  # this would be an exon
+                        segment_len = region[end] - region[start] + 1
+                        cdna_pos = segment_starting_pos if self.gene_strand else segment_starting_pos + segment_len
                         for row in reader.get(self.chromosome, region[start], region[end], self.element):
+                            # every row is a site
+
                             mutability, ref, alt, pos = row
-                            # print(mutability, ref, alt, pos)
+                            #print(mutability, ref, alt, pos, sep = "\t")
+
                             # ref_triplet = get_ref_triplet(region['CHROMOSOME'], pos - 1)
                             # ref = ref_triplet[1] if ref is None else ref
-
                             # if ref_triplet[1] != ref:
                             #     logger.warning("Background mismatch at position %d at '%s'", pos, self.element)
+
 
                             # if the current position is different from the previous
                             # update the cdna position accordingly to the strand
                             # and also update the value of prev_pos
                             if pos != prev_pos:
                                 cdna_pos += update_pos
-                                self.mutabilities_by_pos[cdna_pos] = dict()
                                 prev_pos = pos
+                            
+                            # since at protein level we are looking at the nucleotide 
+                            # changes of the translated codons we store them as they will be queried later
+                            if not self.gene_strand:
+                                alt = transcribe[alt]
 
                             # add the mutability
                             self.mutabilities_by_pos[cdna_pos][alt] = mutability
 
+                        segment_starting_pos = cdna_pos if self.gene_strand else cdna_pos + segment_len
+
                     except ReaderError as e:
-                        print("error")
                         logger.warning(e.message)
                         continue
         except ReaderError as e:
@@ -252,22 +263,56 @@ if __name__ == "__main__":
     mutab_config = json.load(open('/home/fcalvet/Documents/dev/clustering_3d/test/normal_tests/mutability_config.json'))
     init_mutabilities_module(mutab_config)
     chrom = 17
-    #exons = eval("[(7676594, 7676521)]")
-    #seq_len = len("ATGGAGGAGCCGCAGTCAGATCCTAGCGTCGAGCCCCCTCTGAGTCAGGAAACATTTTCAGACCTATGGAAACT")
-    exons = eval("[(7676594, 7676521), (7676403, 7676382), (7676272, 7675994), (7675236, 7675053), (7674971, 7674859), (7674290, 7674181), (7673837, 7673701), (7673608, 7673535), (7670715, 7670609), (7669690, 7669612)]")
+    exons = eval("[(7676594, 7676521)]")
+    seq_len = len("ATGGAGGAGCCGCAGTCAGATCCTAGCGTCGAGCCCCCTCTGAGTCAGGAAACATTTTCAGACCTATGGAAACT")
+    # exons = eval("[(7676594, 7676521), (7676403, 7676382), (7676272, 7675994), (7675236, 7675053), (7674971, 7674859), (7674290, 7674181), (7673837, 7673701), (7673608, 7673535), (7670715, 7670609), (7669690, 7669612)]")
     tot_s_ex = 0
     for s, e in exons:
         tot_s_ex += np.sqrt((e-s)**2) + 1
-    print(tot_s_ex)
-    seq_len = len("ATGGAGGAGCCCCAGAGCGACCCCAGCGTGGAGCCCCCCCTGAGCCAGGAGACCTTCAGCGACCTGTGGAAGCTGCTGCCCGAGAACAACGTGCTGAGCCCCCTGCCCAGCCAGGCCATGGACGACCTGATGCTGAGCCCCGACGACATCGAGCAGTGGTTCACCGAGGACCCCGGCCCCGACGAGGCCCCCAGGATGCCCGAGGCCGCCCCCCCCGTGGCCCCCGCCCCCGCCGCCCCCACCCCCGCCGCCCCCGCCCCCGCCCCCAGCTGGCCCCTGAGCAGCAGCGTGCCCAGCCAGAAGACCTACCAGGGCAGCTACGGCTTCAGGCTGGGCTTCCTGCACAGCGGCACCGCCAAGAGCGTGACCTGCACCTACAGCCCCGCCCTGAACAAGATGTTCTGCCAGCTGGCCAAGACCTGCCCCGTGCAGCTGTGGGTGGACAGCACCCCCCCCCCCGGCACCAGGGTGAGGGCCATGGCCATCTACAAGCAGAGCCAGCACATGACCGAGGTGGTGAGGAGGTGCCCCCACCACGAGAGGTGCAGCGACAGCGACGGCCTGGCCCCCCCCCAGCACCTGATCAGGGTGGAGGGCAACCTGAGGGTGGAGTACCTGGACGACAGGAACACCTTCAGGCACAGCGTGGTGGTGCCCTACGAGCCCCCCGAGGTGGGCAGCGACTGCACCACCATCCACTACAACTACATGTGCAACAGCAGCTGCATGGGCGGCATGAACAGGAGGCCCATCCTGACCATCATCACCCTGGAGGACAGCAGCGGCAACCTGCTGGGCAGGAACAGCTTCGAGGTGAGGGTGTGCGCCTGCCCCGGCAGGGACAGGAGGACCGAGGAGGAGAACCTGAGGAAGAAGGGCGAGCCCCACCACGAGCTGCCCCCCGGCAGCACCAAGAGGGCCCTGCCCAACAACACCAGCAGCAGCCCCCAGCCCAAGAAGAAGCCCCTGGACGGCGAGTACTTCACCCTGCAGATCAGGGGCAGGGAGAGGTTCGAGATGTTCAGGGAGCTGAACGAGGCCCTGGAGCTGAAGGACGCCCAGGCCGGCAAGGAGCCCGGCGGCAGCAGGGCCCACAGCAGCCACCTGAAGAGCAAGAAGGGCCAGAGCACCAGCAGGCACAAGAAGCTGATGTTCAAGACCGAGGGCCCCGACAGCGAC")
+    #print(tot_s_ex)
+    # seq_len = len("ATGGAGGAGCCCCAGAGCGACCCCAGCGTGGAGCCCCCCCTGAGCCAGGAGACCTTCAGCGACCTGTGGAAGCTGCTGCCCGAGAACAACGTGCTGAGCCCCCTGCCCAGCCAGGCCATGGACGACCTGATGCTGAGCCCCGACGACATCGAGCAGTGGTTCACCGAGGACCCCGGCCCCGACGAGGCCCCCAGGATGCCCGAGGCCGCCCCCCCCGTGGCCCCCGCCCCCGCCGCCCCCACCCCCGCCGCCCCCGCCCCCGCCCCCAGCTGGCCCCTGAGCAGCAGCGTGCCCAGCCAGAAGACCTACCAGGGCAGCTACGGCTTCAGGCTGGGCTTCCTGCACAGCGGCACCGCCAAGAGCGTGACCTGCACCTACAGCCCCGCCCTGAACAAGATGTTCTGCCAGCTGGCCAAGACCTGCCCCGTGCAGCTGTGGGTGGACAGCACCCCCCCCCCCGGCACCAGGGTGAGGGCCATGGCCATCTACAAGCAGAGCCAGCACATGACCGAGGTGGTGAGGAGGTGCCCCCACCACGAGAGGTGCAGCGACAGCGACGGCCTGGCCCCCCCCCAGCACCTGATCAGGGTGGAGGGCAACCTGAGGGTGGAGTACCTGGACGACAGGAACACCTTCAGGCACAGCGTGGTGGTGCCCTACGAGCCCCCCGAGGTGGGCAGCGACTGCACCACCATCCACTACAACTACATGTGCAACAGCAGCTGCATGGGCGGCATGAACAGGAGGCCCATCCTGACCATCATCACCCTGGAGGACAGCAGCGGCAACCTGCTGGGCAGGAACAGCTTCGAGGTGAGGGTGTGCGCCTGCCCCGGCAGGGACAGGAGGACCGAGGAGGAGAACCTGAGGAAGAAGGGCGAGCCCCACCACGAGCTGCCCCCCGGCAGCACCAAGAGGGCCCTGCCCAACAACACCAGCAGCAGCCCCCAGCCCAAGAAGAAGCCCCTGGACGGCGAGTACTTCACCCTGCAGATCAGGGGCAGGGAGAGGTTCGAGATGTTCAGGGAGCTGAACGAGGCCCTGGAGCTGAAGGACGCCCAGGCCGGCAAGGAGCCCGGCGGCAGCAGGGCCCACAGCAGCCACCTGAAGAGCAAGAAGGGCCAGAGCACCAGCAGGCACAAGAAGCTGATGTTCAAGACCGAGGGCCCCGACAGCGAC")
     mutability_obj = Mutabilities("TP53", chrom, exons, seq_len, False, mutab_config)
-    for key in mutability_obj.mutabilities_by_pos.keys():
-        if len(mutability_obj.mutabilities_by_pos[key]) > 3:
-            print(mutability_obj.mutabilities_by_pos[key])
-    #print(mutability_obj.mutabilities_by_pos)
-    #print(seq_len)
-    tot_s_ex = 0
-    for s, e in exons:
-        tot_s_ex += np.sqrt((e-s)**2) + 1
-    print(tot_s_ex)
+    
+    # for s, e in exons:
+    #     for ii in range(min(s, e), max(s, e)+1):
+    #         print(ii)
+
+#    for key in mutability_obj.mutabilities_by_pos.keys():
+#        print(key)
+#        if len(mutability_obj.mutabilities_by_pos[key]) != 3:
+#            print(mutability_obj.mutabilities_by_pos[key])
+
+    for key in sorted(mutability_obj.mutabilities_by_pos):
+        # print(key)
+        print(key, mutability_obj.mutabilities_by_pos[key])
+        # if len(mutability_obj.mutabilities_by_pos[key]) != 3:
+        #     print(mutability_obj.mutabilities_by_pos[key])
+
+
+    print(len(mutability_obj.mutabilities_by_pos))
+    print(seq_len)
     mutability_dict = mutability_obj.mutabilities_by_pos
+    
+    # TODO raise an error here
+    if len(mutability_dict) != seq_len:
+        print("error")
+
+
+    # TODO: reverse the nucleotides when working with the reverse strand
+    
+    
+    # see which positions are lost in the process
+
+    # 7676152 7676152
+    # 7676153 7676153
+    # 7676154 7676155
+    # 7676155 7676156
+    # 7676156 7676157
+    # 7676157 7676158
+
+    # 17      7676153 G       A       798.2016248293505
+    # 17      7676153 G       C       128.15752499418232
+    # 17      7676153 G       T       204.81320237872495
+    # 17      7676155 G       A       233.83683455274522
+    # 17      7676155 G       C       146.25715509711932
+    # 17      7676155 G       T       162.44615179575143
