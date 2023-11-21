@@ -21,11 +21,12 @@ import bgdata
 import numpy as np
 import tabix
 
-from scripts import __logger_name__
-from oncodrivefml.reference import get_ref_triplet
+# from scripts import __logger_name__
+# from oncodrivefml.reference import get_ref_triplet
 
-logger = logging.getLogger(__logger_name__)
+# logger = logging.getLogger(__logger_name__)
 
+transcribe = {"A":"T", "C":"G", "G":"C", "T":"A"}
 
 MutabilityValue = namedtuple('MutabilityValue', ['ref', 'alt', 'value'])
 """
@@ -59,7 +60,7 @@ class MutabilityTabixReader:
         self.alt_pos = conf['alt']
         self.pos_pos = conf['pos']
         self.mutability_pos = conf['mutab']
-        self.element_pos = conf['element']
+        self.element_pos = None
 
     def __enter__(self):
         self.tb = tabix.open(self.file)
@@ -99,7 +100,6 @@ class MutabilityTabixReader:
 
 def init_mutabilities_module(conf):
     global mutabilities_reader
-    # TODO add an else case or fix this function
     mutabilities_reader = MutabilityTabixReader(conf)
 
 
@@ -137,10 +137,14 @@ class Mutabilities(object):
                     }
     """
 
-    def __init__(self, element: str, segments: list, config: dict):
+    def __init__(self, element: str, chromosome:str, segments: list, gene_len: int, gene_strand: bool, config: dict):
 
+        
         self.element = element
+        self.chromosome = chromosome
         self.segments = segments
+        self.gene_length = gene_len
+        self.gene_strand = gene_strand
         # [{'CHROMOSOME': '10', 'START': 87864532, 'END': 87864548, 'ELEMENT': 'PTEN', 'SEGMENT': 'exon01', 'LINE': 77},
         #     {'CHROMOSOME': '10', 'START': 87894024, 'END': 87894109, 'ELEMENT': 'PTEN', 'SEGMENT': 'exon02', 'LINE': 78},
         #     {'CHROMOSOME': '10', 'START': 87925512, 'END': 87925557, 'ELEMENT': 'PTEN', 'SEGMENT': 'exon03', 'LINE': 79},
@@ -163,17 +167,17 @@ class Mutabilities(object):
         self.conf_ref = config['ref']
         self.conf_alt = config['alt']
         self.conf_pos = config['pos']
-        self.conf_element = config['element']
-        self.conf_extra = config['extra']
+        self.conf_element = config['element'] if 'element' in config.keys() else None
+        self.conf_extra = config['extra'] if 'extra' in config.keys() else None
 
         # mutabilities to load
-        self.mutabilities_by_pos = defaultdict(list)
+        self.mutabilities_by_pos = defaultdict(dict)
 
 
         # Initialize background mutabilities
         self._load_mutabilities()
 
-    def get_mutability_by_position(self, position: int) -> List[MutabilityValue]:
+    def get_mutability_by_position(self, position: int):
         """
         Get all MutabilityValue objects that are associated with that position
 
@@ -205,27 +209,107 @@ class Mutabilities(object):
             dict: for each positions get a list of MutabilityValue
             (see :attr:`mutabilities_by_pos`)
         """
-
+        segment_starting_pos = 0
+        start = 0 if self.gene_strand else 1
+        end = 1 if self.gene_strand else 0
+        update_pos = 1 if self.gene_strand else -1
+        prev_pos = None
         try:
             with mutabilities_reader as reader:
                 for region in self.segments:
+                    # region  # this would be an exon
                     try:
-                        # region  # this would be an exon
-                        for row in reader.get(region['CHROMOSOME'], region['START'], region['END'], self.element):
+                        segment_len = region[end] - region[start] + 1
+                        cdna_pos = segment_starting_pos if self.gene_strand else segment_starting_pos + segment_len
+                        for row in reader.get(self.chromosome, region[start], region[end], self.element):
+                            # every row is a site
+
                             mutability, ref, alt, pos = row
-                            ref_triplet = get_ref_triplet(region['CHROMOSOME'], pos - 1)
-                            ref = ref_triplet[1] if ref is None else ref
+                            #print(mutability, ref, alt, pos, sep = "\t")
 
-                            if ref_triplet[1] != ref:
-                                logger.warning("Background mismatch at position %d at '%s'", pos, self.element)
+                            # ref_triplet = get_ref_triplet(region['CHROMOSOME'], pos - 1)
+                            # ref = ref_triplet[1] if ref is None else ref
+                            # if ref_triplet[1] != ref:
+                            #     logger.warning("Background mismatch at position %d at '%s'", pos, self.element)
 
-                            alts = alt if alt is not None and alt != '.' else 'ACGT'.replace(ref, '')
 
-                            for a in alts:
-                                self.mutabilities_by_pos[pos].append(MutabilityValue(ref, a, mutability))
+                            # if the current position is different from the previous
+                            # update the cdna position accordingly to the strand
+                            # and also update the value of prev_pos
+                            if pos != prev_pos:
+                                cdna_pos += update_pos
+                                
+                                # if it is not the first position of an exon and
+                                # the current position is not the one right after/before the previous position,
+                                # it means that the mutability for a given position(s) is missing
+                                # then
+                                # add a dictionary with all the alts and probability equals to 0,
+                                # if there are more mutabilities of the consecutive positions missing, keep adding 0s
+
+                                if pos != region[start]:
+                                    expected_previous_pos = pos - (update_pos * (-1))
+                                    while prev_pos != expected_previous_pos:
+                                        # print(pos, region[start], region[end], prev_pos, expected_previous_pos, cdna_pos)
+                                        for altt in "ACGT":
+                                            self.mutabilities_by_pos[cdna_pos][altt] = 0
+                                        cdna_pos += update_pos
+                                        expected_previous_pos -= (update_pos * (-1))
+
+                                prev_pos = pos
+
+                            # since at protein level we are looking at the nucleotide 
+                            # changes of the translated codons we store them as they will be queried later
+                            if not self.gene_strand:
+                                alt = transcribe[alt]
+
+                            # add the mutability
+                            self.mutabilities_by_pos[cdna_pos][alt] = mutability
+
+                        segment_starting_pos = cdna_pos if self.gene_strand else cdna_pos + segment_len
 
                     except ReaderError as e:
                         logger.warning(e.message)
                         continue
         except ReaderError as e:
             logger.warning("Reader error: %s. Regions being analysed %s", e.message, self.segments)
+
+
+
+if __name__ == "__main__":
+    mutab_config = json.load(open('/home/fcalvet/Documents/dev/clustering_3d/test/normal_tests/mutability_config.json'))
+    init_mutabilities_module(mutab_config)
+    chrom = 17
+    # exons = eval("[(7676594, 7676521)]")
+    # seq_len = len("ATGGAGGAGCCGCAGTCAGATCCTAGCGTCGAGCCCCCTCTGAGTCAGGAAACATTTTCAGACCTATGGAAACT")
+    exons = eval("[(7676594, 7676521), (7676403, 7676382), (7676272, 7675994), (7675236, 7675053), (7674971, 7674859), (7674290, 7674181), (7673837, 7673701), (7673608, 7673535), (7670715, 7670609), (7669690, 7669612)]")
+    seq_len = len("ATGGAGGAGCCCCAGAGCGACCCCAGCGTGGAGCCCCCCCTGAGCCAGGAGACCTTCAGCGACCTGTGGAAGCTGCTGCCCGAGAACAACGTGCTGAGCCCCCTGCCCAGCCAGGCCATGGACGACCTGATGCTGAGCCCCGACGACATCGAGCAGTGGTTCACCGAGGACCCCGGCCCCGACGAGGCCCCCAGGATGCCCGAGGCCGCCCCCCCCGTGGCCCCCGCCCCCGCCGCCCCCACCCCCGCCGCCCCCGCCCCCGCCCCCAGCTGGCCCCTGAGCAGCAGCGTGCCCAGCCAGAAGACCTACCAGGGCAGCTACGGCTTCAGGCTGGGCTTCCTGCACAGCGGCACCGCCAAGAGCGTGACCTGCACCTACAGCCCCGCCCTGAACAAGATGTTCTGCCAGCTGGCCAAGACCTGCCCCGTGCAGCTGTGGGTGGACAGCACCCCCCCCCCCGGCACCAGGGTGAGGGCCATGGCCATCTACAAGCAGAGCCAGCACATGACCGAGGTGGTGAGGAGGTGCCCCCACCACGAGAGGTGCAGCGACAGCGACGGCCTGGCCCCCCCCCAGCACCTGATCAGGGTGGAGGGCAACCTGAGGGTGGAGTACCTGGACGACAGGAACACCTTCAGGCACAGCGTGGTGGTGCCCTACGAGCCCCCCGAGGTGGGCAGCGACTGCACCACCATCCACTACAACTACATGTGCAACAGCAGCTGCATGGGCGGCATGAACAGGAGGCCCATCCTGACCATCATCACCCTGGAGGACAGCAGCGGCAACCTGCTGGGCAGGAACAGCTTCGAGGTGAGGGTGTGCGCCTGCCCCGGCAGGGACAGGAGGACCGAGGAGGAGAACCTGAGGAAGAAGGGCGAGCCCCACCACGAGCTGCCCCCCGGCAGCACCAAGAGGGCCCTGCCCAACAACACCAGCAGCAGCCCCCAGCCCAAGAAGAAGCCCCTGGACGGCGAGTACTTCACCCTGCAGATCAGGGGCAGGGAGAGGTTCGAGATGTTCAGGGAGCTGAACGAGGCCCTGGAGCTGAAGGACGCCCAGGCCGGCAAGGAGCCCGGCGGCAGCAGGGCCCACAGCAGCCACCTGAAGAGCAAGAAGGGCCAGAGCACCAGCAGGCACAAGAAGCTGATGTTCAAGACCGAGGGCCCCGACAGCGAC")
+
+    tot_s_ex = 0
+    for s, e in exons:
+        tot_s_ex += np.sqrt((e-s)**2) + 1
+    #print(tot_s_ex)
+
+    mutability_obj = Mutabilities("TP53", chrom, exons, seq_len, False, mutab_config)
+    
+    # for s, e in exons:
+    #     for ii in range(min(s, e), max(s, e)+1):
+    #         print(ii)
+
+#    for key in mutability_obj.mutabilities_by_pos.keys():
+#        print(key)
+#        if len(mutability_obj.mutabilities_by_pos[key]) != 3:
+#            print(mutability_obj.mutabilities_by_pos[key])
+
+    for key in sorted(mutability_obj.mutabilities_by_pos):
+        # print(key)
+        print(key, mutability_obj.mutabilities_by_pos[key])
+        # if len(mutability_obj.mutabilities_by_pos[key]) != 3:
+        #     print(mutability_obj.mutabilities_by_pos[key])
+
+    # print(len(mutability_obj.mutabilities_by_pos))
+    # print(seq_len)
+    mutability_dict = mutability_obj.mutabilities_by_pos
+    
+    # TODO raise an error here, well not here but within the load mutabilities function maybe?
+    if len(mutability_dict) != seq_len:
+        print("error")

@@ -11,7 +11,7 @@ import daiquiri
 import pandas as pd
 from Bio.Data.IUPACData import protein_letters_3to1
 from Bio.PDB.PDBParser import PDBParser
-from progressbar import progressbar
+from tqdm import tqdm
 
 from scripts import __logger_name__
 from scripts.datasets.utils import get_pdb_path_list_from_dir
@@ -61,15 +61,15 @@ def get_confidence(input, output_dir):
         logger.debug(f"Output: {output}")
         
         # Get model confidence
-
         df_list = []
         pdb_path_list = get_pdb_path_list_from_dir(input)
         
-        for file in progressbar(pdb_path_list):
+        for file in tqdm(pdb_path_list, total=len(pdb_path_list), desc="Extracting model confidence"):
             try:
                 identifier = file.split("AF-")[1].split("-model")[0].split("-F")
             except Exception as e:
                 logger.error(f'{file}, {e}')
+                
             # Get chain
             parser = PDBParser()
             if file.endswith(".gz"):  

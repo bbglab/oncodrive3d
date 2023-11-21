@@ -156,7 +156,7 @@ def load_df_from_url(url):
     """
 
     try:
-        response = requests.get(url)
+        response = requests.get(url, timeout=(160, 160))
         decompressed_data = gzip.decompress(response.content)
         df = pd.read_csv(io.BytesIO(decompressed_data), sep='\t')
     except:
