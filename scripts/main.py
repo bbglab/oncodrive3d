@@ -23,6 +23,22 @@ oncodrive3D run \
             -o test/results
 """
 
+
+# =============================================================================
+# TODO: change progressbar to tqdm in run scripts
+# TODO: allow procesing without tumor sample info
+# TODO: handle inf of the score (e.g., decimal python package)
+# TODO: change output names?
+# TODO: change repo name
+# TODO: fix doc
+# TODO: add script to generate conf and mutability file
+# TODO: test run on normal tissue
+# TODO: add filter (and logs) for mutated genes without exons coordinate when mutability is provided
+# TODO: update doc for normal tissue application
+# TODO: suppress verbosity of multi-threading download of structures
+# =============================================================================
+
+
 import json
 import os
 
@@ -41,7 +57,6 @@ from scripts.utils.pvalues import get_final_gene_result
 from scripts.utils.utils import add_nan_clust_cols, parse_maf_input, sort_cols, empty_result_pos
 
 logger = daiquiri.getLogger(__logger_name__)
-
 
 
 @click.group(context_settings={'help_option_names': ['-h', '--help']})
@@ -99,7 +114,6 @@ def build_datasets(output_dir,
           cores, 
           af_version, 
           keep_pdb_files)
-    
 
 
 @oncodrive3D.command(context_settings=dict(help_option_names=['-h', '--help']),
@@ -138,10 +152,6 @@ def run(input_maf_path,
     """Run Oncodrive3D."""
 
     ## Initialize
-    
-    # =========================================================================
-    # TODO: change back default data_dir path to a relative path of script loc?
-    # =========================================================================
      
     plddt_path = os.path.join(data_dir, "confidence.csv")
     cmap_path = os.path.join(data_dir, "prob_cmaps")  
@@ -245,7 +255,6 @@ def run(input_maf_path,
                 genes_to_process = [gene for gene in genes_to_process if gene not in genes_frag]
                 seq_df = seq_df[[gene in genes_to_process for gene in seq_df["Gene"]]].reset_index(drop=True)
                 
-
         # Missense mut prob  
         if mut_profile_path is not None:
             # Compute dict from mut profile of the cohort and dna sequences
