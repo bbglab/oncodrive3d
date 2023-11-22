@@ -1,5 +1,5 @@
 {
-    "file" : "test/normal_tests/tp53_mutabilities.tsv.gz",
+    "file" : "/home/fcalvet/Documents/dev/clustering_3d/test/normal_tests/tp53_mutabilities.tsv.gz",
     "format" : "tabix",
     "chr" : 0,
     "chr_prefix" : "",
