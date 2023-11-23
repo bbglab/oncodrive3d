@@ -19,7 +19,7 @@ oncodrive3D build-datasets
 
 oncodrive3D run \
     -i test/maf/TCGA_WXS_ACC.in.maf  \
-        -p test/maf/TCGA_WXS_ACC.mutrate.json \
+        -p test/mut_profile/TCGA_WXS_ACC.mutrate.json \
             -o test/results
 """
 
@@ -262,6 +262,7 @@ def run(input_maf_path,
 
         # Missense mut prob
         # using mutabilities if provided
+        mutability = False                     ## WIP: just added var to test the tool without mutability
         if mutability:
             logger.info(f"Computing missense mut probabilities using mutabilities...")
             mutab_config = json.load(open(mutability_config_path))

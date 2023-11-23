@@ -46,7 +46,7 @@ def build(output_datasets,
     Build datasets necessary to run Oncodrive3D.
     """
 
-    # empty directory
+    # Empty directory
     clean_dir(output_datasets, 'd')
 
     # Download PDB structures

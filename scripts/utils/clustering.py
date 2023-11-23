@@ -262,8 +262,6 @@ def clustering_3d_mp(genes,
         elif n+1 == len(genes):
             logger.debug(f"Process [{num_process+1}] completed!")
 
-
-        
     return result_gene_lst, result_pos_lst
 
 
