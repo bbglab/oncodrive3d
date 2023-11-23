@@ -1,0 +1,10 @@
+{
+    "file" : "/home/fcalvet/Documents/dev/clustering_3d/test/normal_tests/tp53_mutabilities.tsv.gz",
+    "format" : "tabix",
+    "chr" : 0,
+    "chr_prefix" : "",
+    "pos" : 1,
+    "ref" : 2,
+    "alt" : 3,
+    "mutab" : 4
+}

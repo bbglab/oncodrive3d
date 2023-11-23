@@ -9,11 +9,12 @@ import os
 
 import daiquiri
 import numpy as np
-from progressbar import progressbar
+from tqdm import tqdm
 
 from scripts import __logger_name__
 
 logger = daiquiri.getLogger(__logger_name__ + ".build.parse-pae")
+
 
 def get_pae_path_list_from_dir(path_dir):
     """
@@ -28,6 +29,9 @@ def get_pae_path_list_from_dir(path_dir):
 
 
 def json_to_npy(path):
+    """
+    Convert file from .json to .npy
+    """
     
     with open(path) as f:
         pae = json.load(f)
@@ -36,6 +40,9 @@ def json_to_npy(path):
 
 
 def parse_pae(input, output=None):
+    """
+    Convert all PAE files in the input directory from .json to .npy.
+    """
     
     if output is None:
         output = input
@@ -45,13 +52,12 @@ def parse_pae(input, output=None):
         logger.debug("PAE already parsed: Skipping...")
 
     else:
-        # Create necessary folder
         if not os.path.exists(output):
             os.makedirs(output)
             
         path_files = get_pae_path_list_from_dir(input)
 
-        for path in progressbar(path_files):
+        for path in tqdm(path_files, total=len(path_files), desc="Parsing PAE"):
             np.save(path.replace(".json", ".npy"), json_to_npy(path))
 
         with open(checkpoint, "w") as f:

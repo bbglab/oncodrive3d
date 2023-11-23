@@ -20,7 +20,7 @@ import daiquiri
 import pandas as pd
 from Bio.PDB import *
 from Bio.PDB import PDBParser, Structure
-from progressbar import progressbar
+from tqdm import tqdm
 
 from scripts import __logger_name__
 
@@ -305,7 +305,7 @@ def merge_af_fragments(input_dir, output_dir=None, af_version=4, gzip=False):
         # Get list of fragmented Uniprot ID and max AF-F
         not_processed = []
         fragments = get_list_fragmented_pdb(input_dir)
-        for uni_id, max_f in progressbar(fragments):
+        for uni_id, max_f in tqdm(fragments, total=len(fragments), desc="Merging AF fragments"):
             
             processed = False
             

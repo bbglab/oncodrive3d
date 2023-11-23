@@ -2,6 +2,7 @@ import os
 import logging
 import daiquiri
 import click
+import subprocess
 from datetime import datetime
 
 from functools import wraps
@@ -70,9 +71,6 @@ def startup_message(version, initializing_text):
 #  Clean
 # =========
 
-import os
-import subprocess
-import logging
 
 def clean_directory(path: str, loc: str) -> None:
     """

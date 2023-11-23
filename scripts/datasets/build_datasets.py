@@ -18,14 +18,6 @@ The build is a pipeline that perform the following tasks:
 """
 
 
-### TO DO ###
-
-# Handle logging output in .sh files
-# Suppress warnings in merge_af.py for atoms
-
-#############
-
-
 import os
 
 import daiquiri
@@ -73,7 +65,6 @@ def build(output_datasets,
     logger.info("Merge of structures completed!")
 
     # Get model confidence
-    # Decide what to do with default path
     logger.info("Extracting AF model confidence...")
     get_confidence(input=os.path.join(output_datasets, "pdb_structures"),
                    output_dir=os.path.join(output_datasets))
@@ -90,11 +81,10 @@ def build(output_datasets,
     logger.info("Downloading AF predicted aligned error (PAE)...")
     get_pae(input_dir=os.path.join(output_datasets,"pdb_structures"),
             output_dir=os.path.join(output_datasets,"pae"),
-            af_version=str(af_version),
-            )
+            threads=num_cores,
+            af_version=str(af_version))
 
     # Parse PAE
-    # Might want to add multiprocessing
     logger.info("Parsing PAE...")
     parse_pae(input=os.path.join(output_datasets, 'pae'))
     logger.info("Parsing PAE completed!")
