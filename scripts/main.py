@@ -56,6 +56,8 @@ from scripts.utils.miss_mut_prob import (get_miss_mut_prob_dict,
 from scripts.utils.pvalues import get_final_gene_result
 from scripts.utils.utils import add_nan_clust_cols, parse_maf_input, sort_cols, empty_result_pos
 
+from scripts.utils.mutability import init_mutabilities_module
+
 logger = daiquiri.getLogger(__logger_name__)
 
 
@@ -262,13 +264,12 @@ def run(input_maf_path,
 
         # Missense mut prob
         # using mutabilities if provided
-        mutability = False                     ## WIP: just added var to test the tool without mutability
-        if mutability:
+        if  mutability_config_path is not None:
             logger.info(f"Computing missense mut probabilities using mutabilities...")
             mutab_config = json.load(open(mutability_config_path))
             init_mutabilities_module(mutab_config)
             miss_prob_dict = get_miss_mut_prob_dict(mut_rate_dict=None, seq_df=seq_df,
-                                                    mutability=True, mutability_config=mutability_configuration)
+                                                    mutability=True, mutability_config=mutab_config)
         # using mutational profiles
         elif mut_profile_path is not None:
             # Compute dict from mut profile of the cohort and dna sequences

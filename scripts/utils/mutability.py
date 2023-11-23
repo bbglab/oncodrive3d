@@ -21,6 +21,8 @@ import bgdata
 import numpy as np
 import tabix
 
+# TODO uncomment these lines to make sure that the logger and everything is working
+
 # from scripts import __logger_name__
 # from oncodrivefml.reference import get_ref_triplet
 
@@ -137,31 +139,17 @@ class Mutabilities(object):
                     }
     """
 
-    def __init__(self, element: str, chromosome:str, segments: list, gene_len: int, gene_strand: bool, config: dict):
+    def __init__(self, element: str, chromosome:str, segments: list, gene_len: int, gene_reverse_strand: bool, config: dict):
 
         
         self.element = element
         self.chromosome = chromosome
         self.segments = segments
         self.gene_length = gene_len
-        self.gene_strand = gene_strand
-        # [{'CHROMOSOME': '10', 'START': 87864532, 'END': 87864548, 'ELEMENT': 'PTEN', 'SEGMENT': 'exon01', 'LINE': 77},
-        #     {'CHROMOSOME': '10', 'START': 87894024, 'END': 87894109, 'ELEMENT': 'PTEN', 'SEGMENT': 'exon02', 'LINE': 78},
-        #     {'CHROMOSOME': '10', 'START': 87925512, 'END': 87925557, 'ELEMENT': 'PTEN', 'SEGMENT': 'exon03', 'LINE': 79},
-        #     {'CHROMOSOME': '10', 'START': 87931045, 'END': 87931089, 'ELEMENT': 'PTEN', 'SEGMENT': 'exon04', 'LINE': 80},
-        #     {'CHROMOSOME': '10', 'START': 87933012, 'END': 87933022, 'ELEMENT': 'PTEN', 'SEGMENT': 'exon05', 'LINE': 81},
-        #     {'CHROMOSOME': '10', 'START': 87933223, 'END': 87933251, 'ELEMENT': 'PTEN', 'SEGMENT': 'exon05', 'LINE': 82},
-        #     {'CHROMOSOME': '10', 'START': 87952117, 'END': 87952135, 'ELEMENT': 'PTEN', 'SEGMENT': 'exon06', 'LINE': 83},
-        #     {'CHROMOSOME': '10', 'START': 87952220, 'END': 87952259, 'ELEMENT': 'PTEN', 'SEGMENT': 'exon06', 'LINE': 84},
-        #     {'CHROMOSOME': '10', 'START': 87957852, 'END': 87957890, 'ELEMENT': 'PTEN', 'SEGMENT': 'exon07', 'LINE': 85},
-        #     {'CHROMOSOME': '10', 'START': 87957961, 'END': 87958019, 'ELEMENT': 'PTEN', 'SEGMENT': 'exon07', 'LINE': 86},
-        #     {'CHROMOSOME': '10', 'START': 87960893, 'END': 87960907, 'ELEMENT': 'PTEN', 'SEGMENT': 'exon08', 'LINE': 87},
-        #     {'CHROMOSOME': '10', 'START': 87965286, 'END': 87965296, 'ELEMENT': 'PTEN', 'SEGMENT': 'exon09', 'LINE': 88}
-        # ]
+        self.gene_positive_strand = True if gene_reverse_strand == 0 else False     # this would be the opposite of reverse strand variable
         
         # mutability configuration
         self.conf_file = config['file']
-        # self.conf_mutability = config['mutab']
         self.conf_chr = config['chr']
         self.conf_chr_prefix = config['chr_prefix']
         self.conf_ref = config['ref']
@@ -210,17 +198,17 @@ class Mutabilities(object):
             (see :attr:`mutabilities_by_pos`)
         """
         segment_starting_pos = 0
-        start = 0 if self.gene_strand else 1
-        end = 1 if self.gene_strand else 0
-        update_pos = 1 if self.gene_strand else -1
+        start = 0 if self.gene_positive_strand else 1
+        end = 1 if self.gene_positive_strand else 0
+        update_pos = 1 if self.gene_positive_strand else -1
         prev_pos = None
         try:
             with mutabilities_reader as reader:
                 for region in self.segments:
-                    # region  # this would be an exon
+                    # each region corresponds to an exon
                     try:
                         segment_len = region[end] - region[start] + 1
-                        cdna_pos = segment_starting_pos if self.gene_strand else segment_starting_pos + segment_len
+                        cdna_pos = segment_starting_pos if self.gene_positive_strand else segment_starting_pos + segment_len
                         for row in reader.get(self.chromosome, region[start], region[end], self.element):
                             # every row is a site
 
@@ -259,13 +247,13 @@ class Mutabilities(object):
 
                             # since at protein level we are looking at the nucleotide 
                             # changes of the translated codons we store them as they will be queried later
-                            if not self.gene_strand:
+                            if not self.gene_positive_strand:
                                 alt = transcribe[alt]
 
                             # add the mutability
                             self.mutabilities_by_pos[cdna_pos][alt] = mutability
 
-                        segment_starting_pos = cdna_pos if self.gene_strand else cdna_pos + segment_len
+                        segment_starting_pos = cdna_pos if self.gene_positive_strand else cdna_pos + segment_len
 
                     except ReaderError as e:
                         logger.warning(e.message)
@@ -289,7 +277,7 @@ if __name__ == "__main__":
         tot_s_ex += np.sqrt((e-s)**2) + 1
     #print(tot_s_ex)
 
-    mutability_obj = Mutabilities("TP53", chrom, exons, seq_len, False, mutab_config)
+    mutability_obj = Mutabilities("TP53", chrom, exons, seq_len, True, mutab_config)
     
     # for s, e in exons:
     #     for ii in range(min(s, e), max(s, e)+1):
