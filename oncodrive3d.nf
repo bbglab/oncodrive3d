@@ -1,6 +1,6 @@
 params.indir = "${baseDir}/test"
 params.cohort_pattern = "*"     
-params.datasets = "${baseDir}/datasets"            
+params.data_dir = "${baseDir}/datasets"            
 params.container = "${baseDir}/build/containers/oncodrive3d.sif"
 params.cores = 9
 params.memory = "50G"
@@ -18,7 +18,7 @@ log.info """\
     Input dir     : ${params.indir}
     Cohort pattern: ${params.cohort_pattern}
     Outdir        : ${params.outdir}
-    Datasets      : ${params.datasets}
+    Datasets      : ${params.data_dir}
     CPU cores     : ${params.cores}
     Memory        : ${params.memory}
     Max running   : ${params.max_running}
@@ -47,7 +47,7 @@ process CLUSTERING {
                                                                  /// REMEMBER TO CHANGE OPTION WITH NEW IMG        S -> s      u -> c
     script:
     """
-    oncodrive3D run -i ${inputs[0]} -p ${inputs[1]} -d ${params.datasets} -C ${cohort} -o ${cohort} -s ${params.seed} -c ${params.cores}
+    oncodrive3D run -i ${inputs[0]} -p ${inputs[1]} -d ${params.data_dir} -C ${cohort} -o ${cohort} -s ${params.seed} -c ${params.cores}
     """
 }
 
