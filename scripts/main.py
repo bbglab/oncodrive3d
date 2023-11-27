@@ -280,7 +280,7 @@ def run(input_maf_path,
                 mut_profile = mut_rate_vec_to_dict(mut_profile)
             miss_prob_dict = get_miss_mut_prob_dict(mut_rate_dict=mut_profile, seq_df=seq_df)
         else:
-            logger.warning(f"Mutation profile not provided: Uniform distribution will be used for the simulations.")
+            logger.warning(f"Mutation profile not provided: Uniform distribution will be used for scoring and simulations.")
             miss_prob_dict = None
 
         # Run 3D-clustering
@@ -298,11 +298,11 @@ def run(input_maf_path,
                                                             cmap_prob_thr=cmap_prob_thr, 
                                                             seed=seed, 
                                                             pae_path=pae_path)
-            result_gene = pd.concat((result_gene, pd.concat(result_np_gene_lst)))
+            if result_np_gene_lst:
+                result_gene = pd.concat((result_gene, pd.concat(result_np_gene_lst)))
         else:
             result_gene = pd.concat(result_np_gene_lst)
             result_pos = None
-
 
         ## Save 
 
