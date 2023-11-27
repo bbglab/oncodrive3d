@@ -16,11 +16,12 @@ cd path/to/oncodrive3D
 oncodrive3D build-datasets
 
 # Run 
-
+            
 oncodrive3D run \
     -i test/maf/TCGA_WXS_ACC.in.maf  \
         -p test/mut_profile/TCGA_WXS_ACC.mutrate.json \
             -o test/results
+            
 """
 
 
