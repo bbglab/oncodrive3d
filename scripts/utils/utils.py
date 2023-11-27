@@ -61,7 +61,8 @@ def parse_vep_output(df):
     
     rename_dict = {"SYMBOL": "Hugo_Symbol", 
                    "Consequence": "Variant_Classification",
-                   "#Uploaded_variation" : "Tumor_Sample_Barcode"}
+                   "#Uploaded_variation" : "Tumor_Sample_Barcode",
+                   "#UploadedVariation" : "Tumor_Sample_Barcode"}
 
     for key, value in rename_dict.items():
         if key in df.columns and value not in df.columns:

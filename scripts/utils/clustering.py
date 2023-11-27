@@ -112,10 +112,7 @@ def clustering_3d(gene,
         gene_miss_prob = get_unif_gene_miss_prob(size=len(cmap))
 
     # Probability that the volume of each residue can be hit by a missense mut
-    try:
-        vol_missense_mut_prob = np.dot(cmap, gene_miss_prob)
-    except Exception as e:               ##########################################################################################
-        logger.error(f"Gene {gene}. Error: {e}")
+    vol_missense_mut_prob = np.dot(cmap, gene_miss_prob)
     
     
     ## Get observed and ranked simulated scores (loglik+_LFC)
