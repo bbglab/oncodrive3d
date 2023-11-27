@@ -178,44 +178,6 @@ def batch_backtranseq(df, batch_size, organism = "Homo sapiens"):
     return pd.concat(lst_batches)
 
 
-def add_extra_genes_to_seq_df(seq_df, uniprot_to_gene_dict):
-    """
-    If multiple genes are mapping to a given Uniprot_ID, add 
-    each gene name with corresponding sequence info to the seq_df.
-    """
-    
-    lst_extra_genes = []
-
-    for _, seq_row in seq_df.iterrows():
-        uni_id = seq_row["Uniprot_ID"]
-        gene_id = uniprot_to_gene_dict[uni_id]
-        if pd.isnull(gene_id) == False:
-
-            gene_id = gene_id.split(" ")
-            if len(gene_id) > 1:
-                for gene in gene_id:
-                    if gene != seq_row["Gene"]:
-                        lst_extra_genes.append((gene, seq_row["Uniprot_ID"], 
-                                                seq_row["F"], 
-                                                seq_row["Seq"], 
-                                                seq_row["Seq_dna"]))
-
-    seq_df_extra_genes = pd.DataFrame(lst_extra_genes, 
-                                      columns=["Gene", 
-                                               "Uniprot_ID", 
-                                               "F", 
-                                               "Seq", 
-                                               "Seq_dna"])
-    seq_df = pd.concat((seq_df, seq_df_extra_genes))
-    
-    # Remove rows with multiple symbles and drop duplicated ones
-    seq_df = seq_df.dropna(subset=["Gene"])
-    seq_df = seq_df[seq_df.apply(lambda x: len(x["Gene"].split(" ")), axis =1) == 1].reset_index(drop=True)
-    seq_df = seq_df.drop_duplicates().reset_index(drop=True)
-    
-    return seq_df
-
-
 ################################################################
 # Get exons (CDS) coordinate using EMBL Proteins Coordinates API
 ################################################################
@@ -254,14 +216,13 @@ def _uniprot_request_coord(lst_uniprot_ids):
 
 def get_batch_exons_coord(batch_ids):
     """
-    Parse the json obtained from the Coordinates 
-    service extracting exons coordinates and protein info.
+    Parse the json obtained from the Coordinates service extracting 
+    exons coordinates and protein info.
     
     https://www.ebi.ac.uk/proteins/api/doc/#coordinatesApi
     https://doi.org/10.1093/nar/gkx237
     """
     
-    lsts_gene = []
     lst_uni_id = []
     lst_ens_gene_id = []
     lst_ens_transcr_id = []
@@ -269,47 +230,69 @@ def get_batch_exons_coord(batch_ids):
     lst_chr = []
     lst_reverse = []
     lst_ranges = []
+    lst_ref_mismatch = []
     
     for dic in _uniprot_request_coord(batch_ids):
         
-        gene = dic["gene"][0]["value"]
         uni_id = dic["accession"]
         seq = dic["sequence"]
-        ens_gene_id = dic["gnCoordinate"][0]["ensemblGeneId"]
-        ens_transcr_id = dic["gnCoordinate"][0]["ensemblTranscriptId"]
-        dic = dic["gnCoordinate"][0]["genomicLocation"]
-        exons = dic["exon"]
-        chromosome = dic["chromosome"]
-        reverse_strand = dic["reverseStrand"]
-        ranges = []
+        ref_mismatch = 0
+        
+        # Iterate throug the transcripts
+        for i in range(len(dic["gnCoordinate"])):
 
-        for exon in exons:
-            exon = exon["genomeLocation"]
-            if "begin" in exon.keys():
-                begin = exon["begin"]["position"]
-                end = exon["end"]["position"]
-            else:
-                begin = exon["position"]["position"]
-                end = exon["position"]["position"]
-            ranges.append((begin, end))
-            
-        lsts_gene.append(gene)
+            ens_gene_id = dic["gnCoordinate"][i]["ensemblGeneId"]
+            ens_transcr_id = dic["gnCoordinate"][i]["ensemblTranscriptId"]
+            dic_loc = dic["gnCoordinate"][i]["genomicLocation"]
+            exons = dic_loc["exon"]
+            chromosome = dic_loc["chromosome"]
+            reverse_strand = dic_loc["reverseStrand"]
+            ranges = []
+
+            for exon in exons:
+                exon = exon["genomeLocation"]
+                if "begin" in exon.keys():
+                    begin = exon["begin"]["position"]
+                    end = exon["end"]["position"]
+                else:
+                    begin = exon["position"]["position"]
+                    end = exon["position"]["position"]
+                ranges.append((begin, end))
+
+            # Check if the DNA seq of the transcript is equal the codon lenght
+            start = 0 if not int(reverse_strand) else 1
+            end = 1 if not int(reverse_strand) else 0
+            len_dna = sum([coord[end] - coord[start] + 1 for coord in ranges])
+            if len_dna / 3 == len(seq):
+                break
+            # If there is no transcript with matching sequence, return NA
+            elif i == len(dic["gnCoordinate"]) - 1:
+                ens_gene_id = np.nan
+                ens_transcr_id = np.nan
+                chromosome = np.nan
+                reverse_strand = np.nan
+                ranges = np.nan
+                ref_mismatch = 1
+        
         lst_uni_id.append(uni_id)
         lst_ens_gene_id.append(ens_gene_id)
         lst_ens_transcr_id.append(ens_transcr_id)
         lst_seq.append(seq)
         lst_chr.append(chromosome)
-        lst_reverse.append(int(reverse_strand))
-        lst_ranges.append(str(ranges))
+        reverse_strand = int(reverse_strand) if isinstance(reverse_strand, int) else np.nan
+        ranges = str(ranges) if isinstance(ranges, list) else np.nan
+        lst_reverse.append(reverse_strand)
+        lst_ranges.append(ranges)
+        lst_ref_mismatch.append(ref_mismatch)
 
-    return pd.DataFrame({"Gene" : lsts_gene, 
-                         "Uniprot_ID" : lst_uni_id, 
+    return pd.DataFrame({"Uniprot_ID" : lst_uni_id, 
                          "Ens_Gene_ID" : lst_ens_gene_id, 
                          "Ens_Transcr_ID" : lst_ens_transcr_id, 
                          "Seq" : lst_seq, 
                          "Chr" : lst_chr, 
                          "Reverse_strand" : lst_reverse, 
-                         "Exons_coord" : lst_ranges})
+                         "Exons_coord" : lst_ranges,
+                         "Ref_mismatch" : lst_ref_mismatch})
 
 
 def get_exons_coord(ids, batch_size=100):
@@ -331,14 +314,14 @@ def get_exons_coord(ids, batch_size=100):
         # Identify unmapped IDs and add them as NaN rows
         unmapped_ids = list(set(batch_ids).difference(set(batch_df.Uniprot_ID.unique())))
         nan = np.repeat(np.nan, len(unmapped_ids))
-        nan_rows = pd.DataFrame({'Gene': nan,
-                                 'Uniprot_ID': unmapped_ids,
+        nan_rows = pd.DataFrame({'Uniprot_ID' : unmapped_ids,
                                  'Ens_Gene_ID' : nan,
                                  'Ens_Transcr_ID' : nan,
                                  'Seq': nan,
                                  'Chr': nan,
                                  'Reverse_strand' : nan,
-                                 'Exons_coord': nan})
+                                 'Exons_coord': nan,
+                                 "Ref_mismatch" : nan})
 
         batch_df = pd.concat([batch_df, nan_rows], ignore_index=True)
         lst_df.append(batch_df)
@@ -350,13 +333,17 @@ def get_exons_coord(ids, batch_size=100):
 # Get DNA sequence and trin-context of reference genome from coordinates
 ########################################################################
 
-def per_site_trinucleotide_context(seq_with_flanks):
+def per_site_trinucleotide_context(seq, no_flanks=False):
     """
-    Given a DNA sequence rapresenting an exon (CDS) with -1 and +1 flanking sites, 
-    return a list including the trinucletide context of each site.
+    Given a DNA sequence rapresenting an exon (CDS) with -1 and +1 flanking 
+    sites, return a list including the trinucletide context of each site.
     """
     
-    return [f"{seq_with_flanks[i-1]}{seq_with_flanks[i]}{seq_with_flanks[i+1]}" for i in range(1, len(seq_with_flanks) - 1)]
+    # If there is no info about flanking regions, add most the two most common ones
+    if no_flanks:
+        seq = f"C{seq}T"
+    
+    return [f"{seq[i-1]}{seq[i]}{seq[i+1]}" for i in range(1, len(seq) - 1)]
 
 
 def get_ref_dna_and_context(row):
@@ -397,13 +384,13 @@ def get_ref_dna_and_context(row):
             lst_exon_tri_context.append(per_site_tri_context)
             lst_exon_seq.append(seq)
 
-        return transcript_id, "".join(lst_exon_seq), ",".join(lst_exon_tri_context),
+        return transcript_id, "".join(lst_exon_seq), ",".join(lst_exon_tri_context), 1
     
     except Exception as e:
         if not str(e).startswith("Sequence"):
             logger.warning(f"Error occurred during reference DNA and trinucleotide context extraction: {e}")
         
-        return transcript_id, np.nan, np.nan
+        return transcript_id, np.nan, np.nan, 0
 
 
 def add_ref_dna_and_context(seq_df):
@@ -413,16 +400,71 @@ def add_ref_dna_and_context(seq_df):
     site of the sequence taking into account flaking regions at splicing sites.
     """
     
-    seq_df_with_coord = seq_df.copy()[["Ens_Transcr_ID", "Chr", "Reverse_strand", "Exons_coord"]].dropna().drop_duplicates()
+    seq_df = seq_df.copy()
+    seq_df_with_coord = seq_df[["Ens_Transcr_ID", "Chr", "Reverse_strand", "Exons_coord"]].dropna().drop_duplicates()
     ref_dna_and_context = seq_df_with_coord.apply(lambda x: get_ref_dna_and_context(x), axis=1, result_type='expand')
-    ref_dna_and_context.columns = ["Ens_Transcr_ID", "Seq_dna_ref", "Tri_context"]
+    ref_dna_and_context.columns = ["Ens_Transcr_ID", "Seq_dna", "Tri_context", "Reference_info"]
+    seq_df = seq_df.merge(ref_dna_and_context, on=["Ens_Transcr_ID"], how="left")
+    seq_df["Reference_info"] = seq_df["Reference_info"].fillna(0).astype(int)
     
-    return seq_df.merge(ref_dna_and_context, on=["Ens_Transcr_ID"], how="left")
+    return seq_df
 
 
 ################################################### 
-# Main function to get the final sequence dataframe
+# Wrappers
 ################################################### 
+
+def add_extra_genes_to_seq_df(seq_df, uniprot_to_gene_dict):
+    """
+    If multiple genes are mapping to a given Uniprot_ID, add 
+    each gene name with corresponding sequence info to the seq_df.
+    """
+    
+    # Split by " "
+    lst_extra_genes = []
+    for _, seq_row in seq_df.iterrows():
+        uni_id = seq_row["Uniprot_ID"]
+        gene_id = uniprot_to_gene_dict[uni_id]
+        if pd.isnull(gene_id) == False:
+
+            gene_id = gene_id.split(" ")
+            if len(gene_id) > 1:
+                for gene in gene_id:
+                    if gene != seq_row["Gene"]:
+                        
+                        row = seq_row.copy()
+                        row["Gene"] = gene
+                        lst_extra_genes.append(row)
+    
+    seq_df_extra_genes = pd.concat(lst_extra_genes, axis=1).T
+    
+    # Split by "/"
+    lst_extra_genes = []
+    for _, seq_row in seq_df.iterrows():
+        uni_id = seq_row["Uniprot_ID"]
+        gene_id = uniprot_to_gene_dict[uni_id]
+        if pd.isnull(gene_id) == False:
+
+            gene_id = gene_id.split("/")
+            if len(gene_id) > 1:
+                for gene in gene_id:
+                    if gene != seq_row["Gene"]:
+                        
+                        row = seq_row.copy()
+                        row["Gene"] = gene
+                        lst_extra_genes.append(row)
+    
+    seq_df_extra_genes2 = pd.concat(lst_extra_genes, axis=1).T
+    
+    # Remove rows with multiple symbols and drop duplicated ones
+    seq_df = pd.concat((seq_df, seq_df_extra_genes, seq_df_extra_genes2))
+    seq_df = seq_df.dropna(subset=["Gene"])
+    seq_df = seq_df[seq_df.apply(lambda x: len(x["Gene"].split(" ")), axis =1) == 1].reset_index(drop=True)
+    seq_df = seq_df[seq_df.apply(lambda x: len(x["Gene"].split("/")), axis =1) == 1].reset_index(drop=True)
+    seq_df = seq_df.drop_duplicates().reset_index(drop=True)
+    
+    return seq_df
+
 
 def get_seq_df(input_dir, 
                output_seq_df, 
@@ -451,21 +493,27 @@ def get_seq_df(input_dir,
     logger.debug("Generating sequence df...")
     seq_df = initialize_seq_df(input_dir, uniprot_to_gene_dict)
     
-    # Annotate df with DNA sequences
-    logger.debug("Performing back translation...")
-    seq_df = batch_backtranseq(seq_df, 500, organism=organism)
-    
-    # Add multiple genes mapping to the same Uniprot_ID
-    seq_df = add_extra_genes_to_seq_df(seq_df, uniprot_to_gene_dict)
-    
     # Add coordinates for mutability integration and ref DNA sequence extraction
     logger.debug("Retrieving exons coordinate..")
     coord_df = get_exons_coord(seq_df["Uniprot_ID"].unique())
-    seq_df = seq_df.merge(coord_df.drop(columns=["Gene"]), on=["Seq", "Uniprot_ID"], how="left").reset_index(drop=True)
+    seq_df = seq_df.merge(coord_df, on=["Seq", "Uniprot_ID"], how="left").reset_index(drop=True)
     
     # Add ref DNA sequence and its per-site trinucleotide context
     logger.debug("Retrieving exons DNA sequence from reference genome..")
     seq_df = add_ref_dna_and_context(seq_df)
+    
+    # Add DNA sequences for genes without available ref DNA using backtranseq
+    logger.debug("Performing back translation for genes without ref DNA...")
+    seq_df_backtranseq = seq_df[seq_df["Reference_info"] == 0].reset_index(drop=True)
+    seq_df_backtranseq = batch_backtranseq(seq_df_backtranseq, 500, organism=organism)
+    seq_df_backtranseq["Tri_context"] = seq_df_backtranseq["Seq_dna"].apply(
+        lambda x: ",".join(per_site_trinucleotide_context(x, no_flanks=True)))
+    seq_df = pd.concat((seq_df[seq_df["Reference_info"] == 1], 
+                        seq_df_backtranseq)
+                       ).sort_values("Uniprot_ID").reset_index(drop=True)
+    
+    # Add multiple genes mapping to the same Uniprot_ID
+    seq_df = add_extra_genes_to_seq_df(seq_df, uniprot_to_gene_dict)
     
     # Save and assess similarity
     seq_df.to_csv(output_seq_df, index=False)
@@ -473,3 +521,54 @@ def get_seq_df(input_dir,
     if sim_ratio < 1:                       
         logger.warning(f"Error occurred during back translation: Protein and translated DNA similarity < 1: {sim_ratio}.")
     logger.debug(f"Dataframe including sequences is saved in: {output_seq_df}")
+
+
+# def get_seq_df(input_dir, 
+#                output_seq_df, 
+#                uniprot_to_gene_dict = None, 
+#                organism = "Homo sapiens"):
+#     """
+#     Generate a dataframe including IDs mapping information (Gene and Uniprot_ID),
+#     AlphaFold 2 fragment number (F); the protein (Seq) and DNA sequence (DNA_seq) 
+#     obtained by EMBL backtranseq, as well as the genomic coordinate of the exons 
+#     (Chr and Exons_coord), which are used to compute the per-residue probability 
+#     of missense mutation. Also, for a subset of genes, it include the DNA sequence 
+#     of the reference genome (Seq_dna_ref) and its per-site trinucleotide context
+#     taing into account flanking regions at splicing sites (Tri_context).
+#     """
+
+#     # Load Uniprot ID to HUGO mapping
+#     uniprot_ids = os.listdir(input_dir)
+#     uniprot_ids = [uni_id.split("-")[1] for uni_id in list(set(uniprot_ids)) if ".pdb" in uni_id]
+#     if uniprot_to_gene_dict is not None and uniprot_to_gene_dict != "None":
+#         uniprot_to_gene_dict = json.load(open(uniprot_to_gene_dict)) 
+#     else:
+#         logger.debug("Retrieving Uniprot_ID to Hugo symbol mapping information..")
+#         uniprot_to_gene_dict = uniprot_to_hugo(uniprot_ids)  
+
+#     # Create a dataframe with protein sequences
+#     logger.debug("Generating sequence df...")
+#     seq_df = initialize_seq_df(input_dir, uniprot_to_gene_dict)
+    
+#     # Annotate df with DNA sequences
+#     logger.debug("Performing back translation...")
+#     seq_df = batch_backtranseq(seq_df, 500, organism=organism)
+    
+#     # Add multiple genes mapping to the same Uniprot_ID
+#     seq_df = add_extra_genes_to_seq_df(seq_df, uniprot_to_gene_dict)
+    
+#     # Add coordinates for mutability integration and ref DNA sequence extraction
+#     logger.debug("Retrieving exons coordinate..")
+#     coord_df = get_exons_coord(seq_df["Uniprot_ID"].unique())
+#     seq_df = seq_df.merge(coord_df.drop(columns=["Gene"]), on=["Seq", "Uniprot_ID"], how="left").reset_index(drop=True)
+    
+#     # Add ref DNA sequence and its per-site trinucleotide context
+#     logger.debug("Retrieving exons DNA sequence from reference genome..")
+#     seq_df = add_ref_dna_and_context(seq_df)
+    
+#     # Save and assess similarity
+#     seq_df.to_csv(output_seq_df, index=False)
+#     sim_ratio = sum(seq_df.apply(lambda x: get_seq_similarity(x.Seq, translate_dna(x.Seq_dna)), axis=1)) / len(seq_df)
+#     if sim_ratio < 1:                       
+#         logger.warning(f"Error occurred during back translation: Protein and translated DNA similarity < 1: {sim_ratio}.")
+#     logger.debug(f"Dataframe including sequences is saved in: {output_seq_df}")
