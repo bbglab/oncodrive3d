@@ -245,7 +245,7 @@ def codons_trinucleotide_context(lst_contexts):
 
 
 def get_miss_mut_prob(dna_seq, dna_tricontext, mut_rate_dict, mutability=False, 
-                      get_probability=True, mut_start_codon=False, v=False):
+                        get_probability=True, mut_start_codon=False, v=False):
     """
     Generate a list including the probabilities that the 
     codons can mutate resulting into a missense mutations.
@@ -375,7 +375,7 @@ def get_miss_mut_prob_dict(mut_rate_dict, seq_df, mutability=False, mutability_c
         # Process any Protein/fragment in the sequence df
         for _, row in seq_df.iterrows():
             # Mutabilities
-            mutability_dict = Mutabilities(row.Uniprot_ID, row.Chr, row.Exons_coord, len(row.Seq_dna), row.reverse_strand, mutability_config).mutabilities_by_pos
+            mutability_dict = Mutabilities(row.Uniprot_ID, row.Chr, row.Exons_coord, len(row.Seq_dna), row.Reverse_strand, mutability_config).mutabilities_by_pos
             miss_prob_dict[f"{row.Uniprot_ID}-F{row.F}"] = get_miss_mut_prob(row.Seq_dna, row.Tri_context, mutability_dict, mutability=True, v=v)
 
     else:
@@ -628,11 +628,19 @@ def get_miss_mut_prob_dict(mut_rate_dict, seq_df, mutability=False, mutability_c
 
 # if __name__ == "__main__":
 #     # main()
-#     mutab_config = json.load(open('/home/fcalvet/Documents/dev/clustering_3d/test/normal_tests/mutability_config.json'))
+
+#     # mutab_config = json.load(open('/home/fcalvet/Documents/dev/clustering_3d/test/normal_tests/mutability_config.json'))
+#     # mutab_config = json.load(open('/home/fcalvet/projects/clustering_3d/test/normal_tests/mutability_config.json'))
+#     mutab_config = json.load(open('/home/fcalvet/projects/clustering_3d/test/normal_tests/mutability_config.big.json'))
+
 #     init_mutabilities_module(mutab_config)
 
-#     seq_df = pd.read_csv("/home/fcalvet/Documents/dev/clustering_3d/test/normal_tests/seq_df_toy_coord.csv", header = 0)
-#     seq_df["Exons_coord"] = [ eval(exon_coord) for exon_coord in seq_df['Exons_coord'] ]
+#     # seq_df = pd.read_csv("/home/fcalvet/Documents/dev/clustering_3d/test/normal_tests/seq_df_toy_coord.csv", header = 0)
+#     # seq_df = pd.read_csv("/home/fcalvet/projects/clustering_3d/test/normal_tests/seq_df_toy_coord_small.csv", header = 0)
+#     # seq_df = pd.read_csv("/home/fcalvet/projects/clustering_3d/test/normal_tests/seq_df_toy_coord_small2.csv", header = 0)
+#     seq_df = pd.read_csv("/home/fcalvet/projects/clustering_3d/test/normal_tests/seq_df_toy_coord.csv", header = 0)
+
+#     seq_df['Exons_coord'] = seq_df['Exons_coord'].apply(eval)
 
 #     miss_prob_dict = get_miss_mut_prob_dict(mut_rate_dict=None, seq_df=seq_df,
 #                                             mutability=True, mutability_config=mutab_config)
