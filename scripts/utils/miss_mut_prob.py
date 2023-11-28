@@ -375,7 +375,7 @@ def get_miss_mut_prob_dict(mut_rate_dict, seq_df, mutability=False, mutability_c
         # Process any Protein/fragment in the sequence df
         for _, row in seq_df.iterrows():
             # Mutabilities
-            mutability_dict = Mutabilities(row.Uniprot_ID, row.Chr, row.Exons_coord, len(row.Seq_dna), row.reverse_strand, mutability_config).mutabilities_by_pos
+            mutability_dict = Mutabilities(row.Uniprot_ID, row.Chr, row.Exons_coord, len(row.Seq_dna), row.Reverse_strand, mutability_config).mutabilities_by_pos
             miss_prob_dict[f"{row.Uniprot_ID}-F{row.F}"] = get_miss_mut_prob(row.Seq_dna, row.Tri_context, mutability_dict, mutability=True, v=v)
 
     else:

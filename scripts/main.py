@@ -21,20 +21,24 @@ oncodrive3D run \
     -i test/maf/TCGA_WXS_ACC.in.maf  \
         -p test/mut_profile/TCGA_WXS_ACC.mutrate.json \
             -o test/results
+                  
+oncodrive3D run -i /workspace/projects/clustering_3d/clustering_3d/datasets_normal/kidneydata/all_mutations.all_samples.tsv -d datasets_normal -m /workspace/projects/clustering_3d/clustering_3d/test/normal_tests/mutability_config.json -o /workspace/projects/clustering_3d/dev_testing/result/o3d/test_normal -C kidney_mutability -v
             
 """
 
 
 # =============================================================================
-# TODO: change progressbar to tqdm in run scripts
 # TODO: allow procesing without tumor sample info
 # TODO: handle inf of the score (e.g., decimal python package)
-# TODO: change output names?
-# TODO: change repo name
-# TODO: fix doc
+# TODO: fix bug in requirement.txt (bgreference must be installed after setup.py)
 # TODO: add script to generate conf and mutability file
 # TODO: test run on normal tissue
 # TODO: add filter (and logs) for mutated genes without exons coordinate when mutability is provided
+
+# TODO: change progressbar to tqdm in run scripts
+# TODO: change output names?
+# TODO: change repo name
+# TODO: fix doc
 # TODO: update doc for normal tissue application
 # TODO: suppress verbosity of multi-threading download of structures
 # =============================================================================
@@ -164,7 +168,7 @@ def run(input_maf_path,
     pae_path = os.path.join(data_dir, "pae")
     cancer_type = cancer_type if cancer_type else np.nan
     cohort = cohort if cohort else f"cohort_{DATE}"
-    path_prob = mut_profile_path if mut_profile_path else "Not provided, uniform distribution will be used"
+    path_prob = mut_profile_path if mut_profile_path else "Not provided, mutabilities will be used" if mutability_config_path else "Not provided, uniform distribution will be used"
     path_mutability_config = mutability_config_path if mutability_config_path else "Not provided, mutabilities will not be used"
 
     # Log
@@ -269,8 +273,23 @@ def run(input_maf_path,
             logger.info(f"Computing missense mut probabilities using mutabilities...")
             mutab_config = json.load(open(mutability_config_path))
             init_mutabilities_module(mutab_config)
+            seq_df = seq_df[seq_df["Reference_info"] == 1]            
             miss_prob_dict = get_miss_mut_prob_dict(mut_rate_dict=None, seq_df=seq_df,
                                                     mutability=True, mutability_config=mutab_config)
+            genes_to_process = [gene for gene in genes_to_process if gene in seq_df["Gene"].unique()]
+            genes_not_mutability = [gene for gene in genes_to_process if gene not in seq_df["Gene"].unique()]
+
+            # TODO: return Uniprot_ID, F, etc
+            if len(genes_not_mutability) > 0:   
+                logger.debug(f"Detected [{len(genes_not_mutability)}] genes without mutability information: Skipping...")
+                result_gene = pd.DataFrame({"Gene" : genes_not_mutability,
+                                            "Uniprot_ID" : np.nan,
+                                            "F" : np.nan,
+                                            "Mut_in_gene" : np.nan,
+                                            "Max_mut_pos" : np.nan,
+                                            "Structure_max_pos" : np.nan,
+                                            "Status" : "No_mutability"})
+                result_np_gene_lst.append(result_gene)
         # using mutational profiles
         elif mut_profile_path is not None:
             # Compute dict from mut profile of the cohort and dna sequences

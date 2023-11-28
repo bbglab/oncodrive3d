@@ -1,5 +1,5 @@
 {
-    "file" : "/home/fcalvet/Documents/dev/clustering_3d/test/normal_tests/tp53_mutabilities.tsv.gz",
+    "file" : "/workspace/projects/clustering_3d/clustering_3d/datasets_normal/kidneydata/all_samples.mutability_per_site.tsv.gz",
     "format" : "tabix",
     "chr" : 0,
     "chr_prefix" : "",
