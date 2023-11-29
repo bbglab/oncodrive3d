@@ -638,13 +638,21 @@ def get_miss_mut_prob_dict(mut_rate_dict, seq_df, mutability=False, mutability_c
 #     # seq_df = pd.read_csv("/home/fcalvet/Documents/dev/clustering_3d/test/normal_tests/seq_df_toy_coord.csv", header = 0)
 #     # seq_df = pd.read_csv("/home/fcalvet/projects/clustering_3d/test/normal_tests/seq_df_toy_coord_small.csv", header = 0)
 #     # seq_df = pd.read_csv("/home/fcalvet/projects/clustering_3d/test/normal_tests/seq_df_toy_coord_small2.csv", header = 0)
-#     seq_df = pd.read_csv("/home/fcalvet/projects/clustering_3d/test/normal_tests/seq_df_toy_coord.csv", header = 0)
-
+#     # seq_df = pd.read_csv("/home/fcalvet/projects/clustering_3d/test/normal_tests/seq_df_toy_coord.csv", header = 0)
+#     # seq_df = pd.read_csv("/home/fcalvet/projects/clustering_3d/test/normal_tests/seq_df_toy_coord.mtor.csv", header = 0)
+#     seq_df = pd.read_csv("/workspace/projects/clustering_3d/clustering_3d/datasets_normal/seq_for_mut_prob.csv", header = 0)
+#     seq_df = seq_df[seq_df["Gene"].isin(["ARID1A", "BAP1", "MTOR", "PBRM1", "PTEN", "PIK3CA", "SETD2", "TP53", "VHL"])]
 #     seq_df['Exons_coord'] = seq_df['Exons_coord'].apply(eval)
+
+#     prot2gen = dict(zip(seq_df["Uniprot_ID"].values, seq_df["Gene"].values))
 
 #     miss_prob_dict = get_miss_mut_prob_dict(mut_rate_dict=None, seq_df=seq_df,
 #                                             mutability=True, mutability_config=mutab_config)
-#     print(miss_prob_dict)
+#     for prot in miss_prob_dict:
+#         print(prot, prot2gen[prot[:6]], len(miss_prob_dict[prot]),
+#                 sum(np.array(miss_prob_dict[prot])==0),
+#                 sum(np.array(miss_prob_dict[prot])==0)/len(miss_prob_dict[prot]))
+#     # print(miss_prob_dict)
     
 #     chrom = 17
 #     # exons = eval("[(7676594, 7676521)]")
