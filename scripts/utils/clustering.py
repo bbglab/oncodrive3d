@@ -115,6 +115,12 @@ def clustering_3d(gene,
     if np.any(np.isnan(gene_miss_prob)):
         result_gene_df["Status"] = "NA_miss_prob"
         return None, result_gene_df
+    
+    # # Filter out genes with a mutation in a residue having zero prob to mutate
+    # pos_vec = mut_gene_df["Pos"].values
+    # if (np.array(gene_miss_prob)[pos_vec-1] == 0).any():
+    #     result_gene_df["Status"] = "Mut_with_zero_prob"
+    #     return None, result_gene_df
 
     # Probability that the volume of each residue can be hit by a missense mut
     vol_missense_mut_prob = np.dot(cmap, gene_miss_prob)
