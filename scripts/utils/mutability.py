@@ -197,7 +197,8 @@ class Mutabilities(object):
             dict: for each positions get a list of MutabilityValue
             (see :attr:`mutabilities_by_pos`)
         """
-        segment_starting_pos = 0
+        cdna_pos = 0 
+        starting_cdna_pos = 0
         start = 0 if not self.reverse else 1
         end = 1 if not self.reverse else 0
         update_pos = 1 if not self.reverse else -1
@@ -207,13 +208,18 @@ class Mutabilities(object):
                     # each region corresponds to an exon
                     try:
                         segment_len = region[end] - region[start] + 1
-                        cdna_pos = segment_starting_pos if not self.reverse else segment_starting_pos + segment_len
+                        cdna_pos = starting_cdna_pos if not self.reverse else starting_cdna_pos + segment_len
+                        starting_cdna_pos = int(cdna_pos)
                         prev_pos = region[start] - 1
+                        # print(self.chromosome, region[start], region[end], self.element, segment_len, cdna_pos, prev_pos, starting_cdna_pos, update_pos)
                         for row in reader.get(self.chromosome, region[start], region[end], self.element):
                             # every row is a site
 
                             mutability, ref, alt, pos = row
-                            #print(mutability, ref, alt, pos, sep = "\t")
+                            # print(mutability, ref, alt, pos, sep = "\t")
+
+                            # TODO decide if we want to do this check or not,
+                            # I would say it is fine as it is now without the check
 
                             # ref_triplet = get_ref_triplet(region['CHROMOSOME'], pos - 1)
                             # ref = ref_triplet[1] if ref is None else ref
@@ -226,6 +232,7 @@ class Mutabilities(object):
                             # and also update the value of prev_pos
                             if pos != prev_pos:
                                 cdna_pos += update_pos
+                                # print("changing position", pos, prev_pos, cdna_pos)
                                 
                                 # if it is not the first position of an exon and
                                 # the current position is not the one right after/before the previous position,
@@ -253,8 +260,29 @@ class Mutabilities(object):
 
                             # add the mutability
                             self.mutabilities_by_pos[cdna_pos][alt] = mutability
+                            # print(mutability, ref, alt, pos, cdna_pos, sep = "\t")
 
-                        segment_starting_pos = cdna_pos if not self.reverse else cdna_pos + segment_len
+                        # segment_starting_pos = cdna_pos if not self.reverse else cdna_pos + segment_len
+                        # print(self.chromosome, region[start], region[end], self.element, segment_len, cdna_pos, prev_pos, starting_cdna_pos, update_pos)
+
+                        ##
+                        #   IMPORTANT: filling step
+                        ##
+                        # check that all the positions at the end have been filled
+                        # otherwise add 0s to them
+                        if not self.reverse:
+                            while cdna_pos < (starting_cdna_pos + segment_len):
+                                for altt in "ACGT":
+                                    self.mutabilities_by_pos[cdna_pos][altt] = 0
+                                cdna_pos += 1
+                        else:
+                            while cdna_pos > (starting_cdna_pos - segment_len):
+                                for altt in "ACGT":
+                                    self.mutabilities_by_pos[cdna_pos][altt] = 0
+                                cdna_pos -= 1
+
+                        # print(self.chromosome, region[start], region[end], self.element, segment_len, cdna_pos, prev_pos, starting_cdna_pos, update_pos)
+                        # print("\n")
 
                     except ReaderError as e:
                         logger.warning(e.message)
