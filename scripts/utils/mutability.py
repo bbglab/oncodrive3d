@@ -284,6 +284,11 @@ class Mutabilities(object):
                         # print(self.chromosome, region[start], region[end], self.element, segment_len, cdna_pos, prev_pos, starting_cdna_pos, update_pos)
                         # print("\n")
 
+                        # this is to get the cdna position pointer
+                        # back to the biggest cdna position annotated so far
+                        starting_cdna_pos = cdna_pos if not self.reverse else cdna_pos + segment_len
+
+
                     except ReaderError as e:
                         logger.warning(e.message)
                         continue
