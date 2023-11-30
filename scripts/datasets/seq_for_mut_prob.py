@@ -414,14 +414,20 @@ def add_ref_dna_and_context(seq_df):
 # Wrappers
 ################################################### 
 
+# TODO: test if with the added "if gene not in" is avoiding duplicates Hugo Symbol with different Uni IDs
+#       - In general test if there are multiple rows with same gene name in the final seq_df
+#       - It seems that backtranseq is use for Uniprot ID connected to genes that were already processed with ref DNA: must avoid it
+
 def add_extra_genes_to_seq_df(seq_df, uniprot_to_gene_dict):
     """
     If multiple genes are mapping to a given Uniprot_ID, add 
     each gene name with corresponding sequence info to the seq_df.
     """
     
+    lst_added_genes = []
+    
     # Split by " "
-    lst_extra_genes = []
+    lst_extra_genes_rows = []
     for _, seq_row in seq_df.iterrows():
         uni_id = seq_row["Uniprot_ID"]
         gene_id = uniprot_to_gene_dict[uni_id]
@@ -430,16 +436,17 @@ def add_extra_genes_to_seq_df(seq_df, uniprot_to_gene_dict):
             gene_id = gene_id.split(" ")
             if len(gene_id) > 1:
                 for gene in gene_id:
-                    if gene != seq_row["Gene"]:
+                    if gene != seq_row["Gene"] and gene not in lst_added_genes:
                         
                         row = seq_row.copy()
                         row["Gene"] = gene
-                        lst_extra_genes.append(row)
+                        lst_extra_genes_rows.append(row)
+                        lst_added_genes.append(gene)
     
-    seq_df_extra_genes = pd.concat(lst_extra_genes, axis=1).T
+    seq_df_extra_genes = pd.concat(lst_extra_genes_rows, axis=1).T
     
     # Split by "/"
-    lst_extra_genes = []
+    lst_extra_genes_rows = []
     for _, seq_row in seq_df.iterrows():
         uni_id = seq_row["Uniprot_ID"]
         gene_id = uniprot_to_gene_dict[uni_id]
@@ -448,13 +455,14 @@ def add_extra_genes_to_seq_df(seq_df, uniprot_to_gene_dict):
             gene_id = gene_id.split("/")
             if len(gene_id) > 1:
                 for gene in gene_id:
-                    if gene != seq_row["Gene"]:
+                    if gene != seq_row["Gene"] and gene not in lst_added_genes:
                         
                         row = seq_row.copy()
                         row["Gene"] = gene
-                        lst_extra_genes.append(row)
+                        lst_extra_genes_rows.append(row)
+                        lst_added_genes.append(gene)
     
-    seq_df_extra_genes2 = pd.concat(lst_extra_genes, axis=1).T
+    seq_df_extra_genes2 = pd.concat(lst_extra_genes_rows, axis=1).T
     
     # Remove rows with multiple symbols and drop duplicated ones
     seq_df = pd.concat((seq_df, seq_df_extra_genes, seq_df_extra_genes2))
@@ -521,54 +529,3 @@ def get_seq_df(input_dir,
     if sim_ratio < 1:                       
         logger.warning(f"Error occurred during back translation: Protein and translated DNA similarity < 1: {sim_ratio}.")
     logger.debug(f"Dataframe including sequences is saved in: {output_seq_df}")
-
-
-# def get_seq_df(input_dir, 
-#                output_seq_df, 
-#                uniprot_to_gene_dict = None, 
-#                organism = "Homo sapiens"):
-#     """
-#     Generate a dataframe including IDs mapping information (Gene and Uniprot_ID),
-#     AlphaFold 2 fragment number (F); the protein (Seq) and DNA sequence (DNA_seq) 
-#     obtained by EMBL backtranseq, as well as the genomic coordinate of the exons 
-#     (Chr and Exons_coord), which are used to compute the per-residue probability 
-#     of missense mutation. Also, for a subset of genes, it include the DNA sequence 
-#     of the reference genome (Seq_dna_ref) and its per-site trinucleotide context
-#     taing into account flanking regions at splicing sites (Tri_context).
-#     """
-
-#     # Load Uniprot ID to HUGO mapping
-#     uniprot_ids = os.listdir(input_dir)
-#     uniprot_ids = [uni_id.split("-")[1] for uni_id in list(set(uniprot_ids)) if ".pdb" in uni_id]
-#     if uniprot_to_gene_dict is not None and uniprot_to_gene_dict != "None":
-#         uniprot_to_gene_dict = json.load(open(uniprot_to_gene_dict)) 
-#     else:
-#         logger.debug("Retrieving Uniprot_ID to Hugo symbol mapping information..")
-#         uniprot_to_gene_dict = uniprot_to_hugo(uniprot_ids)  
-
-#     # Create a dataframe with protein sequences
-#     logger.debug("Generating sequence df...")
-#     seq_df = initialize_seq_df(input_dir, uniprot_to_gene_dict)
-    
-#     # Annotate df with DNA sequences
-#     logger.debug("Performing back translation...")
-#     seq_df = batch_backtranseq(seq_df, 500, organism=organism)
-    
-#     # Add multiple genes mapping to the same Uniprot_ID
-#     seq_df = add_extra_genes_to_seq_df(seq_df, uniprot_to_gene_dict)
-    
-#     # Add coordinates for mutability integration and ref DNA sequence extraction
-#     logger.debug("Retrieving exons coordinate..")
-#     coord_df = get_exons_coord(seq_df["Uniprot_ID"].unique())
-#     seq_df = seq_df.merge(coord_df.drop(columns=["Gene"]), on=["Seq", "Uniprot_ID"], how="left").reset_index(drop=True)
-    
-#     # Add ref DNA sequence and its per-site trinucleotide context
-#     logger.debug("Retrieving exons DNA sequence from reference genome..")
-#     seq_df = add_ref_dna_and_context(seq_df)
-    
-#     # Save and assess similarity
-#     seq_df.to_csv(output_seq_df, index=False)
-#     sim_ratio = sum(seq_df.apply(lambda x: get_seq_similarity(x.Seq, translate_dna(x.Seq_dna)), axis=1)) / len(seq_df)
-#     if sim_ratio < 1:                       
-#         logger.warning(f"Error occurred during back translation: Protein and translated DNA similarity < 1: {sim_ratio}.")
-#     logger.debug(f"Dataframe including sequences is saved in: {output_seq_df}")

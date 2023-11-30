@@ -1,5 +1,5 @@
 /// nextflow run oncodrive3d.nf --indir /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/ --outdir /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_backtr_seq/ --cohort_pattern TCGA* --data_dir /workspace/projects/clustering_3d/clustering_3d/datasets_normal/
-/// nextflow run /workspace/projects/clustering_3d/clustering_3d/oncodrive3d.nf --indir /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/ --outdir /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/ --cohort_pattern TCGA* --data_dir /workspace/projects/clustering_3d/clustering_3d/datasets_normal/ --cores 24 --max_running 10 --memory 100G
+/// nextflow run /workspace/projects/clustering_3d/clustering_3d/oncodrive3d.nf --indir /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/ --outdir /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_unif/ --cohort_pattern TCGA* --data_dir /workspace/projects/clustering_3d/clustering_3d/datasets_normal/ --cores 10 --max_running 5 --memory 50G
 
 params.indir = "${baseDir}/test"
 params.cohort_pattern = "*"     

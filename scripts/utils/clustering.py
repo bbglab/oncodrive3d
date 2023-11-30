@@ -111,6 +111,11 @@ def clustering_3d(gene,
     else:
         gene_miss_prob = get_unif_gene_miss_prob(size=len(cmap))
 
+    # Filter out genes whose missense prob vec include any NA
+    if np.any(np.isnan(gene_miss_prob)):
+        result_gene_df["Status"] = "NA_miss_prob"
+        return None, result_gene_df
+
     # Probability that the volume of each residue can be hit by a missense mut
     vol_missense_mut_prob = np.dot(cmap, gene_miss_prob)
     
