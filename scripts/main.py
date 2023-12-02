@@ -229,8 +229,8 @@ def run(input_maf_path,
                                         "Mut_in_gene" : 1,
                                         "Max_mut_pos" : np.nan,
                                         "Structure_max_pos" : np.nan,
-                                        "Ratio_not_in_structure" : np.nan,
-                                        "Mut_zero_mut_prob" : np.nan,
+                                        "Ratio_not_in_structure" : 0,
+                                        "Mut_zero_mut_prob" : 0,
                                         "Pos_zero_mut_prob" : np.nan,
                                         "Status" : "No_mut"})
             result_np_gene_lst.append(result_gene)   
@@ -248,8 +248,8 @@ def run(input_maf_path,
                                         "Mut_in_gene" : genes_no_mapping.values,
                                         "Max_mut_pos" : np.nan,
                                         "Structure_max_pos" : np.nan,
-                                        "Ratio_not_in_structure" : np.nan,
-                                        "Mut_zero_mut_prob" : np.nan,
+                                        "Ratio_not_in_structure" : 0,
+                                        "Mut_zero_mut_prob" : 0,
                                         "Pos_zero_mut_prob" : np.nan,
                                         "Status" : "No_ID_mapping"})
             result_np_gene_lst.append(result_gene)
@@ -270,8 +270,8 @@ def run(input_maf_path,
                                             "Mut_in_gene" : genes_frag_mut.values,
                                             "Max_mut_pos" : np.nan,
                                             "Structure_max_pos" : np.nan,
-                                            "Ratio_not_in_structure" : np.nan,
-                                            "Mut_zero_mut_prob" : np.nan,
+                                            "Ratio_not_in_structure" : 0,
+                                            "Mut_zero_mut_prob" : 0,
                                             "Pos_zero_mut_prob" : np.nan,
                                             "Status" : "Fragmented"})
                 result_np_gene_lst.append(result_gene)
@@ -309,8 +309,8 @@ def run(input_maf_path,
                                             "Mut_in_gene" : np.nan,
                                             "Max_mut_pos" : np.nan,
                                             "Structure_max_pos" : np.nan,
-                                            "Ratio_not_in_structure" : np.nan,
-                                            "Mut_zero_mut_prob" : np.nan,
+                                            "Ratio_not_in_structure" : 0,
+                                            "Mut_zero_mut_prob" : 0,
                                             "Pos_zero_mut_prob" : np.nan,
                                             "Status" : "No_mutability"})
                 result_np_gene_lst.append(result_gene)
