@@ -77,7 +77,7 @@ def parse_vep_output(df):
     # Get HGVSp
     if "HGVSp_Short" not in df.columns:
         if "Amino_acids" in df.columns and "Protein_position" in df.columns:
-            logger.debug("Input detected as direct VEP output: Parsing translational effect of variant...")
+            logger.debug("Input detected as direct VEP output: Parsing translational effect of variant...")            
             df["HGVSp_Short"] = df.apply(
                 lambda x: (
                     "p." + x["Amino_acids"].split("/")[0] + str(x["Protein_position"]) + x["Amino_acids"].split("/")[1] 
@@ -108,6 +108,18 @@ def parse_maf_input(maf_input_path):
     # Select only missense mutation and extract mutations
     maf = maf[maf['Variant_Classification'].str.contains('Missense_Mutation')
               | maf['Variant_Classification'].str.contains('missense_variant')]
+    
+    # TODO: maybe change the parsing process and make it simpler
+    # TODO: DBS filtering only occurs if the "Protein_position" col is in the input
+    #       maybe change such that it filter them out anyway
+    
+    # Filtering DBS                                
+    if "Protein_position" in maf.columns:
+        dbs_ix = maf.Protein_position.apply(lambda x: len(str(x).split("-"))) > 1
+        if sum(dbs_ix) > 0:
+            logger.warning(f"Parsed {sum(dbs_ix)} double base substitutions: Filtering the mutations...")
+            maf = maf[~dbs_ix]
+    
     logger.debug(f"Processing [{len(maf)}] missense mutations...")
     maf["Pos"] = maf.loc[:, "HGVSp_Short"].apply(lambda x: int(re.sub("\\D", "", (x[2:]))))
     maf["WT"] = maf["HGVSp_Short"].apply(lambda x: re.findall("\\D", x[2:])[0])
@@ -230,16 +242,29 @@ def add_samples_info(mut_gene_df, result_pos_df, samples_info, cmap, pae=None):
 
 def add_nan_clust_cols(result_gene):
     """
-    Add columns showing clustering results with only nan for 
+    Add columns showing clustering results with only NA for 
     genes that are not tested (not enough mutations, etc).
     """
 
     result_gene = result_gene.copy()
     
-    columns = ["pval", "qval", "C_gene", "C_pos", 'C_label', 'Ratio_obs_sim_top_vol', 
-               "Clust_res", 'Clust_mut', 'Mut_in_top_vol', "Mut_in_top_cl_vol",
-               'Tot_samples', 'Samples_in_top_vol', 'Samples_in_top_cl_vol', 
-               "PAE_top_vol", "pLDDT_top_vol", "pLDDT_top_cl_vol", 'F']
+    columns = ["pval", 
+               "qval", 
+               "C_gene", 
+               "C_pos", 
+               'C_label', 
+               'Ratio_obs_sim_top_vol', 
+               "Clust_res", 
+               'Clust_mut', 
+               'Mut_in_top_vol', 
+               "Mut_in_top_cl_vol",
+               'Tot_samples', 
+               'Samples_in_top_vol', 
+               'Samples_in_top_cl_vol', 
+               "PAE_top_vol", 
+               "pLDDT_top_vol", 
+               "pLDDT_top_cl_vol", 
+               'F']
     
     for col in columns:
         result_gene[col] = np.nan
@@ -252,12 +277,34 @@ def sort_cols(result_gene):
     Simply change the order of columns of the genes-level result.
     """
 
-    cols = ['Gene', 'Uniprot_ID', 
-            'pval', 'qval', 'C_gene', 'C_pos', 'C_label', 'Ratio_obs_sim_top_vol', "Clust_res",
-            'Mut_in_gene', 'Clust_mut', 'Mut_in_top_vol', "Mut_in_top_cl_vol",
-            'Tot_samples', 'Samples_in_top_vol', 'Samples_in_top_cl_vol', 
-            "PAE_top_vol", "pLDDT_top_vol", "pLDDT_top_cl_vol",
-            'F', 'Status', 'Cancer', 'Cohort']
+    cols = ['Gene', 
+            'Uniprot_ID', 
+            'pval', 
+            'qval', 
+            'C_gene', 
+            'C_pos', 
+            'C_label', 
+            'Ratio_obs_sim_top_vol', 
+            "Clust_res",
+            'Mut_in_gene', 
+            'Clust_mut', 
+            'Mut_in_top_vol', 
+            "Mut_in_top_cl_vol",
+            'Tot_samples', 
+            'Samples_in_top_vol', 
+            'Samples_in_top_cl_vol', 
+            "PAE_top_vol", 
+            "pLDDT_top_vol", 
+            "pLDDT_top_cl_vol",
+            'F', 
+            'Max_mut_pos',
+            'Structure_max_pos',
+            'Ratio_not_in_structure',
+            'Mut_zero_mut_prob',
+            'Pos_zero_mut_prob',
+            'Status', 
+            'Cancer', 
+            'Cohort']
 
     return result_gene[[col for col in cols if col in result_gene.columns]]
 
@@ -267,10 +314,30 @@ def empty_result_pos():
     Get an empty position-level result of the clustering method.
     """
     
-    cols = ['Gene', 'Uniprot_ID', 'F', 'Pos', 'Mut_in_gene', 'Mut_in_res',
-            'Mut_in_vol', 'Obs_anomaly', 'Ratio_obs_sim', 'pval', 'C', 'C_ext',
-            'Cluster', 'Rank', 'Tot_samples', 'Samples_in_vol', 'Samples_in_cl_vol',
-            'Mut_in_cl_vol', 'Res_in_cl', 'PAE_vol', 'pLDDT_res', 'pLDDT_vol',
-            'pLDDT_cl_vol', 'Cancer', 'Cohort']
+    cols = ['Gene', 
+            'Uniprot_ID', 
+            'F', 
+            'Pos', 
+            'Mut_in_gene', 
+            'Mut_in_res',
+            'Mut_in_vol', 
+            'Obs_anomaly', 
+            'Ratio_obs_sim', 
+            'pval', 
+            'C', 
+            'C_ext',
+            'Cluster', 
+            'Rank', 
+            'Tot_samples', 
+            'Samples_in_vol', 
+            'Samples_in_cl_vol',
+            'Mut_in_cl_vol', 
+            'Res_in_cl', 
+            'PAE_vol', 
+            'pLDDT_res', 
+            'pLDDT_vol',
+            'pLDDT_cl_vol', 
+            'Cancer', 
+            'Cohort']
     
     return pd.DataFrame(columns=cols)

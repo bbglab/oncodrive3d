@@ -28,7 +28,8 @@ def clustering_3d(gene,
                   num_iteration=10000,
                   cmap_prob_thr=0.5,
                   seed=None,
-                  pae_path=None):
+                  pae_path=None,
+                  thr_not_in_structure=0.1):
     """
     Compute local density of missense mutations for a sphere of 10A around          
     each amino acid position of the selected gene product. It performed a 
@@ -72,6 +73,9 @@ def clustering_3d(gene,
                                    "Mut_in_gene" : mut_count,
                                    "Max_mut_pos" : np.nan,
                                    "Structure_max_pos" : np.nan,
+                                   "Ratio_not_in_structure" : np.nan,
+                                   "Mut_zero_mut_prob" : np.nan,
+                                   "Pos_zero_mut_prob" : np.nan,
                                    "Status" : np.nan}, 
                                     index=[1])
 
@@ -94,10 +98,20 @@ def clustering_3d(gene,
 
     # Check if there is a mutation that is not in the structure      
     if max(mut_gene_df.Pos) > len(cmap):
-        result_gene_df["Max_mut_pos"] = max(mut_gene_df.Pos)  
-        result_gene_df["Structure_max_pos"] = len(cmap)
-        result_gene_df["Status"] = "Mut_not_in_structure"
-        return None, result_gene_df
+        not_in_structure_ix = mut_gene_df.Pos > len(cmap)
+        ratio_not_in_structure = sum(not_in_structure_ix) / len(mut_gene_df.Pos)
+        logger_out = f"Detected {sum(not_in_structure_ix)} ({ratio_not_in_structure*100:.3}%) mut not in the structure of {gene} ({uniprot_id}-F{af_f}): "
+        if ratio_not_in_structure > thr_not_in_structure:
+            result_gene_df["Max_mut_pos"] = max(mut_gene_df.Pos)  
+            result_gene_df["Structure_max_pos"] = len(cmap)
+            result_gene_df["Ratio_not_in_structure"] = ratio_not_in_structure
+            result_gene_df["Status"] = "Mut_not_in_structure"
+            logger.warning(logger_out + "Filtering the gene...")
+            return None, result_gene_df
+        else:
+            logger.warning(logger_out + "Filtering the mutations...")
+            mut_gene_df = mut_gene_df[~not_in_structure_ix]
+            mut_count = len(mut_gene_df)
 
     # Samples info
     samples_info = get_samples_info(mut_gene_df, cmap)
@@ -116,11 +130,19 @@ def clustering_3d(gene,
         result_gene_df["Status"] = "NA_miss_prob"
         return None, result_gene_df
     
-    # # Filter out genes with a mutation in a residue having zero prob to mutate
-    # pos_vec = mut_gene_df["Pos"].values
-    # if (np.array(gene_miss_prob)[pos_vec-1] == 0).any():
-    #     result_gene_df["Status"] = "Mut_with_zero_prob"
-    #     return None, result_gene_df
+    # Filter out genes with a mutation in a residue having zero prob to mutate
+    pos_vec = np.unique(mut_gene_df["Pos"].values)
+    pos_prob_vec = np.array(gene_miss_prob)[pos_vec-1]
+    if (pos_prob_vec == 0).any():
+        result_gene_df["Status"] = "Mut_with_zero_prob"
+        pos_prob_vec = np.array(gene_miss_prob)[pos_vec-1]
+        pos_zero_prob = list(pos_vec[pos_prob_vec == 0])
+        mut_zero_prob = sum([pos in pos_zero_prob for pos in mut_gene_df["Pos"].values])
+        result_gene_df["Mut_zero_mut_prob"] = mut_zero_prob
+        result_gene_df["Pos_zero_mut_prob"] = str(pos_zero_prob)
+        result_gene_df["Status"] = "Mut_with_zero_prob"
+        logger.warning(f"Detected {mut_zero_prob} mut in {len(pos_zero_prob)} pos {pos_zero_prob} with zero mut prob in {gene} ({uniprot_id}-F{af_f}): Filtering the gene...")  
+        return None, result_gene_df
 
     # Probability that the volume of each residue can be hit by a missense mut
     vol_missense_mut_prob = np.dot(cmap, gene_miss_prob)
@@ -234,7 +256,8 @@ def clustering_3d_mp(genes,
                      num_iteration=10000,
                      cmap_prob_thr=0.5,
                      seed=None,
-                     pae_path=None):
+                     pae_path=None,
+                     thr_not_in_structure=0.1):
     """
     Run the 3D-clustering algorithm in parallel on multiple genes.
     """
@@ -260,7 +283,8 @@ def clustering_3d_mp(genes,
                                                 num_iteration=num_iteration,
                                                 cmap_prob_thr=cmap_prob_thr,
                                                 seed=seed,
-                                                pae_path=pae_path)
+                                                pae_path=pae_path,
+                                                thr_not_in_structure=thr_not_in_structure)
         result_gene_lst.append(result_gene)
         if pos_result is not None:
             result_pos_lst.append(pos_result)
@@ -287,7 +311,8 @@ def clustering_3d_mp_wrapper(genes,
                              num_iteration=10000,
                              cmap_prob_thr=0.5,
                              seed=None,
-                             pae_path=None):
+                             pae_path=None,
+                             thr_not_in_structure=0.1):
     """
     Wrapper function to run the 3D-clustering algorithm in parallel on multiple genes.
     """
@@ -310,7 +335,8 @@ def clustering_3d_mp_wrapper(genes,
                                                    num_iteration, 
                                                    cmap_prob_thr, 
                                                    seed, 
-                                                   pae_path) 
+                                                   pae_path,
+                                                   thr_not_in_structure) 
                                                   for n_process, chunk in enumerate(chunks)])
         
     # Parse output

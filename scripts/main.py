@@ -22,8 +22,8 @@ oncodrive3D run \
         -p test/mut_profile/TCGA_WXS_ACC.mutrate.json \
             -o test/results
                   
-oncodrive3D run -i /workspace/projects/clustering_3d/clustering_3d/datasets_normal/kidneydata/all_mutations.all_samples.tsv -d datasets_normal -m /workspace/projects/clustering_3d/clustering_3d/test/normal_tests/mutability_config.json -o /workspace/projects/clustering_3d/dev_testing/result/o3d/test_normal -C kidney_mutability -v
-            
+oncodrive3D run -i /workspace/projects/clustering_3d/clustering_3d/datasets_normal/kidneydata/all_mutations.all_samples.tsv -d /workspace/projects/clustering_3d/clustering_3d/datasets_normal -m /workspace/projects/clustering_3d/clustering_3d/test/normal_tests/kidneydata/mutability_kidney.json -o /workspace/projects/clustering_3d/dev_testing/result/o3d/test_normal -C kidney_mutability_unif -v
+oncodrive3D run -i /workspace/projects/clustering_3d/clustering_3d/datasets_normal/kidneydata/all_mutations.all_samples.tsv -d /workspace/projects/clustering_3d/clustering_3d/datasets_normal -p /workspace/projects/clustering_3d/clustering_3d/test/normal_tests/kidneydata/mut_profiles/all_samples.192.json           
 """
 
 
@@ -136,6 +136,8 @@ def build_datasets(output_dir,
               help="Threshold to define AAs contacts based on distance on predicted structure and PAE")
 @click.option("-f", "--no_fragments", help="Disable processing of fragmented (AF-F) proteins", is_flag=True)
 @click.option("-x", "--only_processed", help="Include only processed genes in the output", is_flag=True)
+@click.option("-y", "--thr_not_in_structure", type=float, default=0.1,
+              help="Threshold to filter out genes based on the ratio of mutations outside of the structure")
 @click.option("-c", "--cores", type=click.IntRange(min=1, max=len(os.sched_getaffinity(0)), clamp=False), default=len(os.sched_getaffinity(0)),
               help="Set the number of cores to use in the computation")
 @click.option("-s", "--seed", help="Set seed to ensure reproducible results", type=int)
@@ -153,6 +155,7 @@ def run(input_maf_path,
         cmap_prob_thr,
         no_fragments,
         only_processed,
+        thr_not_in_structure,
         cores,
         seed,
         verbose,
@@ -189,6 +192,7 @@ def run(input_maf_path,
     logger.info(f"Probability threshold for CMAPs: {cmap_prob_thr}")
     logger.info(f"Disable fragments: {bool(no_fragments)}")
     logger.info(f"Output only processed genes: {bool(only_processed)}")
+    logger.info(f"Ratio threshold mutations out of structure: {thr_not_in_structure}")
     logger.info(f"Cohort: {cohort}")
     logger.info(f"Cancer type: {cancer_type}")
     logger.info(f"Verbose: {bool(verbose)}")
@@ -225,6 +229,9 @@ def run(input_maf_path,
                                         "Mut_in_gene" : 1,
                                         "Max_mut_pos" : np.nan,
                                         "Structure_max_pos" : np.nan,
+                                        "Ratio_not_in_structure" : np.nan,
+                                        "Mut_zero_mut_prob" : np.nan,
+                                        "Pos_zero_mut_prob" : np.nan,
                                         "Status" : "No_mut"})
             result_np_gene_lst.append(result_gene)   
 
@@ -241,6 +248,9 @@ def run(input_maf_path,
                                         "Mut_in_gene" : genes_no_mapping.values,
                                         "Max_mut_pos" : np.nan,
                                         "Structure_max_pos" : np.nan,
+                                        "Ratio_not_in_structure" : np.nan,
+                                        "Mut_zero_mut_prob" : np.nan,
+                                        "Pos_zero_mut_prob" : np.nan,
                                         "Status" : "No_ID_mapping"})
             result_np_gene_lst.append(result_gene)
         
@@ -260,15 +270,26 @@ def run(input_maf_path,
                                             "Mut_in_gene" : genes_frag_mut.values,
                                             "Max_mut_pos" : np.nan,
                                             "Structure_max_pos" : np.nan,
+                                            "Ratio_not_in_structure" : np.nan,
+                                            "Mut_zero_mut_prob" : np.nan,
+                                            "Pos_zero_mut_prob" : np.nan,
                                             "Status" : "Fragmented"})
                 result_np_gene_lst.append(result_gene)
                 # Filter out from genes to process and seq df
                 genes_to_process = [gene for gene in genes_to_process if gene not in genes_frag]
                 seq_df = seq_df[[gene in genes_to_process for gene in seq_df["Gene"]]].reset_index(drop=True)
                 
+        # Filter on start-loss mutations
+        start_mut_ix = data["Pos"] == 1
+        start_mut = sum(start_mut_ix)
+        if start_mut > 0:
+            genes_start_mut = list(data[start_mut_ix].Gene.unique())
+            data = data[~start_mut_ix]
+            logger.warning(f"Detected {start_mut} start-loss mutations in {len(genes_start_mut)} genes {genes_start_mut}: Filtering mutations...")
 
-        # Missense mut prob
-        # using mutabilities if provided
+        ## Missense mut prob
+        
+        # Using mutabilities if provided
         if  mutability_config_path is not None:
             logger.info(f"Computing missense mut probabilities using mutabilities...")
             mutab_config = json.load(open(mutability_config_path))
@@ -279,19 +300,22 @@ def run(input_maf_path,
             genes_not_mutability = [gene for gene in genes_to_process if gene not in seq_df["Gene"].unique()]
             miss_prob_dict = get_miss_mut_prob_dict(mut_rate_dict=None, seq_df=seq_df,
                                                     mutability=True, mutability_config=mutab_config)
-            
-            # TODO: return Uniprot_ID, F, etc
+            # TODO: return F, etc
             if len(genes_not_mutability) > 0:   
                 logger.debug(f"Detected [{len(genes_not_mutability)}] genes without mutability information: Skipping...")
                 result_gene = pd.DataFrame({"Gene" : genes_not_mutability,
-                                            "Uniprot_ID" : np.nan,
+                                            "Uniprot_ID" : [gene_to_uniprot_dict[gene] for gene in genes_not_mutability],
                                             "F" : np.nan,
                                             "Mut_in_gene" : np.nan,
                                             "Max_mut_pos" : np.nan,
                                             "Structure_max_pos" : np.nan,
+                                            "Ratio_not_in_structure" : np.nan,
+                                            "Mut_zero_mut_prob" : np.nan,
+                                            "Pos_zero_mut_prob" : np.nan,
                                             "Status" : "No_mutability"})
                 result_np_gene_lst.append(result_gene)
-        # using mutational profiles
+                
+        # Using mutational profiles
         elif mut_profile_path is not None:
             # Compute dict from mut profile of the cohort and dna sequences
             mut_profile = json.load(open(mut_profile_path))
@@ -317,7 +341,8 @@ def run(input_maf_path,
                                                             num_iteration=n_iterations, 
                                                             cmap_prob_thr=cmap_prob_thr, 
                                                             seed=seed, 
-                                                            pae_path=pae_path)
+                                                            pae_path=pae_path,
+                                                            thr_not_in_structure=thr_not_in_structure)
             if result_np_gene_lst:
                 result_gene = pd.concat((result_gene, pd.concat(result_np_gene_lst)))
         else:
@@ -325,7 +350,6 @@ def run(input_maf_path,
             result_pos = None
 
         ## Save 
-
         if not os.path.exists(output_dir):
             os.makedirs(os.path.join(output_dir))
             logger.warning(f"Directory '{output_dir}' does not exists: Creating...")
