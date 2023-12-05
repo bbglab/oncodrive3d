@@ -56,22 +56,29 @@ from scripts import __logger_name__, __version__
 from scripts.datasets.build_datasets import build
 from scripts.globals import DATE, setup_logging_decorator, startup_message
 from scripts.utils.clustering import clustering_3d_mp_wrapper
-from scripts.utils.miss_mut_prob import (get_miss_mut_prob_dict,
-                                         mut_rate_vec_to_dict)
+from scripts.utils.miss_mut_prob import get_miss_mut_prob_dict, mut_rate_vec_to_dict
 from scripts.utils.pvalues import get_final_gene_result
 from scripts.utils.utils import add_nan_clust_cols, parse_maf_input, sort_cols, empty_result_pos
-
+from scripts.datasets.build_annotations import get_annotations
 from scripts.utils.mutability import init_mutabilities_module
 
 logger = daiquiri.getLogger(__logger_name__)
 
 
+
 @click.group(context_settings={'help_option_names': ['-h', '--help']})
 @click.version_option(__version__)
 def oncodrive3D():
-    """Oncodrive3D: software for the identification of 3D-clustering of missense mutations for cancer driver genes detection."""
+    """
+    Oncodrive3D: software for the identification of 3D-clustering 
+    of missense mutations for cancer driver genes detection.
+    """
     pass
 
+
+######################
+#   BUILD DATASETS
+######################
 
 @oncodrive3D.command(context_settings=dict(help_option_names=['-h', '--help']),
                help="Build datasets - Required once after installation.") 
@@ -122,6 +129,10 @@ def build_datasets(output_dir,
           af_version, 
           keep_pdb_files)
 
+
+###########
+#   RUN
+###########
 
 @oncodrive3D.command(context_settings=dict(help_option_names=['-h', '--help']),
                      help="Run 3D-clustering analysis.") 
@@ -397,9 +408,98 @@ def run(input_maf_path,
         
     else:
         logger.warning("No missense mutations were found in the input MAF. Consider checking your data: the field 'Variant_Classification' should include either 'Missense_Mutation' or 'missense_variant'")
-                    
-                    
+               
+
+###########################
+#    GET ANNOTATIONS
+###########################
+
+@oncodrive3D.command(context_settings=dict(help_option_names=['-h', '--help']),
+               help="Get annotations - Required (once) only to plot annotations.") 
+@click.option("-o", "--output_dir", help="Path to dir where to store annotations", type=str, default="annotations")
+@click.option("-c", "--cores", type=click.IntRange(min=1, max=len(os.sched_getaffinity(0)), clamp=False), default=len(os.sched_getaffinity(0)),
+              help="Number of cores to use in the computation")
+@click.option("-y", "--yes", help="No interaction", is_flag=True)
+@click.option("-v", "--verbose", help="Verbose", is_flag=True)
+@setup_logging_decorator
+def build_annotations(output_dir,
+                      cores,
+                      yes,
+                      verbose):
+    """
+    Build datasets to plot protein annotations.
+    
+    Example: oncodrive3D build-annotations -o /workspace/projects/clustering_3d/o3d_analysys/datasets/annotations -v
+    """
+
+    startup_message(__version__, "Initializing building annotations...")
+    
+    logger.info(f"Output directory: {output_dir}")
+    logger.info(f"Cores: {cores}")
+    logger.info(f"Verbose: {bool(verbose)}")
+    logger.info(f'Log path: {os.path.join(output_dir, "log")}')
+    logger.info("")
+
+    get_annotations(output_dir, cores, verbose)
+
+    
+
+##############
+#    PLOT
+##############
+
+## TODO: maybe add a flag that allow to write the annotated results as csv files
+                 
+@oncodrive3D.command(context_settings=dict(help_option_names=['-h', '--help']),
+               help="Generate plots for a quick interpretation of the 3D-clustering analysis.") 
+@click.option("-i", "--input_dir", help="Directory where the result of Oncodrive3D is stored", type=str)
+@click.option("-c", "--cohort", help="Cohort name used as filename by Oncodrive3D", type=str)
+@click.option("-o", "--output_dir", help="Directory where to save the plots", type=str)
+@click.option("-i", "--input_dir_2", help="Second input directory for comparison between two results", type=str)
+@click.option("-c", "--cohort_2", help="Second cohort name for comparison between two results", type=str)
+@click.option("-d", "--annotation_dir", help="Directory including files to annotate the genes", type=str)
+
+@click.option("-n", "--n_genes", help="Top number of genes to be included in the plots", type=int, default=20)
+@click.option("-l", "--genes", help="List of genes to be analysed in the report", multiple=True)
+@click.option("-k", "--significant_only", help="Only include significant genes", is_flag=True)
+
+@click.option("-A", "--all_annotations", help="Include all available annotations", is_flag=True)
+@click.option("-s", "--stability_change", help="Include stability change annotation", is_flag=True)
+@click.option("-r", "--disorder", help="Include disorder annotation", is_flag=True)
+@click.option("-S", "--secondary_structure", help="Include secondary structure annotation", is_flag=True)
+@click.option("-y", "--solvent_accessibility", help="Include solvent accessibility", is_flag=True)
+@click.option("-p", "--pae", help="Include predicted aligned error", is_flag=True)
+
+@click.option("-f", "--figsize", help="Tuple to specify the figure size of the summary plot", multiple=True)
+@click.option("-v", "--verbose", help="Verbose", is_flag=True)
+@setup_logging_decorator
+def plot(input_dir, 
+         output_dir,
+         annotation_dir, 
+         no_genes,
+         significant_only, 
+         verbose):
+    """"Generate plots for a quick interpretation of the 3D-clustering analysis."""
+    
+    startup_message(__version__, "Starting plot generation...")
+    
+    logger.info(f"Input directory: {input_dir}")
+    logger.info(f"Outpur directory: {output_dir}")
+    logger.info(f"Annotation directory: {annotation_dir}")
+    logger.info(f"Number of top genes: {bool(no_genes)}")
+    logger.info(f"Include only significant genes: {bool(significant_only)}")
+    logger.info(f"Verbose: {bool(verbose)}")
+    logger.info(f'Log path: {os.path.join(output_dir, "log")}')
+    logger.info("")
+  
+    #generate_plots()
+
+
 
 if __name__ == "__main__":
     oncodrive3D()
+ 
+ 
+ 
+ 
  

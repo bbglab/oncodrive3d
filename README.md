@@ -23,6 +23,18 @@ cd clustering_3d           # >>> Modify to oncodrive3D
 pip install .
 ```
 
+TEMP: until we fix the installation, install bbgreference on the side:  
+
+```bash
+conda install -c conda-forge -c bbglab bgreference        # >>> Fix bbgreference in requirements.txt
+```
+
+or 
+
+```bash
+pip install bgreference
+```
+
 ## Building datasets
 
 This step is required once after installation or any time the user wants to 
@@ -135,3 +147,34 @@ When using the nextflow script, it is important to ensure that your input
 *maf* and *mut profile* files are located in the same folder, as shown in 
 ``test/``. These files should have the extensions ``.in.maf`` 
 and ``.mutrate.json``, respectively.
+
+
+## Quick interpretation of the analysis
+
+You can generate plots for a quick interpretation of the 3D clustering analysis 
+performed by Oncodrive-3D. The plots can be simple or annotated with structural 
+and genomics feature. To generate annotated plots, it is required (once) to 
+build the annotations datasets.
+
+
+### Building annotations
+
+This step is required once, only to enable Oncodrive3D to produce annotated plots.
+It is not required to produce simple plot nor to run the 3D-clustering analysis.
+
+```bash
+oncodrive3D build-annotations -o annotation_folder/
+```
+
+- **-o, --output_dir <path>**: Specifies the annotation folder where files will be saved. Default: `annotations/`.
+
+- **-c, --cores <int>**: Determines the number of CPU cores to use in the computation. Default: Number of available CPU cores.
+
+- **-v, --verbose <flag: set to enable>**: Enables a more verbose output from the method.
+
+
+### Generating plots
+
+```bash
+oncodrive3D plot -i oncodrive3d_result/ -f filename
+```

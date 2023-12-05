@@ -25,7 +25,7 @@ setup(
     include_package_data=True,
     url="https://github.com/bbglab/clustering_3d",
     author="BBGLab",
-    author_email="bbglab@irbbarcelona.org",
+    author_email="stefano.pellegrini@irbbarcelona.org",
     license="GNU Affero General Public License v3 or later (AGPLv3+)", # TODO change accordingly
     entry_points={
         'console_scripts': [
