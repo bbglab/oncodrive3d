@@ -234,7 +234,7 @@ def parse_ddg_rasp(input_path, output_path, threads=1):
         
         # Create a pool of workers parsing processes
         with Pool(processes=threads) as pool:
-            args_list = [(file, input_path, output_path, True) for file in fragmented_pdb]
+            args_list = [(file, input_path, output_path, True) for file in lst_files]
             # Map the worker function to the arguments list
             pool.map(parse_ddg_rasp_worker, args_list) 
         if len(lst_files) > 50:
