@@ -153,7 +153,7 @@ and ``.mutrate.json``, respectively.
 
 You can generate plots for a quick interpretation of the 3D clustering analysis 
 performed by Oncodrive-3D. The plots can be simple or annotated with structural 
-and genomics feature. To generate annotated plots, it is required (once) to 
+and genomics features. To generate annotated plots, it is required (once) to 
 build the annotations datasets.
 
 

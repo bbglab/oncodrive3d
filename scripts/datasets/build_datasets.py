@@ -40,7 +40,7 @@ def build(output_datasets,
           uniprot_to_hugo,
           num_cores,
           af_version,
-          keep_pdb_files,
+          rm_pdb_files,
           ):
     """
     Build datasets necessary to run Oncodrive3D.
@@ -101,7 +101,7 @@ def build(output_datasets,
     # Clean datasets
     logger.info("Cleaning datasets...")
     clean_temp_files(path=output_datasets,
-                     keep_pdb_files=keep_pdb_files)
+                     rm_pdb_files=rm_pdb_files)
     logger.info("Datasets cleaning completed!")
 
     logger.info("Datasets have been successfully built and are ready for analysis!")

@@ -22,8 +22,10 @@ oncodrive3D run \
         -p test/mut_profile/TCGA_WXS_ACC.mutrate.json \
             -o test/results
                   
-oncodrive3D run -i /workspace/projects/clustering_3d/clustering_3d/datasets_normal/kidneydata/all_mutations.all_samples.tsv -d /workspace/projects/clustering_3d/clustering_3d/datasets_normal -m /workspace/projects/clustering_3d/clustering_3d/test/normal_tests/kidneydata/mutability_kidney.json -o /workspace/projects/clustering_3d/dev_testing/result/o3d/test_normal -C kidney_mutability_unif -v
-oncodrive3D run -i /workspace/projects/clustering_3d/clustering_3d/datasets_normal/kidneydata/all_mutations.all_samples.tsv -d /workspace/projects/clustering_3d/clustering_3d/datasets_normal -p /workspace/projects/clustering_3d/clustering_3d/test/normal_tests/kidneydata/mut_profiles/all_samples.192.json           
+
+singularity exec /workspace/projects/clustering_3d/clustering_3d/build/containers/oncodrive3d_231205.sif oncodrive3D run -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/kidney_pilot/all_mutations.all_samples.tsv -d /workspace/projects/clustering_3d/clustering_3d/datasets_normal -m /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/kidney_pilot/mutability_kidney.json -o <your_output_dir> -C kidney_normal -v -s 128 -t kidney 
+singularity exec /workspace/projects/clustering_3d/clustering_3d/build/containers/oncodrive3d_231205.sif oncodrive3D run -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/kidney_pilot/all_mutations.all_samples.tsv -d /workspace/projects/clustering_3d/clustering_3d/datasets_normal -m /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/kidney_pilot/mutability_kidney.json -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/kidney_231205_test -C kidney_normal -v -s 128 -t kidney 
+singularity exec oncodrive3D plot -i /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/kidney_231205_test -c kidney_normal
 """
 
 
@@ -59,7 +61,8 @@ from scripts.utils.clustering import clustering_3d_mp_wrapper
 from scripts.utils.miss_mut_prob import get_miss_mut_prob_dict, mut_rate_vec_to_dict
 from scripts.utils.pvalues import get_final_gene_result
 from scripts.utils.utils import add_nan_clust_cols, parse_maf_input, sort_cols, empty_result_pos
-from scripts.datasets.build_annotations import get_annotations
+from scripts.generate_plots.build_annotations import get_annotations
+from scripts.generate_plots.plot import plot
 from scripts.utils.mutability import init_mutabilities_module
 
 logger = daiquiri.getLogger(__logger_name__)
@@ -93,7 +96,7 @@ def oncodrive3D():
               help="Number of cores to use in the computation")
 @click.option("-a", "--af_version", type=click.IntRange(min=1, max=4, clamp=False), default=4,
               help="Version of AlphaFold 2 predictions")
-@click.option("-k", "--keep_pdb_files", help="Keep original PDB files", is_flag=True)
+@click.option("-r", "--rm_pdb_files", help="Delete PDB files after datasets building", is_flag=True)
 @click.option("-y", "--yes", help="No interaction", is_flag=True)
 @click.option("-v", "--verbose", help="Verbose", is_flag=True)
 @setup_logging_decorator
@@ -102,7 +105,7 @@ def build_datasets(output_dir,
                    distance_threshold,
                    uniprot_to_hugo, 
                    cores, af_version, 
-                   keep_pdb_files, 
+                   rm_pdb_files, 
                    yes,
                    verbose):
     """"Build datasets necessary to run Oncodrive3D."""
@@ -116,7 +119,7 @@ def build_datasets(output_dir,
     logger.info(f"Custom IDs mapping: {uniprot_to_hugo}")
     logger.info(f"CPU cores: {cores}")
     logger.info(f"AlphaFold version: {af_version}")
-    logger.info(f"Keep PDB files: {keep_pdb_files}")
+    logger.info(f"Remove PDB files: {rm_pdb_files}")
     logger.info(f"Verbose: {verbose}")
     logger.info(f'Log path: {os.path.join(output_dir, "log")}')
     logger.info("")
@@ -127,7 +130,7 @@ def build_datasets(output_dir,
           uniprot_to_hugo, 
           cores, 
           af_version, 
-          keep_pdb_files)
+          rm_pdb_files)
 
 
 ###########
@@ -411,18 +414,22 @@ def run(input_maf_path,
                
 
 ###########################
-#    GET ANNOTATIONS
+#     GET ANNOTATIONS
 ###########################
 
 @oncodrive3D.command(context_settings=dict(help_option_names=['-h', '--help']),
-               help="Get annotations - Required (once) only to plot annotations.") 
+               help="Get annotations - Required (once) only to plot annotations.")
+@click.option("-p", "--path_pdb_structure", help="Path to dir including PDB structures", type=str)
+@click.option("-s", "--path_pdb_tool_sif", help="Path to PDB_Tool SIF", type=str) 
 @click.option("-o", "--output_dir", help="Path to dir where to store annotations", type=str, default="annotations")
 @click.option("-c", "--cores", type=click.IntRange(min=1, max=len(os.sched_getaffinity(0)), clamp=False), default=len(os.sched_getaffinity(0)),
               help="Number of cores to use in the computation")
 @click.option("-y", "--yes", help="No interaction", is_flag=True)
 @click.option("-v", "--verbose", help="Verbose", is_flag=True)
 @setup_logging_decorator
-def build_annotations(output_dir,
+def build_annotations(path_pdb_structure,
+                      path_pdb_tool_sif,
+                      output_dir,
                       cores,
                       yes,
                       verbose):
@@ -440,7 +447,11 @@ def build_annotations(output_dir,
     logger.info(f'Log path: {os.path.join(output_dir, "log")}')
     logger.info("")
 
-    get_annotations(output_dir, cores, verbose)
+    get_annotations(path_pdb_structure, 
+                    path_pdb_tool_sif,
+                    output_dir, 
+                    cores, 
+                    verbose)
 
     
 
@@ -455,8 +466,8 @@ def build_annotations(output_dir,
 @click.option("-i", "--input_dir", help="Directory where the result of Oncodrive3D is stored", type=str)
 @click.option("-c", "--cohort", help="Cohort name used as filename by Oncodrive3D", type=str)
 @click.option("-o", "--output_dir", help="Directory where to save the plots", type=str)
-@click.option("-i", "--input_dir_2", help="Second input directory for comparison between two results", type=str)
-@click.option("-c", "--cohort_2", help="Second cohort name for comparison between two results", type=str)
+@click.option("-I", "--input_dir_2", help="Second input directory for comparison between two results", type=str)
+@click.option("-C", "--cohort_2", help="Second cohort name for comparison between two results", type=str)
 @click.option("-d", "--annotation_dir", help="Directory including files to annotate the genes", type=str)
 
 @click.option("-n", "--n_genes", help="Top number of genes to be included in the plots", type=int, default=20)

@@ -129,7 +129,7 @@ def clean_dir(path: str, loc: str = 'd') -> None:
         pass
     
     
-def clean_temp_files(path: str, keep_pdb_files: bool) -> None:
+def clean_temp_files(path: str, rm_pdb_files=False) -> None:
     """
     Clean temp files from dir after completing building the datasets. 
 
@@ -137,7 +137,7 @@ def clean_temp_files(path: str, keep_pdb_files: bool) -> None:
         path (str): Path to build directory to be cleaned.
     """
     
-    if not keep_pdb_files:
+    if rm_pdb_files:
         clean_pdb = ["rm", "-rf", os.path.join(path, "pdb_structures")]
         logger.debug(' '.join(clean_pdb))
         subprocess.run(clean_pdb)

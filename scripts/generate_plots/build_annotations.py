@@ -7,7 +7,7 @@ import pandas as pd
 import numpy as np
 import re
 import glob
-#from tqdm import tqdm
+from tqdm import tqdm
 from progressbar import progressbar
 from multiprocessing import Pool
 import json
@@ -40,7 +40,7 @@ def clean_annotations_dir(path: str, loc: str) -> None:
 
         clean_files = f"rm -rf {os.path.join(path, '*.csv')} {os.path.join(path, '*.json')} {os.path.join(path, '.*.txt')}"
         clean_ddg = ["rm", "-rf", os.path.join(path, "stability_change")]
-        clean_log = ["rm", "-rf", os.path.join(path, "log")]
+        #clean_log = ["rm", "-rf", os.path.join(path, "log")]
 
         logger.debug(clean_files)
         subprocess.run(clean_files, shell=True)
@@ -48,8 +48,8 @@ def clean_annotations_dir(path: str, loc: str) -> None:
         logger.debug(' '.join(clean_ddg))
         subprocess.run(clean_ddg)
 
-        logger.debug(' '.join(clean_log))
-        subprocess.run(clean_log)
+        # logger.debug(' '.join(clean_log))
+        # subprocess.run(clean_log)
 
     elif loc == "r":
         # TODO: implement cleaning function for output
@@ -234,7 +234,7 @@ def parse_ddg_rasp(input_path, output_path, threads=1):
         
         # Create a pool of workers parsing processes
         with Pool(processes=threads) as pool:
-            args_list = [(file, input_path, output_path, True) for file in lst_files]
+            args_list = [(file, input_path, output_path) for file in lst_files]
             # Map the worker function to the arguments list
             pool.map(parse_ddg_rasp_worker, args_list) 
         if len(lst_files) > 50:
@@ -243,53 +243,6 @@ def parse_ddg_rasp(input_path, output_path, threads=1):
         logger.debug(f"DDG succesfully converted into json files...")
     else:
         logger.debug(f"DDG not found: Skipping...")
-
-        
-        
-    # fragmented_pdb = [
-    #     file for file in os.listdir(input_path)
-    #     if pattern_af.search(file) and int(pattern_af.search(file).group(1)) == 2 
-    #     and f"{output_path}/{id_from_ddg_path(file)}.json" not in uni_id_processed
-    # ]
-
-    # ## Save dict for fragmented proteins
-    # logger.debug(f"Input: {input_path}")
-    # logger.debug(f"Output: {output_path}")
-    # if len(fragmented_pdb) > 0:
-    #     logger.debug(f"Parsing DDG of {len(fragmented_pdb)} fragments...")
-        
-    #     # TODO: for now it is created a process for each protein, while it would
-    #     #       be better to have chunks of protein processed by the same process
-    #     #       to decrese runtime (at the moment quite slow, 1h40m with 40 cores)
-        
-    #     # TODO: also the parsing itself can be optimized
-        
-    #     # Create a pool of workers parsing processes
-    #     with Pool(processes=threads) as pool:
-    #         args_list = [(file, input_path, output_path, True) for file in fragmented_pdb]
-    #         # Map the worker function to the arguments list
-    #         pool.map(parse_ddg_rasp_worker, args_list) 
-    #     if len(fragmented_pdb) > 50:
-    #         subprocess.run("clear")
-    #         logger.debug(f"clear")
-    #     logger.debug(f"Parsing of DDG fragments completed...")
-    # else:
-    #     logger.debug(f"DDG fragments not found: Skipping...")
-    # uni_id_frag = glob.glob(os.path.join(output_path, "*.json"))
-
-    # ## Save dict for non-fragmented proteins
-    # uni_id_files_not_frag = [file for file in [f for f in os.listdir(input_path) if f.endswith(".csv")] 
-    #                         if os.path.join(output_path, f"{id_from_ddg_path(file)}.json") not in uni_id_frag]
-    # logger.debug(f"Parsing DDG of {len(uni_id_files_not_frag)} non-fragmented proteins...")
-    
-    # # Create a pool of worker processes for non-fragmented proteins
-    # with Pool() as pool:
-    #     args_list = [(file, input_path, output_path, False) for file in uni_id_files_not_frag]
-    #     pool.map(parse_ddg_rasp_worker, args_list)
-        
-    # if len(uni_id_files_not_frag) > 50:
-    #     subprocess.run("clear")
-    #     logger.debug(f"clear")
         
     # Remove the original folder
     rm_ddg_dir = ["rm", "-rf", input_path]
@@ -301,6 +254,70 @@ def parse_ddg_rasp(input_path, output_path, threads=1):
 # #=================
 # # pdb_tool
 # #=================
+
+def run_pdb_tool(pdb_tool_sif_path, i, o, F="4"):
+    """
+    Use PDB_Tool to extract features from all pdb files in directory.
+    """
+    pdb_files = os.listdir(i)
+    
+    for file in tqdm(pdb_files):
+        if re.search('.\.pdb$', file) is not None:
+            run = subprocess.run(["singularity", "exec", f"{pdb_tool_sif_path}", "/PDB_Tool/PDB_Tool", "-i", f"{i}/{file}", "-o", f"{o}{file}"])
+            
+            
+def load_pdb_tool_file(path):
+    """
+    Parse .feature file obtained by PDB_Tool.
+    """
+    with open(path, "r") as f:
+        lines = f.readlines()
+        lst_lines = []
+        for l in lines:
+            lst_lines.append(l.strip().split())
+   # return lst_lines
+    df = pd.DataFrame(lst_lines[1:], columns = lst_lines[0]).iloc[:,:9]
+    df = df.drop("Missing", axis=1)
+    df = df.rename(columns={"Num" : "Pos"})
+
+    for c in df.columns:
+        if c == "Pos" or c == "ACC" or c == "CNa" or c == "CNb":
+            data_type = int
+        else:
+            data_type = float
+        try:
+            df[c] = df[c].astype(data_type)
+        except:
+            pass
+    return df
+
+
+def get_pdb_tool_file_in_dir(path):
+    """
+    Get the list of PDB_Tool .feature files from directory.
+    """
+    list_files = os.listdir(path)
+    ix = [re.search('.\.feature$', x) is not None for x in list_files]
+    return list(np.array(list_files)[np.array(ix)])
+
+
+def load_all_pdb_tool_files(path):
+    """
+    Get the features of all proteins in the directory.
+    """
+    df_list = []
+    
+    feature_file_list = get_pdb_tool_file_in_dir(path)
+    
+    for file in tqdm(feature_file_list):
+        df = load_pdb_tool_file(f"{path}/{file}")
+        identifier = file.split("-")
+        print(identifier)
+        df["Uniprot_ID"] = identifier[1]
+        df["F"] = identifier[2].replace("F", "")
+        df_list.append(df)
+
+    return pd.concat(df_list).reset_index(drop=True)
 
 
 # # Conversion for pdb_tool
@@ -314,21 +331,21 @@ def parse_ddg_rasp(input_path, output_path, threads=1):
 # df.to_csv("/workspace/projects/clustering_3d/o3d_analysys/datasets/annotation/pdb_tool_annotation.csv", index=False)
 
 
+#==============
+#     MAIN 
+#==============     
 
-
-# @click.command(context_settings={"help_option_names" : ['-h', '--help']})
-# @click.option("-o", "--output_dir", help="Path to dir where to store annotations", type=str)
-# @click.option("-c", "--cores", type=click.IntRange(min=1, max=len(os.sched_getaffinity(0)), clamp=False), default=len(os.sched_getaffinity(0)),
-#               help="Number of cores to use in the computation")
-# @click.option("-v", "--verbose", help="Verbose", is_flag=True)
-# @setup_logging_decorator
-def get_annotations(output_dir,
+def get_annotations(path_pdb_structure,
+                    path_pdb_tool_sif,
+                    output_dir,
                     cores,
                     verbose):
     """
     Main function to build annotations to generate annotated plots.
     """
     
+    logger.info(f"Path to PDB structures: {path_pdb_structure}")
+    logger.info(f"Output to PDB_Tool SIF: {path_pdb_tool_sif}")
     logger.info(f"Output directory: {output_dir}")
     logger.info(f"Cores: {cores}")
     logger.info(f"Verbose: {bool(verbose)}")
@@ -338,7 +355,7 @@ def get_annotations(output_dir,
     # Empty directory
     clean_annot_dir(output_dir, 'd')
 
-    # DDG
+    # Download DDG
     logger.info(f"Downloading stability change...")
     path_dir = f"{output_dir}/stability_change"
     if not os.path.isdir(path_dir):
@@ -352,12 +369,72 @@ def get_annotations(output_dir,
     parse_ddg_rasp(file_path, path_dir, cores)
     logger.info(f"Parsing stability change completed!")
     
-    # pdb_tool
+    # TODO: Enable multiprocessing for PDB_Tool 
+    
+    # Run PDB_Tool
+    logger.info(f"Extracting pACC and 2° structure...")
+    pdb_tool_output = f"{output_dir}/pdb_tool"
+    #path_pdb_structure = /workspace/projects/clustering_3d/clustering_3d/datasets_backup/datasets_distances/pdb_structures
+    #pdb_tool_sif_path = /workspace/projects/clustering_3d/clustering_3d/build/containers/pdb_tool.sif
+    run_pdb_tool(path_pdb_tool_sif, i=path_pdb_structure, o=pdb_tool_output)
+    logger.info(f"pACC and secondary 2° extraction completed!")
+    
+    # Parse PDB_Tool
+    logger.info(f"Parsing pACC and 2° structures...")
+    pdb_tool_df = load_all_pdb_tool_files(pdb_tool_output)
+    pdb_tool_df.to_csv(f"{output_dir}/pdb_tool_df.csv", index=False)
+    logger.debug(f"Deleting {pdb_tool_output}")
+    os.rmdir(pdb_tool_output)
+    
+    # Convert secondary structure to 3 feat only
+    
+    logger.info(f"pACC and 2° structures parcing completed!")
+    
     
 
-# if __name__ == "__main__":
-#     from utils import download_single_file, extract_zip_file
-#     build_annotations()
+
+
+
+
+
+##### WIP PDB_Tool MP #######
+
+
+#     # Run PDB_Tool
+#     logger.info(f"Extracting pACC and 2° structure...")
+#     pdb_tool_output = f"{output_dir}/pdb_tool"
+#     #path_pdb_structure = /workspace/projects/clustering_3d/clustering_3d/datasets_backup/datasets_distances/pdb_structures
+#     #pdb_tool_sif_path = /workspace/projects/clustering_3d/clustering_3d/build/containers/pdb_tool.sif
+#     run_pdb_tool_mp(input_directory=path_pdb_structure, 
+#                     output_directory=pdb_tool_output,
+#                     pdb_tool_sif_path=path_pdb_tool_sif,
+#                     num_processes=cores)
+#     logger.info(f"pACC and secondary 2° extraction completed!")
     
-# else:
-#     from scripts.datasets.utils import download_single_file, extract_zip_file
+#     # Parse PDB_Tool
+#     logger.info(f"Parsing pACC and 2° structures...")
+#     pdb_tool_df = load_all_pdb_tool_files(pdb_tool_output)
+#     pdb_tool_df.to_csv(f"{output_dir}/pdb_tool_df.csv", index=False)
+#     os.rmdir(pdb_tool_output)
+#     logger.info(f"pACC and 2° structures parcing completed!")
+    
+
+# def run_pdb_tool(lst_path_pdb_files, pdb_tool_sif_path, i, o, F="4"):
+#     """
+#     Use PDB_Tool to extract features from all pdb files in directory.
+#     """
+    
+#     for file in lst_path_pdb_files:
+#         run = subprocess.run(["singularity", "exec", f"{pdb_tool_sif_path}", "/PDB_Tool/PDB_Tool", "-i", f"{i}/{file}", "-o", f"{o}{file}"])
+    
+    
+# def run_pdb_tool_mp(input_directory, output_directory, pdb_tool_sif_path, F="4", num_processes=4):
+#     pdb_files = [path for path in os.listdir(input_directory) if path.endswith(".pdb")]
+
+#     # Divide pdb_files into chunks based on num_processes
+#     chunks = [pdb_files[i:i + num_processes] for i in range(0, len(pdb_files), num_processes)]
+
+#     with Pool(processes=num_processes) as pool:
+#         pool.starmap(run_pdb_tool, [(chunk, pdb_tool_sif_path, input_directory, output_directory, F) for chunk in tqdm(chunks, desc="Processing chunks")])
+        
+            
