@@ -88,7 +88,7 @@ oncodrive3D run -i input.maf -p mut_profile.json -d build_folder/ -t cancer_type
 singularity exec oncodrive3d.sif oncodrive3D run -i input.maf -p mut_profile.json -d build_folder/ -t cancer_type -C cohort_name
 ```
 
-Containers are located in `Root/build/containers/`
+Containers are located in `path/to/oncodrive3D/build/containers/` 
 
 ## Input & output
 
