@@ -39,9 +39,9 @@ from scripts.datasets.utils import (get_af_id_from_pdb,
 logger = daiquiri.getLogger(__logger_name__ + ".build.seq_for_mut_prob")
 
 
-############
+#===========
 # Initialize
-############
+#===========
 
 def initialize_seq_df(input_path, uniprot_to_gene_dict):
     """
@@ -82,10 +82,10 @@ def initialize_seq_df(input_path, uniprot_to_gene_dict):
     return seq_df
 
 
-###############################################
+#==============================================
 # Get DNA sequence using EMBL backtranseq API 
 # (not 100% reliable but available fo most seq)
-###############################################
+#==============================================
 
 def backtranseq(protein_seqs, organism = "Homo sapiens"):
     """
@@ -178,9 +178,9 @@ def batch_backtranseq(df, batch_size, organism = "Homo sapiens"):
     return pd.concat(lst_batches)
 
 
-################################################################
+#===============================================================
 # Get exons (CDS) coordinate using EMBL Proteins Coordinates API
-################################################################
+#===============================================================
 
 def _uniprot_request_coord(lst_uniprot_ids):
     """
@@ -329,9 +329,9 @@ def get_exons_coord(ids, batch_size=100):
     return pd.concat(lst_df).reset_index(drop=True)
 
 
-########################################################################
+#=======================================================================
 # Get DNA sequence and trin-context of reference genome from coordinates
-########################################################################
+#=======================================================================
 
 def per_site_trinucleotide_context(seq, no_flanks=False):
     """
@@ -410,9 +410,9 @@ def add_ref_dna_and_context(seq_df):
     return seq_df
 
 
-################################################### 
-# Wrappers
-################################################### 
+#=========
+# WRAPPERS
+#=========
 
 # TODO: test if with the added "if gene not in" is avoiding duplicates Hugo Symbol with different Uni IDs
 #       - In general test if there are multiple rows with same gene name in the final seq_df

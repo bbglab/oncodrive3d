@@ -6,19 +6,12 @@ The mutabilities are read from a file.
 The file must be compressed using bgzip, and then indexed using tabix.
 $ bgzip ..../all_samples.mutability_per_site.tsv
 $ tabix -b 2 -e 2 ..../all_samples.mutability_per_site.tsv.gz
-
 """
+
 import logging
-import gzip
-import mmap
-import json
-import os
-import struct
 from collections import defaultdict, namedtuple
 from typing import List
 
-import bgdata
-import numpy as np
 import tabix
 
 # TODO uncomment these lines to make sure that the logger and everything is working
@@ -294,55 +287,3 @@ class Mutabilities(object):
                         continue
         except ReaderError as e:
             logger.warning("Reader error: %s. Regions being analysed %s", e.message, self.segments)
-
-
-
-# if __name__ == "__main__":
-#     import pandas as pd
-
-#     # mutab_config = json.load(open('/home/fcalvet/Documents/dev/clustering_3d/test/normal_tests/mutability_config.json'))
-#     # mutab_config = json.load(open('/home/fcalvet/projects/clustering_3d/test/normal_tests/mutability_config.json'))
-#     mutab_config = json.load(open('/home/fcalvet/projects/clustering_3d/test/normal_tests/mutability_config.big.json'))
-#     print(mutab_config)
-#     init_mutabilities_module(mutab_config)
-
-#     # chrom = 17
-#     # exons = eval("[(7676594, 7676521), (7676403, 7676382), (7676272, 7675994), (7675236, 7675053), (7674971, 7674859), (7674290, 7674181), (7673837, 7673701), (7673608, 7673535), (7670715, 7670609), (7669690, 7669612)]")
-#     # seq_len = len("ATGGAGGAGCCCCAGAGCGACCCCAGCGTGGAGCCCCCCCTGAGCCAGGAGACCTTCAGCGACCTGTGGAAGCTGCTGCCCGAGAACAACGTGCTGAGCCCCCTGCCCAGCCAGGCCATGGACGACCTGATGCTGAGCCCCGACGACATCGAGCAGTGGTTCACCGAGGACCCCGGCCCCGACGAGGCCCCCAGGATGCCCGAGGCCGCCCCCCCCGTGGCCCCCGCCCCCGCCGCCCCCACCCCCGCCGCCCCCGCCCCCGCCCCCAGCTGGCCCCTGAGCAGCAGCGTGCCCAGCCAGAAGACCTACCAGGGCAGCTACGGCTTCAGGCTGGGCTTCCTGCACAGCGGCACCGCCAAGAGCGTGACCTGCACCTACAGCCCCGCCCTGAACAAGATGTTCTGCCAGCTGGCCAAGACCTGCCCCGTGCAGCTGTGGGTGGACAGCACCCCCCCCCCCGGCACCAGGGTGAGGGCCATGGCCATCTACAAGCAGAGCCAGCACATGACCGAGGTGGTGAGGAGGTGCCCCCACCACGAGAGGTGCAGCGACAGCGACGGCCTGGCCCCCCCCCAGCACCTGATCAGGGTGGAGGGCAACCTGAGGGTGGAGTACCTGGACGACAGGAACACCTTCAGGCACAGCGTGGTGGTGCCCTACGAGCCCCCCGAGGTGGGCAGCGACTGCACCACCATCCACTACAACTACATGTGCAACAGCAGCTGCATGGGCGGCATGAACAGGAGGCCCATCCTGACCATCATCACCCTGGAGGACAGCAGCGGCAACCTGCTGGGCAGGAACAGCTTCGAGGTGAGGGTGTGCGCCTGCCCCGGCAGGGACAGGAGGACCGAGGAGGAGAACCTGAGGAAGAAGGGCGAGCCCCACCACGAGCTGCCCCCCGGCAGCACCAAGAGGGCCCTGCCCAACAACACCAGCAGCAGCCCCCAGCCCAAGAAGAAGCCCCTGGACGGCGAGTACTTCACCCTGCAGATCAGGGGCAGGGAGAGGTTCGAGATGTTCAGGGAGCTGAACGAGGCCCTGGAGCTGAAGGACGCCCAGGCCGGCAAGGAGCCCGGCGGCAGCAGGGCCCACAGCAGCCACCTGAAGAGCAAGAAGGGCCAGAGCACCAGCAGGCACAAGAAGCTGATGTTCAAGACCGAGGGCCCCGACAGCGAC")
-
-#     seq_df = pd.read_csv("/home/fcalvet/projects/clustering_3d/test/normal_tests/seq_df_toy_coord_small2.csv", header = 0)
-#     # seq_df = pd.read_csv("/home/fcalvet/projects/clustering_3d/test/normal_tests/seq_df_toy_coord.csv", header = 0)
-
-#     seq_df['Exons_coord'] = seq_df['Exons_coord'].apply(eval)
-
-#     chrom = seq_df.loc[0,'Chr']
-#     exons = seq_df.loc[0,'Exons_coord']
-#     seq_len = len(seq_df.loc[0,'Seq_dna'])
-#     rev_strand = seq_df.loc[0,'Reverse_strand']
-#     print(chrom, exons, seq_len, rev_strand, mutab_config)
-
-#     mutability_obj = Mutabilities("TP53", chrom, exons, seq_len, rev_strand, mutab_config)
-#     # 3 [(10141848, 10142187), (10146514, 10146636), (10149787, 10149962)] 1 [0.] {'file': '/workspace/projects/clustering_3d/clustering_3d/datasets_normal/kidneydata/all_samples.mutability_per_site.tsv.gz', 'format': 'tabix', 'chr': 0, 'chr_prefix': '', 'pos': 1, 'ref': 2, 'alt': 3, 'mutab': 4}
-
-#     # for s, e in exons:
-#     #     for ii in range(min(s, e), max(s, e)+1):
-#     #         print(ii)
-
-# #    for key in mutability_obj.mutabilities_by_pos.keys():
-# #        print(key)
-# #        if len(mutability_obj.mutabilities_by_pos[key]) != 3:
-# #            print(mutability_obj.mutabilities_by_pos[key])
-
-#     for key in sorted(mutability_obj.mutabilities_by_pos):
-#         # print(key)
-#         print(key, mutability_obj.mutabilities_by_pos[key])
-#         # if len(mutability_obj.mutabilities_by_pos[key]) != 3:
-#         #     print(mutability_obj.mutabilities_by_pos[key])
-
-#     # print(len(mutability_obj.mutabilities_by_pos))
-#     # print(seq_len)
-#     mutability_dict = mutability_obj.mutabilities_by_pos
-    
-#     # TODO raise an error here, well not here but within the load mutabilities function maybe?
-#     if len(mutability_dict) != seq_len:
-#         print("error")

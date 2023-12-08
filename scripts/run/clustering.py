@@ -11,11 +11,11 @@ import numpy as np
 import pandas as pd
 
 from scripts import __logger_name__
-from scripts.utils.communities import get_community_index_nx, get_network
-from scripts.utils.miss_mut_prob import get_unif_gene_miss_prob
-from scripts.utils.score_and_simulations import (get_anomaly_score,
+from scripts.run.communities import get_community_index_nx, get_network
+from scripts.run.miss_mut_prob import get_unif_gene_miss_prob
+from scripts.run.score_and_simulations import (get_anomaly_score,
                                                  get_sim_anomaly_score)
-from scripts.utils.utils import add_samples_info, get_samples_info
+from scripts.run.utils import add_samples_info, get_samples_info
 
 logger = daiquiri.getLogger(__logger_name__ + ".utils.clustering")
 
