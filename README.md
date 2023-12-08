@@ -82,6 +82,13 @@ oncodrive3D run -i input.maf -p mut_profile.json -d build_folder/ -t cancer_type
 
 - **-C, --cohort <str>**: Specifies the cohort name used as metadata and filename for the output file.
 
+### Running from singularity container
+
+```bash
+singularity exec oncodrive3d.sif oncodrive3D run -i input.maf -p mut_profile.json -d build_folder/ -t cancer_type -C cohort_name
+```
+
+Containers are located in `Root/build/containers/`
 
 ## Input & output
 
@@ -121,7 +128,7 @@ It is possible to run Oncodrive3D in parallel on multiple cohorts by using [next
    singularity pull build/containers/oncodrive3d.sif library://st3451/oncodrive3d/oncodrive3d:0.0.0
 ```
 
-3. RRun Oncodrive3D in parallel on multiple cohorts by using the provided nextflow script. For example:
+3. Run Oncodrive3D in parallel on multiple cohorts by using the provided nextflow script. For example:
 
 ```bash
    nextflow run oncodrive3d.nf --indir test/ --outdir test/results/
