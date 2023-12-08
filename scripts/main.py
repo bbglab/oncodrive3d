@@ -57,13 +57,13 @@ import pandas as pd
 from scripts import __logger_name__, __version__
 from scripts.datasets.build_datasets import build
 from scripts.globals import DATE, setup_logging_decorator, startup_message
-from scripts.utils.clustering import clustering_3d_mp_wrapper
-from scripts.utils.miss_mut_prob import get_miss_mut_prob_dict, mut_rate_vec_to_dict
-from scripts.utils.pvalues import get_final_gene_result
-from scripts.utils.utils import add_nan_clust_cols, parse_maf_input, sort_cols, empty_result_pos
-from scripts.generate_plots.build_annotations import get_annotations
-from scripts.generate_plots.plot import plot
-from scripts.utils.mutability import init_mutabilities_module
+from scripts.run.clustering import clustering_3d_mp_wrapper
+from scripts.run.miss_mut_prob import get_miss_mut_prob_dict, mut_rate_vec_to_dict
+from scripts.run.pvalues import get_final_gene_result
+from scripts.run.utils import add_nan_clust_cols, parse_maf_input, sort_cols, empty_result_pos
+from scripts.plotting.build_annotations import get_annotations
+from scripts.plotting.plot import generate_plot
+from scripts.run.mutability import init_mutabilities_module
 
 logger = daiquiri.getLogger(__logger_name__)
 
@@ -79,9 +79,9 @@ def oncodrive3D():
     pass
 
 
-######################
-#   BUILD DATASETS
-######################
+#==============================================================================
+#                               BUILD DATASETS
+#==============================================================================
 
 @oncodrive3D.command(context_settings=dict(help_option_names=['-h', '--help']),
                help="Build datasets - Required once after installation.") 
@@ -133,9 +133,10 @@ def build_datasets(output_dir,
           rm_pdb_files)
 
 
-###########
-#   RUN
-###########
+
+#==============================================================================
+#                                     RUN
+#==============================================================================
 
 @oncodrive3D.command(context_settings=dict(help_option_names=['-h', '--help']),
                      help="Run 3D-clustering analysis.") 
@@ -411,11 +412,17 @@ def run(input_maf_path,
         
     else:
         logger.warning("No missense mutations were found in the input MAF. Consider checking your data: the field 'Variant_Classification' should include either 'Missense_Mutation' or 'missense_variant'")
+        
                
 
-###########################
-#     GET ANNOTATIONS
-###########################
+#==============================================================================
+#                              BUILD ANNOTATIONS
+#==============================================================================
+
+# Example:
+# oncodrive3D build-annotations -o annotations -v -p /workspace/projects/clustering_3d/clustering_3d/datasets_backup/datasets_distances/pdb_structures -s /workspace/projects/clustering_3d/clustering_3d/build/containers/pdb_tool.sif
+
+# TODO: maybe use as input the path to datasets, then retrieve the structure from there.
 
 @oncodrive3D.command(context_settings=dict(help_option_names=['-h', '--help']),
                help="Get annotations - Required (once) only to plot annotations.")
@@ -453,11 +460,11 @@ def build_annotations(path_pdb_structure,
                     cores, 
                     verbose)
 
-    
 
-##############
-#    PLOT
-##############
+    
+#==============================================================================
+#                                    PLOT
+#==============================================================================
 
 ## TODO: maybe add a flag that allow to write the annotated results as csv files
                  
@@ -503,8 +510,7 @@ def plot(input_dir,
     logger.info(f'Log path: {os.path.join(output_dir, "log")}')
     logger.info("")
   
-    #generate_plots()
-
+    generate_plot()
 
 
 if __name__ == "__main__":
