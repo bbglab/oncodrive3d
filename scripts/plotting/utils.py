@@ -13,9 +13,9 @@ logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
 
 
 
-#======
+# =====
 # Utils
-#======
+# =====
 
 
 def clean_annotations_dir(path: str, loc: str) -> None:

@@ -17,9 +17,9 @@ logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
 # TODO: fix multiprocessing on DDG
 # TODO: multiprocessing on pdb_tool
 
-#==================
+# =================
 # BUILD ANNOTATIONS 
-#================== 
+# ================= 
 
 def get_annotations(path_pdb_structure,
                     path_pdb_tool_sif,

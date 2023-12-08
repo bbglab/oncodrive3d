@@ -66,6 +66,8 @@ oncodrive3D run -i input.maf -p mut_profile.json -d build_folder/ -t cancer_type
 
 - **-p, --mut_profile_path <path>**: Specifies the path to the Mut profile of the cohort, which is a dictionary of 192 key-value pairs in JSON format.
 
+- **-m, --mutability_config_path <path>** Specifies the path to the mutability configuration file including the integrated information about the mutation profile and sequencing depth of the cohort.
+
 - **-o, --output_dir <path>**: Sets the output directory. Default: `results/`.
 
 - **-d, --data_dir <path>**: Sets the build folder, including the files compiled during the [building datasets](#building-datasets) step. Default: `datasets/`.
@@ -88,6 +90,8 @@ oncodrive3D run -i input.maf -p mut_profile.json -d build_folder/ -t cancer_type
 - **input.maf** (`required`): Mutation Annotation Format (MAF) file annotated with consequences (e.g., by using [Ensembl Variant Effect Predictor (VEP)](https://www.ensembl.org/info/docs/tools/vep/index.html)).
 
 - **mut_profile.json** (`optional`): Dictionary including the normalized frequencies of mutations (*values*) in every possible trinucleotide context (*keys*), such as 'ACA>A', 'ACC>A', and so on.
+
+- **mutability_config_path.json** (`optional`): # TODO: provide explaination: Dictionary of dictionary having...
 
 ### Output
 

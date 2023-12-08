@@ -20,9 +20,9 @@ logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
 
 
 
-#=================
-# Stability change
-#=================
+# ===============================
+# Stability change upon mutations
+# ===============================
 
 
 def download_stability_change(path: str,

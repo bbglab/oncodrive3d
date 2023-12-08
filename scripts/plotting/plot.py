@@ -13,9 +13,9 @@ logger = daiquiri.getLogger(__logger_name__ + ".annotations.plot")
 
 
 
-#===============================
+# ==============================
 # Missense mutations probability
-#===============================
+# ==============================
 
 def get_miss_mut_prob(seq_df,
                       mutability_config_path, 
@@ -46,9 +46,9 @@ def get_miss_mut_prob(seq_df,
         miss_prob_dict = None
         
         
-#=============
+# ============
 # PLOT WRAPPER
-#=============
+# ============
 
 def generate_plot(datasets):
     
