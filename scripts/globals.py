@@ -142,6 +142,20 @@ def clean_temp_files(path: str, rm_pdb_files=False) -> None:
         clean_pdb = ["rm", "-rf", os.path.join(path, "pdb_structures")]
         logger.debug(' '.join(clean_pdb))
         subprocess.run(clean_pdb)
+        
+    else:
+        clean_pdb = ["rm", "-rf", os.path.join(path, "pdb_structures", "*.cif.gz")]
+        logger.debug(' '.join(clean_pdb))
+        subprocess.run(clean_pdb)
+
+        clean_pdb_frag = ["rm", "-rf", os.path.join(path, "fragmented_pdbs", "*.pdb*")]
+        logger.debug(' '.join(clean_pdb_frag))
+        subprocess.run(clean_pdb_frag)
+        
+        clean_tar = ["rm", "-rf", os.path.join(path, "*.tar")]
+        logger.debug(' '.join(clean_tar))
+        subprocess.run(clean_tar)
+        
     clean_pae = ["rm", "-rf", os.path.join(path, "pae", "*.json")]
     logger.debug(' '.join(clean_pae))
     subprocess.run(clean_pae)
