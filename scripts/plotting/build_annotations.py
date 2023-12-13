@@ -36,12 +36,16 @@ def get_annotations(data_dir,
 
     # Download DDG
     logger.info(f"Downloading stability change...")
-    ddg_output = f"{output_dir}/stability_change"
+    ddg_output = os.path.join(output_dir, "stability_change")
     if not os.path.isdir(ddg_output):
         os.makedirs(ddg_output)
         logger.debug(f'mkdir {ddg_output}')
     file_path = download_stability_change(ddg_output, cores)
     logger.info(f"Download completed!")
+    
+    ## TODO: Optimize DDG parsing 
+    ##       - only one protein is allocated to one process every time
+    ##       - a list of proteins should be allocated instead
     
     # Parsing DDG
     logger.info(f"Parsing stability change...")
@@ -49,12 +53,12 @@ def get_annotations(data_dir,
     logger.info(f"Parsing completed!")
     
     ## TODO: Enable multiprocessing for PDB_Tool
-    ## TODO: Find a way to avoid using container for PDB_Tool?
+    ## TODO: Evaluate the possibility of installing PDB_Tool instead of using container
     
     # Run PDB_Tool
     logger.info(f"Extracting pACC and 2° structure...")
-    path_pdb_structure = f"{data_dir}/pdb_structures"
-    pdb_tool_output = run_pdb_tool(path_pdb_tool_sif, inpur_dir=path_pdb_structure, output_dir=output_dir)
+    path_pdb_structure = os.path.join(data_dir, "pdb_structures")
+    pdb_tool_output = run_pdb_tool(path_pdb_tool_sif, input_dir=path_pdb_structure, output_dir=output_dir)
     logger.info(f"Extraction completed!")
     
     # Parse PDB_Tool
@@ -62,7 +66,7 @@ def get_annotations(data_dir,
     parse_pdb_tool(input_dir=pdb_tool_output, output_dir=output_dir)
     logger.info(f"Parsing completed!")
     
-    # Get Pfam annotations
-    logger.info(f"Downloading and parsing Pfam...")
-    get_pfam(f"{output_dir}/pfam.tsv")
-    logger.info(f"Completed!")
+    # # Get Pfam annotations
+    # logger.info(f"Downloading and parsing Pfam...")
+    # get_pfam(f"{output_dir}/pfam.tsv")
+    # logger.info(f"Completed!")
