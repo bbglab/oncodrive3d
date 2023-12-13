@@ -100,7 +100,7 @@ def extract_mut(variant_str, pattern):
 
 def save_json(path_dir, uni_id, dictionary):
     
-    with open(f"{path_dir}/{uni_id}.json", "w") as json_file:
+    with open(os.path.join(path_dir, f"{uni_id}_ddg.json"), "w") as json_file:
         json.dump(dictionary, json_file)
 
 
@@ -150,13 +150,10 @@ def parse_ddg_rasp(input_path, output_path, threads=1):
     DOI: 10.7554/eLife.82593
     """
 
-    # pattern_af = re.compile(r'-F(\d+)-')
-
     # Get already processed files and available ones for processing
     files_processed = glob.glob(os.path.join(output_path, "*.json"))
     lst_files = [file for file in os.listdir(input_path)
-                 if file.endswith(".csv") and f"{output_path}/{id_from_ddg_path(file)}.json" not in files_processed]
-    
+                 if file.endswith(".csv") and os.path.join(output_path, f"{id_from_ddg_path(file)}.json") not in files_processed]
     ## Save dict for each proteins
     logger.debug(f"Input: {input_path}")
     logger.debug(f"Output: {output_path}")
