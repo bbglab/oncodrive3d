@@ -27,7 +27,7 @@ def get_pfam(output_path):
         command = [f"wget", "-q", "-O", "pfam_coordinates.tsv", url]
         subprocess.run(command)
         pfam = pd.read_csv("pfam_coordinates.tsv", sep="\t", header=None)
-        pfam.columns = ["Ens_gene_ID", "Ens_transcript_ID", "Pfam_start", "Pfam_end", "Pfam_ID"]
+        pfam.columns = ["Ens_Gene_ID", "Ens_Transcr_ID", "Pfam_start", "Pfam_end", "Pfam_ID"]
 
         # ID database
         logger.debug("Downloading and parsing Pfam ID database...")

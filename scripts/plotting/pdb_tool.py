@@ -21,20 +21,39 @@ logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
 # PDB_Tool
 # ========
 
+
+def decompress_pdb_gz(input_dir):
+    """
+    Extract all .gz PDB files in directory.
+    """
+    
+    files_in_directory = os.listdir(input_dir)
+    gz_file_present = any(file.endswith(".gz") for file in files_in_directory)
+    if gz_file_present:
+        logger.debug("Decompressing .gz PDB files...")
+        command = f'gunzip -q {os.path.join(input_dir, "*.pdb.gz")}'
+        subprocess.run(command, shell=True)
+        logger.debug("Decompression complete!")
+    
+
 def run_pdb_tool(pdb_tool_sif_path, input_dir, output_dir, f="4"):
     """
     Use PDB_Tool to extract features from all pdb files in directory.
     """
-    
-    pdb_tool_output = f"{output_dir}/pdb_tool"
+
+    pdb_tool_output = os.path.join(output_dir, "pdb_tool")
     if not os.path.isdir(pdb_tool_output):
         os.makedirs(pdb_tool_output)
         logger.debug(f'mkdir {pdb_tool_output}')
     
+    decompress_pdb_gz(input_dir)
     pdb_files = [file for file in os.listdir(input_dir) if file.endswith(".pdb")]    
+    logger.debug("Running PDB_Tool...")
     for file in tqdm(pdb_files, desc="Running PDB_Tool"):
-        output = f"{output_dir}/{file}".replace(".pdb", ".feature")
-        subprocess.run(["singularity", "exec", f"{pdb_tool_sif_path}", "/PDB_Tool/PDB_Tool", "-i", f"{input_dir}/{file}", "-o", output, "-F", f])
+        output = os.path.join(pdb_tool_output, file.replace(".pdb", ".feature"))
+        subprocess.run(["singularity", "exec", f"{pdb_tool_sif_path}", "/PDB_Tool/PDB_Tool", "-i", f"{input_dir}/{file}", "-o", output, "-F", f])            
+        # TODO: check that the previous command is fine without os.path.join since it runs in container
+        #       better solution is to add to PATH in container
         
     return pdb_tool_output
             
@@ -73,6 +92,7 @@ def get_pdb_tool_file_in_dir(path):
     
     list_files = os.listdir(path)
     ix = [re.search('.\.feature$', x) is not None for x in list_files]
+    
     return list(np.array(list_files)[np.array(ix)])
 
 
@@ -85,9 +105,8 @@ def load_all_pdb_tool_files(path):
     feature_file_list = get_pdb_tool_file_in_dir(path)
     
     for file in tqdm(feature_file_list, desc="Parsing PDB_tool output"):
-        df = load_pdb_tool_file(f"{path}/{file}")
+        df = load_pdb_tool_file(os.path.join(path, file))
         identifier = file.split("-")
-        print(identifier)
         df["Uniprot_ID"] = identifier[1]
         df["F"] = identifier[2].replace("F", "")
         df_list.append(df)
@@ -121,7 +140,7 @@ def parse_pdb_tool(input_dir : str, output_dir : str):
     pdb_tool_df = load_all_pdb_tool_files(input_dir)
     pdb_tool_df = pdb_tool_to_3s_sse(pdb_tool_df)
     pdb_tool_df = pdb_tool_df.drop(columns=["CLE", "ACC", "CNa", "CNb"])
-    pdb_tool_df.to_csv(f"{output_dir}/pdb_tool_df.csv", index=False)
+    pdb_tool_df.to_csv(os.path.join(output_dir, "pdb_tool_df.csv"), index=False)
     try:
         logger.debug(f"Deleting {input_dir}")
         shutil.rmtree(input_dir)
