@@ -31,6 +31,7 @@ def clean_annotations_dir(path: str, loc: str) -> None:
 
         clean_files = f"rm -rf {os.path.join(path, '*.csv')} {os.path.join(path, '*.json')} {os.path.join(path, '.*.txt')}"
         clean_ddg = ["rm", "-rf", os.path.join(path, "stability_change")]
+        clean_pdbtool = ["rm", "-rf", os.path.join(path, "pdb_tool")]
         #clean_log = ["rm", "-rf", os.path.join(path, "log")]
 
         logger.debug(clean_files)
@@ -38,6 +39,9 @@ def clean_annotations_dir(path: str, loc: str) -> None:
 
         logger.debug(' '.join(clean_ddg))
         subprocess.run(clean_ddg)
+        
+        logger.debug(' '.join(clean_pdbtool))
+        subprocess.run(clean_pdbtool)
 
         # logger.debug(' '.join(clean_log))
         # subprocess.run(clean_log)

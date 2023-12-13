@@ -59,6 +59,7 @@ def startup_message(version, initializing_text):
     logger.info(f"{'#' + f'Welcome to Oncodrive3D!'.center(banner_width - 2) + '#'}")
     logger.info(f"{'#' + ' ' * (banner_width - 2) + '#'}")
     logger.info(f"{'#' + initializing_text.center(banner_width - 2) + '#'}")
+    logger.info(f"{'#' + ' ' * (banner_width - 2) + '#'}")
     logger.info(f"{'#' + f'Version: {version}'.center(banner_width - 2) + '#'}")
     logger.info(f"{'#' + f'Author: {author}'.center(banner_width - 2) + '#'}")
     logger.info(f"{'#' + f'Support: {support_email}'.center(banner_width - 2) + '#'}")

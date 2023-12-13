@@ -40,17 +40,16 @@ def download_stability_change(path: str,
     filename = "rasp_preds_alphafold_UP000005640_9606_HUMAN_v2.zip"
     download_url = "https://sid.erda.dk/share_redirect/fFPJWflLeE/rasp_preds_alphafold_UP000005640_9606_HUMAN_v2.zip"
 
-
     logger.debug(f"Filename: {filename}")
     logger.debug(f"Website url: {url_website}")
     file_path = os.path.join(path, filename)
 
     try:
-        ## STEP1 --- Download file
+        # Download file
         logger.debug(f'Downloading to {file_path}')
         download_single_file(download_url, file_path, threads)
         
-        ## STEP2 --- Extract from zip
+        # Extract from zip
         logger.debug(f'Extracting {filename}')
         extract_zip_file(file_path, path)
         if os.path.exists(file_path): 
@@ -65,7 +64,6 @@ def download_stability_change(path: str,
     except Exception as e:
         logger.error('Download stability change: FAIL')
         logger.error(f"Error while downloading stability change: {e}")
-        logger.error(f"Stability change will not be used for annotation but it will not affect the 3D-clustering analysis.")
         raise e
 
 

@@ -6,6 +6,7 @@ import subprocess
 import pandas as pd
 import numpy as np
 import re
+import shutil
 from tqdm import tqdm
 
 from scripts import __logger_name__
@@ -20,15 +21,22 @@ logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
 # PDB_Tool
 # ========
 
-def run_pdb_tool(pdb_tool_sif_path, i, o, f="4"):
+def run_pdb_tool(pdb_tool_sif_path, input_dir, output_dir, f="4"):
     """
     Use PDB_Tool to extract features from all pdb files in directory.
     """
     
-    pdb_files = [file for file in os.listdir(i) if file.endswith(".pdb")]    
+    pdb_tool_output = f"{output_dir}/pdb_tool"
+    if not os.path.isdir(pdb_tool_output):
+        os.makedirs(pdb_tool_output)
+        logger.debug(f'mkdir {pdb_tool_output}')
+    
+    pdb_files = [file for file in os.listdir(input_dir) if file.endswith(".pdb")]    
     for file in tqdm(pdb_files, desc="Running PDB_Tool"):
-        output = f"{o}/{file}".replace(".pdb", ".feature")
-        run = subprocess.run(["singularity", "exec", f"{pdb_tool_sif_path}", "/PDB_Tool/PDB_Tool", "-i", f"{i}/{file}", "-o", output, "-F", f])
+        output = f"{output_dir}/{file}".replace(".pdb", ".feature")
+        subprocess.run(["singularity", "exec", f"{pdb_tool_sif_path}", "/PDB_Tool/PDB_Tool", "-i", f"{input_dir}/{file}", "-o", output, "-F", f])
+        
+    return pdb_tool_output
             
             
 def load_pdb_tool_file(path):
@@ -103,3 +111,19 @@ def pdb_tool_to_3s_sse(df):
     df["SSE"] = df["SSE"].map(mapper)
 
     return df
+
+
+def parse_pdb_tool(input_dir : str, output_dir : str):
+    """
+    Parse PDB_Tool .feature files inclued in the path into a unique df.
+    """
+    
+    pdb_tool_df = load_all_pdb_tool_files(input_dir)
+    pdb_tool_df = pdb_tool_to_3s_sse(pdb_tool_df)
+    pdb_tool_df = pdb_tool_df.drop(columns=["CLE", "ACC", "CNa", "CNb"])
+    pdb_tool_df.to_csv(f"{output_dir}/pdb_tool_df.csv", index=False)
+    try:
+        logger.debug(f"Deleting {input_dir}")
+        shutil.rmtree(input_dir)
+    except OSError as e:
+        logger.debug(f"Cold not delete {input_dir}\nError: {e}")

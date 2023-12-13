@@ -65,12 +65,13 @@ def generate_plot(datasets):
     
     ## Get miss mut prob 
     
-    ## Generate directory output
+    ## Generate directory output + output/gene_plots
+
+    ## Retrieve all annotations for selected genes    
     
     ## Summary plot
+    ## Summary plot extra (extra if there is time)
     
-    ## Generate directory output/gene_plots
-    
-    ## Diagnostic plot
+    ## Diagnostic plots
     
     pass
