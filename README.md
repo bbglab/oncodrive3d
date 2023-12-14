@@ -167,6 +167,32 @@ performed by Oncodrive-3D. The plots can be simple or annotated with structural
 and genomics features. To generate annotated plots, it is required (once) to 
 build the annotations datasets.
 
+### Installation of external software for annotations
+
+Install PDB_Tool to determine solvent accessibility and secondary structures 
+from the PDB files.
+
+1. Clone PDB_Tool to determine solvent accessibility and secondary structures:
+
+```bash
+git clone https://github.com/realbigws/PDB_Tool
+cd PDB_Tool/source_code
+make
+```
+
+2. Export the path for PDB_Tool to your environment variables.
+
+Open your configuration file for the Bash shell environment:
+
+```bash
+nano ~/.bashrc
+```
+
+Add the following line to your configuraion file:
+
+```bash
+export PATH="$PATH:/workspace/projects/clustering_3d/external_tools/PDB_Tool"
+```
 
 ### Building annotations
 
