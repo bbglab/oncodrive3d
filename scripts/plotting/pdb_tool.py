@@ -51,9 +51,10 @@ def run_pdb_tool(pdb_tool_sif_path, input_dir, output_dir, f="4"):
     logger.debug("Running PDB_Tool...")
     for file in tqdm(pdb_files, desc="Running PDB_Tool"):
         output = os.path.join(pdb_tool_output, file.replace(".pdb", ".feature"))
+        # Singularity container
         subprocess.run(["singularity", "exec", f"{pdb_tool_sif_path}", "/PDB_Tool/PDB_Tool", "-i", f"{input_dir}/{file}", "-o", output, "-F", f])            
-        # TODO: check that the previous command is fine without os.path.join since it runs in container
-        #       better solution is to add to PATH in container
+        # Added to $PATH
+        subprocess.run(["PDB_Tool", "-i", os.path.join(input_dir, file), "-o", output, "-F", f])   
         
     return pdb_tool_output
             
