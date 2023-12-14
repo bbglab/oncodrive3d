@@ -172,7 +172,7 @@ build the annotations datasets.
 Install PDB_Tool to determine solvent accessibility and secondary structures 
 from the PDB files.
 
-1. Clone PDB_Tool to determine solvent accessibility and secondary structures:
+1. Clone PDB_Tool.
 
 ```bash
 git clone https://github.com/realbigws/PDB_Tool
@@ -180,15 +180,14 @@ cd PDB_Tool/source_code
 make
 ```
 
-2. Export the path for PDB_Tool to your environment variables.
-
-Open your configuration file for the Bash shell environment:
+2. Open your configuration file for the Bash shell environment.
 
 ```bash
 nano ~/.bashrc
 ```
 
-Add the following line to your configuraion file:
+3. Add the following line to your configuraion file to export the path for 
+PDB_Tool to your enviroment variable:
 
 ```bash
 export PATH="$PATH:/workspace/projects/clustering_3d/external_tools/PDB_Tool"
