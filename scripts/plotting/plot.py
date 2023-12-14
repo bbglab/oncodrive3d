@@ -24,7 +24,7 @@ def get_miss_mut_prob_for_plot(mut_profile_path, mutability_config_path, seq_df)
 
     if mutability_config_path is not None:
         # Compute dict from mutability
-        print(f"Computing missense mut probabilities using mutabilities...")
+        logger.debug(f"Computing missense mut probabilities using mutabilities...")
         mutab_config = json.load(open(mutability_config_path))
         init_mutabilities_module(mutab_config)
         seq_df = seq_df[seq_df["Reference_info"] == 1]   
@@ -36,13 +36,13 @@ def get_miss_mut_prob_for_plot(mut_profile_path, mutability_config_path, seq_df)
     elif mut_profile_path is not None:
         # Compute dict from mut profile of the cohort and dna sequences
         mut_profile = json.load(open(mutability_config_path))
-        print(f"Computing missense mut probabilities...")
+        logger.debug(f"Computing missense mut probabilities...")
         if not isinstance(mut_profile, dict):
             mut_profile = mut_rate_vec_to_dict(mut_profile)
         miss_prob_dict = get_miss_mut_prob_dict(mut_rate_dict=mut_profile, 
                                                 seq_df=seq_df)
     else:
-        print(f"Mutation profile not provided: Uniform distribution will be used for scoring and simulations.")
+        logger.debug(f"Mutation profile not provided: Uniform distribution will be used for scoring and simulations.")
         miss_prob_dict = None
 
     return miss_prob_dict
@@ -147,13 +147,12 @@ def summary_plot(gene_result,
     plt.subplots_adjust(top=0.95) 
     
     # Save
-    directory_path = os.path.join(output_dir, run_name)
     filename = f"{run_name}.summary_plot.png"
-    output_path = os.path.join(directory_path, filename)
+    output_path = os.path.join(output_dir, filename)
     plt.savefig(output_path, dpi=300, bbox_inches='tight')
     logger.info(f"Saved in {output_path}")
-    plt.show()
-    
+    plt.close()
+
       
 def genes_plots(gene_result, 
                 pos_result, 
@@ -176,6 +175,7 @@ def genes_plots(gene_result,
         af_f = seq_df[seq_df["Gene"] == gene].F.values[0]
         maf_gene = maf[maf["Gene"] == gene]
         mut_count = maf_gene.value_counts("Pos").reset_index()
+        mut_count = mut_count.rename(columns={0 : "Count"})
         pos_result_gene = pos_result[pos_result["Gene"] == gene].sort_values("Pos").reset_index(drop=True)
         pos_result_gene = pos_result_gene[["Pos", "Mut_in_res", "Mut_in_vol", "Ratio_obs_sim", "C", "C_ext", "pval"]]
         pos_result_gene["C"] = pos_result_gene.apply(
@@ -216,7 +216,7 @@ def genes_plots(gene_result,
 
             # Mut count
             if pos in mut_count.Pos.values:
-                count = mut_count.loc[mut_count["Pos"] == pos, "count"].values[0]
+                count = mut_count.loc[mut_count["Pos"] == pos, "Count"].values[0]
                 score = pos_result_gene.loc[pos_result_gene["Pos"] == pos, "Ratio_obs_sim"].values[0]
             else:
                 count = 0
@@ -294,14 +294,13 @@ def genes_plots(gene_result,
         plt.subplots_adjust(top=0.95) 
 
         # Save
-        directory_path = os.path.join(output_dir, run_name)
         filename = f"{run_name}.genes_plot.{gene}_{uni_id}.png"
-        output_path = os.path.join(directory_path, filename)
+        output_path = os.path.join(output_dir, filename)
         plt.savefig(output_path, dpi=300, bbox_inches='tight')
         logger.info(f"Saved in {output_path}")
-        plt.show()
+        plt.close()
         
-        
+            
 # ============
 # PLOT WRAPPER
 # ============
@@ -315,9 +314,9 @@ def generate_plot(gene_result_path,
                   mutability_config_path,
                   output_dir,
                   run_name,
-                  n_genes, 
-                  significant_only, 
-                  lst_genes):
+                  n_genes=30, 
+                  significant_only=False, 
+                  lst_genes=None):
     
     dict_transcripts = {"PTEN" : "ENST00000688308"}              # TO DELETE    
     

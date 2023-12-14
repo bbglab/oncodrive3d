@@ -36,7 +36,7 @@ def decompress_pdb_gz(input_dir):
         logger.debug("Decompression complete!")
     
 
-def run_pdb_tool(pdb_tool_sif_path, input_dir, output_dir, f="4"):
+def run_pdb_tool(input_dir, output_dir, f="4"):
     """
     Use PDB_Tool to extract features from all pdb files in directory.
     """
@@ -52,7 +52,7 @@ def run_pdb_tool(pdb_tool_sif_path, input_dir, output_dir, f="4"):
     for file in tqdm(pdb_files, desc="Running PDB_Tool"):
         output = os.path.join(pdb_tool_output, file.replace(".pdb", ".feature"))
         # Singularity container
-        subprocess.run(["singularity", "exec", f"{pdb_tool_sif_path}", "/PDB_Tool/PDB_Tool", "-i", f"{input_dir}/{file}", "-o", output, "-F", f])            
+        #subprocess.run(["singularity", "exec", f"{pdb_tool_sif_path}", "/PDB_Tool/PDB_Tool", "-i", f"{input_dir}/{file}", "-o", output, "-F", f])            
         # Added to $PATH
         subprocess.run(["PDB_Tool", "-i", os.path.join(input_dir, file), "-o", output, "-F", f])   
         

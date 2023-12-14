@@ -23,7 +23,7 @@ logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
 # ================= 
 
 def get_annotations(data_dir,
-                    path_pdb_tool_sif,
+                    #path_pdb_tool_sif,
                     output_dir,
                     cores,
                     verbose):
@@ -58,7 +58,7 @@ def get_annotations(data_dir,
     # Run PDB_Tool
     logger.info(f"Extracting pACC and 2° structure...")
     path_pdb_structure = os.path.join(data_dir, "pdb_structures")
-    pdb_tool_output = run_pdb_tool(path_pdb_tool_sif, input_dir=path_pdb_structure, output_dir=output_dir)
+    pdb_tool_output = run_pdb_tool(input_dir=path_pdb_structure, output_dir=output_dir)
     logger.info(f"Extraction completed!")
     
     # Parse PDB_Tool
@@ -66,7 +66,7 @@ def get_annotations(data_dir,
     parse_pdb_tool(input_dir=pdb_tool_output, output_dir=output_dir)
     logger.info(f"Parsing completed!")
     
-    # # Get Pfam annotations
-    # logger.info(f"Downloading and parsing Pfam...")
-    # get_pfam(f"{output_dir}/pfam.tsv")
-    # logger.info(f"Completed!")
+    # Get Pfam annotations
+    logger.info(f"Downloading and parsing Pfam...")
+    get_pfam(f"{output_dir}/pfam.tsv")
+    logger.info(f"Completed!")

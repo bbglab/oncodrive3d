@@ -420,7 +420,7 @@ def run(input_maf_path,
 # =============================================================================
 
 # Example:
-# oncodrive3D build-annotations -o annotations -v -d /workspace/projects/clustering_3d/clustering_3d/datasets_annot -s /workspace/projects/clustering_3d/clustering_3d/build/containers/pdb_tool.sif
+# oncodrive3D build-annotations -o annotations -v -d /workspace/projects/clustering_3d/clustering_3d/datasets_annot
 
 # TODO: maybe use as input the path to datasets, then retrieve the structure from there.
 
@@ -469,7 +469,7 @@ def build_annotations(data_dir,
 # =============================================================================
 
 # Example:
-# oncodrive3D plot -r kidney_231204 -g /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/kidney_231204/kidney_231204.3d_clustering_genes.csv -p /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/kidney_231204/kidney_231204.3d_clustering_pos.csv -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/kidney_231204 -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/kidney_pilot/all_mutations.all_samples.tsv -d /workspace/projects/clustering_3d/clustering_3d/datasets_annot -a /workspace/projects/clustering_3d/o3d_analysys/datasets/annotations_231208 -M /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/kidney_pilot/mutability_kidney.json
+# oncodrive3D plot -r kidney_231204 -v -g /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/kidney_231204/kidney_231204.3d_clustering_genes.csv -p /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/kidney_231204/kidney_231204.3d_clustering_pos.csv -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/kidney_231204 -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/kidney_pilot/all_mutations.all_samples.tsv -d /workspace/projects/clustering_3d/clustering_3d/datasets_annot -a /workspace/projects/clustering_3d/o3d_analysys/datasets/annotations_231208 -M /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/kidney_pilot/mutability_kidney.json
 
 ## TODO: maybe add a flag that allow to write the annotated results as csv files
                  
@@ -487,10 +487,11 @@ def build_annotations(data_dir,
 @click.option("-n", "--n_genes", help="Top number of genes to be included in the plots", type=int, default=20)
 @click.option("-l", "--genes", help="List of genes to be analysed in the report", multiple=True)
 @click.option("-k", "--significant_only", help="Only include significant genes", is_flag=True)
+@click.option("-v", "--verbose", help="Verbose", is_flag=True)
 @setup_logging_decorator
 def plot(gene_result_path, 
          pos_result_path,
-         maf,
+         input_maf,
          data_dir,
          annotations_dir, 
          mut_profile_path,
@@ -519,7 +520,7 @@ def plot(gene_result_path,
   
     generate_plot(gene_result_path, 
                   pos_result_path, 
-                  maf, 
+                  input_maf, 
                   data_dir, 
                   annotations_dir,
                   mut_profile_path,
