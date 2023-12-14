@@ -420,14 +420,14 @@ def run(input_maf_path,
 # =============================================================================
 
 # Example:
-# oncodrive3D build-annotations -o annotations -v -p /workspace/projects/clustering_3d/clustering_3d/datasets_backup/datasets_distances/pdb_structures -s /workspace/projects/clustering_3d/clustering_3d/build/containers/pdb_tool.sif
+# oncodrive3D build-annotations -o annotations -v -d /workspace/projects/clustering_3d/clustering_3d/datasets_annot -s /workspace/projects/clustering_3d/clustering_3d/build/containers/pdb_tool.sif
 
 # TODO: maybe use as input the path to datasets, then retrieve the structure from there.
 
 @oncodrive3D.command(context_settings=dict(help_option_names=['-h', '--help']),
                help="Get annotations - Required (once) only to plot annotations.")
 @click.option("-d", "--data_dir", help="Path to datasets", type=str, required=True)
-@click.option("-s", "--path_pdb_tool_sif", help="Path to the PDB_Tool SIF", type=str, required=True) 
+#@click.option("-s", "--path_pdb_tool_sif", help="Path to the PDB_Tool SIF", type=str, required=True) 
 @click.option("-o", "--output_dir", help="Path to dir where to store annotations", type=str, default="annotations")
 @click.option("-c", "--cores", type=click.IntRange(min=1, max=len(os.sched_getaffinity(0)), clamp=False), default=len(os.sched_getaffinity(0)),
               help="Number of cores to use in the computation")
@@ -435,7 +435,7 @@ def run(input_maf_path,
 @click.option("-v", "--verbose", help="Verbose", is_flag=True)
 @setup_logging_decorator
 def build_annotations(data_dir,
-                      path_pdb_tool_sif,
+                      #path_pdb_tool_sif,
                       output_dir,
                       cores,
                       yes,
@@ -450,14 +450,14 @@ def build_annotations(data_dir,
     
     logger.info(f"Output directory: {output_dir}")
     logger.info(f"Path to datasets: {data_dir}")
-    logger.info(f"Path to PDB_Tool SIF: {path_pdb_tool_sif}")
+    #logger.info(f"Path to PDB_Tool SIF: {path_pdb_tool_sif}")
     logger.info(f"Cores: {cores}")
     logger.info(f"Verbose: {bool(verbose)}")
     logger.info(f'Log path: {os.path.join(output_dir, "log")}')
     logger.info("")
 
     get_annotations(data_dir, 
-                    path_pdb_tool_sif,
+                    #path_pdb_tool_sif,
                     output_dir, 
                     cores, 
                     verbose)
@@ -468,57 +468,89 @@ def build_annotations(data_dir,
 #                                    PLOT
 # =============================================================================
 
+# Example:
+# oncodrive3D plot -r kidney_231204 -g /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/kidney_231204/kidney_231204.3d_clustering_genes.csv -p /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/kidney_231204/kidney_231204.3d_clustering_pos.csv -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/kidney_231204 -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/kidney_pilot/all_mutations.all_samples.tsv -d /workspace/projects/clustering_3d/clustering_3d/datasets_annot -a /workspace/projects/clustering_3d/o3d_analysys/datasets/annotations_231208 -M /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/kidney_pilot/mutability_kidney.json
+
 ## TODO: maybe add a flag that allow to write the annotated results as csv files
                  
 @oncodrive3D.command(context_settings=dict(help_option_names=['-h', '--help']),
                help="Generate plots for a quick interpretation of the 3D-clustering analysis.") 
-@click.option("-i", "--input_dir", help="Directory where the result of Oncodrive3D is stored", type=str)
-@click.option("-c", "--cohort", help="Cohort name used as filename by Oncodrive3D", type=str)
-@click.option("-o", "--output_dir", help="Directory where to save the plots", type=str)
-@click.option("-I", "--input_dir_2", help="Second input directory for comparison between two results", type=str)
-@click.option("-C", "--cohort_2", help="Second cohort name for comparison between two results", type=str)
-@click.option("-d", "--annotation_dir", help="Directory including files to annotate the genes", type=str)
-
+@click.option("-g", "--gene_result_path", help="Path to Oncodrive3D gene-level result", type=str)
+@click.option("-p", "--pos_result_path", help="Path to Oncodrive3D position-level result", type=str)
+@click.option("-i", "--input_maf", help="Path to MAF input file", type=str)
+@click.option("-d", "--data_dir", help="Path to datasets directory", type=str)
+@click.option("-a", "--annotations_dir", help="Path annotations directory", type=str)
+@click.option("-m", "--mut_profile_path", help="Path to mutation profile", type=str)
+@click.option("-M", "--mutability_config_path", help="Path to mutability configuration file", type=str)
+@click.option("-o", "--output_dir", help="Path to output directory where to save plots", type=str)
+@click.option("-r", "--run_name", help="Run name which will be used as plots filename", type=str)
 @click.option("-n", "--n_genes", help="Top number of genes to be included in the plots", type=int, default=20)
 @click.option("-l", "--genes", help="List of genes to be analysed in the report", multiple=True)
 @click.option("-k", "--significant_only", help="Only include significant genes", is_flag=True)
-
-@click.option("-A", "--all_annotations", help="Include all available annotations", is_flag=True)
-@click.option("-s", "--stability_change", help="Include stability change annotation", is_flag=True)
-@click.option("-r", "--disorder", help="Include disorder annotation", is_flag=True)
-@click.option("-S", "--secondary_structure", help="Include secondary structure annotation", is_flag=True)
-@click.option("-y", "--solvent_accessibility", help="Include solvent accessibility", is_flag=True)
-@click.option("-p", "--pae", help="Include predicted aligned error", is_flag=True)
-
-@click.option("-f", "--figsize", help="Tuple to specify the figure size of the summary plot", multiple=True)
-@click.option("-v", "--verbose", help="Verbose", is_flag=True)
 @setup_logging_decorator
-def plot(input_dir, 
+def plot(gene_result_path, 
+         pos_result_path,
+         maf,
+         data_dir,
+         annotations_dir, 
+         mut_profile_path,
+         mutability_config_path,
          output_dir,
-         annotation_dir, 
-         no_genes,
+         run_name,
+         n_genes,
+         genes,
          significant_only, 
          verbose):
     """"Generate plots for a quick interpretation of the 3D-clustering analysis."""
     
     startup_message(__version__, "Starting plot generation...")
     
-    logger.info(f"Input directory: {input_dir}")
-    logger.info(f"Outpur directory: {output_dir}")
-    logger.info(f"Annotation directory: {annotation_dir}")
-    logger.info(f"Number of top genes: {bool(no_genes)}")
-    logger.info(f"Include only significant genes: {bool(significant_only)}")
-    logger.info(f"Verbose: {bool(verbose)}")
-    logger.info(f'Log path: {os.path.join(output_dir, "log")}')
-    logger.info("")
+    # logger.info(f"Input directory: {input_dir}")
+    # logger.info(f"Outpur directory: {output_dir}")
+    # logger.info(f"Annotation directory: {annotation_dir}")
+    # logger.info(f"Number of top genes: {bool(no_genes)}")
+    # logger.info(f"Include only significant genes: {bool(significant_only)}")
+    # logger.info(f"Verbose: {bool(verbose)}")
+    # logger.info(f'Log path: {os.path.join(output_dir, "log")}')
+    # logger.info("")
+    
+    
+    # If output is None: assign output to the where is located the gene and pos result
   
-    generate_plot()
+    generate_plot(gene_result_path, 
+                  pos_result_path, 
+                  maf, 
+                  data_dir, 
+                  annotations_dir,
+                  mut_profile_path,
+                  mutability_config_path,
+                  output_dir,
+                  run_name,
+                  n_genes, 
+                  significant_only, 
+                  genes)
 
 
 if __name__ == "__main__":
     oncodrive3D()
  
  
- 
+ # @click.option("-i", "--input_dir", help="Directory where the result of Oncodrive3D is stored", type=str)
+# @click.option("-c", "--cohort", help="Cohort name used as filename by Oncodrive3D", type=str)
+# @click.option("-o", "--output_dir", help="Directory where to save the plots", type=str)
+# @click.option("-I", "--input_dir_2", help="Second input directory for comparison between two results", type=str)
+# @click.option("-C", "--cohort_2", help="Second cohort name for comparison between two results", type=str)
+# @click.option("-d", "--annotations_dir", help="Directory including files to annotate the genes", type=str)
+# @click.option("-n", "--n_genes", help="Top number of genes to be included in the plots", type=int, default=20)
+# @click.option("-l", "--genes", help="List of genes to be analysed in the report", multiple=True)
+# @click.option("-k", "--significant_only", help="Only include significant genes", is_flag=True)
+# @click.option("-A", "--all_annotations", help="Include all available annotations", is_flag=True)
+# @click.option("-s", "--stability_change", help="Include stability change annotation", is_flag=True)
+# @click.option("-r", "--disorder", help="Include disorder annotation", is_flag=True)
+# @click.option("-S", "--secondary_structure", help="Include secondary structure annotation", is_flag=True)
+# @click.option("-y", "--solvent_accessibility", help="Include solvent accessibility", is_flag=True)
+# @click.option("-p", "--pae", help="Include predicted aligned error", is_flag=True)
+# @click.option("-f", "--figsize", help="Tuple to specify the figure size of the summary plot", multiple=True)
+# @click.option("-v", "--verbose", help="Verbose", is_flag=True)
  
  
