@@ -12,7 +12,7 @@ import numpy as np
 from scripts.run.mutability import Mutabilities
 from scripts import __logger_name__
 
-logger = daiquiri.getLogger(__logger_name__ + ".utils.miss_mut_prob")
+logger = daiquiri.getLogger(__logger_name__ + ".run.miss_mut_prob")
 
 
 def get_unif_gene_miss_prob(size):

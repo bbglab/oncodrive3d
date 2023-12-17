@@ -420,7 +420,7 @@ def run(input_maf_path,
 # =============================================================================
 
 # Example:
-# oncodrive3D build-annotations -o annotations -v -d /workspace/projects/clustering_3d/clustering_3d/datasets_annot
+# oncodrive3D build-annotations -o annotations_final -v -d /workspace/projects/clustering_3d/clustering_3d/datasets
 
 # TODO: maybe use as input the path to datasets, then retrieve the structure from there.
 
@@ -469,7 +469,10 @@ def build_annotations(data_dir,
 # =============================================================================
 
 # Example:
-# oncodrive3D plot -r kidney_231204 -v -g /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/kidney_231204/kidney_231204.3d_clustering_genes.csv -p /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/kidney_231204/kidney_231204.3d_clustering_pos.csv -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/kidney_231204 -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/kidney_pilot/all_mutations.all_samples.tsv -d /workspace/projects/clustering_3d/clustering_3d/datasets_annot -a /workspace/projects/clustering_3d/o3d_analysys/datasets/annotations_231208 -M /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/kidney_pilot/mutability_kidney.json
+# oncodrive3D plot -c -s -r kidney_231204 -g /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/kidney_231204/kidney_231204.3d_clustering_genes.csv -p /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/kidney_231204/kidney_231204.3d_clustering_pos.csv -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/kidney_231204 -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/kidney_pilot/all_mutations.all_samples.tsv -d /workspace/projects/clustering_3d/clustering_3d/datasets -a /workspace/projects/clustering_3d/o3d_analysys/datasets/annotations_final -M /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/kidney_pilot/mutability_kidney.json
+# oncodrive3D plot -c -s -r bladder_231204 -g /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/bladder_231204/bladder_231204.3d_clustering_genes.csv -p /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/bladder_231204/bladder_231204.3d_clustering_pos.csv -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/bladder_231204 -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/bladder_pilot/all_mutations.all_samples.tsv -d /workspace/projects/clustering_3d/clustering_3d/datasets -a /workspace/projects/clustering_3d/o3d_analysys/datasets/annotations_final -M /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/bladder_pilot/mutability_bladder.json
+# oncodrive3D plot -r TCGA_WXS_COADREAD -g /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/results/TCGA_WXS_COADREAD.3d_clustering_genes.csv -p /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/results/TCGA_WXS_COADREAD.3d_clustering_pos.csv -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/maf/TCGA_WXS_COADREAD.in.maf -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/plots -m /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/mut_profile/TCGA_WXS_COADREAD.mutrate.json -d /workspace/projects/clustering_3d/clustering_3d/datasets -a /workspace/projects/clustering_3d/o3d_analysys/datasets/annotations_final
+
 
 ## TODO: maybe add a flag that allow to write the annotated results as csv files
                  
@@ -484,9 +487,10 @@ def build_annotations(data_dir,
 @click.option("-M", "--mutability_config_path", help="Path to mutability configuration file", type=str)
 @click.option("-o", "--output_dir", help="Path to output directory where to save plots", type=str)
 @click.option("-r", "--run_name", help="Run name which will be used as plots filename", type=str)
-@click.option("-n", "--n_genes", help="Top number of genes to be included in the plots", type=int, default=20)
+@click.option("-n", "--n_genes", help="Top number of genes to be included in the plots", type=int, default=30)
 @click.option("-l", "--genes", help="List of genes to be analysed in the report", multiple=True)
-@click.option("-k", "--significant_only", help="Only include significant genes", is_flag=True)
+@click.option("-s", "--non_significant", help="Also include non-significant genes", is_flag=True)
+@click.option("-c", "--non_missense_count", help="Add track showing counts of non-missense mutations", is_flag=True)
 @click.option("-v", "--verbose", help="Verbose", is_flag=True)
 @setup_logging_decorator
 def plot(gene_result_path, 
@@ -500,7 +504,8 @@ def plot(gene_result_path,
          run_name,
          n_genes,
          genes,
-         significant_only, 
+         non_significant, 
+         non_missense_count,
          verbose):
     """"Generate plots for a quick interpretation of the 3D-clustering analysis."""
     
@@ -510,7 +515,7 @@ def plot(gene_result_path,
     # logger.info(f"Outpur directory: {output_dir}")
     # logger.info(f"Annotation directory: {annotation_dir}")
     # logger.info(f"Number of top genes: {bool(no_genes)}")
-    # logger.info(f"Include only significant genes: {bool(significant_only)}")
+    # logger.info(f"Also include non-significant genes: {bool(non_significant)}")
     # logger.info(f"Verbose: {bool(verbose)}")
     # logger.info(f'Log path: {os.path.join(output_dir, "log")}')
     # logger.info("")
@@ -528,8 +533,9 @@ def plot(gene_result_path,
                   output_dir,
                   run_name,
                   n_genes, 
-                  significant_only, 
-                  genes)
+                  non_significant, 
+                  genes,
+                  non_missense_count)
 
 
 if __name__ == "__main__":

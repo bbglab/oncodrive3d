@@ -17,7 +17,7 @@ from scripts.run.score_and_simulations import (get_anomaly_score,
                                                  get_sim_anomaly_score)
 from scripts.run.utils import add_samples_info, get_samples_info
 
-logger = daiquiri.getLogger(__logger_name__ + ".utils.clustering")
+logger = daiquiri.getLogger(__logger_name__ + ".run.clustering")
 
 def clustering_3d(gene, 
                   uniprot_id,

@@ -6,6 +6,7 @@ from matplotlib import pyplot as plt
 import seaborn as sns
 import os
 import json
+import colorcet as cc
 from scripts.run.utils import parse_maf_input
 
 from scripts.run.mutability import init_mutabilities_module
@@ -35,7 +36,7 @@ def get_miss_mut_prob_for_plot(mut_profile_path, mutability_config_path, seq_df)
                                                 mutability_config=mutab_config)
     elif mut_profile_path is not None:
         # Compute dict from mut profile of the cohort and dna sequences
-        mut_profile = json.load(open(mutability_config_path))
+        mut_profile = json.load(open(mut_profile_path))
         logger.debug(f"Computing missense mut probabilities...")
         if not isinstance(mut_profile, dict):
             mut_profile = mut_rate_vec_to_dict(mut_profile)
@@ -118,6 +119,7 @@ def summary_plot(gene_result,
                 palette=sns.color_palette("tab10", n_colors=2), ec="black", lw=0.5)
     sns.barplot(x='Gene', y='Cluster', data=cluster_df, order=gene_result.Gene, ax=ax3, color="lightgray", ec="black", lw=0.5)
 
+    pos_result = pos_result.copy()
     pos_result["C"] = pos_result.C.map({1 : "Significant", 0 : "Not significant"})
     sns.boxplot(x='Gene', y='Ratio_obs_sim', data=pos_result, order=gene_result.Gene, color="lightgray", showfliers=False, ax=ax4)
     sns.stripplot(x='Gene', y='Ratio_obs_sim', data=pos_result, hue="C" ,jitter=True, size=6, alpha=0.5, order=gene_result.Gene.values, 
@@ -153,7 +155,80 @@ def summary_plot(gene_result,
     logger.info(f"Saved in {output_path}")
     plt.close()
 
-      
+    
+# Gene plots
+# ==========
+
+def capitalize(string):
+    words = string.split("_")
+    words[0] = words[0].capitalize()
+
+    return ' '.join(words)
+
+                           
+def get_nonmiss_mut(path_to_maf):
+    """
+    Get non missense mutations from MAF file.
+    """
+    
+    maf_nonmiss = pd.read_csv(path_to_maf, sep="\t", dtype={'Chromosome': str})
+    maf_nonmiss = maf_nonmiss[maf_nonmiss["Protein_position"] != "-"]
+    maf_nonmiss = maf_nonmiss[~(maf_nonmiss['Consequence'].str.contains('Missense_Mutation')
+                                | maf_nonmiss['Consequence'].str.contains('missense_variant'))]
+    maf_nonmiss = maf_nonmiss[["SYMBOL", 
+                               "Consequence", 
+                               "Protein_position"]].rename(
+                                   columns={"SYMBOL" : "Gene", 
+                                            "Protein_position" : "Pos"}).reset_index(drop=True)
+                               
+    # Parse the consequence with multiple elements
+    # Here we assume that the first consequence is the most impactful one
+    for i, row in maf_nonmiss.iterrows():
+        lst_cnsq = row.Consequence.split(",")
+        if len(lst_cnsq) > 1:
+            maf_nonmiss.iloc[i].Consequence = lst_cnsq[0]
+            
+    return maf_nonmiss
+
+
+def avg_per_pos_ddg(pos_result_gene, ddg_prot, maf_gene):
+    """
+    Compute per-position average stability change upon mutations (DDG).
+    """
+    
+    ddg_vec = np.repeat(0., len(pos_result_gene))
+    for pos, group in maf_gene.groupby('Pos'):
+        pos = str(pos)
+        obs_mut = group.Mut
+        if pos in ddg_prot:
+            ddg_pos = ddg_prot[pos]
+            ddg_pos = np.mean([ddg_pos[mut] for mut in obs_mut])
+            ddg_vec[int(pos)-1] = ddg_pos
+
+    return ddg_vec
+
+
+def check_near_domains(pfam_gene, dist_thr=0.05):
+    """
+    Check if two domains could be closeR to each other 
+    than allowed threshold (ratio of protein size).
+    """
+        
+    near_domains = False
+    pfam_gene = pfam_gene.copy()
+    pfam_gene = pfam_gene.drop_duplicates(subset='Pfam_name', keep='first')
+    mid_pos = (pfam_gene.Pfam_start + pfam_gene.Pfam_end) / 2
+    mid_pos_norm = (mid_pos / mid_pos.max()).values
+    
+    for i in range(len(mid_pos_norm)):
+        for j in range(i + 1, len(mid_pos_norm)):
+            diff = abs(mid_pos_norm[i] - mid_pos_norm[j])
+            if diff < dist_thr:
+                near_domains = True
+
+    return near_domains
+
+
 def genes_plots(gene_result, 
                 pos_result, 
                 seq_df,
@@ -163,142 +238,326 @@ def genes_plots(gene_result,
                 count_pos_df, 
                 cluster_df,
                 output_dir,
-                run_name):   
-        
+                run_name,
+                annotations_dir,
+                disorder,
+                pfam,
+                pdb_tool,
+                maf_nonmiss,
+                non_missense_count,
+                color_cnsq,
+                h_ratios,
+                s_lw=0.2,
+                dist_thr=0.05,
+                n_genes=30):   
+    """
+    Generate a diagnostic plot for each gene showing Oncodrive3D 
+    results and annotated features.
+    """
 
     for gene in gene_result["Gene"].values:
 
         # Load and parse
         # ==============
         
+        # IDs
         uni_id = seq_df[seq_df["Gene"] == gene].Uniprot_ID.values[0]
         af_f = seq_df[seq_df["Gene"] == gene].F.values[0]
         maf_gene = maf[maf["Gene"] == gene]
-        mut_count = maf_gene.value_counts("Pos").reset_index()
-        mut_count = mut_count.rename(columns={0 : "Count"})
+
+        # Parse
         pos_result_gene = pos_result[pos_result["Gene"] == gene].sort_values("Pos").reset_index(drop=True)
-        pos_result_gene = pos_result_gene[["Pos", "Mut_in_res", "Mut_in_vol", "Ratio_obs_sim", "C", "C_ext", "pval"]]
-        pos_result_gene["C"] = pos_result_gene.apply(
-            lambda x: 1 if (x["C"] == 1) & (x["C_ext"] == 0) else 2 if (x["C"] == 1) & (x["C_ext"] == 1) else 0, axis=1)
-        
-        pos_result_gene_hit = pos_result_gene[pos_result_gene["C"] == 1]
-        pos_result_gene_not = pos_result_gene[pos_result_gene["C"] == 0]
-        pos_result_gene_ext = pos_result_gene[pos_result_gene["C"] == 2]
-        pos_vec = pos_result_gene["Pos"].values
-        mut_vec = pos_result_gene["Mut_in_res"].values
-        vol_vec = pos_result_gene["Mut_in_vol"].values
-        max_mut = np.max(pos_result_gene["Mut_in_res"].values)
-        max_vol = np.max(pos_result_gene["Mut_in_vol"].values)
-
-        pos_hit = pos_result_gene_hit["Pos"].values
-        pos_not = pos_result_gene_not["Pos"].values
-        pos_ext = pos_result_gene_ext["Pos"].values
-        pos_hit_mut = pos_result_gene_hit["Mut_in_res"].values
-        pos_not_mut = pos_result_gene_not["Mut_in_res"].values
-        pos_ext_mut = pos_result_gene_ext["Mut_in_res"].values
-        pos_hit_vol = pos_result_gene_hit["Mut_in_vol"].values
-        pos_not_vol = pos_result_gene_not["Mut_in_vol"].values
-        pos_ext_vol = pos_result_gene_ext["Mut_in_vol"].values
-        pos_hit_score = pos_result_gene_hit["Ratio_obs_sim"].values
-        pos_not_score = pos_result_gene_not["Ratio_obs_sim"].values
-        pos_ext_score = pos_result_gene_ext["Ratio_obs_sim"].values
-        
-        # Get prob vec
-        prob_vec = miss_prob_dict[f"{uni_id}-F{af_f}"]   # If none, use uniform
-    
-        # Get by pos mut, mut_vol, score, etc
-        # ===================================
-        
-        mut_vec = []
-        score_vec = []
-        #cluster_vec = []
-        for pos in range(1, len(prob_vec)+1):
-
-            # Mut count
-            if pos in mut_count.Pos.values:
-                count = mut_count.loc[mut_count["Pos"] == pos, "Count"].values[0]
-                score = pos_result_gene.loc[pos_result_gene["Pos"] == pos, "Ratio_obs_sim"].values[0]
-            else:
-                count = 0
-                score = 0
-                row_gene = pd.DataFrame({'Pos': [pos], 'Mut_in_res': [0], 'Mut_in_vol': [0], 'Ratio_obs_sim': [np.nan], 'C': [np.nan]})
-                pos_result_gene = pd.concat([pos_result_gene, row_gene])
             
-            if pos in range(1, len(prob_vec)+1):
-                mut_vec.append(count)
-                score_vec.append(score)
+        if len(pos_result_gene) > 0:
+            pos_result_gene = pos_result_gene[["Pos", "Mut_in_res", "Mut_in_vol", "Ratio_obs_sim", "C", "C_ext", "pval", "Cluster", "PAE_vol"]]
+            pos_result_gene["C"] = pos_result_gene.apply(
+                lambda x: 1 if (x["C"] == 1) & (x["C_ext"] == 0) else 2 if (x["C"] == 1) & (x["C_ext"] == 1) else 0, axis=1)
+            
+            pos_result_gene_hit = pos_result_gene[pos_result_gene["C"] == 1]
+            pos_result_gene_not = pos_result_gene[pos_result_gene["C"] == 0]
+            pos_result_gene_ext = pos_result_gene[pos_result_gene["C"] == 2]
+            max_mut = np.max(pos_result_gene["Mut_in_res"].values)
 
-        pos_result_gene = pos_result_gene.sort_values("Pos").reset_index(drop=True)
-
-        # Normalize score
-        mut_freq_vec = mut_vec / sum(mut_vec)
-        if np.isnan(score_vec).any():
-            score_vec = pd.Series(score_vec).fillna(max(score_vec)).values
-        score_norm_vec = score_vec / sum(score_vec) 
-
-        # Generate plot
-        # ============= 
+            pos_hit = pos_result_gene_hit["Pos"].values
+            pos_not = pos_result_gene_not["Pos"].values
+            pos_ext = pos_result_gene_ext["Pos"].values
+            pos_hit_mut = pos_result_gene_hit["Mut_in_res"].values
+            pos_not_mut = pos_result_gene_not["Mut_in_res"].values
+            pos_ext_mut = pos_result_gene_ext["Mut_in_res"].values
+            pos_hit_score = pos_result_gene_hit["Ratio_obs_sim"].values
+            pos_not_score = pos_result_gene_not["Ratio_obs_sim"].values
+            pos_ext_score = pos_result_gene_ext["Ratio_obs_sim"].values
+            
+            # Counts
+            mut_count = maf_gene.value_counts("Pos").reset_index()
+            mut_count = mut_count.rename(columns={0 : "Count"})
+            if non_missense_count:
+                maf_nonmiss_gene = maf_nonmiss[maf_nonmiss["Gene"] == gene]
+                mut_count_nonmiss = maf_nonmiss_gene.groupby("Consequence").value_counts("Pos").reset_index()
+                mut_count_nonmiss = mut_count_nonmiss.rename(columns={0 : "Count"})
+                # If there is more than one position affected, take the first one
+                ix_more_than_one_pos = mut_count_nonmiss.apply(lambda x: len(x["Pos"].split("-")), axis=1) > 1
+                mut_count_nonmiss.loc[ix_more_than_one_pos, "Pos"] = mut_count_nonmiss.loc[ix_more_than_one_pos].apply(lambda x: x["Pos"].split("-")[0], axis=1)
+                # Filter non-numerical Pos and get count
+                mut_count_nonmiss = mut_count_nonmiss[mut_count_nonmiss["Pos"].apply(lambda x: x.isdigit() or x.isnumeric())]
+                mut_count_nonmiss["Pos"] = mut_count_nonmiss["Pos"].astype(int)
+            
+            # Get prob vec
+            prob_vec = miss_prob_dict[f"{uni_id}-F{af_f}"]   # If none, use uniform
         
-        fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, 1, 
-                                                 figsize=(24, 12), sharex=True, 
-                                                  gridspec_kw={'hspace': 0.05, 
-                                                               'height_ratios': [0.22, 0.22, 0.22, 0.32]})
+            # Get by pos mut, score, etc
+            # ==========================
+            
+            score_vec = []
+            for pos in range(1, len(prob_vec)+1):
+
+                # Mut count
+                if pos in mut_count.Pos.values:
+                    score = pos_result_gene.loc[pos_result_gene["Pos"] == pos, "Ratio_obs_sim"].values[0]
+                else:
+                    score = 0
+                    row_gene = pd.DataFrame({'Pos': [pos], 'Mut_in_res': [0], 'Ratio_obs_sim': [np.nan], 'C': [np.nan]})
+                    pos_result_gene = pd.concat([pos_result_gene, row_gene])
+                
+                if pos in range(1, len(prob_vec)+1):
+                    score_vec.append(score)
+
+            pos_result_gene = pos_result_gene.sort_values("Pos").reset_index(drop=True)
+
+            # Normalize score
+            if np.isnan(score_vec).any():
+                score_vec = pd.Series(score_vec).fillna(max(score_vec)).values
+            score_norm_vec = np.array(score_vec) / sum(score_vec) 
+            
+            # Get annotations
+            # ===============
+            
+            disorder_gene = disorder[disorder["Uniprot_ID"] == uni_id].reset_index(drop=True)
+            pdb_tool_gene = pdb_tool[pdb_tool["Uniprot_ID"] == uni_id].reset_index(drop=True)
+            pfam_gene = pfam[pfam["Uniprot_ID"] == uni_id].reset_index(drop=True)
+            ddg = json.load(open(os.path.join(annotations_dir, "stability_change", f"{uni_id}_ddg.json")))
+            ddg_vec = avg_per_pos_ddg(pos_result_gene, ddg, maf_gene)
+            pos_result_gene["DDG"] = ddg_vec
+
+            # Generate plot
+            # ============= 
         
-        # Plot for Mut_in_res track
-        ax1.scatter(pos_hit, pos_hit_mut, label="Significant", color = 'C0', zorder=3)
-        ax1.scatter(pos_ext, pos_ext_mut, label="Significant extended", color = 'C2', zorder=2)
-        ax1.scatter(pos_not, pos_not_mut, label="Not significant", color = 'C1', zorder=1)
-        ax1.fill_between(pos_result_gene['Pos'], 0, max_mut, where=(pos_result_gene['C'] == 1), 
-                        color='skyblue', alpha=0.3, label='Mutated *', zorder=0)
-        ax1.fill_between(pos_result_gene['Pos'], 0, max_mut, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
-                        color='#ffd8b1', alpha=0.6, label='Mutated not *', zorder=0)
-        ax1.legend(fontsize=12, ncol=2)
+            # Init
+            ntracks = len(h_ratios)
+            h_ratios_gene = h_ratios.copy()
+            ax = 0
+            near_domains = check_near_domains(pfam_gene, dist_thr)
+            if near_domains: # Make the track for the Pfam domains larger
+                h_ratios_gene[len(h_ratios_gene)-1] = 0.1
 
-        # Plot for Mut_in_vol track
-        ax2.fill_between(pos_result_gene['Pos'], 0, max_vol, where=(pos_result_gene['C'] == 1),
-                        color='skyblue', alpha=0.3, label='Mutated *')
-        ax2.fill_between(pos_result_gene['Pos'], 0, max_vol, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
-                        color='#ffd8b1', alpha=0.6, label='Mutated not *')
-        ax2.scatter(pos_not, pos_not_vol, color = 'C1', zorder=1)
-        ax2.scatter(pos_hit, pos_hit_vol, color = 'C0', zorder=3)
-        ax2.scatter(pos_ext, pos_ext_vol, color = 'C2', zorder=2)
+            # Remove first track if count for non-missense mut is not required
+            if non_missense_count == False:
+                ntracks -= 1
+                del h_ratios_gene[-0]
+                h_ratios_gene = np.array(h_ratios_gene) / sum(h_ratios_gene)
+                
+            fig, axes = plt.subplots(ntracks, 1, 
+                                    figsize=(24, 12), sharex=True, 
+                                    gridspec_kw={'hspace': 0.1, 
+                                                 'height_ratios': h_ratios_gene})
 
-        # Plot for Score track
-        ax3.fill_between(pos_result_gene['Pos'], 0, np.max(score_vec), where=(pos_result_gene['C'] == 1), 
-                        color='skyblue', alpha=0.3, label='Mutated *')
-        ax3.fill_between(pos_result_gene['Pos'], 0, np.max(score_vec), where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
-                        color='#ffd8b1', alpha=0.6, label='Mutated not *')
-        ax3.scatter(pos_hit, pos_hit_score, zorder=3, color="C0")   
-        ax3.scatter(pos_not, pos_not_score, zorder=1, color="C1") 
-        ax3.scatter(pos_ext, pos_ext_score, zorder=2, color="C2")  
+            # Plot for Non-missense mut track   
+            # -------------------------------
+            if non_missense_count:
+                if len(mut_count_nonmiss.Consequence.unique()) > 6:
+                    ncol = 3
+                else:
+                    ncol = 2
+                i = 0
+                axes[ax].vlines(mut_count_nonmiss["Pos"], ymin=0, ymax=mut_count_nonmiss["Count"], color="gray", lw=0.7, zorder=0)
+                for cnsq in mut_count_nonmiss.Consequence.unique():
+                    count_cnsq = mut_count_nonmiss[mut_count_nonmiss["Consequence"] == cnsq]
+                    if cnsq == "synonymous_variant":
+                        order = 1
+                    else:
+                        order = 2
+                    if cnsq in color_cnsq:
+                        color = color_cnsq[cnsq]
+                    else:
+                        color=sns.color_palette("tab10")[i]
+                        i+=1
+                    axes[ax].scatter(count_cnsq.Pos.values, count_cnsq.Count.values, label=capitalize(cnsq), 
+                                    color=color, zorder=order, ec="black", lw=s_lw)   
+                axes[ax].legend(fontsize=11.5, ncol=ncol, framealpha=0.75)
+            else:
+                ax -= 1
 
-        # Plot for Score and Miss prob track
-        max_value = np.max((np.max(mut_freq_vec), np.max(prob_vec), np.max(score_norm_vec)))
-        ax4.fill_between(pos_result_gene['Pos'], 0, max_value, where=(pos_result_gene['C'] == 1), 
-                        color='skyblue', alpha=0.3, label='Mutated *')
-        ax4.fill_between(pos_result_gene['Pos'], 0, max_value, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
-                        color='#ffd8b1', alpha=0.6, label='Mutated not *')
-        ax4.plot(range(1, len(prob_vec)+1), prob_vec, label="Miss mut prob", zorder=2, color="Red")
-        ax4.plot(range(1, len(prob_vec)+1), mut_freq_vec, label="Frequency of mut", zorder=0, color="Purple")
-        ax4.plot(range(1, len(prob_vec)+1), score_norm_vec, label="O3D score normalized", zorder=1, color="C2")  
-        handles, labels = ax4.get_legend_handles_labels()
-        ax4.legend(handles[-3:], labels[-3:], fontsize=12)
+            # Plot for Missense Mut_in_res track
+            # ----------------------------------
+            axes[ax+1].vlines(mut_count["Pos"], ymin=0, ymax=mut_count["Count"], color="gray", lw=0.7, zorder=1)
+            axes[ax+1].scatter(pos_hit, pos_hit_mut, label="Significant", color = 'C0', zorder=4, ec="black", lw=s_lw)   
+            axes[ax+1].scatter(pos_ext, pos_ext_mut, label="Significant extended", color = 'C2', zorder=3, ec="black", lw=s_lw)   
+            axes[ax+1].scatter(pos_not, pos_not_mut, label="Not significant", color = 'C1', zorder=2, ec="black", lw=s_lw)   
+            axes[ax+1].fill_between(pos_result_gene['Pos'], 0.5, max_mut, where=(pos_result_gene['C'] == 1), 
+                            color='skyblue', alpha=0.3, label='Mutated *', zorder=0)
+            axes[ax+1].fill_between(pos_result_gene['Pos'], 0.5, max_mut, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
+                            color='#ffd8b1', alpha=0.6, label='Mutated not *', zorder=0)
+            axes[ax+1].legend(fontsize=11.5, ncol=2, framealpha=0.75)
 
-        # Set labels and title
-        fig.suptitle(f'{gene} - {uni_id}', fontsize=16)
-        ax3.set_xlabel('Position', fontsize=14)
-        ax1.set_ylabel('Mut in residue', fontsize=14)
-        ax2.set_ylabel('Mut in volume', fontsize=14)
-        ax3.set_ylabel('O3D score', fontsize=14)
-        ax4.set_ylabel('Value', fontsize=14)
-        plt.subplots_adjust(top=0.95) 
+            # Plot for Score track
+            # --------------------
+            axes[ax+2].vlines(pos_result_gene["Pos"], ymin=0, ymax=pos_result_gene["Ratio_obs_sim"], color="gray", lw=0.7, zorder=1)
+            axes[ax+2].fill_between(pos_result_gene['Pos'], 0, np.max(score_vec), where=(pos_result_gene['C'] == 1), 
+                            color='skyblue', alpha=0.3, label='Mutated *')
+            axes[ax+2].fill_between(pos_result_gene['Pos'], 0, np.max(score_vec), where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
+                            color='#ffd8b1', alpha=0.6, label='Mutated not *')
+            axes[ax+2].scatter(pos_hit, pos_hit_score, zorder=3, color="C0", ec="black", lw=s_lw)   
+            axes[ax+2].scatter(pos_not, pos_not_score, zorder=1, color="C1", ec="black", lw=s_lw)    
+            axes[ax+2].scatter(pos_ext, pos_ext_score, zorder=2, color="C2", ec="black", lw=s_lw)     
 
-        # Save
-        filename = f"{run_name}.genes_plot.{gene}_{uni_id}.png"
-        output_path = os.path.join(output_dir, filename)
-        plt.savefig(output_path, dpi=300, bbox_inches='tight')
-        logger.info(f"Saved in {output_path}")
-        plt.close()
+            # Plot for Score and Miss prob track
+            # ----------------------------------
+            max_value = np.max((np.max(prob_vec), np.max(score_norm_vec)))
+            axes[ax+3].fill_between(pos_result_gene['Pos'], 0, max_value, where=(pos_result_gene['C'] == 1), 
+                            color='skyblue', alpha=0.3, label='Mutated *')
+            axes[ax+3].fill_between(pos_result_gene['Pos'], 0, max_value, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
+                            color='#ffd8b1', alpha=0.6, label='Mutated not *')
+            axes[ax+3].plot(range(1, len(prob_vec)+1), prob_vec, label="Miss mut prob", zorder=2, color="Red")
+            axes[ax+3].plot(range(1, len(prob_vec)+1), score_norm_vec, label="O3D score normalized", zorder=1, color="C2")  
+            handles, labels = axes[ax+3].get_legend_handles_labels()
+            axes[ax+3].legend(handles[-2:], labels[-2:], fontsize=11.5, framealpha=0.75, ncol=2)
+
+            # Plot annotations
+            # ================
+
+            # Plot PAE
+            # ----------------------------------
+            if not np.isnan(pos_result_gene["PAE_vol"]).all():
+                max_value = np.max(pos_result_gene["PAE_vol"])
+                axes[ax+4].fill_between(pos_result_gene['Pos'], 0, max_value, where=(pos_result_gene['C'] == 1), 
+                                color='skyblue', alpha=0.3, label='Mutated *')
+                axes[ax+4].fill_between(pos_result_gene['Pos'], 0, max_value, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
+                                color='#ffd8b1', alpha=0.6, label='Mutated not *')
+                axes[ax+4].plot(pos_result_gene['Pos'], pos_result_gene["PAE_vol"].fillna(0), 
+                                label="Confidence", zorder=2, color=sns.color_palette("tab10")[4])
+
+            # Plot disorder
+            # -------------
+            axes[ax+5].fill_between(pos_result_gene['Pos'], 0, 100, where=(pos_result_gene['C'] == 1), 
+                            color='skyblue', alpha=0.3, label='Mutated *')
+            axes[ax+5].fill_between(pos_result_gene['Pos'], 0, 100, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
+                            color='#ffd8b1', alpha=0.6, label='Mutated not *')
+            axes[ax+5].plot(disorder_gene["Pos"], disorder_gene["Confidence"], 
+                            label="Confidence", zorder=2, color=sns.color_palette("tab10")[4])
+
+            # Plot pACC
+            # ---------
+            axes[ax+6].fill_between(pos_result_gene['Pos'], 0, 100, where=(pos_result_gene['C'] == 1), 
+                            color='skyblue', alpha=0.3, label='Mutated *')
+            axes[ax+6].fill_between(pos_result_gene['Pos'], 0, 100, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
+                            color='#ffd8b1', alpha=0.6, label='Mutated not *')
+            axes[ax+6].plot(pdb_tool_gene['Pos'], pdb_tool_gene["pACC"].fillna(0), 
+                            label="pACC", zorder=2, color=sns.color_palette("tab10")[4])
+
+            # Plot stability change
+            # ---------------------
+            max_value, min_value = pos_result_gene["DDG"].max(), pos_result_gene["DDG"].min()
+            axes[ax+7].fill_between(pos_result_gene['Pos'], min_value, max_value, where=(pos_result_gene['C'] == 1), 
+                            color='skyblue', alpha=0.3, label='Mutated *')
+            axes[ax+7].fill_between(pos_result_gene['Pos'], min_value, max_value, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
+                            color='#ffd8b1', alpha=0.6, label='Mutated not *')
+            axes[ax+7].plot(pos_result_gene['Pos'], pos_result_gene["DDG"], 
+                            label="Stability change", zorder=2, color=sns.color_palette("tab10")[4])
+            axes[ax+7].plot(pos_result_gene['Pos'], np.repeat(0, len(pos_result_gene['Pos'])), 
+                            label="No stability change", zorder=2, color='red', linestyle='--', lw=1.2)
+            handles, labels = axes[ax+7].get_legend_handles_labels()
+            axes[ax+7].legend(handles[-2:], labels[-2:], fontsize=11.5, framealpha=0.75, ncol=2)
+
+            # Clusters label
+            # --------------
+            clusters_label = pos_result_gene.Cluster.dropna().unique()
+            palette = sns.color_palette(cc.glasbey, n_colors=len(clusters_label))
+            for i, cluster in enumerate(clusters_label):
+                axes[ax+8].fill_between(pos_result_gene['Pos'], -0.5, 0.46, 
+                                        where=((pos_result_gene['Cluster'] == cluster) & (pos_result_gene['C'] == 1)),
+                                        color=palette[i], alpha=0.6)
+
+            # Secondary structure
+            # -------------------
+            fill_width = 0.43
+            for i, sse in enumerate(['Helix', 'Ladder', 'Coil']):
+                c = 0+i
+                ya, yb = c-fill_width, c+fill_width
+                axes[ax+9].fill_between(pdb_tool_gene["Pos"].values, ya, yb, where=(pdb_tool_gene["SSE"] == sse), 
+                                color=sns.color_palette("tab10")[7+i], label=sse)
+
+            # Pfam domains
+            # ------------
+            pfam_gene = pfam_gene.sort_values("Pfam_start").reset_index(drop=True)
+            pfam_color_dict = {}
+            
+            for n, name in enumerate(pfam_gene["Pfam_name"].unique()):
+                pfam_color_dict[name] = f"C{n}"
+                
+            n = 0
+            added_pfam = []
+            for i, row in pfam_gene.iterrows():
+                if pd.Series([row["Pfam_name"], row["Pfam_start"], row["Pfam_end"]]).isnull().any():
+                    continue
+                
+                name = row["Pfam_name"]
+                start = int(row["Pfam_start"])
+                end = int(row["Pfam_end"])
+                axes[ax+10].fill_between(range(start, end+1), -0.5, 0.48,  
+                                alpha=0.5, color=pfam_color_dict[name])
+                if name not in added_pfam:
+                    if near_domains:
+                        n += 1
+                        if n == 1:
+                            y = 0.28
+                        elif n == 2:
+                            y = 0
+                        elif n == 3:
+                            y = -0.295
+                            n = 0
+                    else:
+                        y = -0.04
+                    axes[ax+10].text(((start + end) / 2)+0.5, y, name, ha='center', va='center', fontsize=10, color="black")
+                    added_pfam.append(name)
+
+            # Set labels and title
+            # --------------------
+            fig.suptitle(f'{gene} - {uni_id}', fontsize=16)
+            if non_missense_count:
+                axes[ax].set_ylabel('Non\nmissense\nmutations', fontsize=13.5)
+                axes[ax].set_ylim(-0.5, mut_count_nonmiss["Count"].max()+0.5)
+
+            axes[ax+2].set_xlabel('Position', fontsize=13.5)
+            axes[ax+2].set_xlabel(None)
+            axes[ax+2].set_ylabel('O3D score', fontsize=13.5)
+            axes[ax+1].set_ylabel('Missense\nmutations', fontsize=13.5)
+            axes[ax+3].set_ylabel('Value', fontsize=13.5)
+            axes[ax+4].set_ylabel('PAE', fontsize=13.5)
+            axes[ax+5].set_ylabel('pLDDT', fontsize=13.5)
+            axes[ax+5].set_ylim(-10, 110)
+            axes[ax+6].set_ylabel('pACC', fontsize=13.5)
+            axes[ax+6].set_ylim(-10, 110)
+            axes[ax+7].set_ylabel('DDG', fontsize=13.5)
+            axes[ax+8].set_ylabel('Clusters             ', fontsize=13.5, rotation=0, va='center')
+            axes[ax+8].set_yticks([])  
+            axes[ax+8].set_yticklabels([], fontsize=12)
+            axes[ax+9].set_yticks([0, 1, 2])  
+            axes[ax+9].set_yticklabels(['Helix', 'Ladder', 'Coil'], fontsize=10)
+            axes[ax+9].set_ylabel('SSE', fontsize=13.5)
+            axes[ax+10].set_yticks([])  
+            axes[ax+10].set_yticklabels([], fontsize=12)
+            axes[ax+10].set_ylabel('Pfam        ', fontsize=13.5, rotation=0, va='center')
+            axes[ax+10].set_ylim(-0.62, 0.6)  
+
+            # Save
+            # ----
+            filename = f"{run_name}.genes_plot.{gene}_{uni_id}.png"
+            output_path = os.path.join(output_dir, filename)
+            plt.subplots_adjust(top=0.95) 
+            # plt.tight_layout()
+            plt.savefig(output_path, dpi=300, bbox_inches='tight')
+            logger.info(f"Saved in {output_path}")
+            plt.close()
         
             
 # ============
@@ -307,7 +566,7 @@ def genes_plots(gene_result,
 
 def generate_plot(gene_result_path, 
                   pos_result_path, 
-                  maf, 
+                  path_to_maf, 
                   datasets_dir, 
                   annotations_dir,
                   mut_profile_path,
@@ -315,10 +574,17 @@ def generate_plot(gene_result_path,
                   output_dir,
                   run_name,
                   n_genes=30, 
-                  significant_only=False, 
-                  lst_genes=None):
+                  non_significant=False, 
+                  lst_genes=None,
+                  non_missense_count = False):
     
-    dict_transcripts = {"PTEN" : "ENST00000688308"}              # TO DELETE    
+    dict_transcripts = {"PTEN" : "ENST00000688308"}              # TO DELETE?
+    
+    
+    # XXXXXxxxxx >>>>>>>>>>>>>>>>>>> Parameters <<<<<<<<<<<<<<<< xxxxxXXXXX
+    h_ratios = [0.15, 0.15, 0.15, 0.15, 0.1, 0.1, 0.1, 0.1, 0.04, 0.07, 0.04]
+    s_lw = 0.2
+    dist_thr = 0.05
     
     # Load data tracks
     # ================
@@ -326,21 +592,22 @@ def generate_plot(gene_result_path,
     # Load data
     gene_result = pd.read_csv(gene_result_path)
     pos_result = pd.read_csv(pos_result_path)
-    maf = parse_maf_input(maf)
+    maf = parse_maf_input(path_to_maf)
     seq_df_path = os.path.join(datasets_dir, "seq_for_mut_prob.csv") 
     seq_df = pd.read_csv(seq_df_path)    
     pfam = pd.read_csv(os.path.join(annotations_dir, "pfam.tsv"))
-    # pfam = pfam.rename(columns={"Ens_transcript_ID" : "Ens_Transcr_ID",        # REMOVE
-    #                             "Ens_gene_ID" : "Ens_Gene_ID"})
     pdb_tool = pd.read_csv(os.path.join(annotations_dir, "pdb_tool_df.csv"))
     disorder = pd.read_csv(os.path.join(datasets_dir, "confidence.csv"), low_memory=False)
 
-    # Get processed genes and IDs
+    # Filter genes and get IDs
+    if non_significant == False:
+        gene_result = gene_result[gene_result["C_gene"] == 1]
     gene_result[gene_result["Status"] == "Processed"].Gene.values
+    gene_result = gene_result[:n_genes]                                         
     uni_ids = gene_result.Uniprot_ID.values
     genes = gene_result.Gene.values         
     
-    #### HERE IS WHEN I CAN APPLY OTHER FILTERS TO THE GENES & IDs
+    #### ABOVE HERE IS WHEN I CAN APPLY OTHER FILTERS TO THE GENES & IDs
     
     # Subsett processed genes
     seq_df = seq_df[seq_df["Gene"].isin(genes)]
@@ -354,7 +621,8 @@ def generate_plot(gene_result_path,
             seq_df.loc[seq_df["Gene"] == gene, "Ens_Transcr_ID"] = transcript
 
     # Get subset pfam with gene info
-    pfam = seq_df[["Gene", "Uniprot_ID", "Ens_Transcr_ID", "Ens_Gene_ID"]].merge(pfam, how="left", on=["Ens_Transcr_ID", "Ens_Gene_ID"])
+    pfam = seq_df[["Gene", "Uniprot_ID", "Ens_Transcr_ID", "Ens_Gene_ID"]].merge(
+        pfam, how="left", on=["Ens_Transcr_ID", "Ens_Gene_ID"])
 
     # Get missense mut probability dict
     miss_prob_dict = get_miss_mut_prob_for_plot(mut_profile_path, mutability_config_path, seq_df)
@@ -375,7 +643,24 @@ def generate_plot(gene_result_path,
     # Plots for individual genes
     # ==========================
     
-    output_dir_genes_plots = os.path.join(output_dir, "genes_plots")
+    # Get non missense mutations
+    if non_missense_count:
+        maf_nonmiss = get_nonmiss_mut(path_to_maf)
+    else:
+        maf_nonmiss = None
+    
+    # Cnsq color
+    color_cnsq = {"start_lost" : "C1",
+                "start_lost" : "C5",
+                "stop_gained" : "C3",
+                "stop_lost" : "C4",
+                "splice_region_variant" : "C2",
+                "splice_acceptor_variant" : "C6",
+                "splice_donor_variant" : "C7",
+                "stop_retained_variant" : "C8",
+                "synonymous_variant" : "C9"}
+    
+    output_dir_genes_plots = os.path.join(output_dir, f"{run_name}_genes_plots")
     create_plot_dir(output_dir_genes_plots)
     genes_plots(gene_result, 
                 pos_result, 
@@ -386,7 +671,19 @@ def generate_plot(gene_result_path,
                 count_pos_df, 
                 cluster_df,
                 output_dir_genes_plots,
-                run_name)
+                run_name,
+                
+                annotations_dir,
+                disorder,
+                pfam,
+                pdb_tool,
+                maf_nonmiss,
+                non_missense_count,
+                color_cnsq,
+                h_ratios,
+                s_lw,
+                dist_thr,
+                n_genes)
     
     ## Select the genes from gene_result
     # IF: processed only

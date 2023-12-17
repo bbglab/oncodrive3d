@@ -19,7 +19,7 @@ import tabix
 from scripts import __logger_name__
 # from oncodrivefml.reference import get_ref_triplet
 
-logger = logging.getLogger(__logger_name__)
+logger = logging.getLogger(__logger_name__ + ".run.mutability")
 
 transcribe = {"A":"T", "C":"G", "G":"C", "T":"A"}
 

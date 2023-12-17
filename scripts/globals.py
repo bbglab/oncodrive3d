@@ -144,11 +144,13 @@ def clean_temp_files(path: str, rm_pdb_files=False) -> None:
         subprocess.run(clean_pdb)
         
     else:
-        clean_pdb = ["rm", "-rf", os.path.join(path, "pdb_structures", "*.cif.gz")]
+        # TODO: Currently the following cleaning commands do not work. To fix.
+        
+        clean_pdb = ["rm", "-rf", os.path.join(path, "pdb_structures", "*.cif.gz")]  
         logger.debug(' '.join(clean_pdb))
         subprocess.run(clean_pdb)
 
-        clean_pdb_frag = ["rm", "-rf", os.path.join(path, "fragmented_pdbs", "*.pdb*")]
+        clean_pdb_frag = ["rm", "-rf", os.path.join(path, "pdb_structures", "fragmented_pdbs", "*.pdb*")]
         logger.debug(' '.join(clean_pdb_frag))
         subprocess.run(clean_pdb_frag)
         
