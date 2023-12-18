@@ -255,7 +255,7 @@ def genes_plots(gene_result,
     results and annotated features.
     """
 
-    for gene in gene_result["Gene"].values:
+    for j, gene in enumerate(gene_result["Gene"].values):
 
         # Load and parse
         # ==============
@@ -364,26 +364,30 @@ def genes_plots(gene_result,
             # Plot for Non-missense mut track   
             # -------------------------------
             if non_missense_count:
-                if len(mut_count_nonmiss.Consequence.unique()) > 6:
-                    ncol = 3
-                else:
-                    ncol = 2
-                i = 0
-                axes[ax].vlines(mut_count_nonmiss["Pos"], ymin=0, ymax=mut_count_nonmiss["Count"], color="gray", lw=0.7, zorder=0)
-                for cnsq in mut_count_nonmiss.Consequence.unique():
-                    count_cnsq = mut_count_nonmiss[mut_count_nonmiss["Consequence"] == cnsq]
-                    if cnsq == "synonymous_variant":
-                        order = 1
+                try:
+                    if len(mut_count_nonmiss.Consequence.unique()) > 6:
+                        ncol = 3
                     else:
-                        order = 2
-                    if cnsq in color_cnsq:
-                        color = color_cnsq[cnsq]
-                    else:
-                        color=sns.color_palette("tab10")[i]
-                        i+=1
-                    axes[ax].scatter(count_cnsq.Pos.values, count_cnsq.Count.values, label=capitalize(cnsq), 
-                                    color=color, zorder=order, ec="black", lw=s_lw)   
-                axes[ax].legend(fontsize=11.5, ncol=ncol, framealpha=0.75)
+                        ncol = 2
+                    i = 0
+                    axes[ax].vlines(mut_count_nonmiss["Pos"], ymin=0, ymax=mut_count_nonmiss["Count"], color="gray", lw=0.7, zorder=0)
+                    for cnsq in mut_count_nonmiss.Consequence.unique():
+                        count_cnsq = mut_count_nonmiss[mut_count_nonmiss["Consequence"] == cnsq]
+                        if cnsq == "synonymous_variant":
+                            order = 1
+                        else:
+                            order = 2
+                        if cnsq in color_cnsq:
+                            color = color_cnsq[cnsq]
+                        else:
+                            color=sns.color_palette("tab10")[i]
+                            i+=1
+                        axes[ax].scatter(count_cnsq.Pos.values, count_cnsq.Count.values, label=capitalize(cnsq), 
+                                        color=color, zorder=order, ec="black", lw=s_lw)   
+                    axes[ax].legend(fontsize=11.5, ncol=ncol, framealpha=0.75)
+                except Exception as e:
+                    logger.warning("Non-missense mutations count not available: Track will be skipped...")
+                    logger.warning(f"Encountered the following exception: {e}")
             else:
                 ax -= 1
 
@@ -393,9 +397,9 @@ def genes_plots(gene_result,
             axes[ax+1].scatter(pos_hit, pos_hit_mut, label="Significant", color = 'C0', zorder=4, ec="black", lw=s_lw)   
             axes[ax+1].scatter(pos_ext, pos_ext_mut, label="Significant extended", color = 'C2', zorder=3, ec="black", lw=s_lw)   
             axes[ax+1].scatter(pos_not, pos_not_mut, label="Not significant", color = 'C1', zorder=2, ec="black", lw=s_lw)   
-            axes[ax+1].fill_between(pos_result_gene['Pos'], 0.5, max_mut, where=(pos_result_gene['C'] == 1), 
+            axes[ax+1].fill_between(pos_result_gene['Pos'], 0, max_mut, where=(pos_result_gene['C'] == 1), 
                             color='skyblue', alpha=0.3, label='Mutated *', zorder=0)
-            axes[ax+1].fill_between(pos_result_gene['Pos'], 0.5, max_mut, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
+            axes[ax+1].fill_between(pos_result_gene['Pos'], 0, max_mut, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
                             color='#ffd8b1', alpha=0.6, label='Mutated not *', zorder=0)
             axes[ax+1].legend(fontsize=11.5, ncol=2, framealpha=0.75)
 
@@ -551,10 +555,9 @@ def genes_plots(gene_result,
 
             # Save
             # ----
-            filename = f"{run_name}.genes_plot.{gene}_{uni_id}.png"
+            filename = f"{run_name}.genes_plot_{j+1}.{gene}_{uni_id}.png"
             output_path = os.path.join(output_dir, filename)
             plt.subplots_adjust(top=0.95) 
-            # plt.tight_layout()
             plt.savefig(output_path, dpi=300, bbox_inches='tight')
             logger.info(f"Saved in {output_path}")
             plt.close()
@@ -600,90 +603,100 @@ def generate_plot(gene_result_path,
     disorder = pd.read_csv(os.path.join(datasets_dir, "confidence.csv"), low_memory=False)
 
     # Filter genes and get IDs
+    if isinstance(lst_genes, str):
+        lst_genes = lst_genes.replace(" ", "")
+        lst_genes = lst_genes.split(",")
+        gene_result = gene_result[[gene in lst_genes for gene in gene_result["Gene"].values]]    
     if non_significant == False:
         gene_result = gene_result[gene_result["C_gene"] == 1]
     gene_result[gene_result["Status"] == "Processed"].Gene.values
-    gene_result = gene_result[:n_genes]                                         
+    gene_result = gene_result[:n_genes]                                     
     uni_ids = gene_result.Uniprot_ID.values
-    genes = gene_result.Gene.values         
+    genes = gene_result.Gene.values   
+    pos_result = pos_result[[gene in genes for gene in pos_result["Gene"].values]]   
     
-    #### ABOVE HERE IS WHEN I CAN APPLY OTHER FILTERS TO THE GENES & IDs
+    if len(gene_result) > 0:   
     
-    # Subsett processed genes
-    seq_df = seq_df[seq_df["Gene"].isin(genes)]
-    seq_df = seq_df[seq_df["Uniprot_ID"].isin(uni_ids)].reset_index(drop=True)
-    disorder = disorder[disorder["Uniprot_ID"].isin(uni_ids)].reset_index(drop=True)
-    pdb_tool = pdb_tool[pdb_tool["Uniprot_ID"].isin(uni_ids)].reset_index(drop=True)
+        # Filter genes in the other df
+        seq_df = seq_df[seq_df["Gene"].isin(genes)]
+        seq_df = seq_df[seq_df["Uniprot_ID"].isin(uni_ids)].reset_index(drop=True)
+        disorder = disorder[disorder["Uniprot_ID"].isin(uni_ids)].reset_index(drop=True)
+        pdb_tool = pdb_tool[pdb_tool["Uniprot_ID"].isin(uni_ids)].reset_index(drop=True)
 
-    # If the Pfam domain is not found for the given transcript, etc.. do this for each key, value in the provided dict
-    if dict_transcripts is not None:
-        for gene, transcript in dict_transcripts.items():
-            seq_df.loc[seq_df["Gene"] == gene, "Ens_Transcr_ID"] = transcript
+        # If the Pfam domain is not found for the given transcript, etc.. do this for each key, value in the provided dict
+        if dict_transcripts is not None:
+            for gene, transcript in dict_transcripts.items():
+                seq_df.loc[seq_df["Gene"] == gene, "Ens_Transcr_ID"] = transcript
 
-    # Get subset pfam with gene info
-    pfam = seq_df[["Gene", "Uniprot_ID", "Ens_Transcr_ID", "Ens_Gene_ID"]].merge(
-        pfam, how="left", on=["Ens_Transcr_ID", "Ens_Gene_ID"])
+        # Get subset pfam with gene info
+        pfam = seq_df[["Gene", "Uniprot_ID", "Ens_Transcr_ID", "Ens_Gene_ID"]].merge(
+            pfam, how="left", on=["Ens_Transcr_ID", "Ens_Gene_ID"])
 
-    # Get missense mut probability dict
-    miss_prob_dict = get_miss_mut_prob_for_plot(mut_profile_path, mutability_config_path, seq_df)
-    
-    # Summary plots
-    # =============
-    
-    create_plot_dir(output_dir)
-    count_mut_gene_df, count_pos_df, cluster_df = get_summary_counts(gene_result, pos_result)
-    summary_plot(gene_result, 
-                 pos_result, 
-                 count_mut_gene_df, 
-                 count_pos_df, 
-                 cluster_df,
-                 output_dir,
-                 run_name) 
-    
-    # Plots for individual genes
-    # ==========================
-    
-    # Get non missense mutations
-    if non_missense_count:
-        maf_nonmiss = get_nonmiss_mut(path_to_maf)
+        # Get missense mut probability dict
+        miss_prob_dict = get_miss_mut_prob_for_plot(mut_profile_path, mutability_config_path, seq_df)
+        
+        # Summary plots
+        # =============
+        
+        create_plot_dir(output_dir)
+        count_mut_gene_df, count_pos_df, cluster_df = get_summary_counts(gene_result, pos_result)
+        summary_plot(gene_result, 
+                    pos_result, 
+                    count_mut_gene_df, 
+                    count_pos_df, 
+                    cluster_df,
+                    output_dir,
+                    run_name) 
+        
+        # Plots for individual genes
+        # ==========================
+        
+        # Get non missense mutations
+        if non_missense_count:
+            maf_nonmiss = get_nonmiss_mut(path_to_maf)
+        else:
+            maf_nonmiss = None
+        
+        # Cnsq color
+        color_cnsq = {"start_lost" : "C1",
+                      "start_lost" : "C5",
+                      "stop_gained" : "C3",
+                      "stop_lost" : "C4",
+                      "splice_region_variant" : "C2",
+                      "splice_acceptor_variant" : "C6",
+                      "splice_donor_variant" : "C7",
+                      "stop_retained_variant" : "C8",
+                      "synonymous_variant" : "C9"}
+        
+        output_dir_genes_plots = os.path.join(output_dir, f"{run_name}.genes_plots")
+        create_plot_dir(output_dir_genes_plots)
+        genes_plots(gene_result, 
+                    pos_result, 
+                    seq_df,
+                    maf,
+                    miss_prob_dict,
+                    count_mut_gene_df, 
+                    count_pos_df, 
+                    cluster_df,
+                    output_dir_genes_plots,
+                    run_name,
+                    
+                    annotations_dir,
+                    disorder,
+                    pfam,
+                    pdb_tool,
+                    maf_nonmiss,
+                    non_missense_count,
+                    color_cnsq,
+                    h_ratios,
+                    s_lw,
+                    dist_thr,
+                    n_genes)
+        
+        logger.info("Plotting completed!")
+        
     else:
-        maf_nonmiss = None
-    
-    # Cnsq color
-    color_cnsq = {"start_lost" : "C1",
-                "start_lost" : "C5",
-                "stop_gained" : "C3",
-                "stop_lost" : "C4",
-                "splice_region_variant" : "C2",
-                "splice_acceptor_variant" : "C6",
-                "splice_donor_variant" : "C7",
-                "stop_retained_variant" : "C8",
-                "synonymous_variant" : "C9"}
-    
-    output_dir_genes_plots = os.path.join(output_dir, f"{run_name}_genes_plots")
-    create_plot_dir(output_dir_genes_plots)
-    genes_plots(gene_result, 
-                pos_result, 
-                seq_df,
-                maf,
-                miss_prob_dict,
-                count_mut_gene_df, 
-                count_pos_df, 
-                cluster_df,
-                output_dir_genes_plots,
-                run_name,
-                
-                annotations_dir,
-                disorder,
-                pfam,
-                pdb_tool,
-                maf_nonmiss,
-                non_missense_count,
-                color_cnsq,
-                h_ratios,
-                s_lw,
-                dist_thr,
-                n_genes)
+        logger.info("There aren't any genes to plot!")
     
     ## Select the genes from gene_result
     # IF: processed only
