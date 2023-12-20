@@ -505,7 +505,8 @@ def genes_plots(gene_result,
                             color='skyblue', alpha=0.3, label='Mutated *', zorder=0)
             axes[ax+1].fill_between(pos_result_gene['Pos'], 0, max_mut, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
                             color='#ffd8b1', alpha=0.6, label='Mutated not *', zorder=0)
-            axes[ax+1].legend(fontsize=11.5, ncol=2, framealpha=0.75)
+            axes[ax+1].legend(fontsize=11.5, ncol=3, framealpha=0.75)
+            axes[ax+1].set_ylabel('Missense\nmutations', fontsize=13.5)         
 
             # Plot for Score track
             # --------------------
@@ -519,6 +520,9 @@ def genes_plots(gene_result,
             axes[ax+2].scatter(pos_hit, pos_hit_score, zorder=3, color="C0", ec="black", lw=plot_pars["s_lw"])   
             axes[ax+2].scatter(pos_not, pos_not_score, zorder=1, color="C1", ec="black", lw=plot_pars["s_lw"])    
             axes[ax+2].scatter(pos_ext, pos_ext_score, zorder=2, color="C2", ec="black", lw=plot_pars["s_lw"])     
+            axes[ax+2].set_xlabel('Position', fontsize=13.5)
+            axes[ax+2].set_xlabel(None)
+            axes[ax+2].set_ylabel('O3D score', fontsize=13.5)
 
             # Plot for Score and Miss prob track
             # ----------------------------------
@@ -535,6 +539,7 @@ def genes_plots(gene_result,
             axes[ax+3].plot(range(1, len(prob_vec)+1), score_norm_vec, label="O3D score normalized", zorder=2, color="C2", lw=0.5)        
             handles, labels = axes[ax+3].get_legend_handles_labels()
             axes[ax+3].legend(handles[-2:], labels[-2:], fontsize=11.5, framealpha=0.75, ncol=2)
+            axes[ax+3].set_ylabel('Value', fontsize=13.5)
 
             # Plot annotations
             # ================

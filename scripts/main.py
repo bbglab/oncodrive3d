@@ -512,6 +512,8 @@ plot_pfam = True
 @click.option("-C", "--comparative_plots", help="Compare the results between two runs of Oncodrive3D", is_flag=True)
 @click.option("-O", "--output_tsv", help="Output tsv files including Oncodrive3D result enriched with annotations", is_flag=True)
 @click.option("-f", "--output_all_pos", help="Include all position (including non-mutated ones) in the Oncodrive3D enriched result", is_flag=True)
+@click.option("-x", "--figsize_x", help="Figure size x-axis for gene plots", type=float, default=24)
+@click.option("-y", "--figsize_y", help="Figure size y-axis for gene plots", type=float, default=12)
 @click.option("-v", "--verbose", help="Verbose", is_flag=True)
 @setup_logging_decorator
 def plot(gene_result_path, 
@@ -536,6 +538,8 @@ def plot(gene_result_path,
          comparative_plots,
          output_tsv,
          output_all_pos,
+         figsize_x,
+         figsize_y,
          verbose):
     """"Generate plots for a quick interpretation of the 3D-clustering analysis."""
     
@@ -577,10 +581,10 @@ def plot(gene_result_path,
                   "indel" : "C8",
                   "protein_altering_variant" : "C3"}
     
-    # Plot parameters
+    # Plot parameters                                            # TODO: add some of them as args
     plot_pars = {}
+    plot_pars["figsize"] = figsize_x, figsize_y
     plot_pars["h_ratios"] = [0.15, 0.15, 0.15, 0.15, 0.1, 0.1, 0.1, 0.1, 0.04, 0.07, 0.04]
-    plot_pars["figsize"] = (24, 12)
     plot_pars["s_lw"] = 0.2
     plot_pars["sse_fill_width"] = 0.43
     plot_pars["dist_thr"] = 0.05
