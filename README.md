@@ -23,6 +23,18 @@ cd clustering_3d           # >>> Modify to oncodrive3D
 pip install .
 ```
 
+Install bbgreference (temporarely untill we fix the installation):  
+
+```bash
+conda install -c conda-forge -c bbglab bgreference        # >>> Fix bbgreference in requirements.txt
+```
+
+or 
+
+```bash
+pip install bgreference
+```
+
 ## Building datasets
 
 This step is required once after installation or any time the user wants to 
