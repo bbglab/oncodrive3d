@@ -7,125 +7,16 @@ import seaborn as sns
 import os
 import json
 import colorcet as cc
-from scipy import interpolate
 from scripts.run.utils import parse_maf_input
-from scripts.plotting.utils import get_broad_consequence
-
+from scripts.plotting.utils import get_broad_consequence, save_annotated_pos_result, interpolate_x_y
+from scripts.plotting.utils import get_enriched_result, filter_o3d_result, subset_genes_and_ids
 from scripts.run.mutability import init_mutabilities_module
 from scripts.run.miss_mut_prob import get_miss_mut_prob_dict, mut_rate_vec_to_dict, get_unif_gene_miss_prob
+
 from scripts import __logger_name__
 
 logger = daiquiri.getLogger(__logger_name__ + ".annotations.plot")
 
-
-# Utils
-# =====
-
-def subset_genes_and_ids(genes, 
-                         uni_ids, 
-                         seq_df, 
-                         dict_transcripts, 
-                         disorder, 
-                         pdb_tool, 
-                         pfam):
-    """
-    Subset each dataframe by keeping only selected genes and proteins IDs.
-    """
-
-    seq_df = seq_df.copy()
-    disorder = disorder.copy()
-    pdb_tool = pdb_tool.copy()
-    pfam = pfam.copy()
-
-    # Filter genes in the other df
-    seq_df = seq_df[seq_df["Gene"].isin(genes)]
-    seq_df = seq_df[seq_df["Uniprot_ID"].isin(uni_ids)].reset_index(drop=True)
-    disorder = disorder[disorder["Uniprot_ID"].isin(uni_ids)].reset_index(drop=True)
-    pdb_tool = pdb_tool[pdb_tool["Uniprot_ID"].isin(uni_ids)].reset_index(drop=True)
-
-    # Use a different transcript to retrieve the Pfam domains
-    if dict_transcripts is not None:
-        for gene, transcript in dict_transcripts.items():
-            seq_df.loc[seq_df["Gene"] == gene, "Ens_Transcr_ID"] = transcript
-
-    # Get subset pfam with gene info
-    pfam = seq_df[["Gene", "Uniprot_ID", "Ens_Transcr_ID", "Ens_Gene_ID"]].merge(
-        pfam, how="left", on=["Ens_Transcr_ID", "Ens_Gene_ID"])
-    
-    return seq_df, disorder, pdb_tool, pfam
-
-
-def filter_o3d_result(gene_result, pos_result, n_genes, lst_genes, non_significant):
-    """
-    Subset gene-level and position-level Oncodrive3D result.
-    """
-
-    if isinstance(lst_genes, str):
-        lst_genes = lst_genes.replace(" ", "")
-        lst_genes = lst_genes.split(",")
-        gene_result = gene_result[[gene in lst_genes for gene in gene_result["Gene"].values]]    
-    if non_significant == False:
-        gene_result = gene_result[gene_result["C_gene"] == 1]
-    gene_result[gene_result["Status"] == "Processed"].Gene.values
-    gene_result = gene_result[:n_genes]                                     
-    uni_ids = gene_result.Uniprot_ID.values
-    genes = gene_result.Gene.values   
-    pos_result = pos_result[[gene in genes for gene in pos_result["Gene"].values]]   
-    
-    return gene_result, pos_result, genes, uni_ids
-
-
-def get_enriched_result(pos_result_gene, 
-                        disorder_gene, 
-                        pdb_tool_gene, 
-                        seq_df):
-    
-    """
-    Add annotations to Oncodrive3D result to return an annotated tsv. 
-    """
-    
-    pos_result_gene = pos_result_gene.copy()
-    # DDG
-    pos_result_gene.loc[pos_result_gene["Mut_in_res"] == 0, "DDG"] = np.nan
-    # Disorder
-    pos_result_gene = pos_result_gene.merge(disorder_gene, how="left", on=["Pos"])
-    pos_result_gene = pos_result_gene.rename(columns={"Confidence" : "pLDDT_res"})
-    # pdb_tool
-    pos_result_gene = pos_result_gene.merge(pdb_tool_gene.rename(columns={"F" : "AF_F"}))
-
-    # Transcript and gene IDs
-    pos_result_gene = pos_result_gene.merge(seq_df[["Gene", "Uniprot_ID", "Ens_Gene_ID", "Ens_Transcr_ID"]], 
-                                            how="left", on=["Uniprot_ID"])
-
-    return pos_result_gene
-
-
-def interpolate_x_y(x, y):
-    """
-    Interpolate x, y to get a completely filled plot without gaps.
-    """
-
-    step = (0.01 * len(x)) / 393    # Step coefficient tuned on TP53
-
-    # Do nothing if the step is larger than the original ones (positions)
-    if step >= 1:
-        
-        return x, y
-
-    # Interpolate between positions and values
-    else:
-        x = x.copy()
-        y = y.copy()
-        x = np.array(x)
-        y = np.array(y)
-        
-        # Densify data for filled color plot
-        f = interpolate.interp1d(x, y)
-        x = np.arange(x[0], x[-1], 0.01)
-        y = f(x)
-    
-        return x, y 
-            
 
 # Missense mutations probability
 # ==============================
@@ -453,28 +344,28 @@ def set_axes_arg(pos_result_gene, plot_pars, plot_annot, pfam_gene):
     dx = 0
     h_ratios = plot_pars["h_ratios"].copy()
 
-    if plot_annot["plot_nonmiss_count"] == False:
+    if plot_annot["nonmiss_count"] == False:
         del h_ratios[0]
         dx += 1
-    if np.isnan(pos_result_gene["PAE_vol"]).all() or plot_annot["plot_pae"] == False:
+    if np.isnan(pos_result_gene["PAE_vol"]).all() or plot_annot["pae"] == False:
         del h_ratios[4-dx]
         dx += 1
-    if plot_annot["plot_disorder"] == False:
+    if plot_annot["disorder"] == False:
         del h_ratios[5-dx]
         dx += 1
-    if plot_annot["plot_pacc"] == False:
+    if plot_annot["pacc"] == False:
         del h_ratios[6-dx]
         dx += 1
-    if plot_annot["plot_ddg"] == False:
+    if plot_annot["ddg"] == False:
         del h_ratios[7-dx]
         dx += 1
-    if plot_annot["plot_clusters"] == False:
+    if plot_annot["clusters"] == False:
         del h_ratios[8-dx]
         dx += 1
-    if plot_annot["plot_sse"] == False:
+    if plot_annot["sse"] == False:
         del h_ratios[9-dx]
         dx += 1
-    if plot_annot["plot_pfam"] == False:
+    if plot_annot["pfam"] == False:
         del h_ratios[10-dx]
         dx += 1
 
@@ -537,7 +428,7 @@ def genes_plots(gene_result,
             mut_count, mut_count_nonmiss = get_count_for_genes_plot(maf_gene, 
                                                                     maf_nonmiss, 
                                                                     gene, 
-                                                                    plot_annot["plot_nonmiss_count"])
+                                                                    plot_annot["nonmiss_count"])
             
             # Get prob vec
             prob_vec = miss_prob_dict[f"{uni_id}-F{af_f}"]                         # TODO: If none, use uniform        <-------------------------- TODO
@@ -573,7 +464,7 @@ def genes_plots(gene_result,
                 
             # Plot for Non-missense mut track   
             # -------------------------------
-            if plot_annot["plot_nonmiss_count"]:
+            if plot_annot["nonmiss_count"]:
                 try:
                     if len(mut_count_nonmiss.Consequence.unique()) > 6:
                         ncol = 3
@@ -650,7 +541,7 @@ def genes_plots(gene_result,
 
             # Plot PAE
             # ----------------------------------
-            if not np.isnan(pos_result_gene["PAE_vol"]).all() and plot_annot["plot_pae"] == True:  
+            if not np.isnan(pos_result_gene["PAE_vol"]).all() and plot_annot["pae"] == True:  
                 max_value = np.max(pos_result_gene["PAE_vol"])
                 axes[ax+4].fill_between(pos_result_gene['Pos'], 0, max_value, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
                                 color='#ffd8b1', alpha=0.6)
@@ -668,7 +559,7 @@ def genes_plots(gene_result,
                 
             # Plot disorder
             # -------------
-            if plot_annot["plot_disorder"]:
+            if plot_annot["disorder"]:
                 axes[ax+5].fill_between(pos_result_gene['Pos'], 0, 100, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
                                 color='#ffd8b1', alpha=0.6, label='Mutated not *')
                 axes[ax+5].fill_between(pos_result_gene['Pos'], 0, 100, where=(pos_result_gene['C'] == 1), 
@@ -700,7 +591,7 @@ def genes_plots(gene_result,
 
             # Plot pACC
             # ---------
-            if plot_annot["plot_pacc"]:
+            if plot_annot["pacc"]:
                 axes[ax+6].fill_between(pos_result_gene['Pos'], 0, 100, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
                                         color='#ffd8b1', alpha=0.6)
                 axes[ax+6].fill_between(pos_result_gene['Pos'], 0, 100, where=(pos_result_gene['C'] == 1), 
@@ -718,7 +609,7 @@ def genes_plots(gene_result,
 
                 # Plot stability change
                 # ---------------------
-            if plot_annot["plot_ddg"]:
+            if plot_annot["ddg"]:
                 max_value, min_value = pos_result_gene["DDG"].max(), pos_result_gene["DDG"].min()
                 axes[ax+7].fill_between(pos_result_gene['Pos'], min_value, max_value, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
                                         color='#ffd8b1', alpha=0.6)
@@ -736,7 +627,7 @@ def genes_plots(gene_result,
 
             # Clusters label
             # --------------
-            if plot_annot["plot_clusters"]:
+            if plot_annot["clusters"]:
                 clusters_label = pos_result_gene.Cluster.dropna().unique()
                 palette = sns.color_palette(cc.glasbey, n_colors=len(clusters_label))
                 for i, cluster in enumerate(clusters_label):
@@ -751,7 +642,7 @@ def genes_plots(gene_result,
                 
             # Secondary structure
             # -------------------
-            if plot_annot["plot_sse"]:
+            if plot_annot["sse"]:
                 for i, sse in enumerate(['Helix', 'Ladder', 'Coil']):
                     c = 0+i
                     ya, yb = c-plot_pars["sse_fill_width"], c+plot_pars["sse_fill_width"]
@@ -765,7 +656,7 @@ def genes_plots(gene_result,
 
             # Pfam domains
             # ------------
-            if plot_annot["plot_pfam"]:
+            if plot_annot["pfam"]:
                 pfam_gene = pfam_gene.sort_values("Pfam_start").reset_index(drop=True)
                 pfam_color_dict = {}
                 
@@ -816,9 +707,9 @@ def genes_plots(gene_result,
             
             # Store annotated result
             pos_result_gene = get_enriched_result(pos_result_gene, 
-                                                 disorder_gene, 
-                                                 pdb_tool_gene, 
-                                                 seq_df)
+                                                  disorder_gene, 
+                                                  pdb_tool_gene, 
+                                                  seq_df)
             annotated_result_lst.append(pos_result_gene)
             pfam_result_lst.append(pfam_gene)
 
@@ -874,7 +765,7 @@ def generate_plot(gene_result_path,
     pfam = pd.read_csv(os.path.join(annotations_dir, "pfam.tsv"))
     pdb_tool = pd.read_csv(os.path.join(annotations_dir, "pdb_tool_df.csv"))
     disorder = pd.read_csv(os.path.join(datasets_dir, "confidence.csv"), low_memory=False)
-    dict_transcripts = plot_annot["dict_transcripts"]
+    dict_transcripts = plot_pars["dict_transcripts"]
 
     # Filter Oncodrive3D result
     gene_result, pos_result, genes, uni_ids = filter_o3d_result(gene_result, 
@@ -915,7 +806,7 @@ def generate_plot(gene_result_path,
         # ==========================
         
         # Get non missense mutations
-        if plot_annot["plot_nonmiss_count"]:
+        if plot_annot["nonmiss_count"]:
             maf_nonmiss = get_nonmiss_mut(maf_path)
         else:
             maf_nonmiss = None
@@ -942,38 +833,14 @@ def generate_plot(gene_result_path,
         # Save annotations
         if output_tsv and pos_result_annotated is not None:
             logger.info(f"Saving annotated Oncodrive3D result in {output_dir}")
+            save_annotated_pos_result(pos_result, 
+                                       pos_result_annotated, 
+                                       pfam_processed, 
+                                       output_dir, 
+                                       run_name, 
+                                       output_all_pos)
             
-            if output_all_pos == False:
-                # Do not include non-mutated positions
-                pos_result_annotated = pos_result_annotated[pos_result_annotated["Mut_in_res"] == 0]
-                
-            pos_result_annotated.to_csv(os.path.join(output_dir, f"{run_name}.pos_result_annotated_TEMP.tsv"), sep="\t", index=False)             ###### TEMP
-            pos_result.to_csv(os.path.join(output_dir, f"{run_name}.pos_result_original.tsv"), sep="\t", index=False)             ###### TEMP
-            
-            output_pos_result = os.path.join(output_dir, f"{run_name}.pos_result_annotated.tsv")
-            output_pfam = os.path.join(output_dir, f"{run_name}.pfam.tsv")
-            pos_result_annotated = pos_result.drop(columns=["pLDDT_res"]).merge(
-                pos_result_annotated[["Gene", 
-                                      "Uniprot_ID", 
-                                      "Ens_Gene_ID", 
-                                      "Ens_Transcr_ID", 
-                                      "Res", 
-                                      "pLDDT_res", 
-                                      "SSE", 
-                                      "pACC", 
-                                      "DDG"]],
-                how="right", on=["Gene", "Uniprot_ID"])
-            pos_result_annotated = pos_result_annotated.sort_values(["Gene", "Pos"])
-            pos_result_annotated.to_csv(output_pos_result, sep="\t", index=False)
-            pfam_processed.to_csv(output_pfam, sep="\t", index=False)
-            logger.debug(f"Saved annotated position-level result to {output_pos_result}")
-            logger.debug(f"Saved Pfam annotations to {output_pfam}")
-        
         logger.info("Plotting completed!")
-        
-        logger.warning(f"Saved annotated position-level TEMP-0 {os.path.join(output_dir, f'{run_name}.pos_result_original.tsv')}")       # TEMP
-        logger.warning(f"Saved annotated position-level TEMP-0 {os.path.join(output_dir, f'{run_name}.pos_result_annotated_TEMP.tsv')}")  ## TEMP
-        logger.warning(f"Saved annotated position-level TEMP-0 {os.path.join(output_dir, f'{run_name}.pos_result_annotated.tsv')}")       # TEMP
-
+    
     else:
         logger.warning("There aren't any genes to plot!")

@@ -63,6 +63,7 @@ from scripts.run.pvalues import get_final_gene_result
 from scripts.run.utils import add_nan_clust_cols, parse_maf_input, sort_cols, empty_result_pos
 from scripts.plotting.build_annotations import get_annotations
 from scripts.plotting.plot import generate_plot
+from scripts.plotting.utils import init_annotations
 from scripts.run.mutability import init_mutabilities_module
 
 logger = daiquiri.getLogger(__logger_name__)
@@ -477,6 +478,16 @@ def build_annotations(data_dir,
 # TODO: If mut profile and mutability not provided, use uniform dist
 # TODO: Suppress matplotlib debug messages
                  
+plot_pae = True
+plot_ddg = True
+plot_nonmiss_count = True
+plot_disorder = True
+plot_pacc = True
+plot_ddg = True
+plot_clusters = True
+plot_sse = True
+plot_pfam = True             
+                 
 @oncodrive3D.command(context_settings=dict(help_option_names=['-h', '--help']),
                help="Generate plots for a quick interpretation of the 3D-clustering analysis.") 
 @click.option("-g", "--gene_result_path", help="Path to Oncodrive3D gene-level result", type=str)
@@ -493,13 +504,14 @@ def build_annotations(data_dir,
 @click.option("-a", "--annotations_dir", help="Path annotations directory", type=str)
 @click.option("-o", "--output_dir", help="Path to output directory where to save plots", type=str)
 @click.option("-r", "--run_name", help="Run or cohort name which will be used as plots filename", type=str)
+@click.option("-L", "--annotations", help="List of annotations [all, nonmiss_count, pae, disorder, pacc, ddg, clusters, sse, pfam] to be included in the plots (e.g., --annotations pae,disorder,ddg)", type=str)
 @click.option("-n", "--n_genes", help="Top number of genes to be included in the plots", type=int, default=30)
 @click.option("-l", "--genes", help="List of genes to be analysed in the report (e.g., --genes TP53,KRAS,PIK3CA)", type=str)
 @click.option("-s", "--non_significant", help="Also include non-significant genes", is_flag=True)
 @click.option("-c", "--non_missense_count", help="Add track showing counts of non-missense mutations", is_flag=True)
 @click.option("-C", "--comparative_plots", help="Compare the results between two runs of Oncodrive3D", is_flag=True)
-@click.option("-O", "--output_tsv", help="Return tsv files including Oncodrive3D result enriched with annotations", is_flag=True)
-@click.option("-f", "--output_all_pos", help="Include all position, including non-mutated ones, in the Oncodrive3D enriched result", is_flag=True)
+@click.option("-O", "--output_tsv", help="Output tsv files including Oncodrive3D result enriched with annotations", is_flag=True)
+@click.option("-f", "--output_all_pos", help="Include all position (including non-mutated ones) in the Oncodrive3D enriched result", is_flag=True)
 @click.option("-v", "--verbose", help="Verbose", is_flag=True)
 @setup_logging_decorator
 def plot(gene_result_path, 
@@ -516,6 +528,7 @@ def plot(gene_result_path,
          annotations_dir, 
          output_dir,
          run_name,
+         annotations,
          n_genes,
          genes,
          non_significant, 
@@ -533,42 +546,26 @@ def plot(gene_result_path,
     logger.info(f"MAF: {input_maf}")
     logger.info(f"Mut profile: {input_maf}")
     logger.info(f"Mutability configuration file: {input_maf}")
-    logger.info(f"Build directory: {data_dir}")
-    logger.info(f"Build annotations directory: {annotations_dir}")
+    logger.info(f"Datasets directory: {data_dir}")
+    logger.info(f"Annotations directory: {annotations_dir}")
     logger.info(f"Outpur directory: {output_dir}")
     logger.info(f"Run or cohort name: {run_name}")
+    logger.info(f"Annotations to plot: {annotations}")
     logger.info(f"Number of top genes: {n_genes}")
     logger.info(f"List of genes: {genes}")
     logger.info(f"Include non-significant genes: {bool(non_significant)}")
     logger.info(f"Include count of non-missense mutations: {bool(non_missense_count)}")
+    logger.info(f"Output tsv file: {bool(verbose)}")
+    logger.info(f"Include non-mutated positions in tsv file: {bool(verbose)}")
     logger.info(f"Verbose: {bool(verbose)}")
     logger.info(f'Log path: {os.path.join(output_dir, "log")}')
     logger.info("")
-    
-    
-    
-    plot_pae = True
-    plot_ddg = True
-    plot_nonmiss_count = True
-    plot_disorder = True
-    plot_pacc = True
-    plot_ddg = True
-    plot_clusters = True
-    plot_sse = True
-    plot_pfam = True
-    dict_transcripts = {"PTEN" : "ENST00000688308"}   # For now this is used to get a specific transcript for pfam domains
 
-    plot_annot = {}
-    plot_annot["plot_nonmiss_count"] = plot_nonmiss_count
-    plot_annot["plot_pae"] = plot_pae
-    plot_annot["plot_disorder"] = plot_disorder
-    plot_annot["plot_pacc"] = plot_pacc
-    plot_annot["plot_ddg"] = plot_ddg
-    plot_annot["plot_clusters"] = plot_clusters
-    plot_annot["plot_sse"] = plot_sse
-    plot_annot["plot_pfam"] = plot_pfam   
-    plot_annot["dict_transcripts"] = dict_transcripts    
+    ## Parameters
     
+    # Annotations
+    plot_annot = init_annotations(annotations)
+       
     # Cnsq color
     color_cnsq = {"splicing" : "C2",
                   "missense" : "C5",
@@ -580,6 +577,7 @@ def plot(gene_result_path,
                   "indel" : "C8",
                   "protein_altering_variant" : "C3"}
     
+    # Plot parameters
     plot_pars = {}
     plot_pars["h_ratios"] = [0.15, 0.15, 0.15, 0.15, 0.1, 0.1, 0.1, 0.1, 0.04, 0.07, 0.04]
     plot_pars["figsize"] = (24, 12)
@@ -587,6 +585,7 @@ def plot(gene_result_path,
     plot_pars["sse_fill_width"] = 0.43
     plot_pars["dist_thr"] = 0.05
     plot_pars["color_cnsq"] = color_cnsq
+    plot_pars["dict_transcripts"] = {"PTEN" : "ENST00000688308"}  # For now this is used to get a specific transcript for pfam domains
     
   
     generate_plot(gene_result_path, 

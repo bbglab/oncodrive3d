@@ -4,6 +4,8 @@ import os
 import daiquiri
 import subprocess
 import click
+from scipy import interpolate
+import numpy as np
 
 from scripts import __logger_name__
 
@@ -183,3 +185,197 @@ def get_broad_consequence(list_of_annotations):
             list_of_broad_annotations.append(single_consequence)
 
     return list_of_broad_annotations
+
+
+def init_annotations(annotations):
+    """
+    Save string of annotations provided as argument as dictionary of bolean.
+    """
+    
+    plot_annot = {}
+    plot_annot["nonmiss_count"] = False
+    plot_annot["pae"] = False
+    plot_annot["disorder"] = False
+    plot_annot["pacc"] = False
+    plot_annot["ddg"] = False
+    plot_annot["clusters"] = False
+    plot_annot["sse"] = False
+    plot_annot["pfam"] = False   
+    
+    if isinstance(annotations, str):
+        lst_annotations = [annot.lower() for annot in annotations.replace(" ", "").split(",")]
+        if "all" in lst_annotations:
+            for annot in plot_annot.keys():
+                plot_annot[annot] = True
+        else:
+            for annot in lst_annotations:
+                if annot in plot_annot:
+                    plot_annot[annot] = True
+                else:
+                    logger.warning(f"{annot} is not recognized as valid annotation.")  
+        logger.info(F"The following annotations will be included: {[k for k,v in plot_annot.items() if v == True]}")
+    else:
+        logger.info("No extra annotations will be included in the plots.")
+    
+    return plot_annot
+
+
+def subset_genes_and_ids(genes, 
+                         uni_ids, 
+                         seq_df, 
+                         dict_transcripts, 
+                         disorder, 
+                         pdb_tool, 
+                         pfam):
+    """
+    Subset each dataframe by keeping only selected genes and proteins IDs.
+    """
+
+    seq_df = seq_df.copy()
+    disorder = disorder.copy()
+    pdb_tool = pdb_tool.copy()
+    pfam = pfam.copy()
+
+    # Filter genes in the other df
+    seq_df = seq_df[seq_df["Gene"].isin(genes)]
+    seq_df = seq_df[seq_df["Uniprot_ID"].isin(uni_ids)].reset_index(drop=True)
+    disorder = disorder[disorder["Uniprot_ID"].isin(uni_ids)].reset_index(drop=True)
+    pdb_tool = pdb_tool[pdb_tool["Uniprot_ID"].isin(uni_ids)].reset_index(drop=True)
+
+    # Use a different transcript to retrieve the Pfam domains
+    if dict_transcripts is not None:
+        for gene, transcript in dict_transcripts.items():
+            seq_df.loc[seq_df["Gene"] == gene, "Ens_Transcr_ID"] = transcript
+
+    # Get subset pfam with gene info
+    pfam = seq_df[["Gene", "Uniprot_ID", "Ens_Transcr_ID", "Ens_Gene_ID"]].merge(
+        pfam, how="left", on=["Ens_Transcr_ID", "Ens_Gene_ID"])
+    
+    return seq_df, disorder, pdb_tool, pfam
+
+
+def filter_o3d_result(gene_result, pos_result, n_genes, lst_genes, non_significant):
+    """
+    Subset gene-level and position-level Oncodrive3D result.
+    """
+
+    if isinstance(lst_genes, str):
+        lst_genes = lst_genes.replace(" ", "")
+        lst_genes = lst_genes.split(",")
+        gene_result = gene_result[[gene in lst_genes for gene in gene_result["Gene"].values]]    
+    if non_significant == False:
+        gene_result = gene_result[gene_result["C_gene"] == 1]
+    gene_result[gene_result["Status"] == "Processed"].Gene.values
+    gene_result = gene_result[:n_genes]                                     
+    uni_ids = gene_result.Uniprot_ID.values
+    genes = gene_result.Gene.values   
+    pos_result = pos_result[[gene in genes for gene in pos_result["Gene"].values]]   
+    
+    return gene_result, pos_result, genes, uni_ids
+
+
+def get_enriched_result(pos_result_gene, 
+                        disorder_gene, 
+                        pdb_tool_gene, 
+                        seq_df):
+    """
+    Add annotations to Oncodrive3D result to return an annotated tsv. 
+    """
+
+    pos_result_gene = pos_result_gene.copy()
+    # DDG
+    pos_result_gene.loc[pos_result_gene["Mut_in_res"] == 0, "DDG"] = np.nan
+    # Disorder
+    pos_result_gene = pos_result_gene.merge(disorder_gene, how="left", on=["Pos"])
+    pos_result_gene = pos_result_gene.rename(columns={"Confidence" : "pLDDT_res"})
+    # PDB_Tool
+    pos_result_gene = pos_result_gene.rename(columns={"AF_F" : "F"}).merge(
+            pdb_tool_gene, on=["Res", "Uniprot_ID", "Pos", "F"])
+    # Transcript and gene IDs
+    pos_result_gene = pos_result_gene.merge(
+        seq_df[["Gene", "Uniprot_ID", "Ens_Gene_ID", "Ens_Transcr_ID"]], 
+        how="left", on=["Uniprot_ID"])
+
+    return pos_result_gene
+
+
+def interpolate_x_y(x, y):
+    """
+    Interpolate x, y to get a completely filled plot without gaps.
+    """
+
+    step = (0.01 * len(x)) / 393    # Step coefficient tuned on TP53
+
+    # Do nothing if the step is larger than the original ones (positions)
+    if step >= 1:
+        
+        return x, y
+
+    # Interpolate between positions and values
+    else:
+        x = x.copy()
+        y = y.copy()
+        x = np.array(x)
+        y = np.array(y)
+        
+        # Densify data for filled color plot
+        f = interpolate.interp1d(x, y)
+        x = np.arange(x[0], x[-1], 0.01)
+        y = f(x)
+    
+        return x, y 
+    
+    
+def save_annotated_pos_result(pos_result, 
+                               annot_pos_result, 
+                               pfam_processed, 
+                               output_dir, 
+                               run_name, 
+                               output_all_pos=False):
+    """
+    Save the annotated pos-level result.
+    """
+    
+    # Do not include non-mutated positions (default)
+    if output_all_pos == False:
+        annot_pos_result = annot_pos_result[annot_pos_result["Mut_in_res"] != 0].reset_index(drop=True)
+        
+    # Merge with 'original' one to retrieve dropped cols
+    output_pos_result = os.path.join(output_dir, f"{run_name}.pos_result_annotated.tsv")
+    output_pfam = os.path.join(output_dir, f"{run_name}.pfam.tsv")
+    annot_pos_result = pos_result.drop(columns=["F", "pLDDT_res"]).merge(
+        annot_pos_result[["Gene", 
+                        "Uniprot_ID",
+                        "F", 
+                        "Ens_Gene_ID", 
+                        "Ens_Transcr_ID", 
+                        "Pos",
+                        "Res", 
+                        "pLDDT_res", 
+                        "SSE", 
+                        "pACC", 
+                        "DDG"]],
+        how="right", on=["Gene", "Uniprot_ID", "Pos"])
+    annot_pos_result = annot_pos_result.sort_values(["Gene", "Pos"])
+    
+    # Fill the NA of the non-mutated positions in features
+    if annot_pos_result["Cancer"].isnull().all():
+        annot_pos_result["Cancer"] = np.nan
+    else:
+        annot_pos_result["Cancer"] = annot_pos_result["Cancer"].dropna().unique()[0]
+    if annot_pos_result["Cohort"].isnull().all():
+        annot_pos_result["Cohort"] = np.nan
+    else:
+        annot_pos_result["Cohort"] = annot_pos_result["Cohort"].dropna().unique()[0]
+    annot_pos_result["Mut_in_res"] = annot_pos_result["Mut_in_res"].fillna(0)
+    for gene in annot_pos_result.Gene.unique():
+        mut_in_gene = annot_pos_result.loc[annot_pos_result["Gene"] == gene, "Mut_in_gene"].dropna().unique()[0]
+        tot_samples = annot_pos_result.loc[annot_pos_result["Gene"] == gene, "Tot_samples"].dropna().unique()[0]
+        annot_pos_result.loc[annot_pos_result["Gene"] == gene, "Mut_in_gene"] = mut_in_gene
+        annot_pos_result.loc[annot_pos_result["Gene"] == gene, "Tot_samples"] = tot_samples
+
+    # Save
+    annot_pos_result.to_csv(output_pos_result, sep="\t", index=False)
+    pfam_processed.to_csv(output_pfam, sep="\t", index=False)
+    logger.info(f"Saved annotated position-level result to {output_pos_result}")
+    logger.info(f"Saved Pfam annotations to {output_pfam}")
