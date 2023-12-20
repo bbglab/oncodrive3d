@@ -804,37 +804,9 @@ def genes_plots(gene_result,
             else:
                 ax-=1
 
-            # Set labels and title
-            # --------------------
-            fig.suptitle(f'{gene} - {uni_id}', fontsize=16)
-            if plot_annot["plot_nonmiss_count"]:
-                axes[ax].set_ylabel('Non\nmissense\nmutations', fontsize=13.5)
-                axes[ax].set_ylim(-0.5, mut_count_nonmiss["Count"].max()+0.5)
-
-            axes[ax+2].set_xlabel('Position', fontsize=13.5)
-            axes[ax+2].set_xlabel(None)
-            axes[ax+2].set_ylabel('O3D score', fontsize=13.5)
-            axes[ax+1].set_ylabel('Missense\nmutations', fontsize=13.5)
-            axes[ax+3].set_ylabel('Value', fontsize=13.5)
-            axes[ax+4].set_ylabel('PAE', fontsize=13.5)
-            axes[ax+5].set_ylabel('pLDDT', fontsize=13.5)
-            axes[ax+5].set_ylim(-10, 110)
-            axes[ax+6].set_ylabel('pACC', fontsize=13.5)
-            axes[ax+6].set_ylim(-10, 110)
-            axes[ax+7].set_ylabel('DDG', fontsize=13.5)
-            axes[ax+8].set_ylabel('Clusters             ', fontsize=13.5, rotation=0, va='center')
-            axes[ax+8].set_yticks([])  
-            axes[ax+8].set_yticklabels([], fontsize=12)
-            axes[ax+9].set_yticks([0, 1, 2])  
-            axes[ax+9].set_yticklabels(['Helix', 'Ladder', 'Coil'], fontsize=10)
-            axes[ax+9].set_ylabel('SSE', fontsize=13.5)
-            axes[ax+10].set_yticks([])  
-            axes[ax+10].set_yticklabels([], fontsize=12)
-            axes[ax+10].set_ylabel('Pfam        ', fontsize=13.5, rotation=0, va='center')
-            axes[ax+10].set_ylim(-0.62, 0.6)  
-
             # Save
             # ----
+            fig.suptitle(f'{gene} - {uni_id}', fontsize=16)
             filename = f"{run_name}.genes_plot_{j+1}.{gene}_{uni_id}.png"
             output_path = os.path.join(output_dir, filename)
             plt.subplots_adjust(top=0.95) 
