@@ -193,8 +193,7 @@ def get_nonmiss_mut(path_to_maf):
         return maf_nonmiss
     
     except Exception as e:
-        logger.warning("Cant parse non-missense mutation from MAF file: The track will not be included...")
-        logger.warning(f"The following error occurred: {e}")
+        logger.warning("Can't parse non-missense mutation from MAF file: The track will not be included...")           ## TODO: Capture the error better
 
 
 def avg_per_pos_ddg(pos_result_gene, ddg_prot, maf_gene):
@@ -407,7 +406,7 @@ def genes_plots(gene_result,
     annotated_result_lst = []
     pfam_result_lst = []
     for j, gene in enumerate(gene_result["Gene"].values):
-
+      
         # Load and parse
         # ==============
         
@@ -441,6 +440,7 @@ def genes_plots(gene_result,
             pos_result_gene, score_vec, score_norm_vec = get_score_for_genes_plot(pos_result_gene, 
                                                                                   mut_count, 
                                                                                   prob_vec)
+
             # Get annotations
             [pos_result_gene, 
              disorder_gene, 
@@ -492,9 +492,9 @@ def genes_plots(gene_result,
                     axes[ax].legend(fontsize=11.5, ncol=ncol, framealpha=0.75)
                     axes[ax].set_ylabel('Non\nmissense\nmutations', fontsize=13.5)
                     axes[ax].set_ylim(-0.5, mut_count_nonmiss["Count"].max()+0.5)
-                except Exception as e:
-                    logger.warning("Non-missense mutations count not available: Track will be skipped...")
-                    logger.warning(f"Encountered the following exception: {e}")
+                except:
+                    logger.warning(f"Error occurred while adding non-missense count in {gene}-{uni_id}-F{af_f}")
+                    plot_annot["nonmiss_count"] = False
                     ax -= 1
             else:
                 ax -= 1
@@ -551,156 +551,187 @@ def genes_plots(gene_result,
             # Plot PAE
             # ----------------------------------
             if not np.isnan(pos_result_gene["PAE_vol"]).all() and plot_annot["pae"] == True:  
-                max_value = np.max(pos_result_gene["PAE_vol"])
-                axes[ax+4].fill_between(pos_result_gene['Pos'], 0, max_value, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
-                                color='#ffd8b1', alpha=0.6)
-                axes[ax+4].fill_between(pos_result_gene['Pos'], 0, max_value, where=(pos_result_gene['C'] == 1), 
-                                color='white')
-                axes[ax+4].fill_between(pos_result_gene['Pos'], 0, max_value, where=(pos_result_gene['C'] == 1), 
-                                color='skyblue', alpha=0.3)
-                axes[ax+4].fill_between(pos_result_gene["Pos"], 0, pos_result_gene["PAE_vol"].fillna(0), 
-                                        zorder=2, color=sns.color_palette("pastel")[4])                                           
-                axes[ax+4].plot(pos_result_gene['Pos'], pos_result_gene["PAE_vol"].fillna(0),                                     
-                                label="Confidence", zorder=3, color=sns.color_palette("tab10")[4], lw=0.5)
-                axes[ax+4].set_ylabel('PAE', fontsize=13.5)
+                try:
+                    max_value = np.max(pos_result_gene["PAE_vol"])
+                    axes[ax+4].fill_between(pos_result_gene['Pos'], 0, max_value, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
+                                    color='#ffd8b1', alpha=0.6)
+                    axes[ax+4].fill_between(pos_result_gene['Pos'], 0, max_value, where=(pos_result_gene['C'] == 1), 
+                                    color='white')
+                    axes[ax+4].fill_between(pos_result_gene['Pos'], 0, max_value, where=(pos_result_gene['C'] == 1), 
+                                    color='skyblue', alpha=0.3)
+                    axes[ax+4].fill_between(pos_result_gene["Pos"], 0, pos_result_gene["PAE_vol"].fillna(0), 
+                                            zorder=2, color=sns.color_palette("pastel")[4])                                           
+                    axes[ax+4].plot(pos_result_gene['Pos'], pos_result_gene["PAE_vol"].fillna(0),                                     
+                                    label="Confidence", zorder=3, color=sns.color_palette("tab10")[4], lw=0.5)
+                    axes[ax+4].set_ylabel('PAE', fontsize=13.5)
+                except:
+                    logger.warning(f"Error occurred while adding PAE in {gene}-{uni_id}-F{af_f}")
+                    plot_annot["pae"] = False
+                    ax-=1
             else:
                 ax-=1
                 
             # Plot disorder
             # -------------
             if plot_annot["disorder"]:
-                axes[ax+5].fill_between(pos_result_gene['Pos'], 0, 100, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
-                                color='#ffd8b1', alpha=0.6, label='Mutated not *')
-                axes[ax+5].fill_between(pos_result_gene['Pos'], 0, 100, where=(pos_result_gene['C'] == 1), 
-                                        color='white')
-                axes[ax+5].fill_between(pos_result_gene['Pos'], 0, 100, where=(pos_result_gene['C'] == 1), 
-                                        color='skyblue', alpha=0.4, label='Mutated *')
-                
-                af_colors = ["#1F6AD7", 
-                            "#65CBF3",
-                            "#FFDC48",
-                            "#FB7C44"]
-                disorder_x, disorder_y = interpolate_x_y(disorder_gene["Pos"], disorder_gene["Confidence"])
-                condition_1 = disorder_y > 90
-                condition_2 = disorder_y <= 90
-                condition_3 = disorder_y <= 70
-                condition_4 = disorder_y <= 50
-                conditions = [condition_1, condition_2, condition_3, condition_4]
-                for color, condition in zip(af_colors, conditions):
-                    axes[ax+5].fill_between(disorder_x, 0, disorder_y, where=(condition),       
-                                            zorder=2, color="white")   
-                    axes[ax+5].fill_between(disorder_x, 0, disorder_y, where=(condition),   
-                                            zorder=3, facecolor=color, alpha=0.8)  
-                axes[ax+5].plot(disorder_gene["Pos"], disorder_gene["Confidence"], 
-                                label="Confidence", zorder=3, color="gray", lw=0.7)    
-                axes[ax+5].set_ylabel('pLDDT', fontsize=13.5)
-                axes[ax+5].set_ylim(-10, 110)
+                try:
+                    axes[ax+5].fill_between(pos_result_gene['Pos'], 0, 100, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
+                                    color='#ffd8b1', alpha=0.6, label='Mutated not *')
+                    axes[ax+5].fill_between(pos_result_gene['Pos'], 0, 100, where=(pos_result_gene['C'] == 1), 
+                                            color='white')
+                    axes[ax+5].fill_between(pos_result_gene['Pos'], 0, 100, where=(pos_result_gene['C'] == 1), 
+                                            color='skyblue', alpha=0.4, label='Mutated *')
+                    
+                    af_colors = ["#1F6AD7", 
+                                "#65CBF3",
+                                "#FFDC48",
+                                "#FB7C44"]
+
+                    disorder_x, disorder_y = interpolate_x_y(disorder_gene["Pos"], disorder_gene["Confidence"])
+                    condition_1 = disorder_y > 90
+                    condition_2 = disorder_y <= 90
+                    condition_3 = disorder_y <= 70
+                    condition_4 = disorder_y <= 50
+                    conditions = [condition_1, condition_2, condition_3, condition_4]
+                    for color, condition in zip(af_colors, conditions):
+                        axes[ax+5].fill_between(disorder_x, 0, disorder_y, where=(condition),       
+                                                zorder=2, color="white")   
+                        axes[ax+5].fill_between(disorder_x, 0, disorder_y, where=(condition),   
+                                                zorder=3, facecolor=color, alpha=0.8)  
+                    axes[ax+5].plot(disorder_gene["Pos"], disorder_gene["Confidence"], 
+                                    label="Confidence", zorder=3, color="gray", lw=0.7)    
+                    axes[ax+5].set_ylabel('pLDDT', fontsize=13.5)
+                    axes[ax+5].set_ylim(-10, 110)
+                except:
+                    logger.warning(f"Error occurred while adding Disorder in {gene}-{uni_id}-F{af_f}")
+                    plot_annot["disorder"] = False
+                    ax-=1
             else:
                 ax-=1
 
             # Plot pACC
             # ---------
             if plot_annot["pacc"]:
-                axes[ax+6].fill_between(pos_result_gene['Pos'], 0, 100, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
-                                        color='#ffd8b1', alpha=0.6)
-                axes[ax+6].fill_between(pos_result_gene['Pos'], 0, 100, where=(pos_result_gene['C'] == 1), 
-                                        color='white')
-                axes[ax+6].fill_between(pos_result_gene['Pos'], 0, 100, where=(pos_result_gene['C'] == 1), 
-                                        color='skyblue', alpha=0.4)
-                axes[ax+6].fill_between(pdb_tool_gene["Pos"], 0, pdb_tool_gene["pACC"].fillna(0),                  
-                                        zorder=2, color=sns.color_palette("pastel")[4])
-                axes[ax+6].plot(pdb_tool_gene['Pos'], pdb_tool_gene["pACC"].fillna(0), 
-                                label="pACC", zorder=3, color=sns.color_palette("tab10")[4], lw=0.5)      
-                axes[ax+6].set_ylabel('pACC', fontsize=13.5)
-                axes[ax+6].set_ylim(-10, 110)
+                try:
+                    axes[ax+6].fill_between(pos_result_gene['Pos'], 0, 100, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
+                                            color='#ffd8b1', alpha=0.6)
+                    axes[ax+6].fill_between(pos_result_gene['Pos'], 0, 100, where=(pos_result_gene['C'] == 1), 
+                                            color='white')
+                    axes[ax+6].fill_between(pos_result_gene['Pos'], 0, 100, where=(pos_result_gene['C'] == 1), 
+                                            color='skyblue', alpha=0.4)
+                    axes[ax+6].fill_between(pdb_tool_gene["Pos"], 0, pdb_tool_gene["pACC"].fillna(0),                  
+                                            zorder=2, color=sns.color_palette("pastel")[4])
+                    axes[ax+6].plot(pdb_tool_gene['Pos'], pdb_tool_gene["pACC"].fillna(0), 
+                                    label="pACC", zorder=3, color=sns.color_palette("tab10")[4], lw=0.5)      
+                    axes[ax+6].set_ylabel('pACC', fontsize=13.5)
+                    axes[ax+6].set_ylim(-10, 110)
+                except:
+                    logger.warning(f"Error occurred while adding pACC in {gene}-{uni_id}-F{af_f}")
+                    plot_annot["pacc"] = False
             else:
                 ax-=1
 
                 # Plot stability change
                 # ---------------------
             if plot_annot["ddg"]:
-                max_value, min_value = pos_result_gene["DDG"].max(), pos_result_gene["DDG"].min()
-                axes[ax+7].fill_between(pos_result_gene['Pos'], min_value, max_value, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
-                                        color='#ffd8b1', alpha=0.6)
-                axes[ax+7].fill_between(pos_result_gene['Pos'], min_value, max_value, where=(pos_result_gene['C'] == 1), 
-                                        color='white')
-                axes[ax+7].fill_between(pos_result_gene['Pos'], min_value, max_value, where=(pos_result_gene['C'] == 1), 
-                                        color='skyblue', alpha=0.4)
-                axes[ax+7].fill_between(pos_result_gene['Pos'], 0, pos_result_gene["DDG"], zorder=1,             
-                                        color=sns.color_palette("pastel")[4])      
-                axes[ax+7].plot(pos_result_gene['Pos'], pos_result_gene["DDG"], 
-                                label="Stability change", zorder=2, color=sns.color_palette("tab10")[4], lw=0.5)    
-                axes[ax+7].set_ylabel('DDG', fontsize=13.5)
+                try:
+                    max_value, min_value = pos_result_gene["DDG"].max(), pos_result_gene["DDG"].min()
+                    axes[ax+7].fill_between(pos_result_gene['Pos'], min_value, max_value, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
+                                            color='#ffd8b1', alpha=0.6)
+                    axes[ax+7].fill_between(pos_result_gene['Pos'], min_value, max_value, where=(pos_result_gene['C'] == 1), 
+                                            color='white')
+                    axes[ax+7].fill_between(pos_result_gene['Pos'], min_value, max_value, where=(pos_result_gene['C'] == 1), 
+                                            color='skyblue', alpha=0.4)
+                    axes[ax+7].fill_between(pos_result_gene['Pos'], 0, pos_result_gene["DDG"], zorder=1,             
+                                            color=sns.color_palette("pastel")[4])      
+                    axes[ax+7].plot(pos_result_gene['Pos'], pos_result_gene["DDG"], 
+                                    label="Stability change", zorder=2, color=sns.color_palette("tab10")[4], lw=0.5)    
+                    axes[ax+7].set_ylabel('DDG', fontsize=13.5)
+                except:
+                    logger.warning(f"Error occurred while adding DDG in {gene}-{uni_id}-F{af_f}")
+                    plot_annot["ddg"] = False
             else:
                 ax-=1 
 
             # Clusters label
             # --------------
             if plot_annot["clusters"]:
-                clusters_label = pos_result_gene.Cluster.dropna().unique()
-                palette = sns.color_palette(cc.glasbey, n_colors=len(clusters_label))
-                for i, cluster in enumerate(clusters_label):
-                    axes[ax+8].fill_between(pos_result_gene['Pos'], -0.5, 0.46, 
-                                            where=((pos_result_gene['Cluster'] == cluster) & (pos_result_gene['C'] == 1)),
-                                            color=palette[i], lw=0.4) # alpha=0.6
-                axes[ax+8].set_ylabel('Clusters             ', fontsize=13.5, rotation=0, va='center')
-                axes[ax+8].set_yticks([])  
-                axes[ax+8].set_yticklabels([], fontsize=12)
+                try:
+                    clusters_label = pos_result_gene.Cluster.dropna().unique()
+                    palette = sns.color_palette(cc.glasbey, n_colors=len(clusters_label))
+                    for i, cluster in enumerate(clusters_label):
+                        axes[ax+8].fill_between(pos_result_gene['Pos'], -0.5, 0.46, 
+                                                where=((pos_result_gene['Cluster'] == cluster) & (pos_result_gene['C'] == 1)),
+                                                color=palette[i], lw=0.4) # alpha=0.6
+                    axes[ax+8].set_ylabel('Clusters             ', fontsize=13.5, rotation=0, va='center')
+                    axes[ax+8].set_yticks([])  
+                    axes[ax+8].set_yticklabels([], fontsize=12)
+                except:
+                    logger.warning(f"Error occurred while adding Clusters labels in {gene}-{uni_id}-F{af_f}")
+                    plot_annot["clusters"] = False
             else:
                 ax-=1
                 
             # Secondary structure
             # -------------------
             if plot_annot["sse"]:
-                for i, sse in enumerate(['Helix', 'Ladder', 'Coil']):
-                    c = 0+i
-                    ya, yb = c-plot_pars["sse_fill_width"], c+plot_pars["sse_fill_width"]
-                    axes[ax+9].fill_between(pdb_tool_gene["Pos"].values, ya, yb, where=(pdb_tool_gene["SSE"] == sse), 
-                                    color=sns.color_palette("tab10")[7+i], label=sse)
-                axes[ax+9].set_yticks([0, 1, 2])  
-                axes[ax+9].set_yticklabels(['Helix', 'Ladder', 'Coil'], fontsize=10)
-                axes[ax+9].set_ylabel('SSE', fontsize=13.5)
+                try:
+                    for i, sse in enumerate(['Helix', 'Ladder', 'Coil']):
+                        c = 0+i
+                        ya, yb = c-plot_pars["sse_fill_width"], c+plot_pars["sse_fill_width"]
+                        axes[ax+9].fill_between(pdb_tool_gene["Pos"].values, ya, yb, where=(pdb_tool_gene["SSE"] == sse), 
+                                        color=sns.color_palette("tab10")[7+i], label=sse)
+                    axes[ax+9].set_yticks([0, 1, 2])  
+                    axes[ax+9].set_yticklabels(['Helix', 'Ladder', 'Coil'], fontsize=10)
+                    axes[ax+9].set_ylabel('SSE', fontsize=13.5)
+                except:
+                    logger.warning(f"Error occurred while adding SSE in {gene}-{uni_id}-F{af_f}")
+                    plot_annot["sse"] = False
             else:
                 ax-=1
 
             # Pfam domains
             # ------------
             if plot_annot["pfam"]:
-                pfam_gene = pfam_gene.sort_values("Pfam_start").reset_index(drop=True)
-                pfam_color_dict = {}
-                
-                for n, name in enumerate(pfam_gene["Pfam_name"].unique()):
-                    pfam_color_dict[name] = f"C{n}"
+                try:
+                    pfam_gene = pfam_gene.sort_values("Pfam_start").reset_index(drop=True)
+                    pfam_color_dict = {}
                     
-                n = 0
-                added_pfam = []
-                for i, row in pfam_gene.iterrows():
-                    if pd.Series([row["Pfam_name"], row["Pfam_start"], row["Pfam_end"]]).isnull().any():
-                        continue
-                    
-                    name = row["Pfam_name"]
-                    start = int(row["Pfam_start"])
-                    end = int(row["Pfam_end"])
-                    axes[ax+10].fill_between(range(start, end+1), -0.5, 0.45,  
-                                    alpha=0.5, color=pfam_color_dict[name])
-                    if name not in added_pfam:
-                        if near_domains:
-                            n += 1
-                            if n == 1:
-                                y = 0.28
-                            elif n == 2:
-                                y = 0
-                            elif n == 3:
-                                y = -0.295
-                                n = 0
-                        else:
-                            y = -0.04
-                        axes[ax+10].text(((start + end) / 2)+0.5, y, name, ha='center', va='center', fontsize=10, color="black")
-                        added_pfam.append(name)
-                axes[ax+10].set_yticks([])  
-                axes[ax+10].set_yticklabels([], fontsize=12)
-                axes[ax+10].set_ylabel('Pfam        ', fontsize=13.5, rotation=0, va='center')
-                axes[ax+10].set_ylim(-0.62, 0.6)  
+                    for n, name in enumerate(pfam_gene["Pfam_name"].unique()):
+                        pfam_color_dict[name] = f"C{n}"
+                        
+                    n = 0
+                    added_pfam = []
+                    for i, row in pfam_gene.iterrows():
+                        if pd.Series([row["Pfam_name"], row["Pfam_start"], row["Pfam_end"]]).isnull().any():
+                            continue
+                        
+                        name = row["Pfam_name"]
+                        start = int(row["Pfam_start"])
+                        end = int(row["Pfam_end"])
+                        axes[ax+10].fill_between(range(start, end+1), -0.5, 0.45,  
+                                        alpha=0.5, color=pfam_color_dict[name])
+                        if name not in added_pfam:
+                            if near_domains:
+                                n += 1
+                                if n == 1:
+                                    y = 0.28
+                                elif n == 2:
+                                    y = 0
+                                elif n == 3:
+                                    y = -0.295
+                                    n = 0
+                            else:
+                                y = -0.04
+                            axes[ax+10].text(((start + end) / 2)+0.5, y, name, ha='center', va='center', fontsize=10, color="black")
+                            added_pfam.append(name)
+                    axes[ax+10].set_yticks([])  
+                    axes[ax+10].set_yticklabels([], fontsize=12)
+                    axes[ax+10].set_ylabel('Pfam        ', fontsize=13.5, rotation=0, va='center')
+                    axes[ax+10].set_ylim(-0.62, 0.6)  
+                except:
+                    logger.warning(f"Error occurred while adding Pfam in {gene}-{uni_id}-F{af_f}")
+                    plot_annot["pfam"] = False
             else:
                 ax-=1
 
@@ -782,8 +813,9 @@ def generate_plot(gene_result_path,
                                                                 n_genes, 
                                                                 lst_genes, 
                                                                 non_significant)
+    
     if len(gene_result) > 0:   
-        
+
         # Subset dfs by selected genes and IDs
         seq_df, disorder, pdb_tool, pfam = subset_genes_and_ids(genes, 
                                                                 uni_ids, 
@@ -795,7 +827,7 @@ def generate_plot(gene_result_path,
 
         # Get missense mut probability dict
         miss_prob_dict = get_miss_mut_prob_for_plot(mut_profile_path, mutability_config_path, seq_df)
-        
+
         # Summary plots
         # =============
         
@@ -819,6 +851,8 @@ def generate_plot(gene_result_path,
             maf_nonmiss = get_nonmiss_mut(maf_path)
         else:
             maf_nonmiss = None
+        if maf_nonmiss is None:
+            plot_annot["nonmiss_count"] = False
         
         output_dir_genes_plots = os.path.join(output_dir, f"{run_name}.genes_plots")
         create_plot_dir(output_dir_genes_plots)
