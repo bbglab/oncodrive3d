@@ -242,18 +242,16 @@ def subset_genes_and_ids(genes,
     disorder = disorder.copy()
     pdb_tool = pdb_tool.copy()
     pfam = pfam.copy()
-
     # Filter genes in the other df
     seq_df = seq_df[seq_df["Gene"].isin(genes)]
-    seq_df = seq_df[seq_df["Uniprot_ID"].isin(uni_ids)].reset_index(drop=True)
-    disorder = disorder[disorder["Uniprot_ID"].isin(uni_ids)].reset_index(drop=True)
+    #seq_df = seq_df[seq_df["Uniprot_ID"].isin(uni_ids)].reset_index(drop=True)         # TODO: fix this: It happens to filter out genes that are actually processed, but the Uniprot_ID is missing
+    disorder = disorder[disorder["Uniprot_ID"].isin(uni_ids)].reset_index(drop=True)    #       but maybe it happens only if the the plot is generated on result that used different datasets
     pdb_tool = pdb_tool[pdb_tool["Uniprot_ID"].isin(uni_ids)].reset_index(drop=True)
 
     # Use a different transcript to retrieve the Pfam domains
     if dict_transcripts is not None:
         for gene, transcript in dict_transcripts.items():
             seq_df.loc[seq_df["Gene"] == gene, "Ens_Transcr_ID"] = transcript
-
     # Get subset pfam with gene info
     pfam = seq_df[["Gene", "Uniprot_ID", "Ens_Transcr_ID", "Ens_Gene_ID"]].merge(
         pfam, how="left", on=["Ens_Transcr_ID", "Ens_Gene_ID"])
