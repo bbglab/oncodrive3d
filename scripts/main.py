@@ -470,45 +470,37 @@ def build_annotations(data_dir,
 # =============================================================================
 
 # Example:
-# oncodrive3D plot -O -c -s -r kidney_231204 -g /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/kidney_231204/kidney_231204.3d_clustering_genes.csv -p /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/kidney_231204/kidney_231204.3d_clustering_pos.csv -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/kidney_231204 -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/kidney_pilot/all_mutations.all_samples.tsv -d /workspace/projects/clustering_3d/clustering_3d/datasets -a /workspace/projects/clustering_3d/o3d_analysys/datasets/annotations -j /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/kidney_pilot/mutability_kidney.json
-# oncodrive3D plot -O -c -s -r bladder_231204 -g /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/bladder_231204/bladder_231204.3d_clustering_genes.csv -p /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/bladder_231204/bladder_231204.3d_clustering_pos.csv -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/bladder_231204 -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/bladder_pilot/all_mutations.all_samples.tsv -d /workspace/projects/clustering_3d/clustering_3d/datasets -a /workspace/projects/clustering_3d/o3d_analysys/datasets/annotations -j /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/bladder_pilot/mutability_bladder.json
-# oncodrive3D plot -O -r TCGA_WXS_COADREAD -g /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/results/TCGA_WXS_COADREAD.3d_clustering_genes.csv -p /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/results/TCGA_WXS_COADREAD.3d_clustering_pos.csv -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/maf/TCGA_WXS_COADREAD.in.maf -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/plots -m /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/mut_profile/TCGA_WXS_COADREAD.mutrate.json -d /workspace/projects/clustering_3d/clustering_3d/datasets -a /workspace/projects/clustering_3d/o3d_analysys/datasets/annotations
+# oncodrive3D plot --annotations all --output_tsv --non_significant -r kidney_231204 -g /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/kidney_231204/kidney_231204.3d_clustering_genes.csv -p /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/kidney_231204/kidney_231204.3d_clustering_pos.csv -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/kidney_231204 -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/kidney_pilot/all_mutations.all_samples.tsv -d /workspace/projects/clustering_3d/clustering_3d/datasets -a /workspace/projects/clustering_3d/o3d_analysys/datasets/annotations -j /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/kidney_pilot/mutability_kidney.json
+# oncodrive3D plot --annotations all --output_tsv --non_significant -r bladder_231204 -g /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/bladder_231204/bladder_231204.3d_clustering_genes.csv -p /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/bladder_231204/bladder_231204.3d_clustering_pos.csv -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/bladder_231204 -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/bladder_pilot/all_mutations.all_samples.tsv -d /workspace/projects/clustering_3d/clustering_3d/datasets -a /workspace/projects/clustering_3d/o3d_analysys/datasets/annotations -j /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/bladder_pilot/mutability_bladder.json
+# oncodrive3D plot --output_tsv --non_significant -r TCGA_WXS_COADREAD -g /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/results/TCGA_WXS_COADREAD.3d_clustering_genes.csv -p /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/results/TCGA_WXS_COADREAD.3d_clustering_pos.csv -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/maf/TCGA_WXS_COADREAD.in.maf -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/plots -m /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/mut_profile/TCGA_WXS_COADREAD.mutrate.json -d /workspace/projects/clustering_3d/clustering_3d/datasets -a /workspace/projects/clustering_3d/o3d_analysys/datasets/annotations
+# oncodrive3D plot --output_tsv --non_significant -r TCGA_WXS_BLCA -g /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/results/TCGA_WXS_BLCA.3d_clustering_genes.csv -p /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/results/TCGA_WXS_BLCA.3d_clustering_pos.csv -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/maf/TCGA_WXS_BLCA.in.maf -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/plots -m /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/mut_profile/TCGA_WXS_BLCA.mutrate.json -d /workspace/projects/clustering_3d/clustering_3d/datasets -a /workspace/projects/clustering_3d/o3d_analysys/datasets/annotations
 
 # TODO: If output is None: assign output to the where is located the gene and pos result
 # TODO: If mut profile and mutability not provided, use uniform dist
 # TODO: Suppress matplotlib debug messages
-                 
-plot_pae = True
-plot_ddg = True
-plot_nonmiss_count = True
-plot_disorder = True
-plot_pacc = True
-plot_ddg = True
-plot_clusters = True
-plot_sse = True
-plot_pfam = True             
+                    
                  
 @oncodrive3D.command(context_settings=dict(help_option_names=['-h', '--help']),
                help="Generate plots for a quick interpretation of the 3D-clustering analysis.") 
-@click.option("-g", "--gene_result_path", help="Path to Oncodrive3D gene-level result", type=str)
-@click.option("-p", "--pos_result_path", help="Path to Oncodrive3D position-level result", type=str)
-@click.option("-i", "--input_maf", help="Path to MAF input file", type=str)
+@click.option("-g", "--gene_result_path", help="Path to Oncodrive3D gene-level result", type=str, required=True)
+@click.option("-p", "--pos_result_path", help="Path to Oncodrive3D position-level result", type=str, required=True)
+@click.option("-i", "--input_maf", help="Path to MAF input file", type=str, required=True)
 @click.option("-m", "--mut_profile_path", help="Path to mutation profile", type=str)
 @click.option("-j", "--mutability_config_path", help="Path to mutability configuration file", type=str)
-@click.option("-G", "--gene_result_path_2", help="Path to Oncodrive3D gene-level result (2° run for comparative plots)", type=str)
-@click.option("-P", "--pos_result_path_2", help="Path to Oncodrive3D position-level result (2° run for comparative plots)", type=str)
-@click.option("-I", "--input_maf_2", help="Path to MAF input file (2° run for comparative plots)", type=str)
-@click.option("-M", "--mut_profile_path_2", help="Path to mutation profile (2° run for comparative plots)", type=str)
-@click.option("-J", "--mutability_config_path_2", help="Path to mutability configuration file (2° run for comparative plots)", type=str)
-@click.option("-d", "--data_dir", help="Path to datasets directory", type=str)
-@click.option("-a", "--annotations_dir", help="Path annotations directory", type=str)
-@click.option("-o", "--output_dir", help="Path to output directory where to save plots", type=str)
-@click.option("-r", "--run_name", help="Run or cohort name which will be used as plots filename", type=str)
-@click.option("-L", "--annotations", help="List of annotations [all, nonmiss_count, pae, disorder, pacc, ddg, clusters, sse, pfam] to be included in the plots (e.g., --annotations pae,disorder,ddg)", type=str)
+@click.option("-G", "--gene_result_path_2", help="Path to 2° Oncodrive3D gene-level result for comparative plots", type=str)
+@click.option("-P", "--pos_result_path_2", help="Path to 2° Oncodrive3D position-level result", type=str)
+@click.option("-I", "--input_maf_2", help="Path to 2° MAF input file", type=str)
+@click.option("-M", "--mut_profile_path_2", help="Path to 2° mutation profile", type=str)
+@click.option("-J", "--mutability_config_path_2", help="Path to 2° mutability configuration file", type=str)
+@click.option("-d", "--data_dir", help="Path to datasets directory", type=str, required=True)
+@click.option("-a", "--annotations_dir", help="Path annotations directory", type=str, required=True)
+@click.option("-o", "--output_dir", help="Path to output directory where to save plots", type=str, required=True)
+@click.option("-r", "--run_name", help="Run or cohort name which will be used as plots filename", type=str, required=True)
+@click.option("-L", "--annotations", help="List of annotations [all, none, nonmiss_count, pae, disorder, pacc, ddg, clusters, sse, pfam] to be included in the plots (e.g., --annotations pae,disorder,ddg)", 
+              type=str, default="all")
 @click.option("-n", "--n_genes", help="Top number of genes to be included in the plots", type=int, default=30)
 @click.option("-l", "--genes", help="List of genes to be analysed in the report (e.g., --genes TP53,KRAS,PIK3CA)", type=str)
 @click.option("-s", "--non_significant", help="Also include non-significant genes", is_flag=True)
-@click.option("-c", "--non_missense_count", help="Add track showing counts of non-missense mutations", is_flag=True)
 @click.option("-C", "--comparative_plots", help="Compare the results between two runs of Oncodrive3D", is_flag=True)
 @click.option("-O", "--output_tsv", help="Output tsv files including Oncodrive3D result enriched with annotations", is_flag=True)
 @click.option("-f", "--output_all_pos", help="Include all position (including non-mutated ones) in the Oncodrive3D enriched result", is_flag=True)
@@ -534,7 +526,6 @@ def plot(gene_result_path,
          n_genes,
          genes,
          non_significant, 
-         non_missense_count,
          comparative_plots,
          output_tsv,
          output_all_pos,
@@ -558,7 +549,6 @@ def plot(gene_result_path,
     logger.info(f"Number of top genes: {n_genes}")
     logger.info(f"List of genes: {genes}")
     logger.info(f"Include non-significant genes: {bool(non_significant)}")
-    logger.info(f"Include count of non-missense mutations: {bool(non_missense_count)}")
     logger.info(f"Output tsv file: {bool(verbose)}")
     logger.info(f"Include non-mutated positions in tsv file: {bool(verbose)}")
     logger.info(f"Verbose: {bool(verbose)}")

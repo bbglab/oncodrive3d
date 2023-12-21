@@ -207,13 +207,20 @@ def init_annotations(annotations):
         if "all" in lst_annotations:
             for annot in plot_annot.keys():
                 plot_annot[annot] = True
+        elif "none" in lst_annotations:
+            for annot in plot_annot.keys():
+                plot_annot[annot] = False
         else:
             for annot in lst_annotations:
                 if annot in plot_annot:
                     plot_annot[annot] = True
                 else:
                     logger.warning(f"{annot} is not recognized as valid annotation.")  
-        logger.info(F"The following annotations will be included: {[k for k,v in plot_annot.items() if v == True]}")
+        lst_annotations = [k for k,v in plot_annot.items() if v == True]
+        if len(lst_annotations) > 0:
+            logger.info(f"The following annotations will be included: {lst_annotations}")
+        else:
+            logger.info("No annotations will be included.")
     else:
         logger.info("No extra annotations will be included in the plots.")
     
