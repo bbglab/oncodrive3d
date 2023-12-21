@@ -176,21 +176,25 @@ def get_nonmiss_mut(path_to_maf):
     """
     Get non missense mutations from MAF file.
     """
+    try:
+        maf_nonmiss = pd.read_csv(path_to_maf, sep="\t", dtype={'Chromosome': str})
+        maf_nonmiss = maf_nonmiss[maf_nonmiss["Protein_position"] != "-"]                                            ## TODO: Fix it for alternative MAF (see cancer) 
+        maf_nonmiss = maf_nonmiss[~(maf_nonmiss['Consequence'].str.contains('Missense_Mutation')
+                                    | maf_nonmiss['Consequence'].str.contains('missense_variant'))]
+        maf_nonmiss = maf_nonmiss[["SYMBOL", 
+                                "Consequence", 
+                                "Protein_position"]].rename(
+                                    columns={"SYMBOL" : "Gene", 
+                                                "Protein_position" : "Pos"}).reset_index(drop=True)
+                                
+        # Parse the consequence with multiple elements and get broader categories
+        maf_nonmiss["Consequence"] = get_broad_consequence(maf_nonmiss["Consequence"])
+                
+        return maf_nonmiss
     
-    maf_nonmiss = pd.read_csv(path_to_maf, sep="\t", dtype={'Chromosome': str})
-    maf_nonmiss = maf_nonmiss[maf_nonmiss["Protein_position"] != "-"]
-    maf_nonmiss = maf_nonmiss[~(maf_nonmiss['Consequence'].str.contains('Missense_Mutation')
-                                | maf_nonmiss['Consequence'].str.contains('missense_variant'))]
-    maf_nonmiss = maf_nonmiss[["SYMBOL", 
-                               "Consequence", 
-                               "Protein_position"]].rename(
-                                   columns={"SYMBOL" : "Gene", 
-                                            "Protein_position" : "Pos"}).reset_index(drop=True)
-                               
-    # Parse the consequence with multiple elements and get broader categories
-    maf_nonmiss["Consequence"] = get_broad_consequence(maf_nonmiss["Consequence"])
-            
-    return maf_nonmiss
+    except Exception as e:
+        logger.warning("Cant parse non-missense mutation from MAF file: The track will not be included...")
+        logger.warning(f"The following error occurred: {e}")
 
 
 def avg_per_pos_ddg(pos_result_gene, ddg_prot, maf_gene):
