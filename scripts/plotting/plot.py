@@ -303,6 +303,8 @@ def get_score_for_genes_plot(pos_result_gene, mut_count, prob_vec):
 
         # Mut count
         if pos in mut_count.Pos.values:
+            if pos not in pos_result_gene.Pos.values:
+                logger.error("Position in MAF not found in position-level O3D result: Check that MAF and O3D result are matching!")
             score = pos_result_gene.loc[pos_result_gene["Pos"] == pos, "Ratio_obs_sim"].values[0]
         else:
             score = 0
@@ -603,7 +605,7 @@ def genes_plots(gene_result,
                     axes[ax+5].set_ylabel('pLDDT', fontsize=13.5)
                     axes[ax+5].set_ylim(-10, 110)
                 except:
-                    logger.warning(f"Error occurred while adding Disorder in {gene}-{uni_id}-F{af_f}")
+                    logger.warning(f"Error occurred while adding Disorder in {gene}-{uni_id}-F{af_f}: There could be a mismatch between the datasets used for the 3D-clustering analysis and the one used to generate plots")
                     plot_annot["disorder"] = False
                     ax-=1
             else:
