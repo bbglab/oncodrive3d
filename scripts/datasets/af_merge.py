@@ -329,7 +329,8 @@ def merge_af_fragments(input_dir, output_dir=None, af_version=4, gzip=False):
                 os.rename(tmp_name, name)
                 add_refseq_record_to_pdb(name)
         
-        logger.warning(f"Not processed: {not_processed}")
+        if len(not_processed) > 0:
+            logger.warning(f"Not processed: {not_processed}")
         with open(checkpoint, "w") as f:
                 f.write('')
 
