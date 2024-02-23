@@ -83,11 +83,13 @@ def download_single_file(url: str, destination: str, threads: int) -> None:
     if os.path.exists(destination):
         logger.debug(f"File {destination} already exists: Skipping download...")
     else:
-        logger.debug(f'Downloading from {url}...')
+        logger.debug(f'Downloading from {url}')
+        logger.debug(f"Downloading to {destination}")
         dl = Downloader()
         dl.start(url, destination, num_connections=num_connections, display=True)
         subprocess.run("clear")
         logger.debug('clear')
+        logger.debug('Download complete')
 
 
 def extract_tar_file(file_path, path):

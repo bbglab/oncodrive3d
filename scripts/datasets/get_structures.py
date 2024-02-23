@@ -20,17 +20,18 @@ CHECKSUM = {
 def assert_integrity_human(file_path, proteome):
 
     if proteome in CHECKSUM.keys():
-        logger.debug('Asserting integrity of file:')
+        logger.debug('Asserting integrity of file...')
         try:
             assert CHECKSUM[proteome] == calculate_hash(file_path)
             logger.debug('File integrity check: PASS')
             return "PASS"
         except Exception as e:
             logger.critical('File integrity check: FAIL')
-            logger.critical('error: ', e) 
+            logger.critical(f'error: {e}') 
             return "FAIL"
     else:
         logger.warning("Assertion skipped: Proteome checksum not in records.")
+        return "PASS"
 
 
 def get_structures(path: str, species: str = 'human', 
@@ -49,21 +50,24 @@ def get_structures(path: str, species: str = 'human',
     """
 
     logger.info(f"Selected species: {species}")
-    logger.debug(
-        f"Proteome to download: {'UP000005640_9606_HUMAN_v' + af_version}")
 
     if not os.path.isdir(path):
         os.makedirs(path)
         logger.debug(f'mkdir {path}')
 
-    proteome = f"UP000005640_9606_HUMAN_v{af_version}" if species == "human" else f"UP000000589_10090_MOUSE_v{af_version}"
+    if species == "human":
+        proteome = f"UP000005640_9606_HUMAN_v{af_version}"
+    elif species == "mouse": 
+        proteome = f"UP000000589_10090_MOUSE_v{af_version}"
+    else:
+        raise RuntimeError(f"Failed to recognize '{species}' as species. Currently accepted ones are 'human' and 'mouse'. Exiting...")
+        
+    logger.debug(f"Proteome to download: {proteome}")
     af_url = f"https://ftp.ebi.ac.uk/pub/databases/alphafold/latest/{proteome}.tar"
     file_path = os.path.join(path, f"{proteome}.tar")
 
     try:
         ## STEP1 --- Download file
-        logger.info(f'Downloading to {file_path}')
-        
         attempts = 0
         status = "INIT"
         while status != "PASS":
