@@ -55,9 +55,9 @@ def get_structures(path: str, species: str = 'human',
         os.makedirs(path)
         logger.debug(f'mkdir {path}')
 
-    if species == "human":
+    if species == "human" or capitalize(species) == "Homo sapiens":
         proteome = f"UP000005640_9606_HUMAN_v{af_version}"
-    elif species == "mouse": 
+    elif species == "mouse" or capitalize(species) == "Mus musculus":: 
         proteome = f"UP000000589_10090_MOUSE_v{af_version}"
     else:
         raise RuntimeError(f"Failed to recognize '{species}' as species. Currently accepted ones are 'human' and 'mouse'. Exiting...")
