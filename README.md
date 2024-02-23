@@ -66,6 +66,8 @@ oncodrive3D run -i input.maf -p mut_profile.json -d build_folder/ -t cancer_type
 
 - **-p, --mut_profile_path <path>**: Specifies the path to the Mut profile of the cohort, which is a dictionary of 192 key-value pairs in JSON format.
 
+- **-m, --mutability_config_path <path>** Specifies the path to the mutability configuration file including the integrated information about the mutation profile and sequencing depth of the cohort.
+
 - **-o, --output_dir <path>**: Sets the output directory. Default: `results/`.
 
 - **-d, --data_dir <path>**: Sets the build folder, including the files compiled during the [building datasets](#building-datasets) step. Default: `datasets/`.
@@ -80,6 +82,13 @@ oncodrive3D run -i input.maf -p mut_profile.json -d build_folder/ -t cancer_type
 
 - **-C, --cohort <str>**: Specifies the cohort name used as metadata and filename for the output file.
 
+### Running from singularity container
+
+```bash
+singularity exec oncodrive3d.sif oncodrive3D run -i input.maf -p mut_profile.json -d build_folder/ -t cancer_type -C cohort_name
+```
+
+Containers are located in `path/to/oncodrive3D/build/containers/` 
 
 ## Input & output
 
@@ -88,6 +97,8 @@ oncodrive3D run -i input.maf -p mut_profile.json -d build_folder/ -t cancer_type
 - **input.maf** (`required`): Mutation Annotation Format (MAF) file annotated with consequences (e.g., by using [Ensembl Variant Effect Predictor (VEP)](https://www.ensembl.org/info/docs/tools/vep/index.html)).
 
 - **mut_profile.json** (`optional`): Dictionary including the normalized frequencies of mutations (*values*) in every possible trinucleotide context (*keys*), such as 'ACA>A', 'ACC>A', and so on.
+
+- **mutability_config_path.json** (`optional`): # TODO: provide explaination: Dictionary of dictionary having...
 
 ### Output
 
@@ -117,7 +128,7 @@ It is possible to run Oncodrive3D in parallel on multiple cohorts by using [next
    singularity pull build/containers/oncodrive3d.sif library://st3451/oncodrive3d/oncodrive3d:0.0.0
 ```
 
-3. RRun Oncodrive3D in parallel on multiple cohorts by using the provided nextflow script. For example:
+3. Run Oncodrive3D in parallel on multiple cohorts by using the provided nextflow script. For example:
 
 ```bash
    nextflow run oncodrive3d.nf --indir test/ --outdir test/results/
@@ -147,3 +158,60 @@ When using the nextflow script, it is important to ensure that your input
 *maf* and *mut profile* files are located in the same folder, as shown in 
 ``test/``. These files should have the extensions ``.in.maf`` 
 and ``.mutrate.json``, respectively.
+
+
+## Quick interpretation of the analysis
+
+You can generate plots for a quick interpretation of the 3D clustering analysis 
+performed by Oncodrive-3D. The plots can be simple or annotated with structural 
+and genomics features. To generate annotated plots, it is required (once) to 
+build the annotations datasets.
+
+### Installation of external software for annotations
+
+Install PDB_Tool to determine solvent accessibility and secondary structures 
+from the PDB files.
+
+1. Clone PDB_Tool:
+
+```bash
+git clone https://github.com/realbigws/PDB_Tool
+cd PDB_Tool/source_code
+make
+```
+
+2. Open your configuration file for the Bash shell environment:
+
+```bash
+nano ~/.bashrc
+```
+
+3. Export the path for PDB_Tool to your enviroment variable by adding the 
+following line to your configuraion file (change `/path/to/PDB_Tool` to the 
+your actual path to PDB_Tool):
+
+```bash
+export PATH="$PATH:/path/to/PDB_Tool"
+```
+
+### Building annotations
+
+This step is required once, only to enable Oncodrive3D to produce annotated plots.
+It is not required to produce simple plot nor to run the 3D-clustering analysis.
+
+```bash
+oncodrive3D build-annotations -o annotation_folder/
+```
+
+- **-o, --output_dir <path>**: Specifies the annotation folder where files will be saved. Default: `annotations/`.
+
+- **-c, --cores <int>**: Determines the number of CPU cores to use in the computation. Default: Number of available CPU cores.
+
+- **-v, --verbose <flag: set to enable>**: Enables a more verbose output from the method.
+
+
+### Generating plots
+
+```bash
+oncodrive3D plot -i oncodrive3d_result/ -f filename
+```

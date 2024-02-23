@@ -165,6 +165,7 @@ dataset*
 backups
 results
 tests/results/*
+tests/normal_tests
 scripts/test.qmap
 scripts/run_*
 scripts/submit*

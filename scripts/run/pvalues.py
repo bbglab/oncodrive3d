@@ -59,5 +59,9 @@ def get_final_gene_result(result_pos, result_gene, alpha_gene=0.05):
     result_gene = gene_pvals.merge(result_gene, on="Gene", how="outer")
     result_gene["C_gene"] = result_gene.apply(lambda x: 1 if x.qval < alpha_gene else 0, axis=1)
     result_gene = result_gene.sort_values(["pval", "Ratio_obs_sim_top_vol"], ascending=[True, False])
+    
+    # Convert C_pos and C_label to str
+    result_gene["C_pos"] = result_gene["C_pos"].apply(lambda x: str(x) if isinstance(x, list) else x)
+    result_gene["C_label"] = result_gene["C_label"].apply(lambda x: str(x) if isinstance(x, list) else x)
 
     return result_gene

@@ -4,7 +4,7 @@
 params.indir = "${baseDir}/test"
 params.cohort_pattern = "*"     
 params.data_dir = "${baseDir}/datasets"            
-params.container = "${baseDir}/build/containers/oncodrive3d.sif"
+params.container = "${baseDir}/build/containers/oncodrive3d_231205.sif"
 params.cores = 9
 params.memory = "50G"
 params.max_running = 5
