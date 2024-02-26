@@ -20,14 +20,13 @@ import os
 import re
 import time
 
+import ast
 import requests
 import numpy as np
 import daiquiri
 import pandas as pd
-import requests
 from tqdm import tqdm
-from bgreference import hg38
-import ast
+from bgreference import hg38, mm10
 from Bio.Seq import Seq
 
 from scripts import __logger_name__
@@ -346,7 +345,7 @@ def per_site_trinucleotide_context(seq, no_flanks=False):
     return [f"{seq[i-1]}{seq[i]}{seq[i+1]}" for i in range(1, len(seq) - 1)]
 
 
-def get_ref_dna_and_context(row):
+def get_ref_dna_and_context(row, genome_fun):
     """
     Given a row of the sequence dataframe including exons (CDS) coordinate, 
     get the corresponding DNA sequence and the trinucleotide context of each 
@@ -369,7 +368,7 @@ def get_ref_dna_and_context(row):
             start = 0 if not reverse else 1
             end = 1 if not reverse else 0
             segment_len = region[end] - region[start] + 1
-            seq_with_flanks = hg38(chrom, region[start] - 1, size = segment_len + 2)
+            seq_with_flanks = genome_fun(chrom, region[start] - 1, size = segment_len + 2)
             
             # Get reverse complement if reverse strand
             if reverse:
@@ -393,7 +392,7 @@ def get_ref_dna_and_context(row):
         return transcript_id, np.nan, np.nan, 0
 
 
-def add_ref_dna_and_context(seq_df):
+def add_ref_dna_and_context(seq_df, genome_fun=hg38):
     """
     Given as input the sequence dataframe including exons (CDS) coordinate, 
     add the corresponding DNA sequence and the trinucleotide context of each 
@@ -402,7 +401,7 @@ def add_ref_dna_and_context(seq_df):
     
     seq_df = seq_df.copy()
     seq_df_with_coord = seq_df[["Ens_Transcr_ID", "Chr", "Reverse_strand", "Exons_coord"]].dropna().drop_duplicates()
-    ref_dna_and_context = seq_df_with_coord.apply(lambda x: get_ref_dna_and_context(x), axis=1, result_type='expand')
+    ref_dna_and_context = seq_df_with_coord.apply(lambda x: get_ref_dna_and_context(x, genome_fun), axis=1, result_type='expand')
     ref_dna_and_context.columns = ["Ens_Transcr_ID", "Seq_dna", "Tri_context", "Reference_info"]
     seq_df = seq_df.merge(ref_dna_and_context, on=["Ens_Transcr_ID"], how="left")
     seq_df["Reference_info"] = seq_df["Reference_info"].fillna(0).astype(int)
@@ -508,7 +507,13 @@ def get_seq_df(input_dir,
     
     # Add ref DNA sequence and its per-site trinucleotide context
     logger.debug("Retrieving exons DNA sequence from reference genome..")
-    seq_df = add_ref_dna_and_context(seq_df)
+    if organism == "Homo sapiens":
+        genome_fun = hg38
+    elif organism == "Mus musculus":
+        genome_fun = mm10
+    else:
+        raise RuntimeError(f"Failed to recognize '{organism}' as organism. Currently accepted ones are 'Homo sapiens' and 'Mus musculus'. Exiting...")
+    seq_df = add_ref_dna_and_context(seq_df, genome_fun)
     
     # Add DNA sequences for genes without available ref DNA using backtranseq
     logger.debug("Performing back translation for genes without ref DNA...")
@@ -527,5 +532,5 @@ def get_seq_df(input_dir,
     seq_df.to_csv(output_seq_df, index=False)
     sim_ratio = sum(seq_df.apply(lambda x: get_seq_similarity(x.Seq, translate_dna(x.Seq_dna)), axis=1)) / len(seq_df)
     if sim_ratio < 1:                       
-        logger.warning(f"Error occurred during back translation: Protein and translated DNA similarity < 1: {sim_ratio}.")
+        logger.warning(f"Error occurred during back translation: Protein and translated DNA mean similarity < 1: {sim_ratio:.2f}.")
     logger.debug(f"Dataframe including sequences is saved in: {output_seq_df}")

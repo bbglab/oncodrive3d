@@ -23,6 +23,7 @@ import os
 import daiquiri
 
 from scripts import __logger_name__
+from scripts.datasets.utils import get_species
 from scripts.datasets.af_merge import merge_af_fragments
 from scripts.datasets.get_pae import get_pae
 from scripts.datasets.get_structures import get_structures
@@ -50,9 +51,10 @@ def build(output_datasets,
     clean_dir(output_datasets, 'd')
 
     # Download PDB structures
+    species = get_species(organism)
     logger.info("Downloading AlphaFold (AF) predicted structures...")
     get_structures(path=os.path.join(output_datasets,"pdb_structures"),
-                   species=organism,
+                   species=species,
                    af_version=str(af_version), 
                    threads=num_cores)
 
@@ -62,7 +64,6 @@ def build(output_datasets,
     logger.info("Merging fragmented structures...")
     merge_af_fragments(input_dir=os.path.join(output_datasets,"pdb_structures"), 
                        gzip=True)
-    logger.info("Merge of structures completed!")
 
     # Get model confidence
     logger.info("Extracting AF model confidence...")
@@ -74,7 +75,7 @@ def build(output_datasets,
     get_seq_df(input_dir=os.path.join(output_datasets,"pdb_structures"),
                output_seq_df=os.path.join(output_datasets, "seq_for_mut_prob.csv"),
                uniprot_to_gene_dict=uniprot_to_hugo,
-               organism=organism)
+               organism=species)
     logger.info("Generation of sequences dataframe completed!")
 
     # Get PAE

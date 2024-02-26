@@ -87,7 +87,7 @@ def oncodrive3D():
 @oncodrive3D.command(context_settings=dict(help_option_names=['-h', '--help']),
                      help="Build datasets - Required once after installation.")
 @click.option("-o", "--output_dir", help="Directory where to save the files", type=str, default='datasets')
-@click.option("-s", "--organism", type=click.Choice(['human', 'mouse']), help="Organism name", default="human")
+@click.option("-s", "--organism", type=click.Choice(["Homo sapiens", 'human', "Mus musculus", 'mouse']), help="Organism name", default="Homo sapiens")
 @click.option("-d", "--distance_threshold", type=click.INT, default=10,
               help="Distance threshold (Å) to define contact between amino acids")
 @click.option("-u", "--uniprot_to_hugo", type=click.Path(exists=True), 

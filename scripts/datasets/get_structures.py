@@ -34,8 +34,11 @@ def assert_integrity_human(file_path, proteome):
         return "PASS"
 
 
-def get_structures(path: str, species: str = 'human', 
-                   af_version: str = '4', threads: int = 1, max_attempts: int = 10) -> None:
+def get_structures(path: str, 
+                   species: str = 'Homo sapiens', 
+                   af_version: str = '4', 
+                   threads: int = 1, 
+                   max_attempts: int = 10) -> None:
     """
     Downloads AlphaFold predicted structures for a given organism and version.
 
@@ -55,12 +58,12 @@ def get_structures(path: str, species: str = 'human',
         os.makedirs(path)
         logger.debug(f'mkdir {path}')
 
-    if species == "human" or capitalize(species) == "Homo sapiens":
+    if species == "Homo sapiens":
         proteome = f"UP000005640_9606_HUMAN_v{af_version}"
-    elif species == "mouse" or capitalize(species) == "Mus musculus":: 
+    elif species == "Mus musculus": 
         proteome = f"UP000000589_10090_MOUSE_v{af_version}"
     else:
-        raise RuntimeError(f"Failed to recognize '{species}' as species. Currently accepted ones are 'human' and 'mouse'. Exiting...")
+        raise RuntimeError(f"Failed to recognize '{species}' as organism. Currently accepted ones are 'Homo sapiens' and 'Mus musculus'. Exiting...")
         
     logger.debug(f"Proteome to download: {proteome}")
     af_url = f"https://ftp.ebi.ac.uk/pub/databases/alphafold/latest/{proteome}.tar"
