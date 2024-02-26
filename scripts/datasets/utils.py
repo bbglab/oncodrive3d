@@ -49,6 +49,21 @@ def get_pos_fragments(mut_gene_df):
     return pd.cut(mut_gene_df["Pos"], bins, labels = group_names)
 
 
+def get_species(species):
+    """
+    Simply change species name to accepted format.
+    """
+    
+    if species == "human" or species.capitalize() == "Homo sapiens":
+        species = "Homo sapiens"
+    elif species == "mouse" or species.capitalize() == "Mus musculus": 
+        species = "Mus musculus"
+    else:
+        raise RuntimeError(f"Failed to recognize '{species}' as species. Currently accepted ones are 'Homo sapiens' and 'Mus musculus'. Exiting...")
+
+    return species
+
+
 # Download
 
 def calculate_hash(filepath: str, hash_func=hashlib.sha256) -> str:
@@ -62,6 +77,7 @@ def calculate_hash(filepath: str, hash_func=hashlib.sha256) -> str:
     Returns:
         str: The hexadecimal representation of the calculated hash.
     """
+    
     with open(filepath, 'rb') as file:
         hash_obj = hash_func()
         for chunk in iter(lambda: file.read(8192), b''):
