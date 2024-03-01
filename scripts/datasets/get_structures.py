@@ -13,7 +13,8 @@ logger = daiquiri.getLogger(__logger_name__ + ".build.AF-pdb")
 logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
 
 CHECKSUM = {
-    "UP000005640_9606_HUMAN_v4": 'bf62d5402cb1c4580d219335a9af1ac831416edfbf2892391c8197a8356091f2',
+    "UP000005640_9606_HUMAN_v4": "bf62d5402cb1c4580d219335a9af1ac831416edfbf2892391c8197a8356091f2",
+    "UP000000589_10090_MOUSE_v4" : "eb6c529c8757d511b75f4856c1a789378478e6255a442517ad8579708787bbab"
 }
 
 
