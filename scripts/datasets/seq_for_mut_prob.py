@@ -419,6 +419,8 @@ def asssess_similarity(seq_df, on="all"):
     DNA sequences by reference coordinates or/and backtranslation.
     """
     
+    logger.debug("Assessing similarity...")
+    
     # Ref seq and backtranseq backtranslation
     if on == "all":
         seq_df["Seq_similarity"] = seq_df.apply(lambda x: get_seq_similarity(x.Seq, translate_dna(x.Seq_dna)), axis=1) 
@@ -429,10 +431,19 @@ def asssess_similarity(seq_df, on="all"):
         seq_backtr = seq_backtr.drop_duplicates('Uniprot_ID')
         avg_sim_ref = np.mean(seq_ref["Seq_similarity"].dropna())
         avg_sim_backtr = np.mean(seq_backtr["Seq_similarity"].dropna())
+        if len(seq_ref) > 0: 
+            logger.debug(f"Average similarity ref coord backtranslation: {avg_sim_ref:.2f} for {len(seq_ref)} sequences.")      
+        else:
+            logger.debug("Ref coord backtranslated sequences not available.")
+        if len(seq_backtr) > 0: 
+            logger.debug(f"Average similarity backtranseq backtranslation: {avg_sim_backtr:.2f} for {len(seq_backtr)} sequences.") 
+        else:
+            logger.debug("Backtranseq backtranslated sequences not available.")
         if avg_sim < 1:                       
-            logger.warning(f"Mismatch between protein and translated DNA. Overall average similatity: {avg_sim:.2f}")
-        logger.debug(f"Average similarity ref coord backtranslation: {avg_sim_ref:.2f} for {len(seq_ref)} sequences.")      
-        logger.debug(f"Average similarity backtranseq backtranslation: {avg_sim_backtr:.2f} for {len(seq_backtr)} sequences.") 
+            logger.warning(f"Mismatch between protein and translated DNA. Overall average similatity: {avg_sim:.2f}.")
+            logger.warning("3D-clustering analysis using mutational profile and/or mutability can be severely affected.")
+        else:
+            logger.debug("Final similarity check: PASS")
         
         return seq_df
          
@@ -452,6 +463,8 @@ def asssess_similarity(seq_df, on="all"):
             else:
                 logger.warning(f"Dropping {tot_mismatch} mismatching ref DNA sequnces...") 
                 seq_df.loc[seq_df['Seq_similarity'] < 1, "Reference_info"] = 0
+        else:
+            logger.debug("Ref seq similarity check: PASS")
                 
         return seq_df
                 
