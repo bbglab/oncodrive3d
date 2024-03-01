@@ -164,7 +164,9 @@ dataset*
 !scripts/datasets 
 backups
 results
+output
 tests/results/*
+tests/output/*
 tests/normal_tests
 scripts/test.qmap
 scripts/run_*
@@ -182,3 +184,4 @@ trace*
 *.def
 *.simg
 *.sif
+.gitignore
