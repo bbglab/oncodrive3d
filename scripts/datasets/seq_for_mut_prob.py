@@ -387,7 +387,7 @@ def get_ref_dna_and_context(row, genome_fun):
     
     except Exception as e:
         if not str(e).startswith("Sequence"):
-            logger.warning(f"Error occurred during reference DNA and trinucleotide context extraction: {e}")
+            logger.warning(f"Error occurred during backtranslation by ref coordinates {transcript_id}: {e}")
         
         return transcript_id, np.nan, np.nan, 0
 
@@ -409,13 +409,60 @@ def add_ref_dna_and_context(seq_df, genome_fun=hg38):
     return seq_df
 
 
+#======
+# Utils
+#======
+
+def asssess_similarity(seq_df, on="all"):
+    """
+    Assess similarity between protein sequences and translated 
+    DNA sequences by reference coordinates or/and backtranslation.
+    """
+    
+    # Ref seq and backtranseq backtranslation
+    if on == "all":
+        seq_df["Seq_similarity"] = seq_df.apply(lambda x: get_seq_similarity(x.Seq, translate_dna(x.Seq_dna)), axis=1) 
+        avg_sim = np.mean(seq_df["Seq_similarity"].dropna())
+        seq_ref = seq_df[seq_df["Reference_info"] == 1]
+        seq_ref = seq_ref.drop_duplicates('Uniprot_ID')
+        seq_backtr = seq_df[seq_df["Reference_info"] == 0]
+        seq_backtr = seq_backtr.drop_duplicates('Uniprot_ID')
+        avg_sim_ref = np.mean(seq_ref["Seq_similarity"].dropna())
+        avg_sim_backtr = np.mean(seq_backtr["Seq_similarity"].dropna())
+        if avg_sim < 1:                       
+            logger.warning(f"Mismatch between protein and translated DNA. Overall average similatity: {avg_sim:.2f}")
+        logger.debug(f"Average similarity ref coord backtranslation: {avg_sim_ref:.2f} for {len(seq_ref)} sequences.")      
+        logger.debug(f"Average similarity backtranseq backtranslation: {avg_sim_backtr:.2f} for {len(seq_backtr)} sequences.") 
+        
+        return seq_df
+         
+    # Ref seq backtranslation only
+    else:
+        seq_df["Seq_similarity"] = seq_df.apply(lambda x: get_seq_similarity(x.Seq, translate_dna(x.Seq_dna)), axis=1)
+        avg_sim = np.mean(seq_df["Seq_similarity"].dropna())
+        if avg_sim < 1:
+            tot_mismatch = sum(seq_df['Seq_similarity'].dropna() < 1)
+            tot_seq = len(seq_df['Seq_similarity'].dropna())
+            mismatch_ratio = tot_mismatch / tot_seq
+            logger.warning(f"Mismatch between proteins and translated DNA by reference coordinates on {tot_mismatch} of {tot_seq}.")
+            logger.warning(f"Protein and translated DNA mean similarity < 1: {avg_sim:.2f}")
+            if mismatch_ratio > 0.4:
+                logger.warning(f"Mismatch ratio > 0.4: {mismatch_ratio:.2f}. Dropping all {tot_mismatch} ref DNA sequnces...") 
+                seq_df["Reference_info"] = 0
+            else:
+                logger.warning(f"Dropping {tot_mismatch} mismatching ref DNA sequnces...") 
+                seq_df.loc[seq_df['Seq_similarity'] < 1, "Reference_info"] = 0
+                
+        return seq_df
+                
+                
 #=========
 # WRAPPERS
 #=========
 
 # TODO: test if with the added "if gene not in" is avoiding duplicates Hugo Symbol with different Uni IDs
 #       - In general test if there are multiple rows with same gene name in the final seq_df
-#       - It seems that backtranseq is use for Uniprot ID connected to genes that were already processed with ref DNA: must avoid it
+#       - It seems that backtranseq is used for Uniprot ID connected to genes that were already processed with ref DNA: must avoid it
 
 def add_extra_genes_to_seq_df(seq_df, uniprot_to_gene_dict):
     """
@@ -515,22 +562,23 @@ def get_seq_df(input_dir,
         raise RuntimeError(f"Failed to recognize '{organism}' as organism. Currently accepted ones are 'Homo sapiens' and 'Mus musculus'. Exiting...")
     seq_df = add_ref_dna_and_context(seq_df, genome_fun)
     
+    # Check if ref DNA sequences match protein sequences
+    seq_df = asssess_similarity(seq_df, on="ref")
+    
     # Add DNA sequences for genes without available ref DNA using backtranseq
-    logger.debug("Performing back translation for genes without ref DNA...")
-    seq_df_backtranseq = seq_df[seq_df["Reference_info"] == 0].reset_index(drop=True)
-    seq_df_backtranseq = batch_backtranseq(seq_df_backtranseq, 500, organism=organism)
+    logger.debug("Performing backtranseq backtranslation for genes without available ref DNA...")
+    seq_df_backtranseq = seq_df[seq_df["Reference_info"] == 0].reset_index(drop=True)    
+    seq_df_backtranseq = batch_backtranseq(seq_df_backtranseq, 500, organism=organism)    # TO DO: Check that the seq is overwritten
     seq_df_backtranseq["Tri_context"] = seq_df_backtranseq["Seq_dna"].apply(
         lambda x: ",".join(per_site_trinucleotide_context(x, no_flanks=True)))
-    seq_df = pd.concat((seq_df[seq_df["Reference_info"] == 1], 
-                        seq_df_backtranseq)
+    seq_df = pd.concat((seq_df[seq_df["Reference_info"] == 1], seq_df_backtranseq)
                        ).sort_values("Uniprot_ID").reset_index(drop=True)
     
     # Add multiple genes mapping to the same Uniprot_ID
     seq_df = add_extra_genes_to_seq_df(seq_df, uniprot_to_gene_dict)
     
-    # Save and assess similarity
-    seq_df.to_csv(output_seq_df, index=False)
-    sim_ratio = sum(seq_df.apply(lambda x: get_seq_similarity(x.Seq, translate_dna(x.Seq_dna)), axis=1)) / len(seq_df)
-    if sim_ratio < 1:                       
-        logger.warning(f"Error occurred during back translation: Protein and translated DNA mean similarity < 1: {sim_ratio:.2f}.")
-    logger.debug(f"Dataframe including sequences is saved in: {output_seq_df}")
+    # Assess overal similarity and save
+    seq_df = asssess_similarity(seq_df, on="all")
+    seq_df.to_csv(output_seq_df, index=False)                    
+    logger.debug(f"Sequences dataframe saved in: {output_seq_df}")
+    

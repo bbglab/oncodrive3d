@@ -174,17 +174,23 @@ def translate_dna(dna_seq):
     """
     Translate dna sequence to protein.
     """
-    
-    dna_seq = Seq(dna_seq)
-    return str(dna_seq.translate()) 
+
+    if pd.isnull(dna_seq):
+        return np.nan    
+    else:
+        dna_seq = Seq(dna_seq)
+        return str(dna_seq.translate()) 
 
 
 def get_seq_similarity(a, b, decimals=3):
     """
     Compute the similarity ratio between sequences a and b.
     """
-    
-    return round(SequenceMatcher(a=a, b=b).ratio(), decimals)
+
+    if pd.isnull(a) or pd.isnull(b):
+        return np.nan
+    else:
+        return round(SequenceMatcher(a=a, b=b).ratio(), decimals)
 
 
 # Uniprot ID to Hugo symbols mapping
