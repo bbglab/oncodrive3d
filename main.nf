@@ -1,6 +1,6 @@
 /// nextflow run main.nf --indir /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/ --outdir /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_backtr_seq/ --cohort_pattern TCGA* --data_dir /workspace/projects/clustering_3d/clustering_3d/datasets_normal/
 /// nextflow run main.nf --indir /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/ --cohort_pattern TCGA* --data_dir /workspace/nobackup/scratch/oncodrive3d/datasets
-/// nextflow run main.nf --indir /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/ --data_dir /workspace/nobackup/scratch/oncodrive3d/datasets --outdir /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/ -profile conda
+/// nextflow run main.nf --indir /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/ --outdir /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output --data_dir /workspace/nobackup/scratch/oncodrive3d/datasets -profile conda
 
 input_files = "${params.indir}/{maf,mut_profile}/${params.cohort_pattern}{.in.maf,.mutrate.json}"
 outdir = "${params.outdir}/${params.outsubdir}"  
@@ -24,6 +24,7 @@ log.info """\
     .stripIndent()
 
 process O3D {
+    label 'process_high'
     debug true
 
     //errorStrategy 'ignore'        
