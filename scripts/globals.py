@@ -28,7 +28,7 @@ def setup_logging_decorator(func):
 
         if command_name == 'run':
             cohort = click.get_current_context().params["cohort"]
-            fname = f'{cohort if not "None" else command_name}_{DATE}.log'
+            fname = f'{cohort if cohort != "None" else command_name}_{DATE}.log'
         else: 
             fname = f"{command_name}_{DATE}.log"
 
