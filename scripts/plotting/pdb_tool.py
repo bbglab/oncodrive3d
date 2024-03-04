@@ -28,7 +28,7 @@ def decompress_pdb_gz(input_dir):
     """
     
     files_in_directory = os.listdir(input_dir)
-    gz_file_present = any(file.endswith(".gz") for file in files_in_directory)
+    gz_file_present = any(file.endswith(".pdb.gz") for file in files_in_directory)
     if gz_file_present:
         logger.debug("Decompressing .gz PDB files...")
         command = f'gunzip -q {os.path.join(input_dir, "*.pdb.gz")}'

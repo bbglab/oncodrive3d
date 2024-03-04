@@ -429,16 +429,18 @@ def run(input_maf_path,
 @oncodrive3D.command(context_settings=dict(help_option_names=['-h', '--help']),
                help="Get annotations - Required (once) only to plot annotations.")
 @click.option("-d", "--data_dir", help="Path to datasets", type=str, required=True)
-#@click.option("-s", "--path_pdb_tool_sif", help="Path to the PDB_Tool SIF", type=str, required=True) 
 @click.option("-o", "--output_dir", help="Path to dir where to store annotations", type=str, default="annotations")
+#@click.option("-S", "--path_pdb_tool_sif", help="Path to the PDB_Tool SIF", type=str, required=True) 
+@click.option("-s", "--organism", type=click.Choice(["Homo sapiens", 'human', "Mus musculus", 'mouse']), help="Organism name", default="Homo sapiens")
 @click.option("-c", "--cores", type=click.IntRange(min=1, max=len(os.sched_getaffinity(0)), clamp=False), default=len(os.sched_getaffinity(0)),
               help="Number of cores to use in the computation")
 @click.option("-y", "--yes", help="No interaction", is_flag=True)
 @click.option("-v", "--verbose", help="Verbose", is_flag=True)
 @setup_logging_decorator
 def build_annotations(data_dir,
-                      #path_pdb_tool_sif,
                       output_dir,
+                      #path_pdb_tool_sif,
+                      organism,
                       cores,
                       yes,
                       verbose):
@@ -453,14 +455,16 @@ def build_annotations(data_dir,
     logger.info(f"Output directory: {output_dir}")
     logger.info(f"Path to datasets: {data_dir}")
     #logger.info(f"Path to PDB_Tool SIF: {path_pdb_tool_sif}")
+    logger.info(f"Organism: {organism}")
     logger.info(f"Cores: {cores}")
     logger.info(f"Verbose: {bool(verbose)}")
     logger.info(f'Log path: {os.path.join(output_dir, "log")}')
     logger.info("")
 
     get_annotations(data_dir, 
-                    #path_pdb_tool_sif,
                     output_dir, 
+                    #path_pdb_tool_sif,
+                    organism,
                     cores, 
                     verbose)
 

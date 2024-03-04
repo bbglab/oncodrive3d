@@ -19,6 +19,21 @@ logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
 # =====
 
 
+def get_species(species):
+    """
+    Simply change species name to accepted format.
+    """
+    
+    if species == "human" or species.capitalize() == "Homo sapiens":
+        species = "Homo sapiens"
+    elif species == "mouse" or species.capitalize() == "Mus musculus": 
+        species = "Mus musculus"
+    else:
+        raise RuntimeError(f"Failed to recognize '{species}' as species. Currently accepted ones are 'Homo sapiens' and 'Mus musculus'. Exiting...")
+
+    return species
+
+
 def clean_annotations_dir(path: str, loc: str) -> None:
     """
     Clean the annotations directory by removing specific files 
