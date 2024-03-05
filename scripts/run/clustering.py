@@ -104,7 +104,6 @@ def clustering_3d(gene,
         if ratio_not_in_structure > thr_not_in_structure:
             result_gene_df["Max_mut_pos"] = max(mut_gene_df.Pos)  
             result_gene_df["Structure_max_pos"] = len(cmap)
-            result_gene_df["Ratio_not_in_structure"] = ratio_not_in_structure
             result_gene_df["Status"] = "Mut_not_in_structure"
             logger.warning(logger_out + "Filtering the gene...")
             return None, result_gene_df
@@ -112,6 +111,7 @@ def clustering_3d(gene,
             logger.warning(logger_out + "Filtering the mutations...")
             mut_gene_df = mut_gene_df[~not_in_structure_ix]
             mut_count = len(mut_gene_df)
+        result_gene_df["Ratio_not_in_structure"] = ratio_not_in_structure
 
     # Samples info
     samples_info = get_samples_info(mut_gene_df, cmap)
