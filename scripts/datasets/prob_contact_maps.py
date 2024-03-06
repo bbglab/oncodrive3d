@@ -134,10 +134,13 @@ def get_prob_contact(pae_value, dmap_value, distance=10):
     Predicted Aligned Error (PAE).
     """
     
-    if pae_value == 0 and dmap_value < distance:
-        
-        return 1
-    
+    if pae_value == 0:
+
+        if dmap_value < distance:
+            return 1
+        else:
+            return 0
+
     else:
         # Get the volume of res2 outside of res1
         vol_s2_out_s1 = s2_minus_s1(r1=distance, r2=pae_value, d=dmap_value)
