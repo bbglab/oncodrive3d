@@ -798,15 +798,15 @@ def generate_plot(gene_result_path,
     # ================
     
     # Load data
-    gene_result = pd.read_csv(gene_result_path)
-    pos_result = pd.read_csv(pos_result_path)
+    gene_result = pd.read_csv(gene_result_path, sep="\t")
+    pos_result = pd.read_csv(pos_result_path, sep="\t")
     maf = parse_maf_input(maf_path)
     
-    seq_df_path = os.path.join(datasets_dir, "seq_for_mut_prob.csv") 
-    seq_df = pd.read_csv(seq_df_path)    
-    pfam = pd.read_csv(os.path.join(annotations_dir, "pfam.tsv"))
-    pdb_tool = pd.read_csv(os.path.join(annotations_dir, "pdb_tool_df.csv"))
-    disorder = pd.read_csv(os.path.join(datasets_dir, "confidence.csv"), low_memory=False)
+    seq_df_path = os.path.join(datasets_dir, "seq_for_mut_prob.tsv") 
+    seq_df = pd.read_csv(seq_df_path, sep="\t")    
+    pfam = pd.read_csv(os.path.join(annotations_dir, "pfam.tsv"), sep="\t")
+    pdb_tool = pd.read_csv(os.path.join(annotations_dir, "pdb_tool_df.tsv"), sep="\t")
+    disorder = pd.read_csv(os.path.join(datasets_dir, "confidence.tsv"), sep="\t", low_memory=False)
     dict_transcripts = plot_pars["dict_transcripts"]
 
     # Filter Oncodrive3D result

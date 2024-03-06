@@ -72,8 +72,8 @@ def build(output_datasets,
 
     # Create df including genes and proteins sequences & Hugo to Uniprot_ID mapping
     logger.info("Generating dataframe for genes and proteins sequences...")
-    get_seq_df(input_dir=os.path.join(output_datasets,"pdb_structures"),
-               output_seq_df=os.path.join(output_datasets, "seq_for_mut_prob.csv"),
+    get_seq_df(input_dir=os.path.join(output_datasets, "pdb_structures"),
+               output_seq_df=os.path.join(output_datasets, "seq_for_mut_prob.tsv"),
                uniprot_to_gene_dict=uniprot_to_hugo,
                organism=species)
     logger.info("Generation of sequences dataframe completed!")
@@ -89,7 +89,7 @@ def build(output_datasets,
     logger.info("Parsing PAE...")
     parse_pae(input=os.path.join(output_datasets, 'pae'))
     logger.info("Parsing PAE completed!")
-
+    
     # Get pCAMPs
     logger.info("Generating contact probability maps (pCMAPs)..")
     get_prob_cmaps_mp(input_pdb=os.path.join(output_datasets, "pdb_structures"),
@@ -106,3 +106,12 @@ def build(output_datasets,
     logger.info("Datasets cleaning completed!")
 
     logger.info("Datasets have been successfully built and are ready for analysis!")
+    
+if __name__ == "__main__":
+  build(output_datasets="datasets_mouse",
+        organism="Mus musculus",
+        distance_threshold=10,
+        uniprot_to_hugo=None,
+        num_cores=4,
+        af_version=4,
+        rm_pdb_files=True)

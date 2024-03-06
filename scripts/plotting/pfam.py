@@ -39,7 +39,7 @@ def get_pfam(output_path):
 
         # Merge and save
         pfam = pfam.merge(pfam_id, how="left", on="Pfam_ID")
-        pfam.to_csv(output_path, index=False)
+        pfam.to_csv(output_path, index=False, sep="\t")
         
         # Delete temp files
         os.remove("pfam_coordinates.tsv")

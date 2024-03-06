@@ -55,7 +55,7 @@ def get_confidence(input, output_dir):
         logger.debug("Confidence extraction performed: Skipping...")
 
     else:
-        output = os.path.join(output_dir, 'confidence.csv')
+        output = os.path.join(output_dir, 'confidence.tsv')
             
         logger.debug(f"Input directory: {input}")
         logger.debug(f"Output: {output}")
@@ -88,7 +88,7 @@ def get_confidence(input, output_dir):
             df_list.append(confidence_df)
             
         confidence_df = pd.concat(df_list).reset_index(drop=True)
-        confidence_df.to_csv(output, index=False)
+        confidence_df.to_csv(output, index=False, sep="\t")
 
         with open(checkpoint, "w") as f:
                     f.write('')

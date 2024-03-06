@@ -592,6 +592,6 @@ def get_seq_df(input_dir,
     
     # Assess overal similarity and save
     seq_df = asssess_similarity(seq_df, on="all")
-    seq_df.to_csv(output_seq_df, index=False)                    
+    seq_df.to_csv(output_seq_df, index=False, sep="\t")                    
     logger.debug(f"Sequences dataframe saved in: {output_seq_df}")
     
