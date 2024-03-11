@@ -141,7 +141,7 @@ def parse_pdb_tool(input_dir : str, output_dir : str):
     pdb_tool_df = load_all_pdb_tool_files(input_dir)
     pdb_tool_df = pdb_tool_to_3s_sse(pdb_tool_df)
     pdb_tool_df = pdb_tool_df.drop(columns=["CLE", "ACC", "CNa", "CNb"])
-    pdb_tool_df.to_csv(os.path.join(output_dir, "pdb_tool_df.tsv", sep="\t"), index=False)
+    pdb_tool_df.to_csv(os.path.join(output_dir, "pdb_tool_df.tsv"), sep="\t", index=False)
     try:
         logger.debug(f"Deleting {input_dir}")
         shutil.rmtree(input_dir)
