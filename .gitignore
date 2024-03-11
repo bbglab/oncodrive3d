@@ -167,6 +167,7 @@ results
 output
 tests/results/*
 tests/output/*
+tests/normal_tests
 scripts/test.qmap
 scripts/run_*
 scripts/submit*
@@ -183,3 +184,4 @@ trace*
 *.def
 *.simg
 *.sif
+.gitignore

@@ -297,14 +297,15 @@ def merge_af_fragments(input_dir, output_dir=None, af_version=4, gzip=False):
     if not os.path.exists(path_original_frag):
         os.makedirs(path_original_frag)
 
+    fragments = get_list_fragmented_pdb(input_dir)
     checkpoint = os.path.join(path_original_frag, '.checkpoint.merge.txt')
     if os.path.exists(checkpoint):
         logger.debug("Merge fragments already performed: Skipping...")
-    
+    elif len(fragments) == 0:
+        logger.debug("Nothing to merge: Skipping...")
     else:
         # Get list of fragmented Uniprot ID and max AF-F
         not_processed = []
-        fragments = get_list_fragmented_pdb(input_dir)
         for uni_id, max_f in tqdm(fragments, total=len(fragments), desc="Merging AF fragments"):
             
             processed = False
@@ -329,9 +330,11 @@ def merge_af_fragments(input_dir, output_dir=None, af_version=4, gzip=False):
                 os.rename(tmp_name, name)
                 add_refseq_record_to_pdb(name)
         
-        logger.warning(f"Not processed: {not_processed}")
+        if len(not_processed) > 0:
+            logger.warning(f"Not processed: {not_processed}")
         with open(checkpoint, "w") as f:
                 f.write('')
 
         save_unprocessed_ids(not_processed, 
                              os.path.join(output_dir, "fragmented_pdbs", "ids_not_merged.txt"))
+        logger.info("Merge of structures completed!")

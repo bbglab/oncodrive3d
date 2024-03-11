@@ -11,13 +11,13 @@ import numpy as np
 import pandas as pd
 
 from scripts import __logger_name__
-from scripts.utils.communities import get_community_index_nx, get_network
-from scripts.utils.miss_mut_prob import get_unif_gene_miss_prob
-from scripts.utils.score_and_simulations import (get_anomaly_score,
+from scripts.run.communities import get_community_index_nx, get_network
+from scripts.run.miss_mut_prob import get_unif_gene_miss_prob
+from scripts.run.score_and_simulations import (get_anomaly_score,
                                                  get_sim_anomaly_score)
-from scripts.utils.utils import add_samples_info, get_samples_info
+from scripts.run.utils import add_samples_info, get_samples_info
 
-logger = daiquiri.getLogger(__logger_name__ + ".utils.clustering")
+logger = daiquiri.getLogger(__logger_name__ + ".run.clustering")
 
 def clustering_3d(gene, 
                   uniprot_id,
@@ -104,7 +104,6 @@ def clustering_3d(gene,
         if ratio_not_in_structure > thr_not_in_structure:
             result_gene_df["Max_mut_pos"] = max(mut_gene_df.Pos)  
             result_gene_df["Structure_max_pos"] = len(cmap)
-            result_gene_df["Ratio_not_in_structure"] = ratio_not_in_structure
             result_gene_df["Status"] = "Mut_not_in_structure"
             logger.warning(logger_out + "Filtering the gene...")
             return None, result_gene_df
@@ -112,6 +111,7 @@ def clustering_3d(gene,
             logger.warning(logger_out + "Filtering the mutations...")
             mut_gene_df = mut_gene_df[~not_in_structure_ix]
             mut_count = len(mut_gene_df)
+        result_gene_df["Ratio_not_in_structure"] = ratio_not_in_structure
 
     # Samples info
     samples_info = get_samples_info(mut_gene_df, cmap)

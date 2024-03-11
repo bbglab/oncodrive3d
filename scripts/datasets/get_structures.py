@@ -1,75 +1,45 @@
 import logging
 import os
-import tarfile
 
 import daiquiri
-from pypdl import Downloader
 import time
 import subprocess
 
 from scripts import __logger_name__
-from scripts.datasets.utils import calculate_hash
+from scripts.datasets.utils import calculate_hash, download_single_file, extract_tar_file
 
 logger = daiquiri.getLogger(__logger_name__ + ".build.AF-pdb")
 
 logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
 
 CHECKSUM = {
-    "UP000005640_9606_HUMAN_v4": 'bf62d5402cb1c4580d219335a9af1ac831416edfbf2892391c8197a8356091f2',
+    "UP000005640_9606_HUMAN_v4": "bf62d5402cb1c4580d219335a9af1ac831416edfbf2892391c8197a8356091f2",
+    "UP000000589_10090_MOUSE_v4" : "eb6c529c8757d511b75f4856c1a789378478e6255a442517ad8579708787bbab"
 }
 
 
 def assert_integrity_human(file_path, proteome):
 
     if proteome in CHECKSUM.keys():
-        logger.debug('Asserting integrity of file:')
+        logger.debug('Asserting integrity of file...')
         try:
             assert CHECKSUM[proteome] == calculate_hash(file_path)
             logger.debug('File integrity check: PASS')
             return "PASS"
         except Exception as e:
             logger.critical('File integrity check: FAIL')
-            logger.critical('error: ', e) 
+            logger.critical(f'error: {e}') 
             return "FAIL"
     else:
         logger.warning("Assertion skipped: Proteome checksum not in records.")
+        return "PASS"
 
 
-def extract_file(file_path, path):
-     
-    checkpoint = os.path.join(path, ".checkpoint.txt")
-
-    if os.path.exists(checkpoint):
-         logger.debug('Tar already extracted: skipping...')
-    else:
-        with tarfile.open(file_path, "r") as tar:
-            tar.extractall(path)
-            logger.debug(f'Extracted { int(len(tar.getnames())/2)} structure.')
-            with open(checkpoint, "w") as f:
-                f.write('')
-
-
-def download_file(url: str, destination: str, threads: int) -> None:
-    """
-    Downloads a file from a URL and saves it to the specified destination.
-
-    Args:
-        url (str): The URL of the file to download.
-        destination (str): The local path where the file will be saved.
-    """
-    
-    num_connections = 40 if threads > 40 else threads
-
-    if os.path.exists(destination):
-        logger.debug(f"File {destination} already exists: Skipping download...")
-    else:
-        logger.debug(f'Downloading from {url}...')
-        dl = Downloader()
-        dl.start(url, destination, num_connections=num_connections, display=True)
-
-
-def get_structures(path: str, species: str = 'human', 
-                   af_version: str = '4', threads: int = 1, max_attempts: int = 10) -> None:
+def get_structures(path: str, 
+                   species: str = 'Homo sapiens', 
+                   af_version: str = '4', 
+                   threads: int = 1, 
+                   max_attempts: int = 10) -> None:
     """
     Downloads AlphaFold predicted structures for a given organism and version.
 
@@ -84,37 +54,37 @@ def get_structures(path: str, species: str = 'human',
     """
 
     logger.info(f"Selected species: {species}")
-    logger.debug(
-        f"Proteome to download: {'UP000005640_9606_HUMAN_v' + af_version}")
 
     if not os.path.isdir(path):
         os.makedirs(path)
         logger.debug(f'mkdir {path}')
 
-    proteome = f"UP000005640_9606_HUMAN_v{af_version}" if species == "human" else f"UP000000589_10090_MOUSE_v{af_version}"
+    if species == "Homo sapiens":
+        proteome = f"UP000005640_9606_HUMAN_v{af_version}"
+    elif species == "Mus musculus": 
+        proteome = f"UP000000589_10090_MOUSE_v{af_version}"
+    else:
+        raise RuntimeError(f"Failed to recognize '{species}' as organism. Currently accepted ones are 'Homo sapiens' and 'Mus musculus'. Exiting...")
+        
+    logger.debug(f"Proteome to download: {proteome}")
     af_url = f"https://ftp.ebi.ac.uk/pub/databases/alphafold/latest/{proteome}.tar"
     file_path = os.path.join(path, f"{proteome}.tar")
 
     try:
         ## STEP1 --- Download file
-        logger.info(f'Downloading to {file_path}')
-        
         attempts = 0
         status = "INIT"
         while status != "PASS":
-            download_file(af_url, file_path, threads)
+            download_single_file(af_url, file_path, threads)
             status = assert_integrity_human(file_path, proteome)
             attempts += 1
             if attempts >= max_attempts:
                 raise RuntimeError(f"Failed to download with integrity after {max_attempts} attempts. Exiting...")
             time.sleep(10)
-
-        subprocess.run("clear")
-        logger.debug('clear')
         
         ## STEP2 --- Extract structures
         logger.info(f'Extracting {file_path}')
-        extract_file(file_path, path)
+        extract_tar_file(file_path, path)
 
         # os.remove(file_path)
 

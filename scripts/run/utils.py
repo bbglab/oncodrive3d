@@ -9,7 +9,7 @@ import gzip
 
 from scripts import __logger_name__
 
-logger = daiquiri.getLogger(__logger_name__ + ".utils.utils")
+logger = daiquiri.getLogger(__logger_name__ + ".run.utils")
 
 
 ## Parsers

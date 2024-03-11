@@ -9,6 +9,7 @@ import hashlib
 import io
 import os
 import time
+import tarfile
 from difflib import SequenceMatcher
 
 import daiquiri
@@ -17,6 +18,9 @@ import pandas as pd
 import requests
 from Bio import SeqIO
 from Bio.Seq import Seq
+from pypdl import Downloader
+from zipfile import ZipFile
+import subprocess
 
 from scripts import __logger_name__
 
@@ -24,23 +28,6 @@ logger = daiquiri.getLogger(__logger_name__ + ".build.utils")
 
 
 # General utils
-def calculate_hash(filepath: str, hash_func=hashlib.sha256) -> str:
-    """
-    Calculate the hash of a file using the specified hash function.
-
-    Args:
-        filepath (str): The path to the file for which to calculate the hash.
-        hash_func (hashlib.Hash): The hash function to use (default is hashlib.sha256).
-
-    Returns:
-        str: The hexadecimal representation of the calculated hash.
-    """
-    with open(filepath, 'rb') as file:
-        hash_obj = hash_func()
-        for chunk in iter(lambda: file.read(8192), b''):
-            hash_obj.update(chunk)
-    return hash_obj.hexdigest()
-
 
 def rounded_up_division(num, den):
     """
@@ -61,6 +48,92 @@ def get_pos_fragments(mut_gene_df):
     
     return pd.cut(mut_gene_df["Pos"], bins, labels = group_names)
 
+
+def get_species(species):
+    """
+    Simply change species name to accepted format.
+    """
+    
+    if species == "human" or species.capitalize() == "Homo sapiens":
+        species = "Homo sapiens"
+    elif species == "mouse" or species.capitalize() == "Mus musculus": 
+        species = "Mus musculus"
+    else:
+        raise RuntimeError(f"Failed to recognize '{species}' as species. Currently accepted ones are 'Homo sapiens' and 'Mus musculus'. Exiting...")
+
+    return species
+
+
+# Download
+
+def calculate_hash(filepath: str, hash_func=hashlib.sha256) -> str:
+    """
+    Calculate the hash of a file using the specified hash function.
+
+    Args:
+        filepath (str): The path to the file for which to calculate the hash.
+        hash_func (hashlib.Hash): The hash function to use (default is hashlib.sha256).
+
+    Returns:
+        str: The hexadecimal representation of the calculated hash.
+    """
+    
+    with open(filepath, 'rb') as file:
+        hash_obj = hash_func()
+        for chunk in iter(lambda: file.read(8192), b''):
+            hash_obj.update(chunk)
+    return hash_obj.hexdigest()
+
+
+def download_single_file(url: str, destination: str, threads: int) -> None:
+    """
+    Downloads a file from a URL and saves it to the specified destination.
+
+    Args:
+        url (str): The URL of the file to download.
+        destination (str): The local path where the file will be saved.
+    """
+    
+    num_connections = 40 if threads > 40 else threads
+
+    if os.path.exists(destination):
+        logger.debug(f"File {destination} already exists: Skipping download...")
+    else:
+        logger.debug(f'Downloading from {url}')
+        logger.debug(f"Downloading to {destination}")
+        dl = Downloader()
+        dl.start(url, destination, num_connections=num_connections, display=True)
+        subprocess.run("clear")
+        logger.debug('clear')
+        logger.debug('Download complete')
+
+
+def extract_tar_file(file_path, path):
+     
+    checkpoint = os.path.join(path, ".checkpoint.txt")
+
+    if os.path.exists(checkpoint):
+         logger.debug('Tar already extracted: skipping...')
+    else:
+        with tarfile.open(file_path, "r") as tar:
+            tar.extractall(path)
+            logger.debug(f'Extracted { int(len(tar.getnames())/2)} structure.')
+            with open(checkpoint, "w") as f:
+                f.write('')
+                
+
+def extract_zip_file(file_path, path):
+    checkpoint = os.path.join(path, ".zip_checkpoint.txt")
+
+    if os.path.exists(checkpoint):
+        logger.debug('ZIP file already extracted: skipping...')
+    else:
+        with ZipFile(file_path, "r") as zip_file:
+            zip_file.extractall(path)
+            logger.debug(f'Extracted {len(zip_file.namelist())} files.')
+            with open(checkpoint, "w") as f:
+                f.write('')
+                
 
 # PDB
 
@@ -101,17 +174,23 @@ def translate_dna(dna_seq):
     """
     Translate dna sequence to protein.
     """
-    
-    dna_seq = Seq(dna_seq)
-    return str(dna_seq.translate()) 
+
+    if pd.isnull(dna_seq):
+        return np.nan    
+    else:
+        dna_seq = Seq(dna_seq)
+        return str(dna_seq.translate()) 
 
 
 def get_seq_similarity(a, b, decimals=3):
     """
     Compute the similarity ratio between sequences a and b.
     """
-    
-    return round(SequenceMatcher(a=a, b=b).ratio(), decimals)
+
+    if pd.isnull(a) or pd.isnull(b):
+        return np.nan
+    else:
+        return round(SequenceMatcher(a=a, b=b).ratio(), decimals)
 
 
 # Uniprot ID to Hugo symbols mapping

@@ -20,14 +20,13 @@ import os
 import re
 import time
 
+import ast
 import requests
 import numpy as np
 import daiquiri
 import pandas as pd
-import requests
 from tqdm import tqdm
-from bgreference import hg38
-import ast
+from bgreference import hg38, mm10
 from Bio.Seq import Seq
 
 from scripts import __logger_name__
@@ -39,9 +38,9 @@ from scripts.datasets.utils import (get_af_id_from_pdb,
 logger = daiquiri.getLogger(__logger_name__ + ".build.seq_for_mut_prob")
 
 
-############
+#===========
 # Initialize
-############
+#===========
 
 def initialize_seq_df(input_path, uniprot_to_gene_dict):
     """
@@ -82,10 +81,10 @@ def initialize_seq_df(input_path, uniprot_to_gene_dict):
     return seq_df
 
 
-###############################################
+#==============================================
 # Get DNA sequence using EMBL backtranseq API 
 # (not 100% reliable but available fo most seq)
-###############################################
+#==============================================
 
 def backtranseq(protein_seqs, organism = "Homo sapiens"):
     """
@@ -178,9 +177,9 @@ def batch_backtranseq(df, batch_size, organism = "Homo sapiens"):
     return pd.concat(lst_batches)
 
 
-################################################################
+#===============================================================
 # Get exons (CDS) coordinate using EMBL Proteins Coordinates API
-################################################################
+#===============================================================
 
 def _uniprot_request_coord(lst_uniprot_ids):
     """
@@ -329,9 +328,9 @@ def get_exons_coord(ids, batch_size=100):
     return pd.concat(lst_df).reset_index(drop=True)
 
 
-########################################################################
+#=======================================================================
 # Get DNA sequence and trin-context of reference genome from coordinates
-########################################################################
+#=======================================================================
 
 def per_site_trinucleotide_context(seq, no_flanks=False):
     """
@@ -346,7 +345,7 @@ def per_site_trinucleotide_context(seq, no_flanks=False):
     return [f"{seq[i-1]}{seq[i]}{seq[i+1]}" for i in range(1, len(seq) - 1)]
 
 
-def get_ref_dna_and_context(row):
+def get_ref_dna_and_context(row, genome_fun):
     """
     Given a row of the sequence dataframe including exons (CDS) coordinate, 
     get the corresponding DNA sequence and the trinucleotide context of each 
@@ -369,7 +368,7 @@ def get_ref_dna_and_context(row):
             start = 0 if not reverse else 1
             end = 1 if not reverse else 0
             segment_len = region[end] - region[start] + 1
-            seq_with_flanks = hg38(chrom, region[start] - 1, size = segment_len + 2)
+            seq_with_flanks = genome_fun(chrom, region[start] - 1, size = segment_len + 2)
             
             # Get reverse complement if reverse strand
             if reverse:
@@ -388,12 +387,12 @@ def get_ref_dna_and_context(row):
     
     except Exception as e:
         if not str(e).startswith("Sequence"):
-            logger.warning(f"Error occurred during reference DNA and trinucleotide context extraction: {e}")
+            logger.warning(f"Error occurred during backtranslation by ref coordinates {transcript_id}: {e}")
         
         return transcript_id, np.nan, np.nan, 0
 
 
-def add_ref_dna_and_context(seq_df):
+def add_ref_dna_and_context(seq_df, genome_fun=hg38):
     """
     Given as input the sequence dataframe including exons (CDS) coordinate, 
     add the corresponding DNA sequence and the trinucleotide context of each 
@@ -402,7 +401,7 @@ def add_ref_dna_and_context(seq_df):
     
     seq_df = seq_df.copy()
     seq_df_with_coord = seq_df[["Ens_Transcr_ID", "Chr", "Reverse_strand", "Exons_coord"]].dropna().drop_duplicates()
-    ref_dna_and_context = seq_df_with_coord.apply(lambda x: get_ref_dna_and_context(x), axis=1, result_type='expand')
+    ref_dna_and_context = seq_df_with_coord.apply(lambda x: get_ref_dna_and_context(x, genome_fun), axis=1, result_type='expand')
     ref_dna_and_context.columns = ["Ens_Transcr_ID", "Seq_dna", "Tri_context", "Reference_info"]
     seq_df = seq_df.merge(ref_dna_and_context, on=["Ens_Transcr_ID"], how="left")
     seq_df["Reference_info"] = seq_df["Reference_info"].fillna(0).astype(int)
@@ -410,13 +409,73 @@ def add_ref_dna_and_context(seq_df):
     return seq_df
 
 
-################################################### 
-# Wrappers
-################################################### 
+#======
+# Utils
+#======
+
+def asssess_similarity(seq_df, on="all"):
+    """
+    Assess similarity between protein sequences and translated 
+    DNA sequences by reference coordinates or/and backtranslation.
+    """
+    
+    logger.debug("Assessing similarity...")
+    
+    # Ref seq and backtranseq backtranslation
+    if on == "all":
+        seq_df["Seq_similarity"] = seq_df.apply(lambda x: get_seq_similarity(x.Seq, translate_dna(x.Seq_dna)), axis=1) 
+        avg_sim = np.mean(seq_df["Seq_similarity"].dropna())
+        seq_ref = seq_df[seq_df["Reference_info"] == 1]
+        seq_ref = seq_ref.drop_duplicates('Uniprot_ID')
+        seq_backtr = seq_df[seq_df["Reference_info"] == 0]
+        seq_backtr = seq_backtr.drop_duplicates('Uniprot_ID')
+        avg_sim_ref = np.mean(seq_ref["Seq_similarity"].dropna())
+        avg_sim_backtr = np.mean(seq_backtr["Seq_similarity"].dropna())
+        if len(seq_ref) > 0: 
+            logger.debug(f"Average similarity ref coord backtranslation: {avg_sim_ref:.2f} for {len(seq_ref)} sequences.")      
+        else:
+            logger.debug("Ref coord backtranslated sequences not available.")
+        if len(seq_backtr) > 0: 
+            logger.debug(f"Average similarity backtranseq backtranslation: {avg_sim_backtr:.2f} for {len(seq_backtr)} sequences.") 
+        else:
+            logger.debug("Backtranseq backtranslated sequences not available.")
+        if avg_sim < 1:                       
+            logger.warning(f"Mismatch between protein and translated DNA. Overall average similatity: {avg_sim:.2f}.")
+            logger.warning("3D-clustering analysis using mutational profile and/or mutability can be severely affected.")
+        else:
+            logger.debug("Final similarity check: PASS")
+        
+        return seq_df
+         
+    # Ref seq backtranslation only
+    else:
+        seq_df["Seq_similarity"] = seq_df.apply(lambda x: get_seq_similarity(x.Seq, translate_dna(x.Seq_dna)), axis=1)
+        avg_sim = np.mean(seq_df["Seq_similarity"].dropna())
+        if avg_sim < 1:
+            tot_mismatch = sum(seq_df['Seq_similarity'].dropna() < 1)
+            tot_seq = len(seq_df['Seq_similarity'].dropna())
+            mismatch_ratio = tot_mismatch / tot_seq
+            logger.warning(f"Mismatch between proteins and translated DNA by reference coordinates on {tot_mismatch} of {tot_seq}.")
+            logger.warning(f"Protein and translated DNA mean similarity < 1: {avg_sim:.2f}")
+            if mismatch_ratio > 0.4:
+                logger.warning(f"Mismatch ratio > 0.4: {mismatch_ratio:.2f}. Dropping all {tot_mismatch} ref DNA sequnces...") 
+                seq_df["Reference_info"] = 0
+            else:
+                logger.warning(f"Dropping {tot_mismatch} mismatching ref DNA sequnces...") 
+                seq_df.loc[seq_df['Seq_similarity'] < 1, "Reference_info"] = 0
+        else:
+            logger.debug("Ref seq similarity check: PASS")
+                
+        return seq_df
+                
+                
+#=========
+# WRAPPERS
+#=========
 
 # TODO: test if with the added "if gene not in" is avoiding duplicates Hugo Symbol with different Uni IDs
 #       - In general test if there are multiple rows with same gene name in the final seq_df
-#       - It seems that backtranseq is use for Uniprot ID connected to genes that were already processed with ref DNA: must avoid it
+#       - It seems that backtranseq is used for Uniprot ID connected to genes that were already processed with ref DNA: must avoid it
 
 def add_extra_genes_to_seq_df(seq_df, uniprot_to_gene_dict):
     """
@@ -508,24 +567,31 @@ def get_seq_df(input_dir,
     
     # Add ref DNA sequence and its per-site trinucleotide context
     logger.debug("Retrieving exons DNA sequence from reference genome..")
-    seq_df = add_ref_dna_and_context(seq_df)
+    if organism == "Homo sapiens":
+        genome_fun = hg38
+    elif organism == "Mus musculus":
+        genome_fun = mm10
+    else:
+        raise RuntimeError(f"Failed to recognize '{organism}' as organism. Currently accepted ones are 'Homo sapiens' and 'Mus musculus'. Exiting...")
+    seq_df = add_ref_dna_and_context(seq_df, genome_fun)
+    
+    # Check if ref DNA sequences match protein sequences
+    seq_df = asssess_similarity(seq_df, on="ref")
     
     # Add DNA sequences for genes without available ref DNA using backtranseq
-    logger.debug("Performing back translation for genes without ref DNA...")
-    seq_df_backtranseq = seq_df[seq_df["Reference_info"] == 0].reset_index(drop=True)
-    seq_df_backtranseq = batch_backtranseq(seq_df_backtranseq, 500, organism=organism)
+    logger.debug("Performing backtranseq backtranslation for genes without available ref DNA...")
+    seq_df_backtranseq = seq_df[seq_df["Reference_info"] == 0].reset_index(drop=True)    
+    seq_df_backtranseq = batch_backtranseq(seq_df_backtranseq, 500, organism=organism)    # TO DO: Check that the seq is overwritten
     seq_df_backtranseq["Tri_context"] = seq_df_backtranseq["Seq_dna"].apply(
         lambda x: ",".join(per_site_trinucleotide_context(x, no_flanks=True)))
-    seq_df = pd.concat((seq_df[seq_df["Reference_info"] == 1], 
-                        seq_df_backtranseq)
+    seq_df = pd.concat((seq_df[seq_df["Reference_info"] == 1], seq_df_backtranseq)
                        ).sort_values("Uniprot_ID").reset_index(drop=True)
     
     # Add multiple genes mapping to the same Uniprot_ID
     seq_df = add_extra_genes_to_seq_df(seq_df, uniprot_to_gene_dict)
     
-    # Save and assess similarity
-    seq_df.to_csv(output_seq_df, index=False)
-    sim_ratio = sum(seq_df.apply(lambda x: get_seq_similarity(x.Seq, translate_dna(x.Seq_dna)), axis=1)) / len(seq_df)
-    if sim_ratio < 1:                       
-        logger.warning(f"Error occurred during back translation: Protein and translated DNA similarity < 1: {sim_ratio}.")
-    logger.debug(f"Dataframe including sequences is saved in: {output_seq_df}")
+    # Assess overal similarity and save
+    seq_df = asssess_similarity(seq_df, on="all")
+    seq_df.to_csv(output_seq_df, index=False, sep="\t")                    
+    logger.debug(f"Sequences dataframe saved in: {output_seq_df}")
+    

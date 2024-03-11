@@ -4,21 +4,15 @@ mutation of any protein given the mutation profile of the cohort.
 """
 
 
-import argparse
-import json
-import os
 from itertools import product
 
 import daiquiri
 import numpy as np
-import pandas as pd
-from progressbar import progressbar
 
-from scripts.utils.mutability import Mutabilities
-from scripts.utils.mutability import init_mutabilities_module
+from scripts.run.mutability import Mutabilities
 from scripts import __logger_name__
 
-logger = daiquiri.getLogger(__logger_name__ + ".utils.miss_mut_prob")
+logger = daiquiri.getLogger(__logger_name__ + ".run.miss_mut_prob")
 
 
 def get_unif_gene_miss_prob(size):
@@ -29,7 +23,6 @@ def get_unif_gene_miss_prob(size):
     
     vector = np.ones(size)
     vector[0] = 0
-    vector[-1] = 0
     
     return vector / sum(vector)
 

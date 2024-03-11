@@ -28,7 +28,7 @@ def setup_logging_decorator(func):
 
         if command_name == 'run':
             cohort = click.get_current_context().params["cohort"]
-            fname = f'{cohort if not "None" else command_name}_{DATE}.log'
+            fname = f'{cohort if cohort != "None" else command_name}_{DATE}.log'
         else: 
             fname = f"{command_name}_{DATE}.log"
 
@@ -59,6 +59,7 @@ def startup_message(version, initializing_text):
     logger.info(f"{'#' + f'Welcome to Oncodrive3D!'.center(banner_width - 2) + '#'}")
     logger.info(f"{'#' + ' ' * (banner_width - 2) + '#'}")
     logger.info(f"{'#' + initializing_text.center(banner_width - 2) + '#'}")
+    logger.info(f"{'#' + ' ' * (banner_width - 2) + '#'}")
     logger.info(f"{'#' + f'Version: {version}'.center(banner_width - 2) + '#'}")
     logger.info(f"{'#' + f'Author: {author}'.center(banner_width - 2) + '#'}")
     logger.info(f"{'#' + f'Support: {support_email}'.center(banner_width - 2) + '#'}")
@@ -129,7 +130,7 @@ def clean_dir(path: str, loc: str = 'd') -> None:
         pass
     
     
-def clean_temp_files(path: str, keep_pdb_files: bool) -> None:
+def clean_temp_files(path: str, rm_pdb_files=False) -> None:
     """
     Clean temp files from dir after completing building the datasets. 
 
@@ -137,10 +138,26 @@ def clean_temp_files(path: str, keep_pdb_files: bool) -> None:
         path (str): Path to build directory to be cleaned.
     """
     
-    if not keep_pdb_files:
+    if rm_pdb_files:
         clean_pdb = ["rm", "-rf", os.path.join(path, "pdb_structures")]
         logger.debug(' '.join(clean_pdb))
         subprocess.run(clean_pdb)
+        
+    else:
+        # TODO: Currently the following cleaning commands do not work. To fix.
+        
+        clean_pdb = ["rm", "-rf", os.path.join(path, "pdb_structures", "*.cif.gz")]  
+        logger.debug(' '.join(clean_pdb))
+        subprocess.run(clean_pdb)
+
+        clean_pdb_frag = ["rm", "-rf", os.path.join(path, "pdb_structures", "fragmented_pdbs", "*.pdb*")]
+        logger.debug(' '.join(clean_pdb_frag))
+        subprocess.run(clean_pdb_frag)
+        
+        clean_tar = ["rm", "-rf", os.path.join(path, "*.tar")]
+        logger.debug(' '.join(clean_tar))
+        subprocess.run(clean_tar)
+        
     clean_pae = ["rm", "-rf", os.path.join(path, "pae", "*.json")]
     logger.debug(' '.join(clean_pae))
     subprocess.run(clean_pae)

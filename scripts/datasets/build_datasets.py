@@ -23,6 +23,7 @@ import os
 import daiquiri
 
 from scripts import __logger_name__
+from scripts.datasets.utils import get_species
 from scripts.datasets.af_merge import merge_af_fragments
 from scripts.datasets.get_pae import get_pae
 from scripts.datasets.get_structures import get_structures
@@ -40,7 +41,7 @@ def build(output_datasets,
           uniprot_to_hugo,
           num_cores,
           af_version,
-          keep_pdb_files,
+          rm_pdb_files,
           ):
     """
     Build datasets necessary to run Oncodrive3D.
@@ -50,9 +51,10 @@ def build(output_datasets,
     clean_dir(output_datasets, 'd')
 
     # Download PDB structures
+    species = get_species(organism)
     logger.info("Downloading AlphaFold (AF) predicted structures...")
     get_structures(path=os.path.join(output_datasets,"pdb_structures"),
-                   species=organism,
+                   species=species,
                    af_version=str(af_version), 
                    threads=num_cores)
 
@@ -62,7 +64,6 @@ def build(output_datasets,
     logger.info("Merging fragmented structures...")
     merge_af_fragments(input_dir=os.path.join(output_datasets,"pdb_structures"), 
                        gzip=True)
-    logger.info("Merge of structures completed!")
 
     # Get model confidence
     logger.info("Extracting AF model confidence...")
@@ -71,10 +72,10 @@ def build(output_datasets,
 
     # Create df including genes and proteins sequences & Hugo to Uniprot_ID mapping
     logger.info("Generating dataframe for genes and proteins sequences...")
-    get_seq_df(input_dir=os.path.join(output_datasets,"pdb_structures"),
-               output_seq_df=os.path.join(output_datasets, "seq_for_mut_prob.csv"),
+    get_seq_df(input_dir=os.path.join(output_datasets, "pdb_structures"),
+               output_seq_df=os.path.join(output_datasets, "seq_for_mut_prob.tsv"),
                uniprot_to_gene_dict=uniprot_to_hugo,
-               organism=organism)
+               organism=species)
     logger.info("Generation of sequences dataframe completed!")
 
     # Get PAE
@@ -88,7 +89,7 @@ def build(output_datasets,
     logger.info("Parsing PAE...")
     parse_pae(input=os.path.join(output_datasets, 'pae'))
     logger.info("Parsing PAE completed!")
-
+    
     # Get pCAMPs
     logger.info("Generating contact probability maps (pCMAPs)..")
     get_prob_cmaps_mp(input_pdb=os.path.join(output_datasets, "pdb_structures"),
@@ -101,7 +102,16 @@ def build(output_datasets,
     # Clean datasets
     logger.info("Cleaning datasets...")
     clean_temp_files(path=output_datasets,
-                     keep_pdb_files=keep_pdb_files)
+                     rm_pdb_files=rm_pdb_files)
     logger.info("Datasets cleaning completed!")
 
     logger.info("Datasets have been successfully built and are ready for analysis!")
+    
+if __name__ == "__main__":
+  build(output_datasets="datasets_mouse",
+        organism="Mus musculus",
+        distance_threshold=10,
+        uniprot_to_hugo=None,
+        num_cores=4,
+        af_version=4,
+        rm_pdb_files=True)
