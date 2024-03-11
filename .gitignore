@@ -164,7 +164,9 @@ dataset*
 !scripts/datasets 
 backups
 results
+output
 tests/results/*
+tests/output/*
 scripts/test.qmap
 scripts/run_*
 scripts/submit*
