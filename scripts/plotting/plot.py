@@ -108,7 +108,7 @@ def summary_plot(gene_result,
                  cluster_df,
                  size_df,
                  output_dir,
-                 run_name):        
+                 cohort):        
 
     # Plot
     fig, (ax1, ax2, ax3, ax4, ax5) = plt.subplots(5, 1, 
@@ -155,7 +155,7 @@ def summary_plot(gene_result,
     plt.subplots_adjust(top=0.95) 
     
     # Save
-    filename = f"{run_name}.summary_plot.png"
+    filename = f"{cohort}.summary_plot.png"
     output_path = os.path.join(output_dir, filename)
     plt.savefig(output_path, dpi=300, bbox_inches='tight')
     logger.debug(f"Saved {output_path}")
@@ -388,7 +388,7 @@ def genes_plots(gene_result,
                 maf,
                 miss_prob_dict,
                 output_dir,
-                run_name,
+                cohort,
                 annotations_dir,
                 disorder,
                 pfam,
@@ -740,7 +740,7 @@ def genes_plots(gene_result,
             # Save
             # ----
             fig.suptitle(f'{gene} - {uni_id}', fontsize=16)
-            filename = f"{run_name}.genes_plot_{j+1}.{gene}_{uni_id}.png"
+            filename = f"{cohort}.genes_plot_{j+1}.{gene}_{uni_id}.png"
             output_path = os.path.join(output_dir, filename)
             plt.subplots_adjust(top=0.95) 
             plt.savefig(output_path, dpi=300, bbox_inches='tight')
@@ -783,7 +783,7 @@ def generate_plot(gene_result_path,
                   datasets_dir, 
                   annotations_dir,
                   output_dir,
-                  run_name,
+                  cohort,
                   plot_annot,
                   plot_pars,
                   n_genes=30, 
@@ -843,7 +843,7 @@ def generate_plot(gene_result_path,
                      cluster_df,
                      size_df,
                      output_dir,
-                     run_name) 
+                     cohort) 
         
         # Plots for individual genes
         # ==========================
@@ -856,7 +856,7 @@ def generate_plot(gene_result_path,
         if maf_nonmiss is None:
             plot_annot["nonmiss_count"] = False
         
-        output_dir_genes_plots = os.path.join(output_dir, f"{run_name}.genes_plots")
+        output_dir_genes_plots = os.path.join(output_dir, f"{cohort}.genes_plots")
         create_plot_dir(output_dir_genes_plots)
         logger.info(f"Creating genes plots in {output_dir_genes_plots}")
         pos_result_annotated, pfam_processed = genes_plots(gene_result, 
@@ -865,7 +865,7 @@ def generate_plot(gene_result_path,
                                                             maf,
                                                             miss_prob_dict,
                                                             output_dir_genes_plots,
-                                                            run_name,
+                                                            cohort,
                                                             annotations_dir,
                                                             disorder,
                                                             pfam,
@@ -882,7 +882,7 @@ def generate_plot(gene_result_path,
                                        pos_result_annotated, 
                                        pfam_processed, 
                                        output_dir, 
-                                       run_name, 
+                                       cohort, 
                                        output_all_pos)
             
         logger.info("Plotting completed!")

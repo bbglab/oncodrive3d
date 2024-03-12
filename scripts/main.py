@@ -500,7 +500,7 @@ def build_annotations(data_dir,
 @click.option("-d", "--data_dir", help="Path to datasets directory", type=str, required=True)
 @click.option("-a", "--annotations_dir", help="Path annotations directory", type=str, required=True)
 @click.option("-o", "--output_dir", help="Path to output directory where to save plots", type=str, required=True)
-@click.option("-r", "--run_name", help="Run or cohort name which will be used as plots filename", type=str, required=True)
+@click.option("-r", "--cohort", help="Cohort or run name which will be used as plots filename", type=str, required=True)
 @click.option("-L", "--annotations", help="List of annotations [all, none, nonmiss_count, pae, disorder, pacc, ddg, clusters, sse, pfam] to be included in the plots (e.g., --annotations pae,disorder,ddg)", 
               type=str, default="all")
 @click.option("-n", "--n_genes", help="Top number of genes to be included in the plots", type=int, default=30)
@@ -526,7 +526,7 @@ def plot(gene_result_path,
          data_dir,
          annotations_dir,
          output_dir,
-         run_name,
+         cohort,
          annotations,
          n_genes,
          genes,
@@ -549,7 +549,7 @@ def plot(gene_result_path,
     logger.info(f"Datasets directory: {data_dir}")
     logger.info(f"Annotations directory: {annotations_dir}")
     logger.info(f"Outpur directory: {output_dir}")
-    logger.info(f"Run or cohort name: {run_name}")
+    logger.info(f"Run or cohort name: {cohort}")
     logger.info(f"Annotations to plot: {annotations}")
     logger.info(f"Number of top genes: {n_genes}")
     logger.info(f"List of genes: {genes}")
@@ -600,7 +600,7 @@ def plot(gene_result_path,
                   data_dir,
                   annotations_dir,
                   output_dir,
-                  run_name,
+                  cohort,
                   plot_annot,
                   plot_pars,
                   n_genes,
