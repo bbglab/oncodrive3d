@@ -361,7 +361,7 @@ def save_annotated_pos_result(pos_result,
         annot_pos_result = annot_pos_result[annot_pos_result["Mut_in_res"] != 0].reset_index(drop=True)
         
     # Merge with 'original' one to retrieve dropped cols
-    output_pos_result = os.path.join(output_dir, f"{run_name}.pos_result_annotated.tsv")
+    output_pos_result = os.path.join(output_dir, f"{run_name}.clustering_pos.annotated.tsv")
     output_pfam = os.path.join(output_dir, f"{run_name}.pfam.tsv")
     annot_pos_result = pos_result.drop(columns=["F", "pLDDT_res"]).merge(
         annot_pos_result[["Gene", 
