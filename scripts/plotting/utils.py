@@ -285,7 +285,7 @@ def filter_o3d_result(gene_result, pos_result, n_genes, lst_genes, non_significa
         gene_result = gene_result[[gene in lst_genes for gene in gene_result["Gene"].values]]    
     if non_significant == False:
         gene_result = gene_result[gene_result["C_gene"] == 1]
-    gene_result[gene_result["Status"] == "Processed"].Gene.values
+    gene_result = gene_result[gene_result["Status"] == "Processed"]
     gene_result = gene_result[:n_genes]                                     
     uni_ids = gene_result.Uniprot_ID.values
     genes = gene_result.Gene.values   
