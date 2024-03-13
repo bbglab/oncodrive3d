@@ -1,7 +1,7 @@
 // nextflow run main.nf --indir /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/ --outdir /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_backtr_seq/ --cohort_pattern TCGA* --data_dir /workspace/projects/clustering_3d/clustering_3d/datasets_normal/
 // nextflow run main.nf --indir /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/ --cohort_pattern TCGA* --data_dir /workspace/nobackup/scratch/oncodrive3d/datasets
 // nextflow run main.nf --indir /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/ --outdir /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output --data_dir /workspace/nobackup/scratch/oncodrive3d/datasets -profile conda
-// nextflow run main_2.nf --indir /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/ --outdir /workspace/projects/clustering_3d/dev_testing/output/TESTS --data_dir /workspace/nobackup/scratch/oncodrive3d/datasets --annotations_dir /workspace/nobackup/scratch/oncodrive3d/annotations -profile conda --cohort_pattern STJUDE_WGS_D_HGG_2018
+// nextflow run main.nf --indir /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/ --outdir /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output --data_dir /workspace/nobackup/scratch/oncodrive3d/datasets --annotations_dir /workspace/nobackup/scratch/oncodrive3d/annotations -profile conda
 
 input_files = "${params.indir}/{maf,mut_profile}/${params.cohort_pattern}{.in.maf,.mutrate.json}"
 outdir = "${params.outdir}/${params.outsubdir}"  
@@ -35,17 +35,14 @@ process O3D_run {
     cpus params.cores
     memory params.memory
     maxForks params.max_running
-    publishDir outdir, mode:'copy'
+    publishDir outdir, mode:'copy'  //, pattern: "{$}"
 
     input:
     tuple val(cohort), path(inputs)
 
     output:
-    tuple path("**genes.tsv"), path("**pos.tsv") , emit : o3d_result
-    path("**.log")                               , emit : log
-    // tuple val(meta), path("**genes.csv")  , emit: csv_genes
-    // tuple val(meta), path("**pos.csv")    , emit: csv_pos
-    // tuple val(meta), path("**.log")       , emit: log
+    tuple val(cohort), path("**genes.tsv"), path("**pos.tsv") , emit : o3d_result
+    path("**.log")                                            , emit : log
 
     script:
     """
@@ -64,8 +61,7 @@ process O3D_plot {
     maxForks params.max_running
 
     input:
-    tuple val(cohort), path(inputs)
-    tuple path(genes_tsv), path(pos_tsv)
+    tuple val(cohort), path(inputs), path(genes_tsv), path(pos_tsv)
 
     output:
     val(cohort)
@@ -80,8 +76,13 @@ workflow {
     Channel
         .fromFilePairs(input_files, checkIfExists: true)
         .set { file_pairs_ch }
-    run_ch = O3D_run(file_pairs_ch)
-    O3D_plot(file_pairs_ch, run_ch.o3d_result)
+    O3D_run(file_pairs_ch)
+        .set { run_ch }
+    file_pairs_ch
+        .join(run_ch.o3d_result)
+        .set { plot_ch }
+    O3D_plot(plot_ch)
+
 }
 
 workflow.onComplete {
