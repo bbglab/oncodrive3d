@@ -181,6 +181,9 @@ def clustering_3d(gene,
     mut_in_res = count.reset_index().rename(columns = {"Pos" : "Mut_in_res", "index" : "Pos"})      
     result_pos_df = mut_in_res.merge(result_pos_df, on = "Pos", how = "outer")                          
     result_pos_df = result_pos_df.sort_values("Obs_anomaly", ascending=False).reset_index(drop=True)
+    if np.isinf(result_pos_df["Obs_anomaly"].values).any():
+        logger.warning(f"Detected infinity observed anomaly in gene {gene} ({uniprot_id}-F{af_f}): replacing with 1...")
+        result_pos_df.replace(np.inf, 1, inplace=True) # TO DO: ideally, we would like to avoid getting inf (e.g., IDH1 in TCGA_WXS_LGGNOS)   
 
 
     ## Compute p-val and assign hits
