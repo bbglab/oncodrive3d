@@ -37,6 +37,7 @@ def assert_integrity_human(file_path, proteome):
 
 def get_structures(path: str, 
                    species: str = 'Homo sapiens', 
+                   mane: bool = False,
                    af_version: str = '4', 
                    threads: int = 1, 
                    max_attempts: int = 10) -> None:
@@ -58,14 +59,21 @@ def get_structures(path: str,
     if not os.path.isdir(path):
         os.makedirs(path)
         logger.debug(f'mkdir {path}')
-
-    if species == "Homo sapiens":
-        proteome = f"UP000005640_9606_HUMAN_v{af_version}"
-    elif species == "Mus musculus": 
-        proteome = f"UP000000589_10090_MOUSE_v{af_version}"
+    
+    # Select proteome
+    if mane:
+        if species == "Homo sapiens":
+            proteome = "mane_overlap_v4"
+        else:
+            raise RuntimeError(f"Structures from MANE transcripts are available only for 'Homo sapiens'. Exiting...")
     else:
-        raise RuntimeError(f"Failed to recognize '{species}' as organism. Currently accepted ones are 'Homo sapiens' and 'Mus musculus'. Exiting...")
-        
+        if species == "Homo sapiens":
+            proteome = f"UP000005640_9606_HUMAN_v{af_version}"
+        elif species == "Mus musculus": 
+            proteome = f"UP000000589_10090_MOUSE_v{af_version}"
+        else:
+            raise RuntimeError(f"Failed to recognize '{species}' as organism. Currently accepted ones are 'Homo sapiens' and 'Mus musculus'. Exiting...")
+            
     logger.debug(f"Proteome to download: {proteome}")
     af_url = f"https://ftp.ebi.ac.uk/pub/databases/alphafold/latest/{proteome}.tar"
     file_path = os.path.join(path, f"{proteome}.tar")
@@ -85,8 +93,6 @@ def get_structures(path: str,
         ## STEP2 --- Extract structures
         logger.info(f'Extracting {file_path}')
         extract_tar_file(file_path, path)
-
-        # os.remove(file_path)
 
         logger.info('Download structure: SUCCESS')
         logger.debug(f"Structures downloaded in directory {path}")

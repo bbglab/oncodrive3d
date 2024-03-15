@@ -88,6 +88,7 @@ def oncodrive3D():
                      help="Build datasets - Required once after installation.")
 @click.option("-o", "--output_dir", help="Directory where to save the files", type=str, default='datasets')
 @click.option("-s", "--organism", type=click.Choice(["Homo sapiens", 'human', "Mus musculus", 'mouse']), help="Organism name", default="Homo sapiens")
+@click.option("-m", "--mane", help="Use structure predicted from MANE Select transcripts (Homo sapiens only)", is_flag=True)
 @click.option("-d", "--distance_threshold", type=click.INT, default=10,
               help="Distance threshold (Å) to define contact between amino acids")
 @click.option("-u", "--uniprot_to_hugo", type=click.Path(exists=True), 
@@ -102,9 +103,11 @@ def oncodrive3D():
 @setup_logging_decorator
 def build_datasets(output_dir,
                    organism,
+                   mane,
                    distance_threshold,
                    uniprot_to_hugo,
-                   cores, af_version,
+                   cores, 
+                   af_version,
                    rm_pdb_files,
                    yes,
                    verbose):
@@ -114,6 +117,7 @@ def build_datasets(output_dir,
     logger.info(f"Current working directory: {os.getcwd()}")
     logger.info(f"Build folder path: {output_dir}")
     logger.info(f"Organism: {organism}")
+    logger.info(f"MANE Select: {mane}")
     logger.info(f"Distance threshold: {distance_threshold}Å")
     logger.info(f"Custom IDs mapping: {uniprot_to_hugo}")
     logger.info(f"CPU cores: {cores}")
@@ -125,6 +129,7 @@ def build_datasets(output_dir,
 
     build(output_dir,
           organism,
+          mane,
           distance_threshold,
           uniprot_to_hugo,
           cores,

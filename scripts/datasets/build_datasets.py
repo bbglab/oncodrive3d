@@ -37,6 +37,7 @@ logger = daiquiri.getLogger(__logger_name__ + ".build")
 
 def build(output_datasets,
           organism,
+          mane,
           distance_threshold,
           uniprot_to_hugo,
           num_cores,
@@ -55,6 +56,7 @@ def build(output_datasets,
     logger.info("Downloading AlphaFold (AF) predicted structures...")
     get_structures(path=os.path.join(output_datasets,"pdb_structures"),
                    species=species,
+                   mane=mane,
                    af_version=str(af_version), 
                    threads=num_cores)
 
