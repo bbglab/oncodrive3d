@@ -47,23 +47,23 @@ def build(output_datasets,
     """
     Build datasets necessary to run Oncodrive3D.
     """
-
+  
     # Empty directory
     clean_dir(output_datasets, 'd')
 
     # Download PDB structures
     species = get_species(organism)
-    # logger.info("Downloading AlphaFold (AF) predicted structures...")
-    # get_structures(path=os.path.join(output_datasets,"pdb_structures"),
-    #                species=species,
-    #                af_version=str(af_version), 
-    #                threads=num_cores)
-    # logger.info("Download of structures completed!")
+    logger.info("Downloading AlphaFold (AF) predicted structures...")
+    get_structures(path=os.path.join(output_datasets,"pdb_structures"),
+                   species=species,
+                   af_version=str(af_version), 
+                   threads=num_cores)
+    logger.info("Download of structures completed!")
 
-    # # Merge fragmented structures
-    # logger.info("Merging fragmented structures...")
-    # merge_af_fragments(input_dir=os.path.join(output_datasets,"pdb_structures"), 
-    #                    gzip=True)
+    # Merge fragmented structures
+    logger.info("Merging fragmented structures...")
+    merge_af_fragments(input_dir=os.path.join(output_datasets,"pdb_structures"), 
+                       gzip=True)
     
     # Download PDB MANE structures
     if mane:
@@ -91,38 +91,39 @@ def build(output_datasets,
                organism=species)
     logger.info("Generation of sequences dataframe completed!")
 
-    # # Get PAE
-    # logger.info("Downloading AF predicted aligned error (PAE)...")
-    # get_pae(input_dir=os.path.join(output_datasets,"pdb_structures"),
-    #         output_dir=os.path.join(output_datasets,"pae"),
-    #         threads=num_cores,
-    #         af_version=str(af_version))
+    # Get PAE
+    logger.info("Downloading AF predicted aligned error (PAE)...")
+    get_pae(input_dir=os.path.join(output_datasets,"pdb_structures"),
+            output_dir=os.path.join(output_datasets,"pae"),
+            threads=num_cores,
+            af_version=str(af_version))
 
-    # # Parse PAE
-    # logger.info("Parsing PAE...")
-    # parse_pae(input=os.path.join(output_datasets, 'pae'))
-    # logger.info("Parsing PAE completed!")
+    # Parse PAE
+    logger.info("Parsing PAE...")
+    parse_pae(input=os.path.join(output_datasets, 'pae'))
+    logger.info("Parsing PAE completed!")
     
-    # # Get pCAMPs
-    # logger.info("Generating contact probability maps (pCMAPs)..")
-    # get_prob_cmaps_mp(input_pdb=os.path.join(output_datasets, "pdb_structures"),
-    #                   input_pae=os.path.join(output_datasets, "pae"),
-    #                   output=os.path.join(output_datasets,"prob_cmaps"),
-    #                   distance=distance_threshold,
-    #                   num_cores=num_cores)
-    # logger.info("Generation pCMAPs completed!")
+    # Get pCAMPs
+    logger.info("Generating contact probability maps (pCMAPs)..")
+    get_prob_cmaps_mp(input_pdb=os.path.join(output_datasets, "pdb_structures"),
+                      input_pae=os.path.join(output_datasets, "pae"),
+                      output=os.path.join(output_datasets,"prob_cmaps"),
+                      distance=distance_threshold,
+                      num_cores=num_cores)
+    logger.info("Generation pCMAPs completed!")
 
-    # # Clean datasets
-    # logger.info("Cleaning datasets...")
-    # clean_temp_files(path=output_datasets,
-    #                  rm_pdb_files=rm_pdb_files)
-    # logger.info("Datasets cleaning completed!")
+    # Clean datasets
+    logger.info("Cleaning datasets...")
+    clean_temp_files(path=output_datasets,
+                     rm_pdb_files=rm_pdb_files)
+    logger.info("Datasets cleaning completed!")
 
-    # logger.info("Datasets have been successfully built and are ready for analysis!")
+    logger.info("Datasets have been successfully built and are ready for analysis!")
     
 if __name__ == "__main__":
-  build(output_datasets="datasets_mouse",
-        organism="Mus musculus",
+  build(output_datasets="datasets_mane",
+        organism="Homo sapiens",
+        mane=True,
         distance_threshold=10,
         uniprot_to_hugo=None,
         num_cores=4,

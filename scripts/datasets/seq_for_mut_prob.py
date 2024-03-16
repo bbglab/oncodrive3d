@@ -590,8 +590,21 @@ def get_seq_df(input_dir,
     # Add multiple genes mapping to the same Uniprot_ID
     seq_df = add_extra_genes_to_seq_df(seq_df, uniprot_to_gene_dict)
     
-    # Assess overal similarity and save
+    # Assess overal similarity
     seq_df = asssess_similarity(seq_df, on="all")
+    
+    # Add MANE Refseq protein ID if present                    
+    path_to_refseq_prot = os.path.join(input_dir, "../", "mane_refseq_prot_to_alphafold.csv")
+    if os.path.exists(path_to_refseq_prot):
+        logger.debug(f"Adding MANE refseq protein IDs...")
+        refseq_prot = pd.read_csv(path_to_refseq_prot).drop(columns=["alphafold"])
+        refseq_prot.columns = "MANE_Refseq_prot", "Uniprot_ID"
+        seq_df = seq_df.merge(refseq_prot, on="Uniprot_ID", how="left")   
+        logger.debug(f"MANE refseq protein IDs added to Sequences dataframe!")
+    else:
+        seq_df["MANE_Refseq_prot"] = np.nan
+        
+    # Save
     seq_df.to_csv(output_seq_df, index=False, sep="\t")                    
     logger.debug(f"Sequences dataframe saved in: {output_seq_df}")
     
