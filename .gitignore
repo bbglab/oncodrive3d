@@ -185,3 +185,7 @@ trace*
 *.simg
 *.sif
 .gitignore
+
+# VSC
+launch.json
+.vscode
