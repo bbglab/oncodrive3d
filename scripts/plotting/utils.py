@@ -365,16 +365,16 @@ def save_annotated_pos_result(pos_result,
     output_pfam = os.path.join(output_dir, f"{run_name}.pfam.tsv")
     annot_pos_result = pos_result.drop(columns=["F", "pLDDT_res"]).merge(
         annot_pos_result[["Gene", 
-                        "Uniprot_ID",
-                        "F", 
-                        "Ens_Gene_ID", 
-                        "Ens_Transcr_ID", 
-                        "Pos",
-                        "Res", 
-                        "pLDDT_res", 
-                        "SSE", 
-                        "pACC", 
-                        "DDG"]],
+                          "Uniprot_ID",
+                          "F", 
+                          "Ens_Gene_ID", 
+                          "Ens_Transcr_ID", 
+                          "Pos",
+                          "Res", 
+                          "pLDDT_res", 
+                          "SSE", 
+                          "pACC", 
+                          "DDG"]],
         how="right", on=["Gene", "Uniprot_ID", "Pos"])
     annot_pos_result = annot_pos_result.sort_values(["Gene", "Pos"])
     

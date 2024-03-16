@@ -26,7 +26,7 @@ from scripts import __logger_name__
 from scripts.datasets.utils import get_species
 from scripts.datasets.af_merge import merge_af_fragments
 from scripts.datasets.get_pae import get_pae
-from scripts.datasets.get_structures import get_structures
+from scripts.datasets.get_structures import get_structures, mv_mane_pdb
 from scripts.datasets.model_confidence import get_confidence
 from scripts.datasets.parse_pae import parse_pae
 from scripts.datasets.prob_contact_maps import get_prob_cmaps_mp
@@ -53,20 +53,31 @@ def build(output_datasets,
 
     # Download PDB structures
     species = get_species(organism)
-    logger.info("Downloading AlphaFold (AF) predicted structures...")
-    get_structures(path=os.path.join(output_datasets,"pdb_structures"),
-                   species=species,
-                   mane=mane,
-                   af_version=str(af_version), 
-                   threads=num_cores)
+    # logger.info("Downloading AlphaFold (AF) predicted structures...")
+    # get_structures(path=os.path.join(output_datasets,"pdb_structures"),
+    #                species=species,
+    #                af_version=str(af_version), 
+    #                threads=num_cores)
+    # logger.info("Download of structures completed!")
 
-    logger.info("Download of structures completed!")
-
-    # Merge fragmented structures
-    logger.info("Merging fragmented structures...")
-    merge_af_fragments(input_dir=os.path.join(output_datasets,"pdb_structures"), 
-                       gzip=True)
-
+    # # Merge fragmented structures
+    # logger.info("Merging fragmented structures...")
+    # merge_af_fragments(input_dir=os.path.join(output_datasets,"pdb_structures"), 
+    #                    gzip=True)
+    
+    # Download PDB MANE structures
+    if mane:
+      if species == "Homo sapiens":
+        logger.info("Downloading AlphaFold (AF) predicted structures overlap with MANE...")
+        get_structures(path=os.path.join(output_datasets,"pdb_structures_mane"),
+                       species=species,
+                       mane=mane,
+                       threads=num_cores)
+        mv_mane_pdb(output_datasets, "pdb_structures", "pdb_structures_mane")
+        logger.info("Download of MANE structures completed!")
+      else:
+        raise RuntimeError(f"Structures with MANE transcripts overlap are available only for 'Homo sapiens'. Exiting...")
+    
     # Get model confidence
     logger.info("Extracting AF model confidence...")
     get_confidence(input=os.path.join(output_datasets, "pdb_structures"),
@@ -80,34 +91,34 @@ def build(output_datasets,
                organism=species)
     logger.info("Generation of sequences dataframe completed!")
 
-    # Get PAE
-    logger.info("Downloading AF predicted aligned error (PAE)...")
-    get_pae(input_dir=os.path.join(output_datasets,"pdb_structures"),
-            output_dir=os.path.join(output_datasets,"pae"),
-            threads=num_cores,
-            af_version=str(af_version))
+    # # Get PAE
+    # logger.info("Downloading AF predicted aligned error (PAE)...")
+    # get_pae(input_dir=os.path.join(output_datasets,"pdb_structures"),
+    #         output_dir=os.path.join(output_datasets,"pae"),
+    #         threads=num_cores,
+    #         af_version=str(af_version))
 
-    # Parse PAE
-    logger.info("Parsing PAE...")
-    parse_pae(input=os.path.join(output_datasets, 'pae'))
-    logger.info("Parsing PAE completed!")
+    # # Parse PAE
+    # logger.info("Parsing PAE...")
+    # parse_pae(input=os.path.join(output_datasets, 'pae'))
+    # logger.info("Parsing PAE completed!")
     
-    # Get pCAMPs
-    logger.info("Generating contact probability maps (pCMAPs)..")
-    get_prob_cmaps_mp(input_pdb=os.path.join(output_datasets, "pdb_structures"),
-                      input_pae=os.path.join(output_datasets, "pae"),
-                      output=os.path.join(output_datasets,"prob_cmaps"),
-                      distance=distance_threshold,
-                      num_cores=num_cores)
-    logger.info("Generation pCMAPs completed!")
+    # # Get pCAMPs
+    # logger.info("Generating contact probability maps (pCMAPs)..")
+    # get_prob_cmaps_mp(input_pdb=os.path.join(output_datasets, "pdb_structures"),
+    #                   input_pae=os.path.join(output_datasets, "pae"),
+    #                   output=os.path.join(output_datasets,"prob_cmaps"),
+    #                   distance=distance_threshold,
+    #                   num_cores=num_cores)
+    # logger.info("Generation pCMAPs completed!")
 
-    # Clean datasets
-    logger.info("Cleaning datasets...")
-    clean_temp_files(path=output_datasets,
-                     rm_pdb_files=rm_pdb_files)
-    logger.info("Datasets cleaning completed!")
+    # # Clean datasets
+    # logger.info("Cleaning datasets...")
+    # clean_temp_files(path=output_datasets,
+    #                  rm_pdb_files=rm_pdb_files)
+    # logger.info("Datasets cleaning completed!")
 
-    logger.info("Datasets have been successfully built and are ready for analysis!")
+    # logger.info("Datasets have been successfully built and are ready for analysis!")
     
 if __name__ == "__main__":
   build(output_datasets="datasets_mouse",

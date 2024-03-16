@@ -4,6 +4,7 @@ import os
 import daiquiri
 import time
 import subprocess
+import shutil
 
 from scripts import __logger_name__
 from scripts.datasets.utils import calculate_hash, download_single_file, extract_tar_file
@@ -33,7 +34,35 @@ def assert_integrity_human(file_path, proteome):
     else:
         logger.warning("Assertion skipped: Proteome checksum not in records.")
         return "PASS"
+    
 
+def mv_mane_pdb(path_datasets, pdb_dir, mane_pdb_dir) -> None:
+    """
+    Move AF structures with overlap with MANE Select 
+    transcripts to directory with AF structures from 
+    human proteome. Overwrite any overlapping AF ID.
+    """
+        
+    path_pdb = os.path.join(path_datasets, pdb_dir)
+    path_mane_pdb = os.path.join(path_datasets, mane_pdb_dir)
+    if not os.path.exists(path_mane_pdb):
+        os.makedirs(path_mane_pdb)
+    
+    # Move MANE structures
+    for filename in [file for file in os.listdir(path_mane_pdb) if file.endswith(".pdb.gz") or file.endswith(".pdb")]:
+        pdb = os.path.join(path_pdb, filename)
+        pdb_mane = os.path.join(path_mane_pdb, filename)
+        shutil.move(pdb_mane, pdb)
+        
+    # Move MANE metadata files
+    for filename in [file for file in os.listdir(os.path.join(path_mane_pdb)) if file.endswith(".csv") or file.endswith("readme.txt")]:
+        source_file = os.path.join(path_mane_pdb, filename)
+        dest_file = os.path.join(path_datasets, f"mane_{filename}")
+        shutil.move(source_file, dest_file)
+         
+    # # Remove temp MANE dir            # TO DO: Do this at the end of the build-datasets when cleaning everything else
+    # shutil.rmtree(path_mane_pdb)   
+        
 
 def get_structures(path: str, 
                    species: str = 'Homo sapiens', 
@@ -65,7 +94,7 @@ def get_structures(path: str,
         if species == "Homo sapiens":
             proteome = "mane_overlap_v4"
         else:
-            raise RuntimeError(f"Structures from MANE transcripts are available only for 'Homo sapiens'. Exiting...")
+            raise RuntimeError(f"Structures with MANE transcripts overlap are available only for 'Homo sapiens'. Exiting...")
     else:
         if species == "Homo sapiens":
             proteome = f"UP000005640_9606_HUMAN_v{af_version}"
