@@ -121,7 +121,7 @@ def build(output_datasets,
     logger.info("Datasets have been successfully built and are ready for analysis!")
     
 if __name__ == "__main__":
-  build(output_datasets="datasets_mane",
+  build(output_datasets="/workspace/nobackup/scratch/oncodrive3d/datasets_mane",
         organism="Homo sapiens",
         mane=True,
         distance_threshold=10,
