@@ -285,7 +285,7 @@ def filter_o3d_result(gene_result, pos_result, n_genes, lst_genes, non_significa
         gene_result = gene_result[[gene in lst_genes for gene in gene_result["Gene"].values]]    
     if non_significant == False:
         gene_result = gene_result[gene_result["C_gene"] == 1]
-    gene_result[gene_result["Status"] == "Processed"].Gene.values
+    gene_result = gene_result[gene_result["Status"] == "Processed"]
     gene_result = gene_result[:n_genes]                                     
     uni_ids = gene_result.Uniprot_ID.values
     genes = gene_result.Gene.values   
@@ -361,7 +361,7 @@ def save_annotated_pos_result(pos_result,
         annot_pos_result = annot_pos_result[annot_pos_result["Mut_in_res"] != 0].reset_index(drop=True)
         
     # Merge with 'original' one to retrieve dropped cols
-    output_pos_result = os.path.join(output_dir, f"{run_name}.pos_result_annotated.tsv")
+    output_pos_result = os.path.join(output_dir, f"{run_name}.3d_clustering_pos.annotated.tsv")
     output_pfam = os.path.join(output_dir, f"{run_name}.pfam.tsv")
     annot_pos_result = pos_result.drop(columns=["F", "pLDDT_res"]).merge(
         annot_pos_result[["Gene", 

@@ -27,9 +27,9 @@ def setup_logging_decorator(func):
         log_dir = os.path.join(click.get_current_context().params['output_dir'], 'log')
         command_name = click.get_current_context().command.name
 
-        if command_name == 'run':
+        if command_name == 'run' or command_name == 'plot':
             cohort = click.get_current_context().params["cohort"]
-            fname = f'{cohort if cohort != "None" else command_name}_{DATE}.log'
+            fname = f'{command_name}_{cohort if cohort != "None" else ""}_{DATE}.log'
         else: 
             fname = f"{command_name}_{DATE}.log"
 

@@ -75,17 +75,23 @@ def get_summary_counts(gene_result, pos_result, seq_df):
                                     "Mut_in_gene" : gene_result.apply(lambda x: x["Mut_in_gene"] - x["Clust_mut"], axis=1)})
     count_mut_gene_not["C"] = "Not in cluster"
     count_mut_gene_df = pd.concat((count_mut_gene_hit, count_mut_gene_not)).sort_values("Gene").rename(columns={"Mut_in_gene" : "Count"})
-    count_mut_gene_df = count_mut_gene_df.sort_values("C").reset_index(drop=True)
+    count_mut_gene_df = count_mut_gene_df.sort_values(["C", "Count"], ascending=False).reset_index(drop=True)
 
     # Df with pos count
     pos_result_not = pos_result[pos_result["C"] == 0]
-    pos_result_not = pos_result_not.groupby("Gene").apply(len)
-    pos_result_not = pos_result_not.reset_index().rename(columns={0 : "Count"})
-    pos_result_not["C"] = "Not significant"
+    if len(pos_result_not) > 0: 
+        pos_result_not = pos_result_not.groupby("Gene").apply(len)
+        pos_result_not = pos_result_not.reset_index().rename(columns={0 : "Count"})
+        pos_result_not["C"] = "Not significant"
+    else:
+        pos_result_not = pd.DataFrame(columns=["Gene", "Count", "C"])
     pos_result_hit = pos_result[pos_result["C"] == 1]
-    pos_result_hit = pos_result_hit.groupby("Gene").apply(len)
-    pos_result_hit = pos_result_hit.reset_index().rename(columns={0 : "Count"})
-    pos_result_hit["C"] = "Significant"
+    if len(pos_result_hit) > 0:   
+        pos_result_hit = pos_result_hit.groupby("Gene").apply(len)
+        pos_result_hit = pos_result_hit.reset_index().rename(columns={0 : "Count"})
+        pos_result_hit["C"] = "Significant"
+    else:
+        pos_result_hit = pd.DataFrame(columns=["Gene", "Count", "C"])
 
     count_pos_df = pd.concat((pos_result_hit, pos_result_not)).sort_values("Gene")
     count_pos_df = count_pos_df.sort_values("C", ascending=False).reset_index(drop=True)
@@ -108,7 +114,7 @@ def summary_plot(gene_result,
                  cluster_df,
                  size_df,
                  output_dir,
-                 run_name):        
+                 cohort):        
 
     # Plot
     fig, (ax1, ax2, ax3, ax4, ax5) = plt.subplots(5, 1, 
@@ -155,7 +161,7 @@ def summary_plot(gene_result,
     plt.subplots_adjust(top=0.95) 
     
     # Save
-    filename = f"{run_name}.summary_plot.png"
+    filename = f"{cohort}.summary_plot.png"
     output_path = os.path.join(output_dir, filename)
     plt.savefig(output_path, dpi=300, bbox_inches='tight')
     logger.debug(f"Saved {output_path}")
@@ -388,7 +394,7 @@ def genes_plots(gene_result,
                 maf,
                 miss_prob_dict,
                 output_dir,
-                run_name,
+                cohort,
                 annotations_dir,
                 disorder,
                 pfam,
@@ -740,7 +746,7 @@ def genes_plots(gene_result,
             # Save
             # ----
             fig.suptitle(f'{gene} - {uni_id}', fontsize=16)
-            filename = f"{run_name}.genes_plot_{j+1}.{gene}_{uni_id}.png"
+            filename = f"{cohort}.genes_plot_{j+1}.{gene}_{uni_id}.png"
             output_path = os.path.join(output_dir, filename)
             plt.subplots_adjust(top=0.95) 
             plt.savefig(output_path, dpi=300, bbox_inches='tight')
@@ -783,7 +789,7 @@ def generate_plot(gene_result_path,
                   datasets_dir, 
                   annotations_dir,
                   output_dir,
-                  run_name,
+                  cohort,
                   plot_annot,
                   plot_pars,
                   n_genes=30, 
@@ -792,7 +798,6 @@ def generate_plot(gene_result_path,
                   comparative_plots=False,
                   output_tsv=False,
                   output_all_pos=False):
-    
     
     # Load data tracks
     # ================
@@ -843,7 +848,7 @@ def generate_plot(gene_result_path,
                      cluster_df,
                      size_df,
                      output_dir,
-                     run_name) 
+                     cohort) 
         
         # Plots for individual genes
         # ==========================
@@ -856,7 +861,7 @@ def generate_plot(gene_result_path,
         if maf_nonmiss is None:
             plot_annot["nonmiss_count"] = False
         
-        output_dir_genes_plots = os.path.join(output_dir, f"{run_name}.genes_plots")
+        output_dir_genes_plots = os.path.join(output_dir, f"{cohort}.genes_plots")
         create_plot_dir(output_dir_genes_plots)
         logger.info(f"Creating genes plots in {output_dir_genes_plots}")
         pos_result_annotated, pfam_processed = genes_plots(gene_result, 
@@ -865,7 +870,7 @@ def generate_plot(gene_result_path,
                                                             maf,
                                                             miss_prob_dict,
                                                             output_dir_genes_plots,
-                                                            run_name,
+                                                            cohort,
                                                             annotations_dir,
                                                             disorder,
                                                             pfam,
@@ -882,10 +887,67 @@ def generate_plot(gene_result_path,
                                        pos_result_annotated, 
                                        pfam_processed, 
                                        output_dir, 
-                                       run_name, 
+                                       cohort, 
                                        output_all_pos)
             
         logger.info("Plotting completed!")
     
     else:
         logger.warning("There aren't any genes to plot!")
+        
+        
+if __name__ == "__main__":  
+    
+    from scripts.plotting.utils import init_annotations
+    
+    # Args
+    cohort = "PEDCBIOP_WXS_HCB_PRY"
+    #cohort = "CPTAC_WXS_BRCA_2020"
+    figsize_x=24
+    figsize_y=12
+    
+    # Annotations
+    plot_annot = init_annotations("all")
+
+    # Cnsq color
+    color_cnsq = {"splicing" : "C2",
+                  "missense" : "C5",
+                  "synonymous" : "C9",
+                  "coding_sequence_variant" : "C1",
+                  "nonsense" : "C6",
+                  "intron_variant" : "C7",
+                  "indel" : "C8",
+                  "protein_altering_variant" : "C3"}
+
+    # Plot parameters                                            # TODO: add some of them as args
+    plot_pars = {}
+    plot_pars["figsize"] = figsize_x, figsize_y
+    plot_pars["h_ratios"] = [0.15, 0.15, 0.15, 0.15, 0.1, 0.1, 0.1, 0.1, 0.04, 0.07, 0.04]
+    plot_pars["s_lw"] = 0.2
+    plot_pars["sse_fill_width"] = 0.43
+    plot_pars["dist_thr"] = 0.05
+    plot_pars["color_cnsq"] = color_cnsq
+    plot_pars["dict_transcripts"] = {"PTEN" : "ENST00000688308"}  # For now this is used to get a specific transcript for pfam domains
+    
+    generate_plot(gene_result_path=f"/workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_2024-03-06_11-47-05/{cohort}/{cohort}.3d_clustering_genes.tsv",
+                  pos_result_path=f"/workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_2024-03-06_11-47-05/{cohort}/{cohort}.3d_clustering_pos.tsv",
+                  maf_path=f"/workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/maf/{cohort}.in.maf",
+                  mut_profile_path=f"/workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/mut_profile/{cohort}.mutrate.json",
+                  mutability_config_path=None,
+                  gene_result_path_2=None,
+                  pos_result_path_2=None,
+                  maf_path_2=None,
+                  mut_profile_path_2=None,
+                  mutability_config_path_2=None,
+                  datasets_dir="/workspace/nobackup/scratch/oncodrive3d/datasets",
+                  annotations_dir="/workspace/nobackup/scratch/oncodrive3d/annotations",
+                  output_dir=f"/workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_2024-03-06_11-47-05/{cohort}",
+                  cohort=cohort,
+                  plot_annot=plot_annot,
+                  plot_pars=plot_pars,
+                  n_genes=30,
+                  lst_genes=None,
+                  non_significant=True,
+                  comparative_plots=False,
+                  output_tsv=True,
+                  output_all_pos=False)
