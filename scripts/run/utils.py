@@ -279,6 +279,7 @@ def sort_cols(result_gene):
 
     cols = ['Gene', 
             'Uniprot_ID', 
+            'MANE_Refseq_prot',
             'pval', 
             'qval', 
             'C_gene', 

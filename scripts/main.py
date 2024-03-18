@@ -14,6 +14,7 @@ and rank based comparison.
 
 cd path/to/oncodrive3D
 oncodrive3D build-datasets
+oncodrive3D build-datasets -m -v -o datasets_mane
 
 # Run 
             
@@ -380,7 +381,11 @@ def run(input_maf_path,
         result_gene["Cohort"] = cohort
         output_path_pos = os.path.join(output_dir, f"{cohort}.3d_clustering_pos.tsv")
         output_path_genes = os.path.join(output_dir, f"{cohort}.3d_clustering_genes.tsv")
-
+        
+        # Add MANE Select transcripts if used
+        result_gene = result_gene.merge(seq_df[["Uniprot_ID", "Gene", "MANE_Refseq_prot"]], 
+                                        on=["Uniprot_ID", "Gene"], how="left")
+        
         if only_processed:
             result_gene = result_gene[result_gene["Status"] == "Processed"]
 
