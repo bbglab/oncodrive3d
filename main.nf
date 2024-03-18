@@ -27,7 +27,7 @@ log.info """\
 
 process O3D_run {
     tag "3D-clustering analysis on $cohort"
-    label 'process_high'
+    // label 'process_high'
     debug true
 
     //errorStrategy 'ignore'        
@@ -52,7 +52,7 @@ process O3D_run {
 
 process O3D_plot {
     tag "Plotting $cohort"
-    label 'process_high'
+    // label 'process_high'
     debug true
 
     container params.container               
