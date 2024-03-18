@@ -26,7 +26,7 @@ from scripts import __logger_name__
 from scripts.datasets.utils import get_species
 from scripts.datasets.af_merge import merge_af_fragments
 from scripts.datasets.get_pae import get_pae
-from scripts.datasets.get_structures import get_structures
+from scripts.datasets.get_structures import get_structures, mv_mane_pdb
 from scripts.datasets.model_confidence import get_confidence
 from scripts.datasets.parse_pae import parse_pae
 from scripts.datasets.prob_contact_maps import get_prob_cmaps_mp
@@ -37,6 +37,7 @@ logger = daiquiri.getLogger(__logger_name__ + ".build")
 
 def build(output_datasets,
           organism,
+          mane,
           distance_threshold,
           uniprot_to_hugo,
           num_cores,
@@ -46,7 +47,7 @@ def build(output_datasets,
     """
     Build datasets necessary to run Oncodrive3D.
     """
-
+  
     # Empty directory
     clean_dir(output_datasets, 'd')
 
@@ -57,14 +58,26 @@ def build(output_datasets,
                    species=species,
                    af_version=str(af_version), 
                    threads=num_cores)
-
     logger.info("Download of structures completed!")
 
     # Merge fragmented structures
     logger.info("Merging fragmented structures...")
     merge_af_fragments(input_dir=os.path.join(output_datasets,"pdb_structures"), 
                        gzip=True)
-
+    
+    # Download PDB MANE structures
+    if mane:
+      if species == "Homo sapiens":
+        logger.info("Downloading AlphaFold (AF) predicted structures overlap with MANE...")
+        get_structures(path=os.path.join(output_datasets,"pdb_structures_mane"),
+                       species=species,
+                       mane=mane,
+                       threads=num_cores)
+        mv_mane_pdb(output_datasets, "pdb_structures", "pdb_structures_mane")
+        logger.info("Download of MANE structures completed!")
+      else:
+        raise RuntimeError(f"Structures with MANE transcripts overlap are available only for 'Homo sapiens'. Exiting...")
+    
     # Get model confidence
     logger.info("Extracting AF model confidence...")
     get_confidence(input=os.path.join(output_datasets, "pdb_structures"),
@@ -108,8 +121,9 @@ def build(output_datasets,
     logger.info("Datasets have been successfully built and are ready for analysis!")
     
 if __name__ == "__main__":
-  build(output_datasets="datasets_mouse",
-        organism="Mus musculus",
+  build(output_datasets="/workspace/nobackup/scratch/oncodrive3d/datasets_mane",
+        organism="Homo sapiens",
+        mane=True,
         distance_threshold=10,
         uniprot_to_hugo=None,
         num_cores=4,

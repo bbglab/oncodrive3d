@@ -14,6 +14,7 @@ and rank based comparison.
 
 cd path/to/oncodrive3D
 oncodrive3D build-datasets
+oncodrive3D build-datasets -m -v -o datasets_mane
 
 # Run 
             
@@ -26,6 +27,7 @@ oncodrive3D run \
 singularity exec /workspace/projects/clustering_3d/clustering_3d/build/containers/oncodrive3d_231205.sif oncodrive3D run -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/kidney_pilot/all_mutations.all_samples.tsv -d /workspace/projects/clustering_3d/clustering_3d/datasets_normal -m /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/kidney_pilot/mutability_kidney.json -o <your_output_dir> -C kidney_normal -v -s 128 -t kidney 
 singularity exec /workspace/projects/clustering_3d/clustering_3d/build/containers/oncodrive3d_231205.sif oncodrive3D run -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/kidney_pilot/all_mutations.all_samples.tsv -d /workspace/projects/clustering_3d/clustering_3d/datasets_normal -m /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/kidney_pilot/mutability_kidney.json -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/kidney_231205_test -C kidney_normal -v -s 128 -t kidney 
 singularity exec oncodrive3D plot -i /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/kidney_231205_test -c kidney_normal
+oncodrive3D run -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/maf/HARTWIG_WGS_NSCLC_2020.in.maf -p /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/mut_profile/HARTWIG_WGS_NSCLC_2020.mutrate.json -d /workspace/nobackup/scratch/oncodrive3d/datasets_mane -C HARTWIG_WGS_NSCLC_2020 -o HARTWIG_WGS_NSCLC_2020 -s 128 -c 10
 """
 
 
@@ -88,6 +90,7 @@ def oncodrive3D():
                      help="Build datasets - Required once after installation.")
 @click.option("-o", "--output_dir", help="Directory where to save the files", type=str, default='datasets')
 @click.option("-s", "--organism", type=click.Choice(["Homo sapiens", 'human', "Mus musculus", 'mouse']), help="Organism name", default="Homo sapiens")
+@click.option("-m", "--mane", help="Use structure predicted from MANE Select transcripts (Homo sapiens only)", is_flag=True)
 @click.option("-d", "--distance_threshold", type=click.INT, default=10,
               help="Distance threshold (Å) to define contact between amino acids")
 @click.option("-u", "--uniprot_to_hugo", type=click.Path(exists=True), 
@@ -102,9 +105,11 @@ def oncodrive3D():
 @setup_logging_decorator
 def build_datasets(output_dir,
                    organism,
+                   mane,
                    distance_threshold,
                    uniprot_to_hugo,
-                   cores, af_version,
+                   cores, 
+                   af_version,
                    rm_pdb_files,
                    yes,
                    verbose):
@@ -114,6 +119,7 @@ def build_datasets(output_dir,
     logger.info(f"Current working directory: {os.getcwd()}")
     logger.info(f"Build folder path: {output_dir}")
     logger.info(f"Organism: {organism}")
+    logger.info(f"MANE Select: {mane}")
     logger.info(f"Distance threshold: {distance_threshold}Å")
     logger.info(f"Custom IDs mapping: {uniprot_to_hugo}")
     logger.info(f"CPU cores: {cores}")
@@ -125,6 +131,7 @@ def build_datasets(output_dir,
 
     build(output_dir,
           organism,
+          mane,
           distance_threshold,
           uniprot_to_hugo,
           cores,
@@ -375,7 +382,11 @@ def run(input_maf_path,
         result_gene["Cohort"] = cohort
         output_path_pos = os.path.join(output_dir, f"{cohort}.3d_clustering_pos.tsv")
         output_path_genes = os.path.join(output_dir, f"{cohort}.3d_clustering_genes.tsv")
-
+        
+        # Add MANE Select transcripts if used
+        result_gene = result_gene.merge(seq_df[["Uniprot_ID", "Gene", "MANE_Refseq_prot"]], 
+                                        on=["Uniprot_ID", "Gene"], how="left")
+        
         if only_processed:
             result_gene = result_gene[result_gene["Status"] == "Processed"]
 

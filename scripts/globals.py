@@ -3,6 +3,7 @@ import logging
 import daiquiri
 import click
 import subprocess
+import shutil
 from datetime import datetime
 
 from functools import wraps
@@ -130,6 +131,17 @@ def clean_dir(path: str, loc: str = 'd') -> None:
         pass
     
     
+def rm_files(dir_path, ext=[".cif.gz", ".cif"]) -> None:
+    """
+    Remove any file with a given extension in a given directory.
+    """
+    
+    for file in os.listdir(dir_path):
+        file_path = os.path.join(dir_path, file)
+        if any([file.endswith(ext_i) for ext_i in ext]):
+            os.remove(file_path)
+            
+            
 def clean_temp_files(path: str, rm_pdb_files=False) -> None:
     """
     Clean temp files from dir after completing building the datasets. 
@@ -138,26 +150,14 @@ def clean_temp_files(path: str, rm_pdb_files=False) -> None:
         path (str): Path to build directory to be cleaned.
     """
     
+    pdb_dir = os.path.join(path, "pdb_structures")
     if rm_pdb_files:
-        clean_pdb = ["rm", "-rf", os.path.join(path, "pdb_structures")]
-        logger.debug(' '.join(clean_pdb))
-        subprocess.run(clean_pdb)
-        
+        logger.debug(f"Removing {pdb_dir}")
+        logger.warning(f"Removing {pdb_dir}: building annotations might be limited.")
+        shutil.rmtree(pdb_dir)
     else:
-        # TODO: Currently the following cleaning commands do not work. To fix.
+        rm_files(pdb_dir, ext=[".cif.gz", ".cif", ".tar"])
+        shutil.rmtree(os.path.join(pdb_dir, "fragmented_pdbs"))
         
-        clean_pdb = ["rm", "-rf", os.path.join(path, "pdb_structures", "*.cif.gz")]  
-        logger.debug(' '.join(clean_pdb))
-        subprocess.run(clean_pdb)
-
-        clean_pdb_frag = ["rm", "-rf", os.path.join(path, "pdb_structures", "fragmented_pdbs", "*.pdb*")]
-        logger.debug(' '.join(clean_pdb_frag))
-        subprocess.run(clean_pdb_frag)
-        
-        clean_tar = ["rm", "-rf", os.path.join(path, "*.tar")]
-        logger.debug(' '.join(clean_tar))
-        subprocess.run(clean_tar)
-        
-    clean_pae = ["rm", "-rf", os.path.join(path, "pae", "*.json")]
-    logger.debug(' '.join(clean_pae))
-    subprocess.run(clean_pae)
+    rm_files(os.path.join(path, "pae"), ext=[".json"])
+    shutil.rmtree(os.path.join(path, "pdb_structures_mane"))

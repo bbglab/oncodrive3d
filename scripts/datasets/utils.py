@@ -215,15 +215,24 @@ def get_mapping_jobid(uniprot_ids):
     """
     
     command = f"https://rest.uniprot.org/idmapping/run?from=UniProtKB_AC-ID&to=UniProtKB&ids={','.join(uniprot_ids)}"
-    response = requests.post(command)
+
+    response = "INIT"
+    while str(response) != "<Response [200]>":
+        if response != "INIT":
+            time.sleep(10)
+        try:
+            response = requests.post(command)
+        except requests.exceptions.RequestException as e:                          
+            response = "ERROR"                                                     
+            logger.debug(f"Request failed: {e}")    
+            
     job_id = get_response_jobid(response)
-    
     i = 60
     while job_id is None:
         time.sleep(1) 
         job_id = get_response_jobid(response)
         if i % 60 == 0:
-            logger.debug(f"Requesting ID mapping job to UniprotKB for IDs.. [waited {i-59}s]")
+            logger.debug(f"Requesting ID mapping job to UniprotKB for IDs...")
         i += 1
     
     return job_id
