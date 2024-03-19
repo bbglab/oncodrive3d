@@ -316,9 +316,8 @@ def get_score_for_genes_plot(pos_result_gene, mut_count, prob_vec):
             score = 0
             row_gene = pd.DataFrame({'Pos': [pos], 'Mut_in_res': [0], 'Ratio_obs_sim': [np.nan], 'C': [np.nan]})
             pos_result_gene = pd.concat([pos_result_gene, row_gene])
-            
-        if pos in range(1, len(prob_vec)+1):
-            score_vec.append(score)
+
+        score_vec.append(score)
 
     pos_result_gene = pos_result_gene.sort_values("Pos").reset_index(drop=True)
     
@@ -339,9 +338,13 @@ def get_id_annotations(uni_id, pos_result_gene, maf_gene, annotations_dir, disor
     disorder_gene = disorder[disorder["Uniprot_ID"] == uni_id].reset_index(drop=True)
     pdb_tool_gene = pdb_tool[pdb_tool["Uniprot_ID"] == uni_id].reset_index(drop=True)
     pfam_gene = pfam[pfam["Uniprot_ID"] == uni_id].reset_index(drop=True)
-    ddg = json.load(open(os.path.join(annotations_dir, "stability_change", f"{uni_id}_ddg.json")))
-    ddg_vec = avg_per_pos_ddg(pos_result_gene, ddg, maf_gene)
-    pos_result_gene["DDG"] = ddg_vec
+    ddg_path = os.path.join(annotations_dir, "stability_change", f"{uni_id}_ddg.json")
+    if os.path.isfile(ddg_path):
+        ddg = json.load(open(ddg_path))
+        ddg_vec = avg_per_pos_ddg(pos_result_gene, ddg, maf_gene)
+        pos_result_gene["DDG"] = ddg_vec
+    else:
+        pos_result_gene["DDG"] = np.nan
     
     return pos_result_gene, disorder_gene, pdb_tool_gene, pfam_gene
 
@@ -501,7 +504,7 @@ def genes_plots(gene_result,
                     axes[ax].set_ylabel('Non\nmissense\nmutations', fontsize=13.5)
                     axes[ax].set_ylim(-0.5, mut_count_nonmiss["Count"].max()+0.5)
                 except:
-                    logger.warning(f"Error occurred while adding non-missense count in {gene}-{uni_id}-F{af_f}")
+                    logger.warning(f"Error occurred while adding non-missense count in {gene} ({uni_id}-F{af_f})")
                     plot_annot["nonmiss_count"] = False
                     ax -= 1
             else:
@@ -573,7 +576,7 @@ def genes_plots(gene_result,
                                     label="Confidence", zorder=3, color=sns.color_palette("tab10")[4], lw=0.5)
                     axes[ax+4].set_ylabel('PAE', fontsize=13.5)
                 except:
-                    logger.warning(f"Error occurred while adding PAE in {gene}-{uni_id}-F{af_f}")
+                    logger.warning(f"Error occurred while adding PAE in {gene} ({uni_id}-F{af_f})")
                     plot_annot["pae"] = False
                     ax-=1
             else:
@@ -611,7 +614,7 @@ def genes_plots(gene_result,
                     axes[ax+5].set_ylabel('pLDDT', fontsize=13.5)
                     axes[ax+5].set_ylim(-10, 110)
                 except:
-                    logger.warning(f"Error occurred while adding Disorder in {gene}-{uni_id}-F{af_f}: There could be a mismatch between the datasets used for the 3D-clustering analysis and the one used to generate plots")
+                    logger.warning(f"Error occurred while adding Disorder in {gene} ({uni_id}-F{af_f}): There could be a mismatch between the datasets used for the 3D-clustering analysis and the one used to generate plots")
                     plot_annot["disorder"] = False
                     ax-=1
             else:
@@ -634,13 +637,17 @@ def genes_plots(gene_result,
                     axes[ax+6].set_ylabel('pACC', fontsize=13.5)
                     axes[ax+6].set_ylim(-10, 110)
                 except:
-                    logger.warning(f"Error occurred while adding pACC in {gene}-{uni_id}-F{af_f}")
+                    logger.warning(f"Error occurred while adding pACC in {gene} ({uni_id}-F{af_f})")
                     plot_annot["pacc"] = False
             else:
                 ax-=1
 
-                # Plot stability change
-                # ---------------------
+            # Plot stability change
+            # ---------------------
+            if pos_result_gene["DDG"].isna().all():
+                plot_annot["ddg"] = False
+                logger.warning(f"DDG not available for {gene} ({uni_id}-F{af_f}): The track will not be included...")
+            
             if plot_annot["ddg"]:
                 try:
                     max_value, min_value = pos_result_gene["DDG"].max(), pos_result_gene["DDG"].min()
@@ -656,7 +663,7 @@ def genes_plots(gene_result,
                                     label="Stability change", zorder=2, color=sns.color_palette("tab10")[4], lw=0.5)    
                     axes[ax+7].set_ylabel('DDG', fontsize=13.5)
                 except:
-                    logger.warning(f"Error occurred while adding DDG in {gene}-{uni_id}-F{af_f}")
+                    logger.warning(f"Error occurred while adding DDG in {gene} ({uni_id}-F{af_f})")
                     plot_annot["ddg"] = False
             else:
                 ax-=1 
@@ -675,7 +682,7 @@ def genes_plots(gene_result,
                     axes[ax+8].set_yticks([])  
                     axes[ax+8].set_yticklabels([], fontsize=12)
                 except:
-                    logger.warning(f"Error occurred while adding Clusters labels in {gene}-{uni_id}-F{af_f}")
+                    logger.warning(f"Error occurred while adding Clusters labels in {gene} ({uni_id}-F{af_f})")
                     plot_annot["clusters"] = False
             else:
                 ax-=1
@@ -693,7 +700,7 @@ def genes_plots(gene_result,
                     axes[ax+9].set_yticklabels(['Helix', 'Ladder', 'Coil'], fontsize=10)
                     axes[ax+9].set_ylabel('SSE', fontsize=13.5)
                 except:
-                    logger.warning(f"Error occurred while adding SSE in {gene}-{uni_id}-F{af_f}")
+                    logger.warning(f"Error occurred while adding SSE in {gene} ({uni_id}-F{af_f})")
                     plot_annot["sse"] = False
             else:
                 ax-=1
@@ -738,7 +745,7 @@ def genes_plots(gene_result,
                     axes[ax+10].set_ylabel('Pfam        ', fontsize=13.5, rotation=0, va='center')
                     axes[ax+10].set_ylim(-0.62, 0.6)  
                 except:
-                    logger.warning(f"Error occurred while adding Pfam in {gene}-{uni_id}-F{af_f}")
+                    logger.warning(f"Error occurred while adding Pfam in {gene} ({uni_id}-F{af_f})")
                     plot_annot["pfam"] = False
             else:
                 ax-=1
@@ -901,7 +908,7 @@ if __name__ == "__main__":
     from scripts.plotting.utils import init_annotations
     
     # Args
-    cohort = "PEDCBIOP_WXS_HCB_PRY"
+    cohort = "PEDCBIOP_WXS_OS_PRY"
     #cohort = "CPTAC_WXS_BRCA_2020"
     figsize_x=24
     figsize_y=12
@@ -929,19 +936,23 @@ if __name__ == "__main__":
     plot_pars["color_cnsq"] = color_cnsq
     plot_pars["dict_transcripts"] = {"PTEN" : "ENST00000688308"}  # For now this is used to get a specific transcript for pfam domains
     
-    generate_plot(gene_result_path=f"/workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_2024-03-06_11-47-05/{cohort}/{cohort}.3d_clustering_genes.tsv",
-                  pos_result_path=f"/workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_2024-03-06_11-47-05/{cohort}/{cohort}.3d_clustering_pos.tsv",
-                  maf_path=f"/workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/maf/{cohort}.in.maf",
-                  mut_profile_path=f"/workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/mut_profile/{cohort}.mutrate.json",
+    path_o3d_result = "/workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_2024-03-06_11-47-05"
+    path_o3d_result = "/workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_2024-03-19_10-52-36"
+    path_input = "/workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/"
+    
+    generate_plot(gene_result_path=f"{path_o3d_result}/{cohort}/{cohort}.3d_clustering_genes.tsv",
+                  pos_result_path=f"{path_o3d_result}/{cohort}/{cohort}.3d_clustering_pos.tsv",
+                  maf_path=f"{path_input}/maf/{cohort}.in.maf",
+                  mut_profile_path=f"{path_input}/mut_profile/{cohort}.mutrate.json",
                   mutability_config_path=None,
                   gene_result_path_2=None,
                   pos_result_path_2=None,
                   maf_path_2=None,
                   mut_profile_path_2=None,
                   mutability_config_path_2=None,
-                  datasets_dir="/workspace/nobackup/scratch/oncodrive3d/datasets",
-                  annotations_dir="/workspace/nobackup/scratch/oncodrive3d/annotations",
-                  output_dir=f"/workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_2024-03-06_11-47-05/{cohort}",
+                  datasets_dir="/workspace/nobackup/scratch/oncodrive3d/datasets_mane",
+                  annotations_dir="/workspace/nobackup/scratch/oncodrive3d/annotations_mane",
+                  output_dir=f"{path_o3d_result}/{cohort}",
                   cohort=cohort,
                   plot_annot=plot_annot,
                   plot_pars=plot_pars,
