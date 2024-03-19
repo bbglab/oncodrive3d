@@ -468,6 +468,31 @@ def asssess_similarity(seq_df, on="all"):
                 
         return seq_df
                 
+
+def drop_gene_duplicates(df):
+    """
+    Drop Uniprot ID of gene duplicates by prioritizing the following order:
+    - Uniprot ID whose sequence has been obtained using reference info
+    - Uniprot ID having perfect match with MANE transcripts
+    """
+
+    df = df.copy()
+    df_ref_1 = df[df['Reference_info'] == 1]
+    df_ref_0 = df[df['Reference_info'] == 0]
+    
+    # Prioritize rows where MANE not NaN for genes with Reference_info (or just keep first one)
+    df_ref_1 = df_ref_1.sort_values(by='MANE_Refseq_prot', ascending=False).drop_duplicates(subset='Gene')
+    
+    # Same as Step 2 but for genes without Reference_info
+    df_ref_0 = df_ref_0.sort_values(by='MANE_Refseq_prot', ascending=False).drop_duplicates(subset='Gene')
+    df_ref_0 = df_ref_0.drop_duplicates(subset='Gene', keep='first')
+    
+    # Concat and prioritize rows with Reference_info (or just keep first one)
+    result_df = pd.concat([df_ref_1, df_ref_0]).sort_values(["Gene", "Reference_info"], ascending=False)
+    result_df = result_df.drop_duplicates(subset='Gene', keep='first').sort_values(["Gene"]) 
+
+    return result_df.reset_index(drop=True)
+
                 
 #=========
 # WRAPPERS
@@ -603,6 +628,9 @@ def get_seq_df(input_dir,
         logger.debug(f"MANE refseq protein IDs added to Sequences dataframe!")
     else:
         seq_df["MANE_Refseq_prot"] = np.nan
+        
+    # Drop duplicates
+    seq_df = drop_gene_duplicates(seq_df)
         
     # Save
     seq_df.to_csv(output_seq_df, index=False, sep="\t")                    
