@@ -52,7 +52,7 @@ process O3D_run {
 
 process O3D_plot {
     tag "Plotting $cohort"
-    // label 'process_high'
+    label 'process_low'
     debug true
 
     container params.container               
