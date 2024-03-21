@@ -26,7 +26,7 @@ log.info """\
     .stripIndent()
 
 process O3D_run {
-    tag "3D-clustering analysis on $cohort"
+    tag "O3D $cohort"
     // label 'process_high'
     debug true
 
@@ -51,7 +51,7 @@ process O3D_run {
 }
 
 process O3D_plot {
-    tag "Plotting $cohort"
+    tag "Plot $cohort"
     label 'process_low'
     debug true
 
@@ -82,7 +82,6 @@ workflow {
         .join(run_ch.o3d_result)
         .set { plot_ch }
     O3D_plot(plot_ch)
-
 }
 
 workflow.onComplete {
