@@ -9,6 +9,7 @@ from scripts.plotting.utils import get_species
 from scripts.plotting.stability_change import download_stability_change, parse_ddg_rasp
 from scripts.plotting.pdb_tool import run_pdb_tool, parse_pdb_tool
 from scripts.plotting.pfam import get_pfam
+from scripts.plotting.uniprot_feat import get_uniprot_feat
 
 logger = daiquiri.getLogger(__logger_name__ + ".annotations.build")
 
@@ -27,8 +28,7 @@ def get_annotations(data_dir,
                     output_dir,
                     #path_pdb_tool_sif,
                     organism,
-                    cores,
-                    verbose):
+                    cores):
     """
     Main function to build annotations to generate annotated plots.
     """
@@ -74,5 +74,13 @@ def get_annotations(data_dir,
     
     # Get Pfam annotations
     logger.info(f"Downloading and parsing Pfam...")
-    get_pfam(f"{output_dir}/pfam.tsv")
+    get_pfam(os.path.join(output_dir, "pfam.tsv"))
     logger.info(f"Completed!")
+    
+    # Get Uniprot features
+    logger.info(f"Downloading and parsing Features from Uniprot...")
+    get_uniprot_feat(input_seq_df = os.path.join(data_dir, "seq_for_mut_prob.tsv"), 
+                     output_tsv = os.path.join(output_dir, "uniprot_feat.tsv"))
+    logger.info(f"Completed!")
+    
+    
