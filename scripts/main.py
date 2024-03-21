@@ -324,7 +324,7 @@ def run(input_maf_path,
             genes_not_mutability = [gene for gene in genes_to_process if gene not in seq_df["Gene"].unique()]
             miss_prob_dict = get_miss_mut_prob_dict(mut_rate_dict=None, seq_df=seq_df,
                                                     mutability=True, mutability_config=mutab_config)
-            # TODO: return F, etc
+            
             if len(genes_not_mutability) > 0:   
                 logger.debug(f"Detected [{len(genes_not_mutability)}] genes without mutability information: Skipping...")
                 result_gene = pd.DataFrame({"Gene" : genes_not_mutability,
@@ -384,8 +384,9 @@ def run(input_maf_path,
         output_path_genes = os.path.join(output_dir, f"{cohort}.3d_clustering_genes.tsv")
         
         # Add MANE Select transcripts if used
-        result_gene = result_gene.merge(seq_df[["Uniprot_ID", "Gene", "MANE_Refseq_prot"]], 
-                                        on=["Uniprot_ID", "Gene"], how="left")
+        if "MANE_Refseq_prot" in seq_df.columns:
+            result_gene = result_gene.merge(seq_df[["Uniprot_ID", "Gene", "MANE_Refseq_prot"]], 
+                                            on=["Uniprot_ID", "Gene"], how="left")
         
         if only_processed:
             result_gene = result_gene[result_gene["Status"] == "Processed"]
@@ -476,8 +477,7 @@ def build_annotations(data_dir,
                     output_dir, 
                     #path_pdb_tool_sif,
                     organism,
-                    cores, 
-                    verbose)
+                    cores)
 
 
 
