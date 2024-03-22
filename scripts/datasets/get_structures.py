@@ -59,9 +59,6 @@ def mv_mane_pdb(path_datasets, pdb_dir, mane_pdb_dir) -> None:
         source_file = os.path.join(path_mane_pdb, filename)
         dest_file = os.path.join(path_datasets, f"mane_{filename}")
         shutil.move(source_file, dest_file)
-         
-    # # Remove temp MANE dir            # TO DO: Do this at the end of the build-datasets when cleaning everything else
-    # shutil.rmtree(path_mane_pdb)   
         
 
 def get_structures(path: str, 

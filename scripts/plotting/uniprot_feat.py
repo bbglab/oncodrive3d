@@ -192,23 +192,40 @@ def parse_prot_feat(feat_df):
     # Regions
     feat_df.loc[feat_df["Type"] == "SIGNAL", "Description"] = "Signal peptide"
     feat_df.loc[feat_df["Type"] == "DNA_BIND", "Description"] = "DNA binding"
-    feat_df.loc[(feat_df["Type"] == "SIGNAL") | (feat_df["Type"] == "DNA_BIND"), "Type"] = "Region"
+    feat_df.loc[(feat_df["Type"] == "SIGNAL") | (feat_df["Type"] == "DNA_BIND"), "Type"] = "REGION"
     
     return feat_df
 
 
-def get_uniprot_feat(input_seq_df, output_tsv):
+def add_feat_metadata(feat_df, seq_df):
+    
+    # Add metadata to Uniprot Feat
+    feat_df = seq_df[["Gene", "Uniprot_ID", "Ens_Transcr_ID", "Ens_Gene_ID"]].merge(
+        feat_df, how="left", on=["Uniprot_ID"]).drop_duplicates()
+    feat_df = feat_df.dropna(how="all", subset=["Begin", "End"]).reset_index(drop=True)
+    
+    # Parse weird end positions
+    feat_df = feat_df.copy() 
+    feat_df = feat_df[feat_df["End"] != "~"]
+    feat_df["End"] = feat_df["End"].str.replace("~", "")
+    feat_df["End"] = feat_df["End"].str.replace(">", "")
+    feat_df["End"] = pd.to_numeric(feat_df["End"], errors='coerce')
+    feat_df[["Begin", "End"]] = feat_df[["Begin", "End"]].astype(int)
+
+
+def get_uniprot_feat(seq_df, pfam_df, output_tsv):
     """
     Extract and parse dataframe including Features obtained by Proteins API of EMBL-EBI.
-    Merge similar entries to simplify visualization of the result.
+    Merge similar entries to simplify visualization of the result. 
+    Add Pfam domain, HUGO symbol, Ensembl Gene and Transcript info.
     
     https://www.ebi.ac.uk/proteins/api/doc/#featuresApi
     https://doi.org/10.1093/nar/gkx237
     """
     
-    seq_df = pd.read_csv(input_seq_df, sep="\t")
     feat_df = get_prot_feat(seq_df.Uniprot_ID)
-    feat_df_parsed = parse_prot_feat(feat_df)
-    feat_df_parsed.to_csv(output_tsv, sep="\t")
+    feat_df = parse_prot_feat(feat_df)
+    feat_df = add_feat_metadata(feat_df, seq_df)
+    feat_df = pd.concat((feat_df, pfam_df)).sort_values(["Gene", "Uniprot_ID", "Begin"]).reset_index(drop=True)
+    feat_df.to_csv(output_tsv, sep="\t", index=False)
     logger.debug(f"Uniprot Features are saved to {output_tsv}")
-    

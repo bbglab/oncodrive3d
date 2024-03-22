@@ -12,7 +12,29 @@ logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
 
 
 
-def get_pfam(output_path):
+def add_pfam_metadata(pfam, seq_df):
+    """
+    Add Ensembl transcript and gene info and rename cols to 
+    be merged with Uniprot features dataframe.
+    """
+    
+    # Add metadata to PFAM
+    pfam = seq_df[["Gene", "Uniprot_ID", "Ens_Transcr_ID", "Ens_Gene_ID"]].merge(
+        pfam, how="left", on=["Ens_Transcr_ID", "Ens_Gene_ID"])
+    pfam = pfam.dropna(how="all", subset=["Pfam_start", "Pfam_end"]).reset_index(drop=True)
+    
+    # Prepare to merge
+    pfam["Type"] = "DOMAIN"
+    pfam["Evidence"] = "Pfam"
+    pfam = pfam.rename(columns={"Pfam_start" : "Begin", 
+                                "Pfam_end" : "End", 
+                                "Pfam_name" : "Description",
+                                "Pfam_description" : "Full_description"})
+    
+    return pfam
+
+
+def get_pfam(seq_df, output_tsv):
     """
     Download and parse Pfam coordinates, name, description, 
     and Pfam ID to Transcript ID mapping.
@@ -39,16 +61,15 @@ def get_pfam(output_path):
 
         # Merge and save
         pfam = pfam.merge(pfam_id, how="left", on="Pfam_ID")
-        pfam = pfam.dropna(how="all", subset=["Pfam_start", 
-                                              "Pfam_end", 
-                                              "Pfam_ID", 
-                                              "Pfam_name", 
-                                              "Pfam_description"]).reset_index(drop=True)
-        pfam.to_csv(output_path, index=False, sep="\t")
+        pfam = pfam.dropna(how="all", subset=["Pfam_start", "Pfam_end"]).reset_index(drop=True)
+        pfam = add_pfam_metadata(pfam, seq_df)
+        pfam.to_csv(output_tsv, index=False, sep="\t")
         
         # Delete temp files
         os.remove("pfam_coordinates.tsv")
         os.remove("pfam_id.tsv.gz")
+        
+        return pfam
         
     except Exception as e:
         logger.error('Download Pfam: FAIL')

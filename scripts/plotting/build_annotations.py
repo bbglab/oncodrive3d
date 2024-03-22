@@ -1,5 +1,6 @@
 import logging
 import os
+import pandas as pd
 
 import daiquiri
 
@@ -33,8 +34,9 @@ def get_annotations(data_dir,
     Main function to build annotations to generate annotated plots.
     """
 
-    # Empty directory
+    # Empty directory and load sequence df
     clean_annot_dir(output_dir, 'd')
+    seq_df = pd.read_csv(os.path.join(data_dir, "seq_for_mut_prob.tsv"), sep="\t")    
 
     # Download DDG
     species = get_species(organism)
@@ -74,12 +76,14 @@ def get_annotations(data_dir,
     
     # Get Pfam annotations
     logger.info(f"Downloading and parsing Pfam...")
-    get_pfam(os.path.join(output_dir, "pfam.tsv"))
+    pfam_df = get_pfam(seq_df = seq_df, 
+                    output_tsv = os.path.join(output_dir, "pfam.tsv"))
     logger.info(f"Completed!")
     
     # Get Uniprot features
     logger.info(f"Downloading and parsing Features from Uniprot...")
-    get_uniprot_feat(input_seq_df = os.path.join(data_dir, "seq_for_mut_prob.tsv"), 
+    get_uniprot_feat(seq_df = seq_df, 
+                     pfam_df = pfam_df,
                      output_tsv = os.path.join(output_dir, "uniprot_feat.tsv"))
     logger.info(f"Completed!")
     
