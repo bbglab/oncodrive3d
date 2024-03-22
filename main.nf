@@ -52,12 +52,12 @@ process O3D_run {
 
 process O3D_plot {
     tag "Plot $cohort"
-    label 'process_low'
+    //label 'process_low'
     debug true
 
     container params.container               
-    cpus params.cores
-    memory params.memory
+    cpus 4
+    memory "10G"
     maxForks params.max_running
 
     input:
