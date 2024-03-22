@@ -39,6 +39,11 @@ def get_pfam(output_path):
 
         # Merge and save
         pfam = pfam.merge(pfam_id, how="left", on="Pfam_ID")
+        pfam = pfam.dropna(how="all", subset=["Pfam_start", 
+                                              "Pfam_end", 
+                                              "Pfam_ID", 
+                                              "Pfam_name", 
+                                              "Pfam_description"]).reset_index(drop=True)
         pfam.to_csv(output_path, index=False, sep="\t")
         
         # Delete temp files
