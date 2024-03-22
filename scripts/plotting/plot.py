@@ -221,7 +221,7 @@ def avg_per_pos_ddg(pos_result_gene, ddg_prot, maf_gene):
 
 def check_near_domains(pfam_gene, dist_thr=0.05):
     """
-    Check if two domains could be closeR to each other 
+    Check if two domains could be closer to each other 
     than allowed threshold (ratio of protein size).
     """
         

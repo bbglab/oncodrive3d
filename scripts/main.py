@@ -355,18 +355,18 @@ def run(input_maf_path,
         if len(genes_to_process) > 0:
             logger.info(f"Performing 3D-clustering on [{len(seq_df)}] proteins...")
             result_pos, result_gene = clustering_3d_mp_wrapper(genes_to_process,
-                                                            data,
-                                                            cmap_path,
-                                                            miss_prob_dict,
-                                                            gene_to_uniprot_dict,
-                                                            plddt_df,
-                                                            cores,
-                                                            alpha=alpha,
-                                                            num_iteration=n_iterations,
-                                                            cmap_prob_thr=cmap_prob_thr,
-                                                            seed=seed,
-                                                            pae_path=pae_path,
-                                                            thr_not_in_structure=thr_not_in_structure)
+                                                               data,
+                                                               cmap_path,
+                                                               miss_prob_dict,
+                                                               gene_to_uniprot_dict,
+                                                               plddt_df,
+                                                               cores,
+                                                               alpha=alpha,
+                                                               num_iteration=n_iterations,
+                                                               cmap_prob_thr=cmap_prob_thr,
+                                                               seed=seed,
+                                                               pae_path=pae_path,
+                                                               thr_not_in_structure=thr_not_in_structure)
             if result_np_gene_lst:
                 result_gene = pd.concat((result_gene, pd.concat(result_np_gene_lst)))
         else:
@@ -383,10 +383,11 @@ def run(input_maf_path,
         output_path_pos = os.path.join(output_dir, f"{cohort}.3d_clustering_pos.tsv")
         output_path_genes = os.path.join(output_dir, f"{cohort}.3d_clustering_genes.tsv")
         
-        # Add MANE Select transcripts if used
-        if "MANE_Refseq_prot" in seq_df.columns:
-            result_gene = result_gene.merge(seq_df[["Uniprot_ID", "Gene", "MANE_Refseq_prot"]], 
-                                            on=["Uniprot_ID", "Gene"], how="left")
+        # Add extra metadata Select transcripts if used
+        metadata_cols = ["Uniprot_ID", "Gene", "Ens_Gene_ID", "Ens_Transcr_ID", "MANE_Refseq_prot"]
+        seq_cols = [col for col in metadata_cols if col in seq_df.columns]
+        result_gene = result_gene.merge(seq_df[seq_cols], 
+                                        on=["Uniprot_ID", "Gene"], how="left")
         
         if only_processed:
             result_gene = result_gene[result_gene["Status"] == "Processed"]
