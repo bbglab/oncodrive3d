@@ -260,6 +260,7 @@ def run(input_maf_path,
             result_np_gene_lst.append(result_gene)
 
         # Get genes with corresponding Uniprot-ID mapping
+        seq_df_all = seq_df.copy() # It will be used to map non-processed IDs
         gene_to_uniprot_dict = {gene : uni_id for gene, uni_id in seq_df[["Gene", "Uniprot_ID"]].drop_duplicates().values}
         genes_to_process = [gene for gene in genes_mut.index if gene in gene_to_uniprot_dict.keys()]
         seq_df = seq_df[[gene in genes_to_process for gene in seq_df["Gene"]]].reset_index(drop=True)
@@ -285,11 +286,10 @@ def run(input_maf_path,
             genes_frag = genes_frag.Gene.reset_index(drop=True).values
             genes_frag_mut = genes_mut[[gene in genes_frag for gene in genes_mut.index]]
             genes_frag = genes_frag_mut.index.values
-            genes_frag_id = [gene_to_uniprot_dict[gene] for gene in genes_frag]
             if len(genes_frag) > 0:
                 logger.debug(f"Detected [{len(genes_frag)}] fragmented genes with disabled fragments processing: Skipping...")
                 result_gene = pd.DataFrame({"Gene" : genes_frag,
-                                            "Uniprot_ID" : genes_frag_id,
+                                            "Uniprot_ID" : np.nan, 
                                             "F" : np.nan,
                                             "Mut_in_gene" : genes_frag_mut.values,
                                             "Max_mut_pos" : np.nan,
@@ -328,7 +328,7 @@ def run(input_maf_path,
             if len(genes_not_mutability) > 0:   
                 logger.debug(f"Detected [{len(genes_not_mutability)}] genes without mutability information: Skipping...")
                 result_gene = pd.DataFrame({"Gene" : genes_not_mutability,
-                                            "Uniprot_ID" : [gene_to_uniprot_dict[gene] for gene in genes_not_mutability],
+                                            "Uniprot_ID" : np.nan,
                                             "F" : np.nan,
                                             "Mut_in_gene" : np.nan,
                                             "Max_mut_pos" : np.nan,
@@ -352,6 +352,8 @@ def run(input_maf_path,
             miss_prob_dict = None
 
         # Run 3D-clustering
+        result_np_gene = pd.concat(result_np_gene_lst)
+        result_np_gene["Uniprot_ID"] = [gene_to_uniprot_dict[gene] if gene in gene_to_uniprot_dict.keys() else np.nan for gene in result_np_gene["Gene"].values]
         if len(genes_to_process) > 0:
             logger.info(f"Performing 3D-clustering on [{len(seq_df)}] proteins...")
             result_pos, result_gene = clustering_3d_mp_wrapper(genes_to_process,
@@ -368,9 +370,9 @@ def run(input_maf_path,
                                                                pae_path=pae_path,
                                                                thr_not_in_structure=thr_not_in_structure)
             if result_np_gene_lst:
-                result_gene = pd.concat((result_gene, pd.concat(result_np_gene_lst)))
+                result_gene = pd.concat((result_gene, result_np_gene))
         else:
-            result_gene = pd.concat(result_np_gene_lst)
+            result_gene = result_np_gene
             result_pos = None
 
         ## Save
@@ -383,11 +385,10 @@ def run(input_maf_path,
         output_path_pos = os.path.join(output_dir, f"{cohort}.3d_clustering_pos.tsv")
         output_path_genes = os.path.join(output_dir, f"{cohort}.3d_clustering_genes.tsv")
         
-        # Add extra metadata Select transcripts if used
+        # Add extra metadata
         metadata_cols = ["Uniprot_ID", "Gene", "Ens_Gene_ID", "Ens_Transcr_ID", "MANE_Refseq_prot"]
-        seq_cols = [col for col in metadata_cols if col in seq_df.columns]
-        result_gene = result_gene.merge(seq_df[seq_cols], 
-                                        on=["Uniprot_ID", "Gene"], how="left")
+        seq_cols = [col for col in metadata_cols if col in seq_df_all.columns]
+        result_gene = result_gene.merge(seq_df_all[seq_cols], on=["Gene", "Uniprot_ID"], how="left")
         
         if only_processed:
             result_gene = result_gene[result_gene["Status"] == "Processed"]
