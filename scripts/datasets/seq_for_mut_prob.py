@@ -490,6 +490,14 @@ def drop_gene_duplicates(df):
     # Concat and prioritize rows with Reference_info (or just keep first one)
     result_df = pd.concat([df_ref_1, df_ref_0]).sort_values(["Gene", "Reference_info"], ascending=False)
     result_df = result_df.drop_duplicates(subset='Gene', keep='first').sort_values(["Gene"]) 
+    result_df = result_df.reset_index(drop=True)
+    
+    # Check if there are still duplicates
+    n_duplicates = sum(result_df["Gene"].value_counts() > 1)
+    if n_duplicates > 0:
+        logger.warning(f"Found {n_duplicates} duplicates gene entries: Mapping HUGO Symbol to protein info might be affected.")
+    else:
+        logger.debug("Duplicates gene entries correctly removed!")
 
     return result_df.reset_index(drop=True)
 
