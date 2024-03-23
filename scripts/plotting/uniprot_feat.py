@@ -200,6 +200,7 @@ def parse_prot_feat(feat_df):
 def add_feat_metadata(feat_df, seq_df):
     
     # Add metadata to Uniprot Feat
+    feat_df["Evidence"] = feat_df["Evidence"].astype(str)
     feat_df = seq_df[["Gene", "Uniprot_ID", "Ens_Transcr_ID", "Ens_Gene_ID"]].merge(
         feat_df, how="left", on=["Uniprot_ID"]).drop_duplicates()
     feat_df = feat_df.dropna(how="all", subset=["Begin", "End"]).reset_index(drop=True)
