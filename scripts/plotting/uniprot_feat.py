@@ -194,7 +194,6 @@ def parse_prot_feat(feat_df):
     
     feat_df.loc[feat_df["Type"] == "ACT_SITE", "Description"] = "Active"
     feat_df.loc[feat_df["Type"] == "BINDING", "Description"] = "Binding"
-    
     feat_df.loc[(feat_df["Type"] == "ACT_SITE") | (feat_df["Type"] == "BINDING") | (feat_df["Type"] == "SITE"), "Type"] = "SITE"
 
     # Motifs    
@@ -208,6 +207,12 @@ def parse_prot_feat(feat_df):
     feat_df.loc[feat_df["Type"] == "SIGNAL", "Description"] = "Signal peptide"
     feat_df.loc[feat_df["Type"] == "DNA_BIND", "Description"] = "DNA binding"
     feat_df.loc[(feat_df["Type"] == "SIGNAL") | (feat_df["Type"] == "DNA_BIND"), "Type"] = "REGION"
+    
+    # Domain
+    feat_df.loc[feat_df["Type"] == "DOMAIN", "Description"] = feat_df[feat_df["Type"] == "DOMAIN"].apply(
+        lambda x: x["Description"].split(";")[0] if pd.notna(x["Description"]) else np.nan, axis=1)
+    feat_df.loc[feat_df["Type"] == "DOMAIN", "Description"] = feat_df.loc[feat_df["Type"] == "DOMAIN", 
+                                                                          "Description"].str.replace(r' \d+', '')
     
     return feat_df
 
