@@ -391,7 +391,7 @@ def set_axes_arg(pos_result_gene, plot_pars, plot_annot_gene, uni_feat_gene):
     if plot_annot_gene["nonmiss_count"] == False:
         del h_ratios[0]
         dx += 1
-    if np.isnan(pos_result_gene["PAE_vol"]).all() or plot_annot["pae"] == False:
+    if np.isnan(pos_result_gene["PAE_vol"]).all() or plot_annot_gene["pae"] == False:
         del h_ratios[4-dx]
         dx += 1
         plot_annot_gene["pae"] = False
@@ -536,7 +536,7 @@ def genes_plots(gene_result,
                                                                                   prob_vec)
 
             # Get annotations
-            pos_result_gene, disorder_gene, pdb_tool_gene, unit_feat_gene = get_id_annotations(uni_id, 
+            pos_result_gene, disorder_gene, pdb_tool_gene, uni_feat_gene = get_id_annotations(uni_id, 
                                                                                                pos_result_gene, 
                                                                                                maf_gene, 
                                                                                                annotations_dir, 
@@ -1116,7 +1116,6 @@ def generate_plot(gene_result_path,
         seq_df, disorder, pdb_tool, uniprot_feat = subset_genes_and_ids(genes, 
                                                                         uni_ids, 
                                                                         seq_df, 
-                                                                        dict_transcripts, 
                                                                         disorder, 
                                                                         pdb_tool, 
                                                                         uniprot_feat)
