@@ -548,6 +548,7 @@ def genes_plots(gene_result,
             # ============= 
                 
             ax = 0
+            gene_len = size_df[size_df["Gene"] == gene].Size.values[0]
             plot_annot_gene = plot_annot.copy()
             if mut_count_nonmiss is None:
                 plot_annot_gene["nonmiss_count"] = False
@@ -555,7 +556,6 @@ def genes_plots(gene_result,
 
             ntracks = len(h_ratios)
             h_ratios = np.array(h_ratios) / sum(h_ratios)
-
 
             fig, axes = plt.subplots(ntracks, 1, 
                                     figsize=plot_pars["figsize"], sharex=True, 
@@ -588,8 +588,9 @@ def genes_plots(gene_result,
                     axes[ax].legend(fontsize=11.5, ncol=ncol, framealpha=0.75)
                     axes[ax].set_ylabel('Non\nmissense\nmutations', fontsize=13.5)
                     axes[ax].set_ylim(-0.5, mut_count_nonmiss["Count"].max()+0.5)
-                except:
-                    print(f"Error occurred while adding non-missense count in {gene} ({uni_id}-F{af_f})")
+                except Exception as e:
+                    logger.warning(f"Error occurred while adding non-missense count in {gene} ({uni_id}-F{af_f}):")
+                    logger.warning(f"{e}")
                     plot_annot_gene["nonmiss_count"] = False
                     ax -= 1
             else:
@@ -660,8 +661,9 @@ def genes_plots(gene_result,
                     axes[ax+4].plot(pos_result_gene['Pos'], pos_result_gene["PAE_vol"].fillna(0),                                     
                                     label="Confidence", zorder=3, color=sns.color_palette("tab10")[4], lw=0.5)
                     axes[ax+4].set_ylabel('PAE', fontsize=13.5)
-                except:
-                    logger.warning(f"Error occurred while adding PAE in {gene} ({uni_id}-F{af_f})")
+                except Exception as e:
+                    logger.warning(f"Error occurred while adding PAE in {gene} ({uni_id}-F{af_f}):")
+                    logger.warning(f"{e}")
                     plot_aplot_annot_genennot["pae"] = False
                     ax-=1
             else:
@@ -698,8 +700,9 @@ def genes_plots(gene_result,
                                     label="Confidence", zorder=3, color="gray", lw=0.7)    
                     axes[ax+5].set_ylabel('pLDDT', fontsize=13.5)
                     axes[ax+5].set_ylim(-10, 110)
-                except:
-                    logger.warning(f"Error occurred while adding Disorder in {gene} ({uni_id}-F{af_f}): There could be a mismatch between the datasets used for the 3D-clustering analysis and the one used to generate plots")
+                except Exception as e:
+                    logger.warning(f"Error occurred while adding Disorder in {gene} ({uni_id}-F{af_f}):")
+                    logger.warning(f"{e}")
                     plot_annot_gene["disorder"] = False
                     ax-=1
             else:
@@ -721,8 +724,9 @@ def genes_plots(gene_result,
                                     label="pACC", zorder=3, color=sns.color_palette("tab10")[4], lw=0.5)      
                     axes[ax+6].set_ylabel('pACC', fontsize=13.5)
                     axes[ax+6].set_ylim(-10, 110)
-                except:
-                    logger.warning(f"Error occurred while adding pACC in {gene} ({uni_id}-F{af_f})")
+                except Exception as e:
+                    logger.warning(f"Error occurred while adding pACC in {gene} ({uni_id}-F{af_f}):")
+                    logger.warning(f"{e}")
                     plot_annot_gene["pacc"] = False
             else:
                 ax-=1
@@ -747,8 +751,9 @@ def genes_plots(gene_result,
                     axes[ax+7].plot(pos_result_gene['Pos'], pos_result_gene["DDG"], 
                                     label="Stability change", zorder=2, color=sns.color_palette("tab10")[4], lw=0.5)    
                     axes[ax+7].set_ylabel('DDG', fontsize=13.5)
-                except:
-                    logger.warning(f"Error occurred while adding DDG in {gene} ({uni_id}-F{af_f})")
+                except Exception as e:
+                    logger.warning(f"Error occurred while adding DDG in {gene} ({uni_id}-F{af_f}):")
+                    logger.warning(f"{e}")
                     plot_annot_gene["ddg"] = False
             else:
                 ax-=1 
@@ -779,9 +784,10 @@ def genes_plots(gene_result,
                 
                     axes[ax+8].set_ylim(min_value, max_value)
                     axes[ax+8].set_yticks(sb_width * np.arange(len(ptm_names)), ptm_names)
-                    axes[ax+8].set_ylabel(' PTM', fontsize=13.5)
-                except:
-                    logger.warning(f"Error occurred while adding PTM in {gene} ({uni_id}-F{af_f})")
+                    axes[ax+8].set_ylabel(' PTM             ', fontsize=13.5, rotation=0, va='center')
+                except Exception as e:
+                    logger.warning(f"Error occurred while adding PTM in {gene} ({uni_id}-F{af_f}):")
+                    logger.warning(f"{e}")
                     plot_annot_gene["ptm"] = False
             else:
                 ax-=1
@@ -812,9 +818,10 @@ def genes_plots(gene_result,
                     
                     axes[ax+9].set_ylim(min_value, max_value)
                     axes[ax+9].set_yticks(sb_width * np.arange(len(site_names)), site_names)
-                    axes[ax+9].set_ylabel('Site\n\n', fontsize=13.5)
-                except:
-                    logger.warning(f"Error occurred while adding Sites in {gene} ({uni_id}-F{af_f})")
+                    axes[ax+9].set_ylabel('Site             ', fontsize=13.5, rotation=0, va='center')
+                except Exception as e:
+                    logger.warning(f"Error occurred while adding Sites in {gene} ({uni_id}-F{af_f}):")
+                    logger.warning(f"{e}")
                     plot_annot_gene["site"] = False
             else:
                 ax-=1
@@ -833,8 +840,9 @@ def genes_plots(gene_result,
                     axes[ax+10].set_yticks([])  
                     axes[ax+10
                     ].set_yticklabels([], fontsize=12)
-                except:
-                    logger.warning(f"Error occurred while adding Clusters labels in {gene} ({uni_id}-F{af_f})")
+                except Exception as e:
+                    logger.warning(f"Error occurred while adding Clusters labels in {gene} ({uni_id}-F{af_f}):")
+                    logger.warning(f"{e}")
                     plot_annot_gene["clusters"] = False
             else:
                 ax-=1
@@ -851,8 +859,9 @@ def genes_plots(gene_result,
                     axes[ax+11].set_yticks([0, 1, 2])  
                     axes[ax+11].set_yticklabels(['Helix', 'Ladder', 'Coil'], fontsize=10)
                     axes[ax+11].set_ylabel(' SSE', fontsize=13.5)
-                except:
-                    logger.warning(f"Error occurred while adding SSE in {gene} ({uni_id}-F{af_f})")
+                except Exception as e:
+                    logger.warning(f"Error occurred while adding SSE in {gene} ({uni_id}-F{af_f}):")
+                    logger.warning(f"{e}")
                     plot_annot_gene["sse"] = False
             else:
                 ax-=1
@@ -896,8 +905,9 @@ def genes_plots(gene_result,
                     axes[ax+12].set_yticklabels([], fontsize=12)
                     axes[ax+12].set_ylabel('Pfam        ', fontsize=13.5, rotation=0, va='center')
                     axes[ax+12].set_ylim(-0.5, 0.5)  
-                except:
-                    logger.warning(f"Error occurred while adding Pfam domain in {gene} ({uni_id}-F{af_f})")
+                except Exception as e:
+                    logger.warning(f"Error occurred while adding Pfam domain in {gene} ({uni_id}-F{af_f}):")
+                    logger.warning(f"{e}")
                     plot_annot_gene["pfam"] = False
             else:
                 ax-=1
@@ -942,8 +952,9 @@ def genes_plots(gene_result,
                     axes[ax+13].set_yticklabels([], fontsize=12)
                     axes[ax+13].set_ylabel('Prosite           ', fontsize=13.5, rotation=0, va='center')
                     axes[ax+13].set_ylim(-0.5, 0.5)  
-                except:
-                    logger.warning(f"Error occurred while adding Prosite domain in {gene} ({uni_id}-F{af_f})")
+                except Exception as e:
+                    logger.warning(f"Error occurred while adding Prosite domain in {gene} ({uni_id}-F{af_f}):")
+                    logger.warning(f"{e}")
                     plot_annot_gene["pfam"] = False
             else:
                 ax-=1
@@ -973,13 +984,14 @@ def genes_plots(gene_result,
                         if name not in added_membrane:
                             y = -0.04
                             axes[ax+14].text(((start + end) / 2)+0.5, y, name, ha='center', va='center', fontsize=10, color="black")
-                            added_motif.append(name)
+                            added_membrane.append(name)
                     axes[ax+14].set_yticks([])  
                     axes[ax+14].set_yticklabels([], fontsize=12)
                     axes[ax+14].set_ylabel('Membrane                ', fontsize=13.5, rotation=0, va='center')
                     axes[ax+14].set_ylim(-0.5, 0.5)  
-                except:
-                    logger.warning(f"Error occurred while adding Membrane info in {gene} ({uni_id}-F{af_f})")
+                except Exception as e:
+                    logger.warning(f"Error occurred while adding Membrane info in {gene} ({uni_id}-F{af_f}):")
+                    logger.warning(f"{e}")
                     plot_annot_gene["membrane"] = False
             else:
                 ax-=1
@@ -1024,8 +1036,9 @@ def genes_plots(gene_result,
                     axes[ax+15].set_yticklabels([], fontsize=12)
                     axes[ax+15].set_ylabel('Motif        ', fontsize=13.5, rotation=0, va='center')
                     axes[ax+15].set_ylim(-0.5, 0.5) 
-                except:
-                    logger.warning(f"Error occurred while adding Motifs info in {gene} ({uni_id}-F{af_f})")
+                except Exception as e:
+                    logger.warning(f"Error occurred while adding Motifs info in {gene} ({uni_id}-F{af_f}):")
+                    logger.warning(f"{e}")
                     plot_annot_gene["motif"] = False
             else:
                 ax-=1
