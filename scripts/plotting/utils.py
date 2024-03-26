@@ -213,9 +213,14 @@ def init_annotations(annotations):
     plot_annot["disorder"] = False
     plot_annot["pacc"] = False
     plot_annot["ddg"] = False
+    plot_annot["ptm"] = False
+    plot_annot["site"] = False
     plot_annot["clusters"] = False
     plot_annot["sse"] = False
     plot_annot["pfam"] = False   
+    plot_annot["prosite"] = False  
+    plot_annot["membrane"] = False
+    plot_annot["motif"] = False
     
     if isinstance(annotations, str):
         lst_annotations = [annot.lower() for annot in annotations.replace(" ", "").split(",")]
@@ -230,7 +235,7 @@ def init_annotations(annotations):
                 if annot in plot_annot:
                     plot_annot[annot] = True
                 else:
-                    logger.warning(f"{annot} is not recognized as valid annotation.")  
+                    print(f"{annot} is not recognized as valid annotation.")  
         lst_annotations = [k for k,v in plot_annot.items() if v == True]
         if len(lst_annotations) > 0:
             logger.info(f"The following annotations will be included: {lst_annotations}")
@@ -245,10 +250,9 @@ def init_annotations(annotations):
 def subset_genes_and_ids(genes, 
                          uni_ids, 
                          seq_df, 
-                         dict_transcripts, 
                          disorder, 
                          pdb_tool, 
-                         pfam):
+                         uniprot_feat):
     """
     Subset each dataframe by keeping only selected genes and proteins IDs.
     """
@@ -256,22 +260,14 @@ def subset_genes_and_ids(genes,
     seq_df = seq_df.copy()
     disorder = disorder.copy()
     pdb_tool = pdb_tool.copy()
-    pfam = pfam.copy()
+    uniprot_feat = uniprot_feat.copy()
     # Filter genes in the other df
     seq_df = seq_df[seq_df["Gene"].isin(genes)]
-    #seq_df = seq_df[seq_df["Uniprot_ID"].isin(uni_ids)].reset_index(drop=True)         # TODO: fix this: It happens to filter out genes that are actually processed, but the Uniprot_ID is missing
-    disorder = disorder[disorder["Uniprot_ID"].isin(uni_ids)].reset_index(drop=True)    #       but maybe it happens only if the the plot is generated on result that used different datasets
+    disorder = disorder[disorder["Uniprot_ID"].isin(uni_ids)].reset_index(drop=True) 
     pdb_tool = pdb_tool[pdb_tool["Uniprot_ID"].isin(uni_ids)].reset_index(drop=True)
-
-    # Use a different transcript to retrieve the Pfam domains
-    if dict_transcripts is not None:
-        for gene, transcript in dict_transcripts.items():
-            seq_df.loc[seq_df["Gene"] == gene, "Ens_Transcr_ID"] = transcript
-    # Get subset pfam with gene info
-    pfam = seq_df[["Gene", "Uniprot_ID", "Ens_Transcr_ID", "Ens_Gene_ID"]].merge(
-        pfam, how="left", on=["Ens_Transcr_ID", "Ens_Gene_ID"])
+    uniprot_feat = uniprot_feat[uniprot_feat["Gene"].isin(genes)]
     
-    return seq_df, disorder, pdb_tool, pfam
+    return seq_df, disorder, pdb_tool, uniprot_feat
 
 
 def filter_o3d_result(gene_result, pos_result, n_genes, lst_genes, non_significant):

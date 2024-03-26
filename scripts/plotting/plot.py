@@ -150,8 +150,8 @@ def summary_plot(gene_result,
     ax3.set_xlabel(None)
     ax4.set_xlabel(None)
     ax1.set_ylabel('Protein length', fontsize=14)
-    ax2.set_ylabel('Mutations #', fontsize=14)
-    ax3.set_ylabel('Mutated residues #', fontsize=14)
+    ax2.set_ylabel('Missense\nmutations #', fontsize=14)
+    ax3.set_ylabel('Mutated\nresidues #', fontsize=14)
     ax4.set_ylabel('Clusters #', fontsize=14)
     ax5.set_ylabel('O3D score\n(obs / μ simulated)', fontsize=14)
     ax2.legend(fontsize=12, loc="upper right")
@@ -219,16 +219,21 @@ def avg_per_pos_ddg(pos_result_gene, ddg_prot, maf_gene):
     return ddg_vec
 
 
-def check_near_domains(pfam_gene, dist_thr=0.05):
+def check_near_domains(uni_feat_gene, pfam=True, dist_thr=0.05):
     """
     Check if two domains could be closer to each other 
     than allowed threshold (ratio of protein size).
     """
         
     near_domains = False
-    pfam_gene = pfam_gene.copy()
-    pfam_gene = pfam_gene.drop_duplicates(subset='Pfam_name', keep='first')
-    mid_pos = (pfam_gene.Pfam_start + pfam_gene.Pfam_end) / 2
+    uni_feat_gene = uni_feat_gene.copy()
+    uni_feat_gene = uni_feat_gene[uni_feat_gene["Type"] == "DOMAIN"]
+    if pfam:
+        uni_feat_gene = uni_feat_gene[uni_feat_gene["Evidence"] == "Pfam"]
+    else:
+        uni_feat_gene = uni_feat_gene[uni_feat_gene["Evidence"] != "Pfam"]
+    uni_feat_gene = uni_feat_gene.drop_duplicates(subset='Description', keep='first')   ## Does it need it?
+    mid_pos = (uni_feat_gene.Begin + uni_feat_gene.End) / 2
     mid_pos_norm = (mid_pos / mid_pos.max()).values
     
     for i in range(len(mid_pos_norm)):
@@ -238,6 +243,28 @@ def check_near_domains(pfam_gene, dist_thr=0.05):
                 near_domains = True
 
     return near_domains
+
+
+def check_near_motifs(uni_feat_gene, dist_thr=0.05):
+    """
+    Check if two motifs could be closer to each other 
+    than allowed threshold (ratio of protein size).
+    """
+        
+    near_motif = False
+    uni_feat_gene = uni_feat_gene.copy()
+    uni_feat_gene = uni_feat_gene[uni_feat_gene["Type"] == "MOTIF"]
+    uni_feat_gene = uni_feat_gene.drop_duplicates(subset='Full_description', keep='first')   ## Does it need it?
+    mid_pos = (uni_feat_gene.Begin + uni_feat_gene.End) / 2
+    mid_pos_norm = (mid_pos / mid_pos.max()).values
+    
+    for i in range(len(mid_pos_norm)):
+        for j in range(i + 1, len(mid_pos_norm)):
+            diff = abs(mid_pos_norm[i] - mid_pos_norm[j])
+            if diff < dist_thr:
+                near_motif = True
+
+    return near_motif
 
 
 def parse_pos_result_for_genes_plot(pos_result_gene):
@@ -329,7 +356,7 @@ def get_score_for_genes_plot(pos_result_gene, mut_count, prob_vec):
     return pos_result_gene, score_vec, score_norm_vec
 
 
-def get_id_annotations(uni_id, pos_result_gene, maf_gene, annotations_dir, disorder, pdb_tool, pfam):
+def get_id_annotations(uni_id, pos_result_gene, maf_gene, annotations_dir, disorder, pdb_tool, uniprot_feat):
     """
     Get the annotations for a specific protein ID.
     """
@@ -337,7 +364,7 @@ def get_id_annotations(uni_id, pos_result_gene, maf_gene, annotations_dir, disor
     pos_result_gene = pos_result_gene.copy()
     disorder_gene = disorder[disorder["Uniprot_ID"] == uni_id].reset_index(drop=True)
     pdb_tool_gene = pdb_tool[pdb_tool["Uniprot_ID"] == uni_id].reset_index(drop=True)
-    pfam_gene = pfam[pfam["Uniprot_ID"] == uni_id].reset_index(drop=True)
+    uni_feat_gene = uniprot_feat[uniprot_feat["Uniprot_ID"] == uni_id].reset_index(drop=True)
     ddg_path = os.path.join(annotations_dir, "stability_change", f"{uni_id}_ddg.json")
     if os.path.isfile(ddg_path):
         ddg = json.load(open(ddg_path))
@@ -345,11 +372,14 @@ def get_id_annotations(uni_id, pos_result_gene, maf_gene, annotations_dir, disor
         pos_result_gene["DDG"] = ddg_vec
     else:
         pos_result_gene["DDG"] = np.nan
+
+    # Avoid duplicates (Uniprot IDs mapping to the different gene names)
+    uni_feat_gene = uni_feat_gene.drop(columns=["Gene", "Ens_Transcr_ID", "Ens_Gene_ID"]).drop_duplicates()
     
-    return pos_result_gene, disorder_gene, pdb_tool_gene, pfam_gene
+    return pos_result_gene, disorder_gene, pdb_tool_gene, uni_feat_gene
 
 
-def set_axes_arg(pos_result_gene, plot_pars, plot_annot, pfam_gene):
+def set_axes_arg(pos_result_gene, plot_pars, plot_annot_gene, uni_feat_gene):
     """
     Adjust the height ratio (and the number) of tracks to include 
     in the plot. 
@@ -358,37 +388,89 @@ def set_axes_arg(pos_result_gene, plot_pars, plot_annot, pfam_gene):
     dx = 0
     h_ratios = plot_pars["h_ratios"].copy()
 
-    if plot_annot["nonmiss_count"] == False:
+    if plot_annot_gene["nonmiss_count"] == False:
         del h_ratios[0]
         dx += 1
     if np.isnan(pos_result_gene["PAE_vol"]).all() or plot_annot["pae"] == False:
         del h_ratios[4-dx]
         dx += 1
-    if plot_annot["disorder"] == False:
+        plot_annot_gene["pae"] = False
+    if plot_annot_gene["disorder"] == False:
         del h_ratios[5-dx]
         dx += 1
-    if plot_annot["pacc"] == False:
+    if plot_annot_gene["pacc"] == False:
         del h_ratios[6-dx]
         dx += 1
-    if plot_annot["ddg"] == False:
+    if plot_annot_gene["ddg"] == False:
         del h_ratios[7-dx]
         dx += 1
-    if plot_annot["clusters"] == False:
+
+    if plot_annot_gene["ptm"] == False or len(uni_feat_gene[uni_feat_gene["Type"] == "PTM"]) == 0:
         del h_ratios[8-dx]
         dx += 1
-    if plot_annot["sse"] == False:
+        plot_annot_gene["ptm"] = False
+    else:
+        stracks = len(uni_feat_gene[uni_feat_gene["Type"] == "PTM"].Description.unique())
+        h_ratios[8-dx] = h_ratios[8-dx] * stracks
+ 
+    if plot_annot_gene["site"] == False or len(uni_feat_gene[uni_feat_gene["Type"] == "SITE"]) == 0:
         del h_ratios[9-dx]
         dx += 1
-    if plot_annot["pfam"] == False:
+        plot_annot_gene["site"] = False
+    else:
+        stracks = len(uni_feat_gene[uni_feat_gene["Type"] == "SITE"].Description.unique())
+        h_ratios[9-dx] = h_ratios[9-dx] * stracks
+
+    
+    if plot_annot_gene["clusters"] == False:
         del h_ratios[10-dx]
         dx += 1
+    if plot_annot_gene["sse"] == False:
+        del h_ratios[11-dx]
+        dx += 1
 
-    # Make the track for the Pfam domains larger if domains are too close
-    near_domains = check_near_domains(pfam_gene, plot_pars["dist_thr"])
-    if near_domains:
-        h_ratios[len(h_ratios)-1] = 0.1
+    if plot_annot_gene["pfam"] == False or len(uni_feat_gene[(uni_feat_gene["Type"] == "DOMAIN") & 
+                                          (uni_feat_gene["Evidence"] == "Pfam")]) == 0:
+        del h_ratios[12-dx]
+        dx += 1
+        near_pfam = False
+        plot_annot_gene["pfam"] = False
+    else:
+        # Make the track for the Pfam domains larger if domains are too close
+        near_pfam = check_near_domains(uni_feat_gene, pfam=True, dist_thr=plot_pars["dist_thr"])
+        if near_pfam:
+            h_ratios[12-dx] = 0.08
+            
+    if plot_annot_gene["prosite"] == False or len(uni_feat_gene[(uni_feat_gene["Type"] == "DOMAIN") & 
+                                          (uni_feat_gene["Evidence"] != "Pfam")]) == 0:
+        del h_ratios[13-dx]
+        dx += 1
+        near_prosite = False
+        plot_annot_gene["prosite"] = False
+    else:
+        near_prosite = check_near_domains(uni_feat_gene, pfam=False, dist_thr=plot_pars["dist_thr"])
+        if near_prosite:
+            h_ratios[13-dx] = 0.08
+            
+    if plot_annot_gene["membrane"] == False or len(uni_feat_gene[uni_feat_gene["Type"] == "MEMBRANE"]) == 0:
+        del h_ratios[14-dx]
+        dx += 1
+        plot_annot_gene["membrane"] = False
+    else:
+        stracks = len(uni_feat_gene[uni_feat_gene["Type"] == "MEMBRANE"].Description.unique())
+        h_ratios[14-dx] = h_ratios[14-dx] * stracks
     
-    return h_ratios, near_domains
+    if plot_annot_gene["motif"] == False or len(uni_feat_gene[uni_feat_gene["Type"] == "MOTIF"]) == 0:
+        del h_ratios[15-dx]
+        dx += 1
+        near_motif = False
+        plot_annot_gene["motif"] = False
+    else:
+        near_motif = check_near_domains(uni_feat_gene, dist_thr=0.1)
+        if near_motif:
+            h_ratios[15-dx] = 0.08
+        
+    return h_ratios, plot_annot_gene, near_pfam, near_prosite, near_motif
 
 
 def genes_plots(gene_result, 
@@ -400,11 +482,12 @@ def genes_plots(gene_result,
                 cohort,
                 annotations_dir,
                 disorder,
-                pfam,
+                uniprot_feat,
                 pdb_tool,
                 maf_nonmiss,
                 plot_annot,
                 plot_pars,
+                size_df,
                 output_tsv=False):   
     """
     Generate a diagnostic plot for each gene showing Oncodrive3D 
@@ -415,7 +498,7 @@ def genes_plots(gene_result,
     # ==========
     
     annotated_result_lst = []
-    pfam_result_lst = []
+    uni_feat_result_lst = []
     for j, gene in enumerate(gene_result["Gene"].values):
       
         # Load and parse
@@ -453,40 +536,42 @@ def genes_plots(gene_result,
                                                                                   prob_vec)
 
             # Get annotations
-            [pos_result_gene, 
-             disorder_gene, 
-             pdb_tool_gene, 
-             pfam_gene] = get_id_annotations(uni_id, 
-                                             pos_result_gene, 
-                                             maf_gene, 
-                                             annotations_dir, 
-                                             disorder, 
-                                             pdb_tool, 
-                                             pfam)
+            pos_result_gene, disorder_gene, pdb_tool_gene, unit_feat_gene = get_id_annotations(uni_id, 
+                                                                                               pos_result_gene, 
+                                                                                               maf_gene, 
+                                                                                               annotations_dir, 
+                                                                                               disorder, 
+                                                                                               pdb_tool, 
+                                                                                               uniprot_feat)
 
             # Generate plot
             # ============= 
                 
             ax = 0
-            h_ratios, near_domains = set_axes_arg(pos_result_gene, plot_pars, plot_annot, pfam_gene)
-            
+            plot_annot_gene = plot_annot.copy()
+            if mut_count_nonmiss is None:
+                plot_annot_gene["nonmiss_count"] = False
+            h_ratios, plot_annot_gene, near_pfam, near_prosite, near_motif = set_axes_arg(pos_result_gene, plot_pars, plot_annot_gene, uni_feat_gene)
+
             ntracks = len(h_ratios)
             h_ratios = np.array(h_ratios) / sum(h_ratios)
+
+
             fig, axes = plt.subplots(ntracks, 1, 
-                                     figsize=plot_pars["figsize"], sharex=True, 
-                                     gridspec_kw={'hspace': 0.1, 
-                                                  'height_ratios': h_ratios})
+                                    figsize=plot_pars["figsize"], sharex=True, 
+                                    gridspec_kw={'hspace': 0.1, 
+                                                'height_ratios': h_ratios})
                 
             # Plot for Non-missense mut track   
             # -------------------------------
-            if plot_annot["nonmiss_count"]:
+            if plot_annot_gene["nonmiss_count"]:
                 try:
                     if len(mut_count_nonmiss.Consequence.unique()) > 6:
                         ncol = 3
                     else:
                         ncol = 2
                     i = 0
-                    axes[ax].vlines(mut_count_nonmiss["Pos"], ymin=0, ymax=mut_count_nonmiss["Count"], color="gray", lw=0.7, zorder=0)
+                    axes[ax].vlines(mut_count_nonmiss["Pos"], ymin=0, ymax=mut_count_nonmiss["Count"], color="gray", lw=0.7, zorder=0, alpha=0.5)
                     for cnsq in mut_count_nonmiss.Consequence.unique():
                         count_cnsq = mut_count_nonmiss[mut_count_nonmiss["Consequence"] == cnsq]
                         if cnsq == "synonymous_variant":
@@ -499,23 +584,23 @@ def genes_plots(gene_result,
                             color=sns.color_palette("tab10")[i]
                             i+=1
                         axes[ax].scatter(count_cnsq.Pos.values, count_cnsq.Count.values, label=capitalize(cnsq), 
-                                        color=color, zorder=order, ec="black", lw=plot_pars["s_lw"])   
+                                        color=color, zorder=order, alpha=0.7, lw=plot_pars["s_lw"])              # ec="black",
                     axes[ax].legend(fontsize=11.5, ncol=ncol, framealpha=0.75)
                     axes[ax].set_ylabel('Non\nmissense\nmutations', fontsize=13.5)
                     axes[ax].set_ylim(-0.5, mut_count_nonmiss["Count"].max()+0.5)
                 except:
-                    logger.warning(f"Error occurred while adding non-missense count in {gene} ({uni_id}-F{af_f})")
-                    plot_annot["nonmiss_count"] = False
+                    print(f"Error occurred while adding non-missense count in {gene} ({uni_id}-F{af_f})")
+                    plot_annot_gene["nonmiss_count"] = False
                     ax -= 1
             else:
                 ax -= 1
 
             # Plot for Missense Mut_in_res track
             # ----------------------------------
-            axes[ax+1].vlines(mut_count["Pos"], ymin=0, ymax=mut_count["Count"], color="gray", lw=0.7, zorder=1)
-            axes[ax+1].scatter(pos_hit, pos_hit_mut, label="Significant", color = 'C0', zorder=4, ec="black", lw=plot_pars["s_lw"])   
-            axes[ax+1].scatter(pos_ext, pos_ext_mut, label="Significant extended", color = 'C2', zorder=3, ec="black", lw=plot_pars["s_lw"])   
-            axes[ax+1].scatter(pos_not, pos_not_mut, label="Not significant", color = 'C1', zorder=2, ec="black", lw=plot_pars["s_lw"])   
+            axes[ax+1].vlines(mut_count["Pos"], ymin=0, ymax=mut_count["Count"], color="gray", lw=0.7, zorder=1, alpha=0.5)
+            axes[ax+1].scatter(pos_hit, pos_hit_mut, label="Significant", color = 'C0', zorder=4, alpha=0.7, lw=plot_pars["s_lw"])               # ec="black",
+            axes[ax+1].scatter(pos_ext, pos_ext_mut, label="Significant extended", color = 'C2', zorder=3, alpha=0.7, lw=plot_pars["s_lw"])      # ec="black",
+            axes[ax+1].scatter(pos_not, pos_not_mut, label="Not significant", color = 'C1', zorder=2, alpha=0.7, lw=plot_pars["s_lw"])           # ec="black",
             axes[ax+1].fill_between(pos_result_gene['Pos'], 0, max_mut, where=(pos_result_gene['C'] == 1), 
                             color='skyblue', alpha=0.3, label='Mutated *', zorder=0)
             axes[ax+1].fill_between(pos_result_gene['Pos'], 0, max_mut, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
@@ -531,10 +616,10 @@ def genes_plots(gene_result,
                             color='white')
             axes[ax+2].fill_between(pos_result_gene['Pos'], 0, np.max(score_vec), where=(pos_result_gene['C'] == 1), 
                             color='skyblue', alpha=0.4, label='Mutated *')
-            axes[ax+2].vlines(pos_result_gene["Pos"], ymin=0, ymax=pos_result_gene["Ratio_obs_sim"], color="gray", lw=0.7, zorder=1)
-            axes[ax+2].scatter(pos_hit, pos_hit_score, zorder=3, color="C0", ec="black", lw=plot_pars["s_lw"])   
-            axes[ax+2].scatter(pos_not, pos_not_score, zorder=1, color="C1", ec="black", lw=plot_pars["s_lw"])    
-            axes[ax+2].scatter(pos_ext, pos_ext_score, zorder=2, color="C2", ec="black", lw=plot_pars["s_lw"])     
+            axes[ax+2].vlines(pos_result_gene["Pos"], ymin=0, ymax=pos_result_gene["Ratio_obs_sim"], color="gray", lw=0.5, zorder=1, alpha=0.7)
+            axes[ax+2].scatter(pos_hit, pos_hit_score, zorder=3, color="C0", alpha=0.7, lw=plot_pars["s_lw"])       # ec="black",
+            axes[ax+2].scatter(pos_not, pos_not_score, zorder=1, color="C1", alpha=0.7, lw=plot_pars["s_lw"])       # ec="black",
+            axes[ax+2].scatter(pos_ext, pos_ext_score, zorder=2, color="C2", alpha=0.7, lw=plot_pars["s_lw"])       # ec="black",
             axes[ax+2].set_xlabel('Position', fontsize=13.5)
             axes[ax+2].set_xlabel(None)
             axes[ax+2].set_ylabel('O3D score', fontsize=13.5)
@@ -561,7 +646,7 @@ def genes_plots(gene_result,
 
             # Plot PAE
             # ----------------------------------
-            if not np.isnan(pos_result_gene["PAE_vol"]).all() and plot_annot["pae"] == True:  
+            if not np.isnan(pos_result_gene["PAE_vol"]).all() and plot_annot_gene["pae"] == True:  
                 try:
                     max_value = np.max(pos_result_gene["PAE_vol"])
                     axes[ax+4].fill_between(pos_result_gene['Pos'], 0, max_value, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
@@ -577,14 +662,14 @@ def genes_plots(gene_result,
                     axes[ax+4].set_ylabel('PAE', fontsize=13.5)
                 except:
                     logger.warning(f"Error occurred while adding PAE in {gene} ({uni_id}-F{af_f})")
-                    plot_annot["pae"] = False
+                    plot_aplot_annot_genennot["pae"] = False
                     ax-=1
             else:
                 ax-=1
                 
             # Plot disorder
             # -------------
-            if plot_annot["disorder"]:
+            if plot_annot_gene["disorder"]:
                 try:
                     axes[ax+5].fill_between(pos_result_gene['Pos'], 0, 100, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
                                     color='#ffd8b1', alpha=0.6, label='Mutated not *')
@@ -615,14 +700,14 @@ def genes_plots(gene_result,
                     axes[ax+5].set_ylim(-10, 110)
                 except:
                     logger.warning(f"Error occurred while adding Disorder in {gene} ({uni_id}-F{af_f}): There could be a mismatch between the datasets used for the 3D-clustering analysis and the one used to generate plots")
-                    plot_annot["disorder"] = False
+                    plot_annot_gene["disorder"] = False
                     ax-=1
             else:
                 ax-=1
 
             # Plot pACC
             # ---------
-            if plot_annot["pacc"]:
+            if plot_annot_gene["pacc"]:
                 try:
                     axes[ax+6].fill_between(pos_result_gene['Pos'], 0, 100, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
                                             color='#ffd8b1', alpha=0.6)
@@ -638,17 +723,17 @@ def genes_plots(gene_result,
                     axes[ax+6].set_ylim(-10, 110)
                 except:
                     logger.warning(f"Error occurred while adding pACC in {gene} ({uni_id}-F{af_f})")
-                    plot_annot["pacc"] = False
+                    plot_annot_gene["pacc"] = False
             else:
                 ax-=1
 
             # Plot stability change
             # ---------------------
             if pos_result_gene["DDG"].isna().all():
-                plot_annot["ddg"] = False
+                plot_annot_gene["ddg"] = False
                 logger.warning(f"DDG not available for {gene} ({uni_id}-F{af_f}): The track will not be included...")
-            
-            if plot_annot["ddg"]:
+
+            if plot_annot_gene["ddg"]:
                 try:
                     max_value, min_value = pos_result_gene["DDG"].max(), pos_result_gene["DDG"].min()
                     axes[ax+7].fill_between(pos_result_gene['Pos'], min_value, max_value, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
@@ -664,70 +749,137 @@ def genes_plots(gene_result,
                     axes[ax+7].set_ylabel('DDG', fontsize=13.5)
                 except:
                     logger.warning(f"Error occurred while adding DDG in {gene} ({uni_id}-F{af_f})")
-                    plot_annot["ddg"] = False
+                    plot_annot_gene["ddg"] = False
             else:
                 ax-=1 
 
+            # PTM
+            # --------------
+            if plot_annot_gene["ptm"]:    
+                try:
+                    ptm_gene = uni_feat_gene[uni_feat_gene["Type"] == "PTM"]
+                    ptm_names = ptm_gene["Description"].unique()
+                    sb_width = 0.5
+                    max_value = (len(ptm_names) * sb_width) - 0.2
+                    min_value = - 0.3
+
+                    axes[ax+8].fill_between(pos_result_gene['Pos'], min_value, max_value, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
+                                    color='#ffd8b1', alpha=0.6, label='Mutated not *')
+                    axes[ax+8].fill_between(pos_result_gene['Pos'], min_value, max_value, where=(pos_result_gene['C'] == 1), 
+                                            color='white')
+                    axes[ax+8].fill_between(pos_result_gene['Pos'], min_value, max_value, where=(pos_result_gene['C'] == 1), 
+                                            color='skyblue', alpha=0.4, label='Mutated *')
+
+                    for n, name in enumerate(ptm_names):
+                        c = sns.color_palette("tab10")[n]
+                        ptm = ptm_gene[ptm_gene["Description"] == name]
+                        ptm_pos = ptm.Begin.values
+                        axes[ax+8].scatter(ptm_pos, np.repeat(n*sb_width, len(ptm_pos)), label=name, alpha=0.7, color=c) #label=name
+                        axes[ax+8].hlines(y=n*sb_width, xmin=0, xmax=gene_len, linewidth=1, color='lightgray', alpha=0.7, zorder=0)
+                
+                    axes[ax+8].set_ylim(min_value, max_value)
+                    axes[ax+8].set_yticks(sb_width * np.arange(len(ptm_names)), ptm_names)
+                    axes[ax+8].set_ylabel(' PTM', fontsize=13.5)
+                except:
+                    logger.warning(f"Error occurred while adding PTM in {gene} ({uni_id}-F{af_f})")
+                    plot_annot_gene["ptm"] = False
+            else:
+                ax-=1
+
+            # SITES
+            # --------------
+            if plot_annot_gene["site"]:   
+                try:
+                    site_gene = uni_feat_gene[uni_feat_gene["Type"] == "SITE"]
+                    site_names = site_gene["Description"].unique()
+                    sb_width = 0.5
+                    max_value = (len(site_names) * sb_width) - 0.2
+                    min_value = - 0.3
+                    
+                    axes[ax+9].fill_between(pos_result_gene['Pos'], min_value, max_value, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
+                                    color='#ffd8b1', alpha=0.6, label='Mutated not *')
+                    axes[ax+9].fill_between(pos_result_gene['Pos'], min_value, max_value, where=(pos_result_gene['C'] == 1), 
+                                            color='white')
+                    axes[ax+9].fill_between(pos_result_gene['Pos'], min_value, max_value, where=(pos_result_gene['C'] == 1), 
+                                            color='skyblue', alpha=0.4, label='Mutated *')
+                    
+                    for n, name in enumerate(site_names):
+                        c = sns.color_palette("tab10")[n]
+                        site = site_gene[site_gene["Description"] == name]
+                        site_pos = site.Begin.values
+                        axes[ax+9].scatter(site_pos, np.repeat(n*sb_width, len(site_pos)), label=name, alpha=0.7, color=c) #label=name
+                        axes[ax+9].hlines(y=n*sb_width, xmin=0, xmax=gene_len, linewidth=1, color='lightgray', alpha=0.7, zorder=0)
+                    
+                    axes[ax+9].set_ylim(min_value, max_value)
+                    axes[ax+9].set_yticks(sb_width * np.arange(len(site_names)), site_names)
+                    axes[ax+9].set_ylabel('Site\n\n', fontsize=13.5)
+                except:
+                    logger.warning(f"Error occurred while adding Sites in {gene} ({uni_id}-F{af_f})")
+                    plot_annot_gene["site"] = False
+            else:
+                ax-=1
+
             # Clusters label
             # --------------
-            if plot_annot["clusters"]:
+            if plot_annot_gene["clusters"]:
                 try:
                     clusters_label = pos_result_gene.Cluster.dropna().unique()
                     palette = sns.color_palette(cc.glasbey, n_colors=len(clusters_label))
                     for i, cluster in enumerate(clusters_label):
-                        axes[ax+8].fill_between(pos_result_gene['Pos'], -0.5, 0.46, 
+                        axes[ax+10].fill_between(pos_result_gene['Pos'], -0.5, 0.46, 
                                                 where=((pos_result_gene['Cluster'] == cluster) & (pos_result_gene['C'] == 1)),
                                                 color=palette[i], lw=0.4) # alpha=0.6
-                    axes[ax+8].set_ylabel('Clusters             ', fontsize=13.5, rotation=0, va='center')
-                    axes[ax+8].set_yticks([])  
-                    axes[ax+8].set_yticklabels([], fontsize=12)
+                    axes[ax+10].set_ylabel('Clusters             ', fontsize=13.5, rotation=0, va='center')
+                    axes[ax+10].set_yticks([])  
+                    axes[ax+10
+                    ].set_yticklabels([], fontsize=12)
                 except:
                     logger.warning(f"Error occurred while adding Clusters labels in {gene} ({uni_id}-F{af_f})")
-                    plot_annot["clusters"] = False
+                    plot_annot_gene["clusters"] = False
             else:
                 ax-=1
                 
             # Secondary structure
             # -------------------
-            if plot_annot["sse"]:
+            if plot_annot_gene["sse"]:
                 try:
                     for i, sse in enumerate(['Helix', 'Ladder', 'Coil']):
                         c = 0+i
                         ya, yb = c-plot_pars["sse_fill_width"], c+plot_pars["sse_fill_width"]
-                        axes[ax+9].fill_between(pdb_tool_gene["Pos"].values, ya, yb, where=(pdb_tool_gene["SSE"] == sse), 
+                        axes[ax+11].fill_between(pdb_tool_gene["Pos"].values, ya, yb, where=(pdb_tool_gene["SSE"] == sse), 
                                         color=sns.color_palette("tab10")[7+i], label=sse)
-                    axes[ax+9].set_yticks([0, 1, 2])  
-                    axes[ax+9].set_yticklabels(['Helix', 'Ladder', 'Coil'], fontsize=10)
-                    axes[ax+9].set_ylabel('SSE', fontsize=13.5)
+                    axes[ax+11].set_yticks([0, 1, 2])  
+                    axes[ax+11].set_yticklabels(['Helix', 'Ladder', 'Coil'], fontsize=10)
+                    axes[ax+11].set_ylabel(' SSE', fontsize=13.5)
                 except:
                     logger.warning(f"Error occurred while adding SSE in {gene} ({uni_id}-F{af_f})")
-                    plot_annot["sse"] = False
+                    plot_annot_gene["sse"] = False
             else:
                 ax-=1
 
-            # Pfam domains
-            # ------------
-            if plot_annot["pfam"]:
+            # Pfam
+            # ----
+            if plot_annot_gene["pfam"]:
+                pfam_gene = uni_feat_gene[(uni_feat_gene["Type"] == "DOMAIN") & (uni_feat_gene["Evidence"] == "Pfam")]
                 try:
-                    pfam_gene = pfam_gene.sort_values("Pfam_start").reset_index(drop=True)
+                    pfam_gene = pfam_gene.sort_values("Begin").reset_index(drop=True)
                     pfam_color_dict = {}
                     
-                    for n, name in enumerate(pfam_gene["Pfam_name"].unique()):
+                    for n, name in enumerate(pfam_gene["Description"].unique()):
                         pfam_color_dict[name] = f"C{n}"
                         
                     n = 0
                     added_pfam = []
                     for i, row in pfam_gene.iterrows():
-                        if pd.Series([row["Pfam_name"], row["Pfam_start"], row["Pfam_end"]]).isnull().any():
+                        if pd.Series([row["Description"], row["Begin"], row["End"]]).isnull().any():
                             continue
                         
-                        name = row["Pfam_name"]
-                        start = int(row["Pfam_start"])
-                        end = int(row["Pfam_end"])
-                        axes[ax+10].fill_between(range(start, end+1), -0.5, 0.45,  
-                                        alpha=0.5, color=pfam_color_dict[name])
+                        name = row["Description"]
+                        start = int(row["Begin"])
+                        end = int(row["End"])
+                        axes[ax+12].fill_between(range(start, end+1), -0.45, 0.45,  alpha=0.5, color=pfam_color_dict[name])
                         if name not in added_pfam:
-                            if near_domains:
+                            if near_pfam:
                                 n += 1
                                 if n == 1:
                                     y = 0.28
@@ -738,15 +890,143 @@ def genes_plots(gene_result,
                                     n = 0
                             else:
                                 y = -0.04
-                            axes[ax+10].text(((start + end) / 2)+0.5, y, name, ha='center', va='center', fontsize=10, color="black")
+                            axes[ax+12].text(((start + end) / 2)+0.5, y, name, ha='center', va='center', fontsize=10, color="black")
                             added_pfam.append(name)
-                    axes[ax+10].set_yticks([])  
-                    axes[ax+10].set_yticklabels([], fontsize=12)
-                    axes[ax+10].set_ylabel('Pfam        ', fontsize=13.5, rotation=0, va='center')
-                    axes[ax+10].set_ylim(-0.62, 0.6)  
+                    axes[ax+12].set_yticks([])  
+                    axes[ax+12].set_yticklabels([], fontsize=12)
+                    axes[ax+12].set_ylabel('Pfam        ', fontsize=13.5, rotation=0, va='center')
+                    axes[ax+12].set_ylim(-0.5, 0.5)  
                 except:
-                    logger.warning(f"Error occurred while adding Pfam in {gene} ({uni_id}-F{af_f})")
-                    plot_annot["pfam"] = False
+                    logger.warning(f"Error occurred while adding Pfam domain in {gene} ({uni_id}-F{af_f})")
+                    plot_annot_gene["pfam"] = False
+            else:
+                ax-=1
+
+            # Prosite
+            # -------
+            if plot_annot_gene["prosite"]:
+                try:
+                    prosite_gene = uni_feat_gene[(uni_feat_gene["Type"] == "DOMAIN") & (uni_feat_gene["Evidence"] != "Pfam")]
+                
+                    prosite_gene = prosite_gene.sort_values("Begin").reset_index(drop=True)
+                    prosite_color_dict = {}
+                    
+                    for n, name in enumerate(prosite_gene["Description"].unique()):
+                        prosite_color_dict[name] = f"C{n}"
+                        
+                    n = 0
+                    added_prosite = []
+                    for i, row in prosite_gene.iterrows():
+                        if pd.Series([row["Description"], row["Begin"], row["End"]]).isnull().any():
+                            continue
+                        
+                        name = row["Description"]
+                        start = int(row["Begin"])
+                        end = int(row["End"])
+                        axes[ax+13].fill_between(range(start, end+1), -0.45, 0.45,  alpha=0.5, color=prosite_color_dict[name])
+                        if name not in added_prosite:
+                            if near_prosite:
+                                n += 1
+                                if n == 1:
+                                    y = 0.28
+                                elif n == 2:
+                                    y = 0
+                                elif n == 3:
+                                    y = -0.295
+                                    n = 0
+                            else:
+                                y = -0.04
+                            axes[ax+13].text(((start + end) / 2)+0.5, y, name, ha='center', va='center', fontsize=10, color="black")
+                            added_prosite.append(name)
+                    axes[ax+13].set_yticks([])  
+                    axes[ax+13].set_yticklabels([], fontsize=12)
+                    axes[ax+13].set_ylabel('Prosite           ', fontsize=13.5, rotation=0, va='center')
+                    axes[ax+13].set_ylim(-0.5, 0.5)  
+                except:
+                    logger.warning(f"Error occurred while adding Prosite domain in {gene} ({uni_id}-F{af_f})")
+                    plot_annot_gene["pfam"] = False
+            else:
+                ax-=1
+
+            # Membrane
+            # --------
+            if plot_annot_gene["membrane"]:
+                try:
+                    membrane_gene = uni_feat_gene[(uni_feat_gene["Type"] == "MEMBRANE")]
+                    
+                    membrane_gene = membrane_gene.sort_values("Begin").reset_index(drop=True)
+                    membrane_color_dict = {}
+                    
+                    for n, name in enumerate(membrane_gene["Description"].unique()):
+                        membrane_color_dict[name] = f"C{n}"
+                        
+                    n = 0
+                    added_membrane = []
+                    for i, row in membrane_gene.iterrows():
+                        if pd.Series([row["Description"], row["Begin"], row["End"]]).isnull().any():
+                            continue
+                        
+                        name = row["Description"]
+                        start = int(row["Begin"])
+                        end = int(row["End"])
+                        axes[ax+14].fill_between(range(start, end+1), -0.45, 0.45,  alpha=0.5, color=membrane_color_dict[name])
+                        if name not in added_membrane:
+                            y = -0.04
+                            axes[ax+14].text(((start + end) / 2)+0.5, y, name, ha='center', va='center', fontsize=10, color="black")
+                            added_motif.append(name)
+                    axes[ax+14].set_yticks([])  
+                    axes[ax+14].set_yticklabels([], fontsize=12)
+                    axes[ax+14].set_ylabel('Membrane                ', fontsize=13.5, rotation=0, va='center')
+                    axes[ax+14].set_ylim(-0.5, 0.5)  
+                except:
+                    logger.warning(f"Error occurred while adding Membrane info in {gene} ({uni_id}-F{af_f})")
+                    plot_annot_gene["membrane"] = False
+            else:
+                ax-=1
+
+            # Motifs
+            # ------
+            if plot_annot_gene["motif"]:
+                try:
+                    motif_gene = uni_feat_gene[(uni_feat_gene["Type"] == "MOTIF")]
+                    
+                    motif_gene = motif_gene.sort_values("Begin").reset_index(drop=True)
+                    motif_color_dict = {}
+                    
+                    for n, name in enumerate(motif_gene["Full_description"].unique()):
+                        motif_color_dict[name] = f"C{n}"
+                        
+                    n = 0
+                    added_motif = []
+                    for i, row in motif_gene.iterrows():
+                        if pd.Series([row["Full_description"], row["Begin"], row["End"]]).isnull().any():
+                            continue
+                        
+                        name = row["Full_description"]
+                        start = int(row["Begin"])
+                        end = int(row["End"])
+                        axes[ax+15].fill_between(range(start, end+1), -0.45, 0.45,  alpha=0.5, color=motif_color_dict[name])
+                        if name not in added_motif:
+                            if near_motif:
+                                n += 1
+                                if n == 1:
+                                    y = 0.28
+                                elif n == 2:
+                                    y = 0
+                                elif n == 3:
+                                    y = -0.295
+                                    n = 0
+                            else:
+                                y = -0.04
+                            axes[ax+15].text(((start + end) / 2)+0.5, y, name, ha='center', va='center', fontsize=10, color="black")
+                            added_motif.append(name)
+                    axes[ax+15].set_yticks([])  
+                    axes[ax+15].set_yticklabels([], fontsize=12)
+                    axes[ax+15].set_ylabel('Motif        ', fontsize=13.5, rotation=0, va='center')
+                    axes[ax+15].set_ylim(-0.5, 0.5) 
+                except:
+                    logger.warning(f"Error occurred while adding Motifs info in {gene} ({uni_id}-F{af_f})")
+                    plot_annot_gene["motif"] = False
             else:
                 ax-=1
 
@@ -766,17 +1046,17 @@ def genes_plots(gene_result,
                                                   pdb_tool_gene, 
                                                   seq_df)
             annotated_result_lst.append(pos_result_gene)
-            pfam_result_lst.append(pfam_gene)
+            uni_feat_result_lst.append(uni_feat_gene)
 
     # Save as tsv
     if output_tsv:
         pos_result_annotated = pd.concat(annotated_result_lst)
-        pfam_processed = pd.concat(pfam_result_lst)   
+        feat_processed = pd.concat(uni_feat_result_lst)   
     else:
         pos_result_annotated = None
-        pfam_processed = None
+        feat_processed = None
         
-    return pos_result_annotated, pfam_processed
+    return pos_result_annotated, feat_processed
         
             
 # ============
@@ -816,7 +1096,9 @@ def generate_plot(gene_result_path,
     
     seq_df_path = os.path.join(datasets_dir, "seq_for_mut_prob.tsv") 
     seq_df = pd.read_csv(seq_df_path, sep="\t")    
-    pfam = pd.read_csv(os.path.join(annotations_dir, "pfam.tsv"), sep="\t")
+    uniprot_feat = pd.read_csv(os.path.join(annotations_dir, "uniprot_feat.tsv"), sep="\t")
+    uniprot_feat.loc[(uniprot_feat["Type"] == "MOTIF") & (
+        uniprot_feat["Description"] == "Zinc finger"), "Full_description"] = "Zinc finger"
     pdb_tool = pd.read_csv(os.path.join(annotations_dir, "pdb_tool_df.tsv"), sep="\t")
     disorder = pd.read_csv(os.path.join(datasets_dir, "confidence.tsv"), sep="\t", low_memory=False)
     dict_transcripts = plot_pars["dict_transcripts"]
@@ -831,13 +1113,13 @@ def generate_plot(gene_result_path,
     if len(gene_result) > 0:   
 
         # Subset dfs by selected genes and IDs
-        seq_df, disorder, pdb_tool, pfam = subset_genes_and_ids(genes, 
-                                                                uni_ids, 
-                                                                seq_df, 
-                                                                dict_transcripts, 
-                                                                disorder, 
-                                                                pdb_tool, 
-                                                                pfam)
+        seq_df, disorder, pdb_tool, uniprot_feat = subset_genes_and_ids(genes, 
+                                                                        uni_ids, 
+                                                                        seq_df, 
+                                                                        dict_transcripts, 
+                                                                        disorder, 
+                                                                        pdb_tool, 
+                                                                        uniprot_feat)
 
         # Get missense mut probability dict
         miss_prob_dict = get_miss_mut_prob_for_plot(mut_profile_path, mutability_config_path, seq_df)
@@ -871,7 +1153,7 @@ def generate_plot(gene_result_path,
         output_dir_genes_plots = os.path.join(output_dir, f"{cohort}.genes_plots")
         create_plot_dir(output_dir_genes_plots)
         logger.info(f"Creating genes plots in {output_dir_genes_plots}")
-        pos_result_annotated, pfam_processed = genes_plots(gene_result, 
+        pos_result_annotated, uni_feat_processed = genes_plots(gene_result, 
                                                             pos_result, 
                                                             seq_df,
                                                             maf,
@@ -880,11 +1162,12 @@ def generate_plot(gene_result_path,
                                                             cohort,
                                                             annotations_dir,
                                                             disorder,
-                                                            pfam,
+                                                            uniprot_feat,
                                                             pdb_tool,
                                                             maf_nonmiss,
                                                             plot_annot,
                                                             plot_pars,
+                                                            size_df,
                                                             output_tsv)
         
         # Save annotations
@@ -892,7 +1175,7 @@ def generate_plot(gene_result_path,
             logger.info(f"Saving annotated Oncodrive3D result in {output_dir}")
             save_annotated_pos_result(pos_result, 
                                        pos_result_annotated, 
-                                       pfam_processed, 
+                                       uni_feat_processed, 
                                        output_dir, 
                                        cohort, 
                                        output_all_pos)
@@ -929,7 +1212,7 @@ if __name__ == "__main__":
     # Plot parameters                                            # TODO: add some of them as args
     plot_pars = {}
     plot_pars["figsize"] = figsize_x, figsize_y
-    plot_pars["h_ratios"] = [0.15, 0.15, 0.15, 0.15, 0.1, 0.1, 0.1, 0.1, 0.04, 0.07, 0.04]
+    plot_pars["h_ratios"] = [0.15, 0.15, 0.15, 0.15, 0.1, 0.1, 0.1, 0.1, 0.022, 0.022, 0.04, 0.07, 0.04, 0.04, 0.04, 0.04]
     plot_pars["s_lw"] = 0.2
     plot_pars["sse_fill_width"] = 0.43
     plot_pars["dist_thr"] = 0.05
