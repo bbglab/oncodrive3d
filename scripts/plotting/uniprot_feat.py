@@ -178,17 +178,32 @@ def parse_prot_feat(feat_df):
     feat_df.loc[(feat_df["Type"] == "INTRAMEM") | (feat_df["Type"] == "TRANSMEM"), "Type"] = "MEMBRANE"
 
     # Sites
+    cleavage_ix = feat_df['Description'].str.contains('Cleavage', case=False).fillna(False)
+    interaction_ix = feat_df['Description'].str.contains('Interaction', case=False).fillna(False)
+    breakpoint_ix = feat_df['Description'].str.contains('Breakpoint', case=False).fillna(False)
+    ubiquit_ix = feat_df['Description'].str.contains('Ubiquit', case=False).fillna(False)
+    fusion_ix = feat_df['Description'].str.contains('Fusion point', case=False).fillna(False)
+
+    feat_df.loc[(feat_df["Type"] == "SITE") & cleavage_ix, "Description"] = "Cleavage"
+    feat_df.loc[(feat_df["Type"] == "SITE") & interaction_ix, "Description"] = "Interaction"
+    feat_df.loc[(feat_df["Type"] == "SITE") & breakpoint_ix, "Description"] = "Breakpoint"
+    feat_df.loc[(feat_df["Type"] == "SITE") & ubiquit_ix, "Description"] = "Ubiquitin"
+    feat_df.loc[(feat_df["Type"] == "SITE") & fusion_ix, "Description"] = "Fusion point"
+    feat_df.loc[(feat_df["Type"] == "SITE") & ~cleavage_ix & ~interaction_ix 
+                & ~breakpoint_ix & ~ubiquit_ix & ~fusion_ix & ~cleavage_ix, "Description"] = "Others"
+    
     feat_df.loc[feat_df["Type"] == "ACT_SITE", "Description"] = "Active"
     feat_df.loc[feat_df["Type"] == "BINDING", "Description"] = "Binding"
-    feat_df.loc[feat_df["Type"] == "SITE", "Description"] = "Others"
+    
     feat_df.loc[(feat_df["Type"] == "ACT_SITE") | (feat_df["Type"] == "BINDING") | (feat_df["Type"] == "SITE"), "Type"] = "SITE"
 
-    # Motifs
+    # Motifs    
     sumo_ix = feat_df['Description'].str.contains('Sumo', case=False).fillna(False)
+    feat_df.loc[(feat_df["Type"] == "MOTIF") & sumo_ix, "Description"] = "SUMO-related"        
     feat_df.loc[(feat_df["Type"] == "MOTIF") & ~sumo_ix, "Description"] = "Others"        
     feat_df.loc[feat_df["Type"] == "ZN_FING", "Description"] = "Zinc finger"
     feat_df.loc[(feat_df["Type"] == "MOTIF") | (feat_df["Type"] == "ZN_FING"), "Type"] = "MOTIF"
-
+        
     # Regions
     feat_df.loc[feat_df["Type"] == "SIGNAL", "Description"] = "Signal peptide"
     feat_df.loc[feat_df["Type"] == "DNA_BIND", "Description"] = "DNA binding"
@@ -212,6 +227,8 @@ def add_feat_metadata(feat_df, seq_df):
     feat_df["End"] = feat_df["End"].str.replace(">", "")
     feat_df["End"] = pd.to_numeric(feat_df["End"], errors='coerce')
     feat_df[["Begin", "End"]] = feat_df[["Begin", "End"]].astype(int)
+    
+    return feat_df
 
 
 def get_uniprot_feat(seq_df, pfam_df, output_tsv):
