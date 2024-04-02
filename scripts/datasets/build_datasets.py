@@ -85,10 +85,11 @@ def build(output_datasets,
 
     # Create df including genes and proteins sequences & Hugo to Uniprot_ID mapping
     logger.info("Generating dataframe for genes and proteins sequences...")
-    get_seq_df(input_dir=os.path.join(output_datasets, "pdb_structures"),
+    get_seq_df(datasets_dir=output_datasets,
                output_seq_df=os.path.join(output_datasets, "seq_for_mut_prob.tsv"),
                uniprot_to_gene_dict=uniprot_to_hugo,
-               organism=species)
+               organism=species,
+               mane=mane)
     logger.info("Generation of sequences dataframe completed!")
 
     # Get PAE
@@ -117,6 +118,8 @@ def build(output_datasets,
     clean_temp_files(path=output_datasets,
                      rm_pdb_files=rm_pdb_files)
     logger.info("Datasets cleaning completed!")
+
+    # TO DO: add a step that clean up all structures not added in the sequence df
 
     logger.info("Datasets have been successfully built and are ready for analysis!")
     

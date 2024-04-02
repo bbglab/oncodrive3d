@@ -90,7 +90,7 @@ def oncodrive3D():
                      help="Build datasets - Required once after installation.")
 @click.option("-o", "--output_dir", help="Directory where to save the files", type=str, default='datasets')
 @click.option("-s", "--organism", type=click.Choice(["Homo sapiens", 'human', "Mus musculus", 'mouse']), help="Organism name", default="Homo sapiens")
-@click.option("-m", "--mane", help="Use structure predicted from MANE Select transcripts (Homo sapiens only)", is_flag=True)
+@click.option("-m", "--mane", help="Use structures predicted from MANE Select transcripts (Homo sapiens only)", is_flag=True)
 @click.option("-d", "--distance_threshold", type=click.INT, default=10,
               help="Distance threshold (Å) to define contact between amino acids")
 @click.option("-u", "--uniprot_to_hugo", type=click.Path(exists=True), 

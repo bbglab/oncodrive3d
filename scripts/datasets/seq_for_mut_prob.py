@@ -81,6 +81,112 @@ def initialize_seq_df(input_path, uniprot_to_gene_dict):
     return seq_df
 
 
+def select_uni_id(ids_tuple, all_ids):
+    """
+    Return the first Uniprot ID present in the list of IDs 
+    (list of structures available). If no ID of the tuple 
+    maps a downloaded structure, return NA.
+    """
+
+    for uni_id in ids_tuple:
+        if uni_id in all_ids:
+            return uni_id
+
+    return np.nan
+    
+
+import shutil  ##  TO DELETE
+
+def initialize_seq_df_from_mane(path_to_datasets):
+    """
+    Parse any PDB structure from a given directory and create a 
+    dataframe including HUGO symbol, HGNC_ID, RefSeq_prot, MANE 
+    missing status, Uniprot-ID, AF fragment, and protein sequence.
+    Include only Uniprot IDs overlapping with MANE trascripts.
+    Mane missing status of 1 indicates that there might not be a perfect 
+    match between the Uniprot ID and the corresponding MANE transcript.
+    """
+
+    # Select structures
+    path_to_pdb = os.path.join(path_to_datasets, "pdb_structures")
+    uniprot_ids = os.listdir(path_to_pdb)
+    uniprot_ids = [uni_id.split("-")[1] for uni_id in list(set(uniprot_ids)) if ".pdb" in uni_id]
+
+    # Load MANE metadata
+    
+    #### TO DO: CONVERT TO DOWNLOAD
+    shutil.copy("/workspace/nobackup/scratch/oncodrive3d/datasets_mane_seq/mane_summary.txt.gz", 
+                f"{path_to_datasets}/mane_summary.txt.gz")
+    
+
+    mane_to_af_path = os.path.join(path_to_datasets, "mane_refseq_prot_to_alphafold.csv")
+    mane_missing_path = os.path.join(path_to_datasets, "mane_missing.csv")
+    mane_path = os.path.join(path_to_datasets, "mane_summary.txt.gz")
+    for path in [mane_to_af_path, mane_missing_path, mane_path]:
+        if not os.path.exists(path):
+            logger.error(f"MANE metadata file {path} not found. Exiting...")
+    
+    mane_to_af = pd.read_csv(mane_to_af_path)
+    mane_missing = pd.read_csv(mane_missing_path)
+    mane = pd.read_csv(mane_path, compression='gzip', sep="\t")
+
+    # Parse
+    mane_to_af = mane_to_af.rename(columns={"refseq_prot" : "RefSeq_prot",
+                                        "uniprot_accession" : "Uniprot_ID"})
+    mane_to_af["Mane_missing"] = 0
+    mane_to_af_missing = mane_missing.rename(columns={"refseq_prot" : "RefSeq_prot", 
+                                                      "uniprot_accession(s)" : "Uniprot_ID"})
+    mane_to_af_missing["Mane_missing"] = 1
+    mane = mane.rename(columns={"symbol" : "Gene"})
+    mane_to_af = pd.concat((mane_to_af[["RefSeq_prot", "Uniprot_ID", "Mane_missing"]], 
+                            mane_to_af_missing[["RefSeq_prot", "Uniprot_ID", "Mane_missing"]])).dropna(subset="Uniprot_ID")
+    id_mapping = mane_to_af[["RefSeq_prot", "Uniprot_ID", "Mane_missing"]].merge(mane[["RefSeq_prot", "Gene", "HGNC_ID"]], 
+                                                                                 on="RefSeq_prot", how="inner")
+    id_mapping["Uniprot_ID"] = id_mapping.apply(lambda x: 
+                                                select_uni_id(x.Uniprot_ID.split(";"), uniprot_ids) if len(x.Uniprot_ID.split(";")) > 1 
+                                                else x.Uniprot_ID, axis=1)
+
+    # Select only available Uniprot IDs matching MANE
+    id_mapping = id_mapping.dropna(subset=["Uniprot_ID", "Gene"])
+    id_mapping = id_mapping[id_mapping.apply(lambda x: x.Uniprot_ID in uniprot_ids, axis=1)]
+
+    # Get metadata 
+    uni_id_lst = []
+    f_lst = []
+    gene_lst = []
+    hgnc_lst = []
+    refseq_lst = []
+    mane_missing_lst = []
+    seq_lst = []
+
+    list_prot_path = get_pdb_path_list_from_dir(path_to_pdb)
+    for path_structure in tqdm(list_prot_path, total=len(list_prot_path), desc="Generating sequence df"):
+        uniprot_id, f = get_af_id_from_pdb(path_structure).split("-F")
+        
+        if uniprot_id in id_mapping.Uniprot_ID.unique() and uniprot_id not in uni_id_lst:
+            row = id_mapping[id_mapping["Uniprot_ID"] == uniprot_id].values[0]
+            refseq, _, mane_missing, hugo_id, hgnc_id = row
+            seq = "".join(list(get_seq_from_pdb(path_structure)))
+            uni_id_lst.append(uniprot_id)
+            f_lst.append(f)
+            gene_lst.append(hugo_id)
+            hgnc_lst.append(hgnc_id)
+            refseq_lst.append(refseq)
+            mane_missing_lst.append(mane_missing)
+            seq_lst.append(seq)
+
+    seq_df = pd.DataFrame({"Uniprot_ID" : uni_id_lst, 
+                           "F" : f_lst, 
+                           "Gene" : gene_lst, 
+                           "HGNC_ID" : gene_lst, 
+                           "Refseq_prot" : refseq_lst,
+                           "Mane_missing" : mane_missing_lst,
+                           "Seq" : seq_lst
+                           }).sort_values(["Gene", "F"])
+    
+    return seq_df
+
+
 #==============================================
 # Get DNA sequence using EMBL backtranseq API 
 # (not 100% reliable but available fo most seq)
@@ -481,10 +587,10 @@ def drop_gene_duplicates(df):
     df_ref_0 = df[df['Reference_info'] == 0]
     
     # Prioritize rows where MANE not NaN for genes with Reference_info (or just keep first one)
-    df_ref_1 = df_ref_1.sort_values(by='MANE_Refseq_prot', ascending=False).drop_duplicates(subset='Gene')
+    df_ref_1 = df_ref_1.sort_values(by='Refseq_prot', ascending=False).drop_duplicates(subset='Gene')
     
     # Same as Step 2 but for genes without Reference_info
-    df_ref_0 = df_ref_0.sort_values(by='MANE_Refseq_prot', ascending=False).drop_duplicates(subset='Gene')
+    df_ref_0 = df_ref_0.sort_values(by='Refseq_prot', ascending=False).drop_duplicates(subset='Gene')
     df_ref_0 = df_ref_0.drop_duplicates(subset='Gene', keep='first')
     
     # Concat and prioritize rows with Reference_info (or just keep first one)
@@ -566,10 +672,11 @@ def add_extra_genes_to_seq_df(seq_df, uniprot_to_gene_dict):
     return seq_df
 
 
-def get_seq_df(input_dir, 
+def get_seq_df(datasets_dir, 
                output_seq_df, 
                uniprot_to_gene_dict = None, 
-               organism = "Homo sapiens"):
+               organism = "Homo sapiens",
+               mane=False):
     """
     Generate a dataframe including IDs mapping information (Gene and Uniprot_ID),
     AlphaFold 2 fragment number (F); the protein (Seq) and DNA sequence (DNA_seq) 
@@ -580,18 +687,24 @@ def get_seq_df(input_dir,
     taing into account flanking regions at splicing sites (Tri_context).
     """
 
-    # Load Uniprot ID to HUGO mapping
-    uniprot_ids = os.listdir(input_dir)
-    uniprot_ids = [uni_id.split("-")[1] for uni_id in list(set(uniprot_ids)) if ".pdb" in uni_id]
-    if uniprot_to_gene_dict is not None and uniprot_to_gene_dict != "None":
-        uniprot_to_gene_dict = json.load(open(uniprot_to_gene_dict)) 
-    else:
-        logger.debug("Retrieving Uniprot_ID to Hugo symbol mapping information..")
-        uniprot_to_gene_dict = uniprot_to_hugo(uniprot_ids)  
+    if mane == False:
+        # Load Uniprot ID to HUGO mapping
+        pdb_dir = os.path.join(datasets_dir, "pdb_structures")
+        uniprot_ids = os.listdir(pdb_dir)
+        uniprot_ids = [uni_id.split("-")[1] for uni_id in list(set(uniprot_ids)) if ".pdb" in uni_id]
+        if uniprot_to_gene_dict is not None and uniprot_to_gene_dict != "None":
+            uniprot_to_gene_dict = json.load(open(uniprot_to_gene_dict)) 
+        else:
+            logger.debug("Retrieving Uniprot_ID to Hugo symbol mapping information..")
+            uniprot_to_gene_dict = uniprot_to_hugo(uniprot_ids)  
 
     # Create a dataframe with protein sequences
     logger.debug("Generating sequence df...")
-    seq_df = initialize_seq_df(input_dir, uniprot_to_gene_dict)
+    if mane == False:  
+        seq_df = initialize_seq_df(input_dir, uniprot_to_gene_dict)
+        seq_df["Refseq_prot"] = np.nan
+    else:
+        seq_df = initialize_seq_df(datasets_dir)
     
     # Add coordinates for mutability integration and ref DNA sequence extraction
     logger.debug("Retrieving exons coordinate..")
@@ -621,21 +734,11 @@ def get_seq_df(input_dir,
                        ).sort_values("Uniprot_ID").reset_index(drop=True)
     
     # Add multiple genes mapping to the same Uniprot_ID
-    seq_df = add_extra_genes_to_seq_df(seq_df, uniprot_to_gene_dict)
+    if mane == False:
+        seq_df = add_extra_genes_to_seq_df(seq_df, uniprot_to_gene_dict)
     
     # Assess overal similarity
     seq_df = asssess_similarity(seq_df, on="all")
-    
-    # Add MANE Refseq protein ID if present                    
-    path_to_refseq_prot = os.path.join(input_dir, "../", "mane_refseq_prot_to_alphafold.csv")
-    if os.path.exists(path_to_refseq_prot):
-        logger.debug(f"Adding MANE refseq protein IDs...")
-        refseq_prot = pd.read_csv(path_to_refseq_prot).drop(columns=["alphafold"])
-        refseq_prot.columns = "MANE_Refseq_prot", "Uniprot_ID"
-        seq_df = seq_df.merge(refseq_prot, on="Uniprot_ID", how="left")   
-        logger.debug(f"MANE refseq protein IDs added to Sequences dataframe!")
-    else:
-        seq_df["MANE_Refseq_prot"] = np.nan
         
     # Drop duplicates
     seq_df = drop_gene_duplicates(seq_df)
