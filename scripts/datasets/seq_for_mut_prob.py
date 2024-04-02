@@ -113,22 +113,18 @@ def initialize_seq_df_from_mane(path_to_datasets):
     uniprot_ids = [uni_id.split("-")[1] for uni_id in list(set(uniprot_ids)) if ".pdb" in uni_id]
 
     # Load MANE metadata
-    
-    #### TO DO: CONVERT TO DOWNLOAD
-    shutil.copy("/workspace/nobackup/scratch/oncodrive3d/datasets_mane_seq/mane_summary.txt.gz", 
-                f"{path_to_datasets}/mane_summary.txt.gz")
-    
-
+    mane_summary_path = os.path.join(path_to_datasets, "mane_summary.txt.gz")
+    if not os.path.exists(mane_summary_path):
+        url_mane_summary = "https://ftp.ncbi.nlm.nih.gov/refseq/MANE/MANE_human/release_1.0/MANE.GRCh38.v1.0.summary.txt.gz"
+        _ = urlretrieve(url_mane_summary, f"{path_to_datasets}/mane_summary.txt.gz")
     mane_to_af_path = os.path.join(path_to_datasets, "mane_refseq_prot_to_alphafold.csv")
     mane_missing_path = os.path.join(path_to_datasets, "mane_missing.csv")
-    mane_path = os.path.join(path_to_datasets, "mane_summary.txt.gz")
-    for path in [mane_to_af_path, mane_missing_path, mane_path]:
+    for path in [mane_to_af_path, mane_missing_path]:
         if not os.path.exists(path):
             logger.error(f"MANE metadata file {path} not found. Exiting...")
-    
     mane_to_af = pd.read_csv(mane_to_af_path)
     mane_missing = pd.read_csv(mane_missing_path)
-    mane = pd.read_csv(mane_path, compression='gzip', sep="\t")
+    mane_summary = pd.read_csv(mane_summary_path, compression='gzip', sep="\t")
 
     # Parse
     mane_to_af = mane_to_af.rename(columns={"refseq_prot" : "RefSeq_prot",
@@ -137,11 +133,11 @@ def initialize_seq_df_from_mane(path_to_datasets):
     mane_to_af_missing = mane_missing.rename(columns={"refseq_prot" : "RefSeq_prot", 
                                                       "uniprot_accession(s)" : "Uniprot_ID"})
     mane_to_af_missing["Mane_missing"] = 1
-    mane = mane.rename(columns={"symbol" : "Gene"})
+    mane_summary = mane_summary.rename(columns={"symbol" : "Gene"})
     mane_to_af = pd.concat((mane_to_af[["RefSeq_prot", "Uniprot_ID", "Mane_missing"]], 
                             mane_to_af_missing[["RefSeq_prot", "Uniprot_ID", "Mane_missing"]])).dropna(subset="Uniprot_ID")
-    id_mapping = mane_to_af[["RefSeq_prot", "Uniprot_ID", "Mane_missing"]].merge(mane[["RefSeq_prot", "Gene", "HGNC_ID"]], 
-                                                                                 on="RefSeq_prot", how="inner")
+    id_mapping = mane_to_af[["RefSeq_prot", "Uniprot_ID", "Mane_missing"]].merge(
+        mane_summary[["RefSeq_prot", "Gene", "HGNC_ID"]], on="RefSeq_prot", how="inner")
     id_mapping["Uniprot_ID"] = id_mapping.apply(lambda x: 
                                                 select_uni_id(x.Uniprot_ID.split(";"), uniprot_ids) if len(x.Uniprot_ID.split(";")) > 1 
                                                 else x.Uniprot_ID, axis=1)
