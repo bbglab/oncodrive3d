@@ -604,15 +604,15 @@ def genes_plots(gene_result,
             axes[ax+1].scatter(pos_not, pos_not_mut, label="Not significant", color = 'C1', zorder=2, alpha=0.7, lw=plot_pars["s_lw"])           # ec="black",
             axes[ax+1].fill_between(pos_result_gene['Pos'], 0, max_mut, where=(pos_result_gene['C'] == 1), 
                             color='skyblue', alpha=0.3, label='Mutated *', zorder=0)
-            axes[ax+1].fill_between(pos_result_gene['Pos'], 0, max_mut, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
-                            color='#ffd8b1', alpha=0.6, label='Mutated not *', zorder=0)
+            # axes[ax+1].fill_between(pos_result_gene['Pos'], 0, max_mut, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
+            #                 color='#ffd8b1', alpha=0.6, label='Mutated not *', zorder=0)
             axes[ax+1].legend(fontsize=11.5, ncol=3, framealpha=0.75)
             axes[ax+1].set_ylabel('Missense\nmutations', fontsize=13.5)         
 
             # Plot for Score track
             # --------------------
-            axes[ax+2].fill_between(pos_result_gene['Pos'], 0, np.max(score_vec), where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
-                            color='#ffd8b1', alpha=0.6, label='Mutated not *')
+            # axes[ax+2].fill_between(pos_result_gene['Pos'], 0, np.max(score_vec), where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
+            #                 color='#ffd8b1', alpha=0.6, label='Mutated not *')
             axes[ax+2].fill_between(pos_result_gene['Pos'], 0, np.max(score_vec), where=(pos_result_gene['C'] == 1), 
                             color='white')
             axes[ax+2].fill_between(pos_result_gene['Pos'], 0, np.max(score_vec), where=(pos_result_gene['C'] == 1), 
@@ -628,8 +628,8 @@ def genes_plots(gene_result,
             # Plot for Score and Miss prob track
             # ----------------------------------
             max_value = np.max((np.max(prob_vec), np.max(score_norm_vec)))
-            axes[ax+3].fill_between(pos_result_gene['Pos'], 0, max_value, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
-                            color='#ffd8b1', alpha=0.6, label='Mutated not *')
+            # axes[ax+3].fill_between(pos_result_gene['Pos'], 0, max_value, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
+            #                 color='#ffd8b1', alpha=0.6, label='Mutated not *')
             axes[ax+3].fill_between(pos_result_gene['Pos'], 0, max_value, where=(pos_result_gene['C'] == 1), 
                             color='white')
             axes[ax+3].fill_between(pos_result_gene['Pos'], 0, max_value, where=(pos_result_gene['C'] == 1), 
@@ -650,8 +650,8 @@ def genes_plots(gene_result,
             if not np.isnan(pos_result_gene["PAE_vol"]).all() and plot_annot_gene["pae"] == True:  
                 try:
                     max_value = np.max(pos_result_gene["PAE_vol"])
-                    axes[ax+4].fill_between(pos_result_gene['Pos'], 0, max_value, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
-                                    color='#ffd8b1', alpha=0.6)
+                    # axes[ax+4].fill_between(pos_result_gene['Pos'], 0, max_value, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
+                    #                 color='#ffd8b1', alpha=0.6)
                     axes[ax+4].fill_between(pos_result_gene['Pos'], 0, max_value, where=(pos_result_gene['C'] == 1), 
                                     color='white')
                     axes[ax+4].fill_between(pos_result_gene['Pos'], 0, max_value, where=(pos_result_gene['C'] == 1), 
@@ -673,8 +673,8 @@ def genes_plots(gene_result,
             # -------------
             if plot_annot_gene["disorder"]:
                 try:
-                    axes[ax+5].fill_between(pos_result_gene['Pos'], 0, 100, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
-                                    color='#ffd8b1', alpha=0.6, label='Mutated not *')
+                    # axes[ax+5].fill_between(pos_result_gene['Pos'], 0, 100, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
+                    #                 color='#ffd8b1', alpha=0.6, label='Mutated not *')
                     axes[ax+5].fill_between(pos_result_gene['Pos'], 0, 100, where=(pos_result_gene['C'] == 1), 
                                             color='white')
                     axes[ax+5].fill_between(pos_result_gene['Pos'], 0, 100, where=(pos_result_gene['C'] == 1), 
@@ -717,8 +717,8 @@ def genes_plots(gene_result,
             # ---------
             if plot_annot_gene["pacc"]:
                 try:
-                    axes[ax+6].fill_between(pos_result_gene['Pos'], 0, 100, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
-                                            color='#ffd8b1', alpha=0.6)
+                    # axes[ax+6].fill_between(pos_result_gene['Pos'], 0, 100, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
+                    #                         color='#ffd8b1', alpha=0.6)
                     axes[ax+6].fill_between(pos_result_gene['Pos'], 0, 100, where=(pos_result_gene['C'] == 1), 
                                             color='white')
                     axes[ax+6].fill_between(pos_result_gene['Pos'], 0, 100, where=(pos_result_gene['C'] == 1), 
@@ -745,8 +745,8 @@ def genes_plots(gene_result,
             if plot_annot_gene["ddg"]:
                 try:
                     max_value, min_value = pos_result_gene["DDG"].max(), pos_result_gene["DDG"].min()
-                    axes[ax+7].fill_between(pos_result_gene['Pos'], min_value, max_value, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
-                                            color='#ffd8b1', alpha=0.6)
+                    # axes[ax+7].fill_between(pos_result_gene['Pos'], min_value, max_value, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
+                    #                         color='#ffd8b1', alpha=0.6)
                     axes[ax+7].fill_between(pos_result_gene['Pos'], min_value, max_value, where=(pos_result_gene['C'] == 1), 
                                             color='white')
                     axes[ax+7].fill_between(pos_result_gene['Pos'], min_value, max_value, where=(pos_result_gene['C'] == 1), 
@@ -773,8 +773,8 @@ def genes_plots(gene_result,
                     max_value = (len(ptm_names) * sb_width) - 0.2
                     min_value = - 0.3
 
-                    axes[ax+8].fill_between(pos_result_gene['Pos'], min_value, max_value, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
-                                    color='#ffd8b1', alpha=0.6, label='Mutated not *')
+                    # axes[ax+8].fill_between(pos_result_gene['Pos'], min_value, max_value, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
+                    #                 color='#ffd8b1', alpha=0.6, label='Mutated not *')
                     axes[ax+8].fill_between(pos_result_gene['Pos'], min_value, max_value, where=(pos_result_gene['C'] == 1), 
                                             color='white')
                     axes[ax+8].fill_between(pos_result_gene['Pos'], min_value, max_value, where=(pos_result_gene['C'] == 1), 
@@ -807,8 +807,8 @@ def genes_plots(gene_result,
                     max_value = (len(site_names) * sb_width) - 0.2
                     min_value = - 0.3
                     
-                    axes[ax+9].fill_between(pos_result_gene['Pos'], min_value, max_value, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
-                                    color='#ffd8b1', alpha=0.6, label='Mutated not *')
+                    # axes[ax+9].fill_between(pos_result_gene['Pos'], min_value, max_value, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
+                    #                 color='#ffd8b1', alpha=0.6, label='Mutated not *')
                     axes[ax+9].fill_between(pos_result_gene['Pos'], min_value, max_value, where=(pos_result_gene['C'] == 1), 
                                             color='white')
                     axes[ax+9].fill_between(pos_result_gene['Pos'], min_value, max_value, where=(pos_result_gene['C'] == 1), 
