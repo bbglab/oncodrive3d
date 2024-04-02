@@ -392,46 +392,46 @@ def set_axes_arg(pos_result_gene, plot_pars, plot_annot_gene, uni_feat_gene):
         del h_ratios[0]
         dx += 1
     if np.isnan(pos_result_gene["PAE_vol"]).all() or plot_annot_gene["pae"] == False:
-        del h_ratios[4-dx]
+        del h_ratios[3-dx]
         dx += 1
         plot_annot_gene["pae"] = False
     if plot_annot_gene["disorder"] == False:
-        del h_ratios[5-dx]
+        del h_ratios[4-dx]
         dx += 1
     if plot_annot_gene["pacc"] == False:
-        del h_ratios[6-dx]
+        del h_ratios[5-dx]
         dx += 1
     if plot_annot_gene["ddg"] == False:
-        del h_ratios[7-dx]
+        del h_ratios[6-dx]
         dx += 1
 
     if plot_annot_gene["ptm"] == False or len(uni_feat_gene[uni_feat_gene["Type"] == "PTM"]) == 0:
-        del h_ratios[8-dx]
+        del h_ratios[7-dx]
         dx += 1
         plot_annot_gene["ptm"] = False
     else:
         stracks = len(uni_feat_gene[uni_feat_gene["Type"] == "PTM"].Description.unique())
-        h_ratios[8-dx] = h_ratios[8-dx] * stracks
+        h_ratios[7-dx] = h_ratios[7-dx] * stracks
  
     if plot_annot_gene["site"] == False or len(uni_feat_gene[uni_feat_gene["Type"] == "SITE"]) == 0:
-        del h_ratios[9-dx]
+        del h_ratios[8-dx]
         dx += 1
         plot_annot_gene["site"] = False
     else:
         stracks = len(uni_feat_gene[uni_feat_gene["Type"] == "SITE"].Description.unique())
-        h_ratios[9-dx] = h_ratios[9-dx] * stracks
+        h_ratios[8-dx] = h_ratios[8-dx] * stracks
 
     
     if plot_annot_gene["clusters"] == False:
-        del h_ratios[10-dx]
+        del h_ratios[9-dx]
         dx += 1
     if plot_annot_gene["sse"] == False:
-        del h_ratios[11-dx]
+        del h_ratios[10-dx]
         dx += 1
 
     if plot_annot_gene["pfam"] == False or len(uni_feat_gene[(uni_feat_gene["Type"] == "DOMAIN") & 
                                           (uni_feat_gene["Evidence"] == "Pfam")]) == 0:
-        del h_ratios[12-dx]
+        del h_ratios[11-dx]
         dx += 1
         near_pfam = False
         plot_annot_gene["pfam"] = False
@@ -439,36 +439,36 @@ def set_axes_arg(pos_result_gene, plot_pars, plot_annot_gene, uni_feat_gene):
         # Make the track for the Pfam domains larger if domains are too close
         near_pfam = check_near_domains(uni_feat_gene, pfam=True, dist_thr=plot_pars["dist_thr"])
         if near_pfam:
-            h_ratios[12-dx] = 0.08
+            h_ratios[11-dx] = 0.08
             
     if plot_annot_gene["prosite"] == False or len(uni_feat_gene[(uni_feat_gene["Type"] == "DOMAIN") & 
                                           (uni_feat_gene["Evidence"] != "Pfam")]) == 0:
-        del h_ratios[13-dx]
+        del h_ratios[12-dx]
         dx += 1
         near_prosite = False
         plot_annot_gene["prosite"] = False
     else:
         near_prosite = check_near_domains(uni_feat_gene, pfam=False, dist_thr=plot_pars["dist_thr"])
         if near_prosite:
-            h_ratios[13-dx] = 0.08
+            h_ratios[12-dx] = 0.08
             
     if plot_annot_gene["membrane"] == False or len(uni_feat_gene[uni_feat_gene["Type"] == "MEMBRANE"]) == 0:
-        del h_ratios[14-dx]
+        del h_ratios[13-dx]
         dx += 1
         plot_annot_gene["membrane"] = False
     else:
         stracks = len(uni_feat_gene[uni_feat_gene["Type"] == "MEMBRANE"].Description.unique())
-        h_ratios[14-dx] = h_ratios[14-dx] * stracks
+        h_ratios[13-dx] = h_ratios[13-dx] * stracks
     
     if plot_annot_gene["motif"] == False or len(uni_feat_gene[uni_feat_gene["Type"] == "MOTIF"]) == 0:
-        del h_ratios[15-dx]
+        del h_ratios[14-dx]
         dx += 1
         near_motif = False
         plot_annot_gene["motif"] = False
     else:
         near_motif = check_near_domains(uni_feat_gene, dist_thr=0.1)
         if near_motif:
-            h_ratios[15-dx] = 0.08
+            h_ratios[14-dx] = 0.08
         
     return h_ratios, plot_annot_gene, near_pfam, near_prosite, near_motif
 
@@ -604,43 +604,23 @@ def genes_plots(gene_result,
             axes[ax+1].scatter(pos_not, pos_not_mut, label="Not significant", color = 'C1', zorder=2, alpha=0.7, lw=plot_pars["s_lw"])           # ec="black",
             axes[ax+1].fill_between(pos_result_gene['Pos'], 0, max_mut, where=(pos_result_gene['C'] == 1), 
                             color='skyblue', alpha=0.3, label='Mutated *', zorder=0)
-            # axes[ax+1].fill_between(pos_result_gene['Pos'], 0, max_mut, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
-            #                 color='#ffd8b1', alpha=0.6, label='Mutated not *', zorder=0)
             axes[ax+1].legend(fontsize=11.5, ncol=3, framealpha=0.75)
             axes[ax+1].set_ylabel('Missense\nmutations', fontsize=13.5)         
-
-            # Plot for Score track
-            # --------------------
-            # axes[ax+2].fill_between(pos_result_gene['Pos'], 0, np.max(score_vec), where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
-            #                 color='#ffd8b1', alpha=0.6, label='Mutated not *')
-            axes[ax+2].fill_between(pos_result_gene['Pos'], 0, np.max(score_vec), where=(pos_result_gene['C'] == 1), 
-                            color='white')
-            axes[ax+2].fill_between(pos_result_gene['Pos'], 0, np.max(score_vec), where=(pos_result_gene['C'] == 1), 
-                            color='skyblue', alpha=0.4, label='Mutated *')
-            axes[ax+2].vlines(pos_result_gene["Pos"], ymin=0, ymax=pos_result_gene["Ratio_obs_sim"], color="gray", lw=0.5, zorder=1, alpha=0.7)
-            axes[ax+2].scatter(pos_hit, pos_hit_score, zorder=3, color="C0", alpha=0.7, lw=plot_pars["s_lw"])       # ec="black",
-            axes[ax+2].scatter(pos_not, pos_not_score, zorder=1, color="C1", alpha=0.7, lw=plot_pars["s_lw"])       # ec="black",
-            axes[ax+2].scatter(pos_ext, pos_ext_score, zorder=2, color="C2", alpha=0.7, lw=plot_pars["s_lw"])       # ec="black",
-            axes[ax+2].set_xlabel('Position', fontsize=13.5)
-            axes[ax+2].set_xlabel(None)
-            axes[ax+2].set_ylabel('O3D score', fontsize=13.5)
 
             # Plot for Score and Miss prob track
             # ----------------------------------
             max_value = np.max((np.max(prob_vec), np.max(score_norm_vec)))
-            # axes[ax+3].fill_between(pos_result_gene['Pos'], 0, max_value, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
-            #                 color='#ffd8b1', alpha=0.6, label='Mutated not *')
-            axes[ax+3].fill_between(pos_result_gene['Pos'], 0, max_value, where=(pos_result_gene['C'] == 1), 
+            axes[ax+2].fill_between(pos_result_gene['Pos'], 0, max_value, where=(pos_result_gene['C'] == 1), 
                             color='white')
-            axes[ax+3].fill_between(pos_result_gene['Pos'], 0, max_value, where=(pos_result_gene['C'] == 1), 
+            axes[ax+2].fill_between(pos_result_gene['Pos'], 0, max_value, where=(pos_result_gene['C'] == 1), 
                             color='skyblue', alpha=0.4, label='Mutated *')
-            axes[ax+3].fill_between(range(1, len(prob_vec)+1), 0, score_norm_vec, zorder=1, color="white")
-            axes[ax+3].fill_between(range(1, len(prob_vec)+1), 0, score_norm_vec, zorder=1, color="C2", alpha=0.5)            
-            axes[ax+3].plot(range(1, len(prob_vec)+1), prob_vec, label="Miss mut prob", zorder=3, color="Red", lw=1)                          
-            axes[ax+3].plot(range(1, len(prob_vec)+1), score_norm_vec, label="O3D score normalized", zorder=2, color="C2", lw=0.5)        
-            handles, labels = axes[ax+3].get_legend_handles_labels()
-            axes[ax+3].legend(handles[-2:], labels[-2:], fontsize=11.5, framealpha=0.75, ncol=2)
-            axes[ax+3].set_ylabel('Value', fontsize=13.5)
+            axes[ax+2].fill_between(range(1, len(prob_vec)+1), 0, score_norm_vec, zorder=1, color="white")
+            axes[ax+2].fill_between(range(1, len(prob_vec)+1), 0, score_norm_vec, zorder=1, color="C2", alpha=0.5)            
+            axes[ax+2].plot(range(1, len(prob_vec)+1), prob_vec, label="Miss mut prob", zorder=3, color="Red", lw=1)                          
+            axes[ax+2].plot(range(1, len(prob_vec)+1), score_norm_vec, label="O3D score normalized", zorder=2, color="C2", lw=0.5)        
+            handles, labels = axes[ax+2].get_legend_handles_labels()
+            axes[ax+2].legend(handles[-2:], labels[-2:], fontsize=11.5, framealpha=0.75, ncol=2)
+            axes[ax+2].set_ylabel('Value', fontsize=13.5)
 
             # Plot annotations
             # ================
@@ -650,17 +630,15 @@ def genes_plots(gene_result,
             if not np.isnan(pos_result_gene["PAE_vol"]).all() and plot_annot_gene["pae"] == True:  
                 try:
                     max_value = np.max(pos_result_gene["PAE_vol"])
-                    # axes[ax+4].fill_between(pos_result_gene['Pos'], 0, max_value, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
-                    #                 color='#ffd8b1', alpha=0.6)
-                    axes[ax+4].fill_between(pos_result_gene['Pos'], 0, max_value, where=(pos_result_gene['C'] == 1), 
+                    axes[ax+3].fill_between(pos_result_gene['Pos'], 0, max_value, where=(pos_result_gene['C'] == 1), 
                                     color='white')
-                    axes[ax+4].fill_between(pos_result_gene['Pos'], 0, max_value, where=(pos_result_gene['C'] == 1), 
+                    axes[ax+3].fill_between(pos_result_gene['Pos'], 0, max_value, where=(pos_result_gene['C'] == 1), 
                                     color='skyblue', alpha=0.3)
-                    axes[ax+4].fill_between(pos_result_gene["Pos"], 0, pos_result_gene["PAE_vol"].fillna(0), 
+                    axes[ax+3].fill_between(pos_result_gene["Pos"], 0, pos_result_gene["PAE_vol"].fillna(0), 
                                             zorder=2, color=sns.color_palette("pastel")[4])                                           
-                    axes[ax+4].plot(pos_result_gene['Pos'], pos_result_gene["PAE_vol"].fillna(0),                                     
+                    axes[ax+3].plot(pos_result_gene['Pos'], pos_result_gene["PAE_vol"].fillna(0),                                     
                                     label="Confidence", zorder=3, color=sns.color_palette("tab10")[4], lw=0.5)
-                    axes[ax+4].set_ylabel('PAE', fontsize=13.5)
+                    axes[ax+3].set_ylabel('PAE', fontsize=13.5)
                 except Exception as e:
                     logger.warning(f"Error occurred while adding PAE in {gene} ({uni_id}-F{af_f}):")
                     logger.warning(f"{e}")
@@ -673,11 +651,9 @@ def genes_plots(gene_result,
             # -------------
             if plot_annot_gene["disorder"]:
                 try:
-                    # axes[ax+5].fill_between(pos_result_gene['Pos'], 0, 100, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
-                    #                 color='#ffd8b1', alpha=0.6, label='Mutated not *')
-                    axes[ax+5].fill_between(pos_result_gene['Pos'], 0, 100, where=(pos_result_gene['C'] == 1), 
+                    axes[ax+4].fill_between(pos_result_gene['Pos'], 0, 100, where=(pos_result_gene['C'] == 1), 
                                             color='white')
-                    axes[ax+5].fill_between(pos_result_gene['Pos'], 0, 100, where=(pos_result_gene['C'] == 1), 
+                    axes[ax+4].fill_between(pos_result_gene['Pos'], 0, 100, where=(pos_result_gene['C'] == 1), 
                                             color='skyblue', alpha=0.4, label='Mutated *')
                     
                     # ## Comment out to use AF color scale
@@ -694,17 +670,17 @@ def genes_plots(gene_result,
                     # condition_4 = disorder_y <= 50
                     # conditions = [condition_1, condition_2, condition_3, condition_4]
                     # for color, condition in zip(af_colors, conditions):
-                    #     axes[ax+5].fill_between(disorder_x, 0, disorder_y, where=(condition),       
+                    #     axes[ax+4].fill_between(disorder_x, 0, disorder_y, where=(condition),       
                     #                             zorder=2, color="white")   
-                    #     axes[ax+5].fill_between(disorder_x, 0, disorder_y, where=(condition),   
+                    #     axes[ax+4].fill_between(disorder_x, 0, disorder_y, where=(condition),   
                     #                             zorder=3, facecolor=color, alpha=0.8)  
                     
-                    axes[ax+5].fill_between(disorder_gene["Pos"], 0, disorder_gene["Confidence"].fillna(0),                  
+                    axes[ax+4].fill_between(disorder_gene["Pos"], 0, disorder_gene["Confidence"].fillna(0),                  
                                 zorder=2, color=sns.color_palette("pastel")[4])
-                    axes[ax+5].plot(disorder_gene["Pos"], disorder_gene["Confidence"], 
+                    axes[ax+4].plot(disorder_gene["Pos"], disorder_gene["Confidence"], 
                                     label="Confidence", zorder=3, color=sns.color_palette("tab10")[4], lw=0.5)    
-                    axes[ax+5].set_ylabel('pLDDT', fontsize=13.5)
-                    axes[ax+5].set_ylim(-10, 110)
+                    axes[ax+4].set_ylabel('pLDDT', fontsize=13.5)
+                    axes[ax+4].set_ylim(-10, 110)
                 except Exception as e:
                     logger.warning(f"Error occurred while adding Disorder in {gene} ({uni_id}-F{af_f}):")
                     logger.warning(f"{e}")
@@ -717,18 +693,16 @@ def genes_plots(gene_result,
             # ---------
             if plot_annot_gene["pacc"]:
                 try:
-                    # axes[ax+6].fill_between(pos_result_gene['Pos'], 0, 100, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
-                    #                         color='#ffd8b1', alpha=0.6)
-                    axes[ax+6].fill_between(pos_result_gene['Pos'], 0, 100, where=(pos_result_gene['C'] == 1), 
+                    axes[ax+5].fill_between(pos_result_gene['Pos'], 0, 100, where=(pos_result_gene['C'] == 1), 
                                             color='white')
-                    axes[ax+6].fill_between(pos_result_gene['Pos'], 0, 100, where=(pos_result_gene['C'] == 1), 
+                    axes[ax+5].fill_between(pos_result_gene['Pos'], 0, 100, where=(pos_result_gene['C'] == 1), 
                                             color='skyblue', alpha=0.4)
-                    axes[ax+6].fill_between(pdb_tool_gene["Pos"], 0, pdb_tool_gene["pACC"].fillna(0),                  
+                    axes[ax+5].fill_between(pdb_tool_gene["Pos"], 0, pdb_tool_gene["pACC"].fillna(0),                  
                                             zorder=2, color=sns.color_palette("pastel")[4])
-                    axes[ax+6].plot(pdb_tool_gene['Pos'], pdb_tool_gene["pACC"].fillna(0), 
+                    axes[ax+5].plot(pdb_tool_gene['Pos'], pdb_tool_gene["pACC"].fillna(0), 
                                     label="pACC", zorder=3, color=sns.color_palette("tab10")[4], lw=0.5)      
-                    axes[ax+6].set_ylabel('pACC', fontsize=13.5)
-                    axes[ax+6].set_ylim(-10, 110)
+                    axes[ax+5].set_ylabel('pACC', fontsize=13.5)
+                    axes[ax+5].set_ylim(-10, 110)
                 except Exception as e:
                     logger.warning(f"Error occurred while adding pACC in {gene} ({uni_id}-F{af_f}):")
                     logger.warning(f"{e}")
@@ -745,17 +719,15 @@ def genes_plots(gene_result,
             if plot_annot_gene["ddg"]:
                 try:
                     max_value, min_value = pos_result_gene["DDG"].max(), pos_result_gene["DDG"].min()
-                    # axes[ax+7].fill_between(pos_result_gene['Pos'], min_value, max_value, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
-                    #                         color='#ffd8b1', alpha=0.6)
-                    axes[ax+7].fill_between(pos_result_gene['Pos'], min_value, max_value, where=(pos_result_gene['C'] == 1), 
+                    axes[ax+6].fill_between(pos_result_gene['Pos'], min_value, max_value, where=(pos_result_gene['C'] == 1), 
                                             color='white')
-                    axes[ax+7].fill_between(pos_result_gene['Pos'], min_value, max_value, where=(pos_result_gene['C'] == 1), 
+                    axes[ax+6].fill_between(pos_result_gene['Pos'], min_value, max_value, where=(pos_result_gene['C'] == 1), 
                                             color='skyblue', alpha=0.4)
-                    axes[ax+7].fill_between(pos_result_gene['Pos'], 0, pos_result_gene["DDG"], zorder=1,             
+                    axes[ax+6].fill_between(pos_result_gene['Pos'], 0, pos_result_gene["DDG"], zorder=1,             
                                             color=sns.color_palette("pastel")[4])      
-                    axes[ax+7].plot(pos_result_gene['Pos'], pos_result_gene["DDG"], 
+                    axes[ax+6].plot(pos_result_gene['Pos'], pos_result_gene["DDG"], 
                                     label="Stability change", zorder=2, color=sns.color_palette("tab10")[4], lw=0.5)    
-                    axes[ax+7].set_ylabel('DDG', fontsize=13.5)
+                    axes[ax+6].set_ylabel('DDG', fontsize=13.5)
                 except Exception as e:
                     logger.warning(f"Error occurred while adding DDG in {gene} ({uni_id}-F{af_f}):")
                     logger.warning(f"{e}")
@@ -772,24 +744,22 @@ def genes_plots(gene_result,
                     sb_width = 0.5
                     max_value = (len(ptm_names) * sb_width) - 0.2
                     min_value = - 0.3
-
-                    # axes[ax+8].fill_between(pos_result_gene['Pos'], min_value, max_value, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
-                    #                 color='#ffd8b1', alpha=0.6, label='Mutated not *')
-                    axes[ax+8].fill_between(pos_result_gene['Pos'], min_value, max_value, where=(pos_result_gene['C'] == 1), 
+                    
+                    axes[ax+7].fill_between(pos_result_gene['Pos'], min_value, max_value, where=(pos_result_gene['C'] == 1), 
                                             color='white')
-                    axes[ax+8].fill_between(pos_result_gene['Pos'], min_value, max_value, where=(pos_result_gene['C'] == 1), 
+                    axes[ax+7].fill_between(pos_result_gene['Pos'], min_value, max_value, where=(pos_result_gene['C'] == 1), 
                                             color='skyblue', alpha=0.4, label='Mutated *')
 
                     for n, name in enumerate(ptm_names):
                         c = sns.color_palette("tab10")[n]
                         ptm = ptm_gene[ptm_gene["Description"] == name]
                         ptm_pos = ptm.Begin.values
-                        axes[ax+8].scatter(ptm_pos, np.repeat(n*sb_width, len(ptm_pos)), label=name, alpha=0.7, color=c) #label=name
-                        axes[ax+8].hlines(y=n*sb_width, xmin=0, xmax=gene_len, linewidth=1, color='lightgray', alpha=0.7, zorder=0)
+                        axes[ax+7].scatter(ptm_pos, np.repeat(n*sb_width, len(ptm_pos)), label=name, alpha=0.7, color=c) #label=name
+                        axes[ax+7].hlines(y=n*sb_width, xmin=0, xmax=gene_len, linewidth=1, color='lightgray', alpha=0.7, zorder=0)
                 
-                    axes[ax+8].set_ylim(min_value, max_value)
-                    axes[ax+8].set_yticks(sb_width * np.arange(len(ptm_names)), ptm_names)
-                    axes[ax+8].set_ylabel(' PTM            ', fontsize=13.5, rotation=0, va='center')
+                    axes[ax+7].set_ylim(min_value, max_value)
+                    axes[ax+7].set_yticks(sb_width * np.arange(len(ptm_names)), ptm_names)
+                    axes[ax+7].set_ylabel(' PTM            ', fontsize=13.5, rotation=0, va='center')
                 except Exception as e:
                     logger.warning(f"Error occurred while adding PTM in {gene} ({uni_id}-F{af_f}):")
                     logger.warning(f"{e}")
@@ -807,23 +777,21 @@ def genes_plots(gene_result,
                     max_value = (len(site_names) * sb_width) - 0.2
                     min_value = - 0.3
                     
-                    # axes[ax+9].fill_between(pos_result_gene['Pos'], min_value, max_value, where=((pos_result_gene["C"] == 0) | (pos_result_gene["C"] == 2)), 
-                    #                 color='#ffd8b1', alpha=0.6, label='Mutated not *')
-                    axes[ax+9].fill_between(pos_result_gene['Pos'], min_value, max_value, where=(pos_result_gene['C'] == 1), 
+                    axes[ax+8].fill_between(pos_result_gene['Pos'], min_value, max_value, where=(pos_result_gene['C'] == 1), 
                                             color='white')
-                    axes[ax+9].fill_between(pos_result_gene['Pos'], min_value, max_value, where=(pos_result_gene['C'] == 1), 
+                    axes[ax+8].fill_between(pos_result_gene['Pos'], min_value, max_value, where=(pos_result_gene['C'] == 1), 
                                             color='skyblue', alpha=0.4, label='Mutated *')
                     
                     for n, name in enumerate(site_names):
                         c = sns.color_palette("tab10")[n]
                         site = site_gene[site_gene["Description"] == name]
                         site_pos = site.Begin.values
-                        axes[ax+9].scatter(site_pos, np.repeat(n*sb_width, len(site_pos)), label=name, alpha=0.7, color=c) #label=name
-                        axes[ax+9].hlines(y=n*sb_width, xmin=0, xmax=gene_len, linewidth=1, color='lightgray', alpha=0.7, zorder=0)
+                        axes[ax+8].scatter(site_pos, np.repeat(n*sb_width, len(site_pos)), label=name, alpha=0.7, color=c) #label=name
+                        axes[ax+8].hlines(y=n*sb_width, xmin=0, xmax=gene_len, linewidth=1, color='lightgray', alpha=0.7, zorder=0)
                     
-                    axes[ax+9].set_ylim(min_value, max_value)
-                    axes[ax+9].set_yticks(sb_width * np.arange(len(site_names)), site_names)
-                    axes[ax+9].set_ylabel('Site           ', fontsize=13.5, rotation=0, va='center')
+                    axes[ax+8].set_ylim(min_value, max_value)
+                    axes[ax+8].set_yticks(sb_width * np.arange(len(site_names)), site_names)
+                    axes[ax+8].set_ylabel('Site           ', fontsize=13.5, rotation=0, va='center')
                 except Exception as e:
                     logger.warning(f"Error occurred while adding Sites in {gene} ({uni_id}-F{af_f}):")
                     logger.warning(f"{e}")
@@ -838,12 +806,12 @@ def genes_plots(gene_result,
                     clusters_label = pos_result_gene.Cluster.dropna().unique()
                     palette = sns.color_palette(cc.glasbey, n_colors=len(clusters_label))
                     for i, cluster in enumerate(clusters_label):
-                        axes[ax+10].fill_between(pos_result_gene['Pos'], -0.5, 0.46, 
+                        axes[ax+9].fill_between(pos_result_gene['Pos'], -0.5, 0.46, 
                                                 where=((pos_result_gene['Cluster'] == cluster) & (pos_result_gene['C'] == 1)),
                                                 color=palette[i], lw=0.4) # alpha=0.6
-                    axes[ax+10].set_ylabel('Clusters             ', fontsize=13.5, rotation=0, va='center')
-                    axes[ax+10].set_yticks([])  
-                    axes[ax+10
+                    axes[ax+9].set_ylabel('Clusters             ', fontsize=13.5, rotation=0, va='center')
+                    axes[ax+9].set_yticks([])  
+                    axes[ax+9
                     ].set_yticklabels([], fontsize=12)
                 except Exception as e:
                     logger.warning(f"Error occurred while adding Clusters labels in {gene} ({uni_id}-F{af_f}):")
@@ -859,11 +827,11 @@ def genes_plots(gene_result,
                     for i, sse in enumerate(['Helix', 'Ladder', 'Coil']):
                         c = 0+i
                         ya, yb = c-plot_pars["sse_fill_width"], c+plot_pars["sse_fill_width"]
-                        axes[ax+11].fill_between(pdb_tool_gene["Pos"].values, ya, yb, where=(pdb_tool_gene["SSE"] == sse), 
+                        axes[ax+10].fill_between(pdb_tool_gene["Pos"].values, ya, yb, where=(pdb_tool_gene["SSE"] == sse), 
                                         color=sns.color_palette("tab10")[7+i], label=sse)
-                    axes[ax+11].set_yticks([0, 1, 2])  
-                    axes[ax+11].set_yticklabels(['Helix', 'Ladder', 'Coil'], fontsize=10)
-                    axes[ax+11].set_ylabel(' SSE', fontsize=13.5)
+                    axes[ax+10].set_yticks([0, 1, 2])  
+                    axes[ax+10].set_yticklabels(['Helix', 'Ladder', 'Coil'], fontsize=10)
+                    axes[ax+10].set_ylabel(' SSE', fontsize=13.5)
                 except Exception as e:
                     logger.warning(f"Error occurred while adding SSE in {gene} ({uni_id}-F{af_f}):")
                     logger.warning(f"{e}")
@@ -891,7 +859,7 @@ def genes_plots(gene_result,
                         name = row["Description"]
                         start = int(row["Begin"])
                         end = int(row["End"])
-                        axes[ax+12].fill_between(range(start, end+1), -0.45, 0.45,  alpha=0.5, color=pfam_color_dict[name])
+                        axes[ax+11].fill_between(range(start, end+1), -0.45, 0.45,  alpha=0.5, color=pfam_color_dict[name])
                         if name not in added_pfam:
                             if near_pfam:
                                 n += 1
@@ -904,12 +872,12 @@ def genes_plots(gene_result,
                                     n = 0
                             else:
                                 y = -0.04
-                            axes[ax+12].text(((start + end) / 2)+0.5, y, name, ha='center', va='center', fontsize=10, color="black")
+                            axes[ax+11].text(((start + end) / 2)+0.5, y, name, ha='center', va='center', fontsize=10, color="black")
                             added_pfam.append(name)
-                    axes[ax+12].set_yticks([])  
-                    axes[ax+12].set_yticklabels([], fontsize=12)
-                    axes[ax+12].set_ylabel('Pfam        ', fontsize=13.5, rotation=0, va='center')
-                    axes[ax+12].set_ylim(-0.5, 0.5)  
+                    axes[ax+11].set_yticks([])  
+                    axes[ax+11].set_yticklabels([], fontsize=12)
+                    axes[ax+11].set_ylabel('Pfam        ', fontsize=13.5, rotation=0, va='center')
+                    axes[ax+11].set_ylim(-0.5, 0.5)  
                 except Exception as e:
                     logger.warning(f"Error occurred while adding Pfam domain in {gene} ({uni_id}-F{af_f}):")
                     logger.warning(f"{e}")
@@ -938,7 +906,7 @@ def genes_plots(gene_result,
                         name = row["Description"]
                         start = int(row["Begin"])
                         end = int(row["End"])
-                        axes[ax+13].fill_between(range(start, end+1), -0.45, 0.45,  alpha=0.5, color=prosite_color_dict[name])
+                        axes[ax+12].fill_between(range(start, end+1), -0.45, 0.45,  alpha=0.5, color=prosite_color_dict[name])
                         if name not in added_prosite:
                             if near_prosite:
                                 n += 1
@@ -951,12 +919,12 @@ def genes_plots(gene_result,
                                     n = 0
                             else:
                                 y = -0.04
-                            axes[ax+13].text(((start + end) / 2)+0.5, y, name, ha='center', va='center', fontsize=10, color="black")
+                            axes[ax+12].text(((start + end) / 2)+0.5, y, name, ha='center', va='center', fontsize=10, color="black")
                             added_prosite.append(name)
-                    axes[ax+13].set_yticks([])  
-                    axes[ax+13].set_yticklabels([], fontsize=12)
-                    axes[ax+13].set_ylabel('Prosite           ', fontsize=13.5, rotation=0, va='center')
-                    axes[ax+13].set_ylim(-0.5, 0.5)  
+                    axes[ax+12].set_yticks([])  
+                    axes[ax+12].set_yticklabels([], fontsize=12)
+                    axes[ax+12].set_ylabel('Prosite           ', fontsize=13.5, rotation=0, va='center')
+                    axes[ax+12].set_ylim(-0.5, 0.5)  
                 except Exception as e:
                     logger.warning(f"Error occurred while adding Prosite domain in {gene} ({uni_id}-F{af_f}):")
                     logger.warning(f"{e}")
@@ -990,10 +958,10 @@ def genes_plots(gene_result,
                             y = -0.04
                             axes[ax+14].text(((start + end) / 2)+0.5, y, name, ha='center', va='center', fontsize=10, color="black")
                             added_membrane.append(name)
-                    axes[ax+14].set_yticks([])  
-                    axes[ax+14].set_yticklabels([], fontsize=12)
-                    axes[ax+14].set_ylabel('Membrane                ', fontsize=13.5, rotation=0, va='center')
-                    axes[ax+14].set_ylim(-0.5, 0.5)  
+                    axes[ax+13].set_yticks([])  
+                    axes[ax+13].set_yticklabels([], fontsize=12)
+                    axes[ax+13].set_ylabel('Membrane                ', fontsize=13.5, rotation=0, va='center')
+                    axes[ax+13].set_ylim(-0.5, 0.5)  
                 except Exception as e:
                     logger.warning(f"Error occurred while adding Membrane info in {gene} ({uni_id}-F{af_f}):")
                     logger.warning(f"{e}")
@@ -1022,7 +990,7 @@ def genes_plots(gene_result,
                         name = row["Full_description"]
                         start = int(row["Begin"])
                         end = int(row["End"])
-                        axes[ax+15].fill_between(range(start, end+1), -0.45, 0.45,  alpha=0.5, color=motif_color_dict[name])
+                        axes[ax+14].fill_between(range(start, end+1), -0.45, 0.45,  alpha=0.5, color=motif_color_dict[name])
                         if name not in added_motif:
                             if near_motif:
                                 n += 1
@@ -1035,12 +1003,12 @@ def genes_plots(gene_result,
                                     n = 0
                             else:
                                 y = -0.04
-                            axes[ax+15].text(((start + end) / 2)+0.5, y, name, ha='center', va='center', fontsize=10, color="black")
+                            axes[ax+14].text(((start + end) / 2)+0.5, y, name, ha='center', va='center', fontsize=10, color="black")
                             added_motif.append(name)
-                    axes[ax+15].set_yticks([])  
-                    axes[ax+15].set_yticklabels([], fontsize=12)
-                    axes[ax+15].set_ylabel('Motif        ', fontsize=13.5, rotation=0, va='center')
-                    axes[ax+15].set_ylim(-0.5, 0.5) 
+                    axes[ax+14].set_yticks([])  
+                    axes[ax+14].set_yticklabels([], fontsize=12)
+                    axes[ax+14].set_ylabel('Motif        ', fontsize=13.5, rotation=0, va='center')
+                    axes[ax+14].set_ylim(-0.5, 0.5) 
                 except Exception as e:
                     logger.warning(f"Error occurred while adding Motifs info in {gene} ({uni_id}-F{af_f}):")
                     logger.warning(f"{e}")
@@ -1229,7 +1197,7 @@ if __name__ == "__main__":
     # Plot parameters                                            # TODO: add some of them as args
     plot_pars = {}
     plot_pars["figsize"] = figsize_x, figsize_y
-    plot_pars["h_ratios"] = [0.15, 0.15, 0.15, 0.15, 0.1, 0.1, 0.1, 0.1, 0.022, 0.022, 0.04, 0.07, 0.04, 0.04, 0.04, 0.04]
+    plot_pars["h_ratios"] = [0.17, 0.17, 0.17, 0.1, 0.1, 0.1, 0.1, 0.022, 0.022, 0.04, 0.07, 0.04, 0.04, 0.04, 0.04]
     plot_pars["s_lw"] = 0.2
     plot_pars["sse_fill_width"] = 0.43
     plot_pars["dist_thr"] = 0.05
