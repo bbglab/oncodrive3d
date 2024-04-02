@@ -680,24 +680,29 @@ def genes_plots(gene_result,
                     axes[ax+5].fill_between(pos_result_gene['Pos'], 0, 100, where=(pos_result_gene['C'] == 1), 
                                             color='skyblue', alpha=0.4, label='Mutated *')
                     
-                    af_colors = ["#1F6AD7", 
-                                "#65CBF3",
-                                "#FFDC48",
-                                "#FB7C44"]
+                    # ## Comment out to use AF color scale
+                    
+                    # af_colors = ["#1F6AD7", 
+                    #             "#65CBF3",
+                    #             "#FFDC48",
+                    #             "#FB7C44"]
 
-                    disorder_x, disorder_y = interpolate_x_y(disorder_gene["Pos"], disorder_gene["Confidence"])
-                    condition_1 = disorder_y > 90
-                    condition_2 = disorder_y <= 90
-                    condition_3 = disorder_y <= 70
-                    condition_4 = disorder_y <= 50
-                    conditions = [condition_1, condition_2, condition_3, condition_4]
-                    for color, condition in zip(af_colors, conditions):
-                        axes[ax+5].fill_between(disorder_x, 0, disorder_y, where=(condition),       
-                                                zorder=2, color="white")   
-                        axes[ax+5].fill_between(disorder_x, 0, disorder_y, where=(condition),   
-                                                zorder=3, facecolor=color, alpha=0.8)  
+                    # disorder_x, disorder_y = interpolate_x_y(disorder_gene["Pos"], disorder_gene["Confidence"])
+                    # condition_1 = disorder_y > 90
+                    # condition_2 = disorder_y <= 90
+                    # condition_3 = disorder_y <= 70
+                    # condition_4 = disorder_y <= 50
+                    # conditions = [condition_1, condition_2, condition_3, condition_4]
+                    # for color, condition in zip(af_colors, conditions):
+                    #     axes[ax+5].fill_between(disorder_x, 0, disorder_y, where=(condition),       
+                    #                             zorder=2, color="white")   
+                    #     axes[ax+5].fill_between(disorder_x, 0, disorder_y, where=(condition),   
+                    #                             zorder=3, facecolor=color, alpha=0.8)  
+                    
+                    axes[ax+5].fill_between(disorder_gene["Pos"], 0, disorder_gene["Confidence"].fillna(0),                  
+                                zorder=2, color=sns.color_palette("pastel")[4])
                     axes[ax+5].plot(disorder_gene["Pos"], disorder_gene["Confidence"], 
-                                    label="Confidence", zorder=3, color="gray", lw=0.7)    
+                                    label="Confidence", zorder=3, color=sns.color_palette("tab10")[4], lw=0.5)    
                     axes[ax+5].set_ylabel('pLDDT', fontsize=13.5)
                     axes[ax+5].set_ylim(-10, 110)
                 except Exception as e:
@@ -784,7 +789,7 @@ def genes_plots(gene_result,
                 
                     axes[ax+8].set_ylim(min_value, max_value)
                     axes[ax+8].set_yticks(sb_width * np.arange(len(ptm_names)), ptm_names)
-                    axes[ax+8].set_ylabel(' PTM             ', fontsize=13.5, rotation=0, va='center')
+                    axes[ax+8].set_ylabel(' PTM            ', fontsize=13.5, rotation=0, va='center')
                 except Exception as e:
                     logger.warning(f"Error occurred while adding PTM in {gene} ({uni_id}-F{af_f}):")
                     logger.warning(f"{e}")
@@ -818,7 +823,7 @@ def genes_plots(gene_result,
                     
                     axes[ax+9].set_ylim(min_value, max_value)
                     axes[ax+9].set_yticks(sb_width * np.arange(len(site_names)), site_names)
-                    axes[ax+9].set_ylabel('Site             ', fontsize=13.5, rotation=0, va='center')
+                    axes[ax+9].set_ylabel('Site           ', fontsize=13.5, rotation=0, va='center')
                 except Exception as e:
                     logger.warning(f"Error occurred while adding Sites in {gene} ({uni_id}-F{af_f}):")
                     logger.warning(f"{e}")
