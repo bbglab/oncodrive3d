@@ -591,12 +591,12 @@ def plot(gene_result_path,
     # Plot parameters                                            # TODO: add some of them as args
     plot_pars = {}
     plot_pars["figsize"] = figsize_x, figsize_y
-    plot_pars["h_ratios"] = [0.15, 0.15, 0.15, 0.15, 0.1, 0.1, 0.1, 0.1, 0.022, 0.022, 0.04, 0.07, 0.04, 0.04, 0.04, 0.04]
+    plot_pars["h_ratios"] = [0.17, 0.17, 0.17, 0.1, 0.1, 0.1, 0.1, 0.04, 0.07, 0.04, 0.04, 0.07, 0.04, 0.04, 0.04, 0.04]
     plot_pars["s_lw"] = 0.2
     plot_pars["sse_fill_width"] = 0.43
     plot_pars["dist_thr"] = 0.05
     plot_pars["color_cnsq"] = color_cnsq
-    plot_pars["dict_transcripts"] = {"PTEN" : "ENST00000688308"}  # For now this is used to get a specific transcript for pfam domains
+    # plot_pars["dict_transcripts"] = {"PTEN" : "ENST00000688308"}  # For now this is used to get a specific transcript for pfam domains
 
     ## Plot
 

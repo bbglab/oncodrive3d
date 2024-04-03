@@ -504,10 +504,10 @@ def genes_plots(gene_result,
         # Load and parse
         # ==============
         
-        # IDs
         uni_id = seq_df[seq_df["Gene"] == gene].Uniprot_ID.values[0]
         af_f = seq_df[seq_df["Gene"] == gene].F.values[0]
         maf_gene = maf[maf["Gene"] == gene]
+        gene_len = size_df[size_df["Gene"] == gene].Size.values[0]
 
         # Parse
         pos_result_gene = pos_result[pos_result["Gene"] == gene].sort_values("Pos").reset_index(drop=True)
@@ -528,7 +528,10 @@ def genes_plots(gene_result,
                                                                     plot_annot["nonmiss_count"])
             
             # Get prob vec
-            prob_vec = miss_prob_dict[f"{uni_id}-F{af_f}"]                         # TODO: If none, use uniform        <-------------------------- TODO
+            if miss_prob_dict is None:
+                prob_vec = get_unif_gene_miss_prob(gene_len)
+            else:
+                prob_vec = miss_prob_dict[f"{uni_id}-F{af_f}"]    
         
             # Get per-pos score and normalize score
             pos_result_gene, score_vec, score_norm_vec = get_score_for_genes_plot(pos_result_gene, 
@@ -537,18 +540,17 @@ def genes_plots(gene_result,
 
             # Get annotations
             pos_result_gene, disorder_gene, pdb_tool_gene, uni_feat_gene = get_id_annotations(uni_id, 
-                                                                                               pos_result_gene, 
-                                                                                               maf_gene, 
-                                                                                               annotations_dir, 
-                                                                                               disorder, 
-                                                                                               pdb_tool, 
-                                                                                               uniprot_feat)
+                                                                                              pos_result_gene, 
+                                                                                              maf_gene, 
+                                                                                              annotations_dir, 
+                                                                                              disorder, 
+                                                                                              pdb_tool, 
+                                                                                              uniprot_feat)
 
             # Generate plot
             # ============= 
                 
             ax = 0
-            gene_len = size_df[size_df["Gene"] == gene].Size.values[0]
             plot_annot_gene = plot_annot.copy()
             if mut_count_nonmiss is None:
                 plot_annot_gene["nonmiss_count"] = False
@@ -558,9 +560,9 @@ def genes_plots(gene_result,
             h_ratios = np.array(h_ratios) / sum(h_ratios)
 
             fig, axes = plt.subplots(ntracks, 1, 
-                                    figsize=plot_pars["figsize"], sharex=True, 
-                                    gridspec_kw={'hspace': 0.1, 
-                                                'height_ratios': h_ratios})
+                                     figsize=plot_pars["figsize"], sharex=True, 
+                                     gridspec_kw={'hspace': 0.1, 
+                                                  'height_ratios': h_ratios})
                 
             # Plot for Non-missense mut track   
             # -------------------------------
@@ -571,7 +573,9 @@ def genes_plots(gene_result,
                     else:
                         ncol = 2
                     i = 0
-                    axes[ax].vlines(mut_count_nonmiss["Pos"], ymin=0, ymax=mut_count_nonmiss["Count"], color="gray", lw=0.7, zorder=0, alpha=0.5)
+                    axes[ax].vlines(mut_count_nonmiss["Pos"], ymin=0, ymax=mut_count_nonmiss["Count"], 
+                                    color="gray", lw=0.7, zorder=0, alpha=0.5) # To cover the overlapping needle top part
+                    axes[ax].scatter(mut_count_nonmiss["Pos"], mut_count_nonmiss["Count"], color='white', zorder=4, lw=plot_pars["s_lw"]) 
                     for cnsq in mut_count_nonmiss.Consequence.unique():
                         count_cnsq = mut_count_nonmiss[mut_count_nonmiss["Consequence"] == cnsq]
                         if cnsq == "synonymous_variant":
@@ -584,10 +588,11 @@ def genes_plots(gene_result,
                             color=sns.color_palette("tab10")[i]
                             i+=1
                         axes[ax].scatter(count_cnsq.Pos.values, count_cnsq.Count.values, label=capitalize(cnsq), 
-                                        color=color, zorder=order, alpha=0.7, lw=plot_pars["s_lw"])              # ec="black",
+                                        color=color, zorder=order, alpha=0.7, lw=plot_pars["s_lw"], ec="black")              # ec="black",
                     axes[ax].legend(fontsize=11.5, ncol=ncol, framealpha=0.75)
-                    axes[ax].set_ylabel('Non\nmissense\nmutations', fontsize=13.5)
+                    axes[ax].set_ylabel('Non\nmissense\nmutations', fontsize=13.5, rotation=0, va='center')
                     axes[ax].set_ylim(-0.5, mut_count_nonmiss["Count"].max()+0.5)
+                    axes[ax].set_ylim(0, max(mut_count_nonmiss["Count"])*1.1)
                 except Exception as e:
                     logger.warning(f"Error occurred while adding non-missense count in {gene} ({uni_id}-F{af_f}):")
                     logger.warning(f"{e}")
@@ -599,13 +604,26 @@ def genes_plots(gene_result,
             # Plot for Missense Mut_in_res track
             # ----------------------------------
             axes[ax+1].vlines(mut_count["Pos"], ymin=0, ymax=mut_count["Count"], color="gray", lw=0.7, zorder=1, alpha=0.5)
-            axes[ax+1].scatter(pos_hit, pos_hit_mut, label="Significant", color = 'C0', zorder=4, alpha=0.7, lw=plot_pars["s_lw"])               # ec="black",
-            axes[ax+1].scatter(pos_ext, pos_ext_mut, label="Significant extended", color = 'C2', zorder=3, alpha=0.7, lw=plot_pars["s_lw"])      # ec="black",
-            axes[ax+1].scatter(pos_not, pos_not_mut, label="Not significant", color = 'C1', zorder=2, alpha=0.7, lw=plot_pars["s_lw"])           # ec="black",
+
+            mut_pos = pos_result_gene[pos_result_gene["Mut_in_res"] > 0].Pos.values
+            mut_res_pos = pos_result_gene[pos_result_gene["Mut_in_res"] > 0].Mut_in_res.values
+            mut_vol_pos = pos_result_gene[pos_result_gene["Mut_in_res"] > 0].Mut_in_vol.values
+
+            axes[ax+1].scatter(mut_pos, mut_res_pos, color='white', zorder=3, lw=plot_pars["s_lw"], ec="white")               # To cover the overlapping needle top part
+            axes[ax+1].scatter(mut_pos, mut_res_pos, color='gray', zorder=4, alpha=0.7, lw=plot_pars["s_lw"], ec="black", s=60,
+                            label='Missense mutation')    
+
+            # axes[ax+1].scatter(pos_ext, pos_ext_mut, color = 'C0', zorder=4, alpha=0.7, lw=plot_pars["s_lw"], s=60)                                            # ec="black",
+            # axes[ax+1].scatter(pos_hit, pos_hit_mut, label="Mutation in cluster", color = 'C0', zorder=4, alpha=0.7, lw=plot_pars["s_lw"], s=60)               # ec="black",
+            # # axes[ax+1].scatter(pos_ext, pos_ext_mut, label="Significant extended", color = 'C2', zorder=3, alpha=0.7, lw=plot_pars["s_lw"])                  # ec="black",
+            # axes[ax+1].scatter(pos_not, pos_not_mut, label="Mutation not in cluster", color = 'C1', zorder=4, alpha=0.7, lw=plot_pars["s_lw"], s=60)           # ec="black",
+
             axes[ax+1].fill_between(pos_result_gene['Pos'], 0, max_mut, where=(pos_result_gene['C'] == 1), 
-                            color='skyblue', alpha=0.3, label='Mutated *', zorder=0)
-            axes[ax+1].legend(fontsize=11.5, ncol=3, framealpha=0.75)
-            axes[ax+1].set_ylabel('Missense\nmutations', fontsize=13.5)         
+                            color='skyblue', alpha=0.3, label='Position in cluster', zorder=0)
+            axes[ax+1].legend(fontsize=11.5, ncol=2, framealpha=0.75)
+            axes[ax+1].set_ylabel('Missense\nmutations', fontsize=13.5, rotation=0, va='center') 
+            axes[ax+1].yaxis.set_label_coords(-0.06, 0.5)
+            axes[ax+1].set_ylim(0, max(mut_res_pos)*1.1)
 
             # Plot for Score and Miss prob track
             # ----------------------------------
@@ -613,14 +631,17 @@ def genes_plots(gene_result,
             axes[ax+2].fill_between(pos_result_gene['Pos'], 0, max_value, where=(pos_result_gene['C'] == 1), 
                             color='white')
             axes[ax+2].fill_between(pos_result_gene['Pos'], 0, max_value, where=(pos_result_gene['C'] == 1), 
-                            color='skyblue', alpha=0.4, label='Mutated *')
-            axes[ax+2].fill_between(range(1, len(prob_vec)+1), 0, score_norm_vec, zorder=1, color="white")
-            axes[ax+2].fill_between(range(1, len(prob_vec)+1), 0, score_norm_vec, zorder=1, color="C2", alpha=0.5)            
+                            color='skyblue', alpha=0.4)
+            
+            # axes[ax+2].fill_between(range(1, len(prob_vec)+1), 0, score_norm_vec, zorder=1, color="white")
+            # axes[ax+2].fill_between(range(1, len(prob_vec)+1), 0, score_norm_vec, zorder=1, color="C2", alpha=0.5)  
+
             axes[ax+2].plot(range(1, len(prob_vec)+1), prob_vec, label="Miss mut prob", zorder=3, color="Red", lw=1)                          
-            axes[ax+2].plot(range(1, len(prob_vec)+1), score_norm_vec, label="O3D score normalized", zorder=2, color="C2", lw=0.5)        
-            handles, labels = axes[ax+2].get_legend_handles_labels()
-            axes[ax+2].legend(handles[-2:], labels[-2:], fontsize=11.5, framealpha=0.75, ncol=2)
-            axes[ax+2].set_ylabel('Value', fontsize=13.5)
+            axes[ax+2].plot(range(1, len(prob_vec)+1), score_norm_vec, label="O3D score normalized", zorder=2, color="C2", lw=1)        
+            handles, labels = axes[ax+3].get_legend_handles_labels()
+            axes[ax+2].legend(fontsize=11.5, framealpha=0.75, ncol=2)
+            axes[ax+2].set_ylabel('Clustering\nscore\n&\nMut prob', fontsize=13.5, rotation=0, va='center')
+            axes[ax+2].yaxis.set_label_coords(-0.06, 0.5)
 
             # Plot annotations
             # ================
@@ -635,10 +656,13 @@ def genes_plots(gene_result,
                     axes[ax+3].fill_between(pos_result_gene['Pos'], 0, max_value, where=(pos_result_gene['C'] == 1), 
                                     color='skyblue', alpha=0.3)
                     axes[ax+3].fill_between(pos_result_gene["Pos"], 0, pos_result_gene["PAE_vol"].fillna(0), 
-                                            zorder=2, color=sns.color_palette("pastel")[4])                                           
+                                            zorder=2, color="white")    
+                    axes[ax+3].fill_between(pos_result_gene["Pos"], 0, pos_result_gene["PAE_vol"].fillna(0), 
+                                            zorder=2, color=sns.color_palette("pastel")[4], alpha=0.6)    
                     axes[ax+3].plot(pos_result_gene['Pos'], pos_result_gene["PAE_vol"].fillna(0),                                     
                                     label="Confidence", zorder=3, color=sns.color_palette("tab10")[4], lw=0.5)
-                    axes[ax+3].set_ylabel('PAE', fontsize=13.5)
+                    axes[ax+3].set_ylabel('Predicted\naligned\nerror', fontsize=13.5, rotation=0, va='center')
+                    axes[ax+3].yaxis.set_label_coords(-0.06, 0.5)
                 except Exception as e:
                     logger.warning(f"Error occurred while adding PAE in {gene} ({uni_id}-F{af_f}):")
                     logger.warning(f"{e}")
@@ -655,10 +679,10 @@ def genes_plots(gene_result,
                                             color='white')
                     axes[ax+4].fill_between(pos_result_gene['Pos'], 0, 100, where=(pos_result_gene['C'] == 1), 
                                             color='skyblue', alpha=0.4, label='Mutated *')
+
+                    # ## Comment out to use AF color palette
                     
-                    # ## Comment out to use AF color scale
-                    
-                    # af_colors = ["#1F6AD7", 
+                    # af_colors = ["#1F6AD7",                                                                         
                     #             "#65CBF3",
                     #             "#FFDC48",
                     #             "#FB7C44"]
@@ -674,12 +698,17 @@ def genes_plots(gene_result,
                     #                             zorder=2, color="white")   
                     #     axes[ax+4].fill_between(disorder_x, 0, disorder_y, where=(condition),   
                     #                             zorder=3, facecolor=color, alpha=0.8)  
-                    
+
                     axes[ax+4].fill_between(disorder_gene["Pos"], 0, disorder_gene["Confidence"].fillna(0),                  
-                                zorder=2, color=sns.color_palette("pastel")[4])
+                                            zorder=2, color="white")
+                    axes[ax+4].fill_between(disorder_gene["Pos"], 0, disorder_gene["Confidence"].fillna(0),                  
+                                            zorder=2, color=sns.color_palette("pastel")[4], alpha=0.6)
+                
+                    
                     axes[ax+4].plot(disorder_gene["Pos"], disorder_gene["Confidence"], 
                                     label="Confidence", zorder=3, color=sns.color_palette("tab10")[4], lw=0.5)    
-                    axes[ax+4].set_ylabel('pLDDT', fontsize=13.5)
+                    axes[ax+4].set_ylabel('pLDDT\n(disorder)', fontsize=13.5, rotation=0, va='center')
+                    axes[ax+4].yaxis.set_label_coords(-0.06, 0.5)
                     axes[ax+4].set_ylim(-10, 110)
                 except Exception as e:
                     logger.warning(f"Error occurred while adding Disorder in {gene} ({uni_id}-F{af_f}):")
@@ -698,10 +727,13 @@ def genes_plots(gene_result,
                     axes[ax+5].fill_between(pos_result_gene['Pos'], 0, 100, where=(pos_result_gene['C'] == 1), 
                                             color='skyblue', alpha=0.4)
                     axes[ax+5].fill_between(pdb_tool_gene["Pos"], 0, pdb_tool_gene["pACC"].fillna(0),                  
-                                            zorder=2, color=sns.color_palette("pastel")[4])
+                                            zorder=2, color="white")
+                    axes[ax+5].fill_between(pdb_tool_gene["Pos"], 0, pdb_tool_gene["pACC"].fillna(0),                  
+                                            zorder=2, color=sns.color_palette("pastel")[4], alpha=0.6)
                     axes[ax+5].plot(pdb_tool_gene['Pos'], pdb_tool_gene["pACC"].fillna(0), 
                                     label="pACC", zorder=3, color=sns.color_palette("tab10")[4], lw=0.5)      
-                    axes[ax+5].set_ylabel('pACC', fontsize=13.5)
+                    axes[ax+5].set_ylabel('Solvent\naccessibility', fontsize=13.5, rotation=0, va='center')
+                    axes[ax+5].yaxis.set_label_coords(-0.06, 0.5)
                     axes[ax+5].set_ylim(-10, 110)
                 except Exception as e:
                     logger.warning(f"Error occurred while adding pACC in {gene} ({uni_id}-F{af_f}):")
@@ -714,7 +746,7 @@ def genes_plots(gene_result,
             # ---------------------
             if pos_result_gene["DDG"].isna().all():
                 plot_annot_gene["ddg"] = False
-                logger.warning(f"DDG not available for {gene} ({uni_id}-F{af_f}): The track will not be included...")
+                logger.warning(f"ddG not available for {gene} ({uni_id}-F{af_f}): The track will not be included...")
 
             if plot_annot_gene["ddg"]:
                 try:
@@ -724,10 +756,13 @@ def genes_plots(gene_result,
                     axes[ax+6].fill_between(pos_result_gene['Pos'], min_value, max_value, where=(pos_result_gene['C'] == 1), 
                                             color='skyblue', alpha=0.4)
                     axes[ax+6].fill_between(pos_result_gene['Pos'], 0, pos_result_gene["DDG"], zorder=1,             
-                                            color=sns.color_palette("pastel")[4])      
+                                            color="white")     
+                    axes[ax+6].fill_between(pos_result_gene['Pos'], 0, pos_result_gene["DDG"], zorder=1,             
+                                            color=sns.color_palette("pastel")[4], alpha=0.6)      
                     axes[ax+6].plot(pos_result_gene['Pos'], pos_result_gene["DDG"], 
                                     label="Stability change", zorder=2, color=sns.color_palette("tab10")[4], lw=0.5)    
-                    axes[ax+6].set_ylabel('DDG', fontsize=13.5)
+                    axes[ax+6].set_ylabel('Stability\nchange', fontsize=13.5, rotation=0, va='center')
+                    axes[ax+6].yaxis.set_label_coords(-0.06, 0.5)
                 except Exception as e:
                     logger.warning(f"Error occurred while adding DDG in {gene} ({uni_id}-F{af_f}):")
                     logger.warning(f"{e}")
@@ -776,7 +811,7 @@ def genes_plots(gene_result,
                     sb_width = 0.5
                     max_value = (len(site_names) * sb_width) - 0.2
                     min_value = - 0.3
-                    
+
                     axes[ax+8].fill_between(pos_result_gene['Pos'], min_value, max_value, where=(pos_result_gene['C'] == 1), 
                                             color='white')
                     axes[ax+8].fill_between(pos_result_gene['Pos'], min_value, max_value, where=(pos_result_gene['C'] == 1), 
@@ -809,10 +844,11 @@ def genes_plots(gene_result,
                         axes[ax+9].fill_between(pos_result_gene['Pos'], -0.5, 0.46, 
                                                 where=((pos_result_gene['Cluster'] == cluster) & (pos_result_gene['C'] == 1)),
                                                 color=palette[i], lw=0.4) # alpha=0.6
-                    axes[ax+9].set_ylabel('Clusters             ', fontsize=13.5, rotation=0, va='center')
+                    axes[ax+9].set_ylabel('Clusters', fontsize=13.5, rotation=0, va='center')
                     axes[ax+9].set_yticks([])  
                     axes[ax+9
                     ].set_yticklabels([], fontsize=12)
+                    axes[ax+9].yaxis.set_label_coords(-0.06, 0.5)
                 except Exception as e:
                     logger.warning(f"Error occurred while adding Clusters labels in {gene} ({uni_id}-F{af_f}):")
                     logger.warning(f"{e}")
@@ -831,7 +867,8 @@ def genes_plots(gene_result,
                                         color=sns.color_palette("tab10")[7+i], label=sse)
                     axes[ax+10].set_yticks([0, 1, 2])  
                     axes[ax+10].set_yticklabels(['Helix', 'Ladder', 'Coil'], fontsize=10)
-                    axes[ax+10].set_ylabel(' SSE', fontsize=13.5)
+                    axes[ax+10].set_ylabel('SSE', fontsize=13.5, rotation=0, va='center')
+                    axes[ax+10].yaxis.set_label_coords(-0.06, 0.5)
                 except Exception as e:
                     logger.warning(f"Error occurred while adding SSE in {gene} ({uni_id}-F{af_f}):")
                     logger.warning(f"{e}")
@@ -876,8 +913,9 @@ def genes_plots(gene_result,
                             added_pfam.append(name)
                     axes[ax+11].set_yticks([])  
                     axes[ax+11].set_yticklabels([], fontsize=12)
-                    axes[ax+11].set_ylabel('Pfam        ', fontsize=13.5, rotation=0, va='center')
+                    axes[ax+11].set_ylabel('Pfam', fontsize=13.5, rotation=0, va='center')
                     axes[ax+11].set_ylim(-0.5, 0.5)  
+                    axes[ax+11].yaxis.set_label_coords(-0.06, 0.5)
                 except Exception as e:
                     logger.warning(f"Error occurred while adding Pfam domain in {gene} ({uni_id}-F{af_f}):")
                     logger.warning(f"{e}")
@@ -923,8 +961,9 @@ def genes_plots(gene_result,
                             added_prosite.append(name)
                     axes[ax+12].set_yticks([])  
                     axes[ax+12].set_yticklabels([], fontsize=12)
-                    axes[ax+12].set_ylabel('Prosite           ', fontsize=13.5, rotation=0, va='center')
+                    axes[ax+12].set_ylabel('Prosite', fontsize=13.5, rotation=0, va='center')
                     axes[ax+12].set_ylim(-0.5, 0.5)  
+                    axes[ax+12].yaxis.set_label_coords(-0.06, 0.5)
                 except Exception as e:
                     logger.warning(f"Error occurred while adding Prosite domain in {gene} ({uni_id}-F{af_f}):")
                     logger.warning(f"{e}")
@@ -953,15 +992,16 @@ def genes_plots(gene_result,
                         name = row["Description"]
                         start = int(row["Begin"])
                         end = int(row["End"])
-                        axes[ax+14].fill_between(range(start, end+1), -0.45, 0.45,  alpha=0.5, color=membrane_color_dict[name])
+                        axes[ax+13].fill_between(range(start, end+1), -0.45, 0.45,  alpha=0.5, color=membrane_color_dict[name])
                         if name not in added_membrane:
                             y = -0.04
-                            axes[ax+14].text(((start + end) / 2)+0.5, y, name, ha='center', va='center', fontsize=10, color="black")
+                            axes[ax+13].text(((start + end) / 2)+0.5, y, name, ha='center', va='center', fontsize=10, color="black")
                             added_membrane.append(name)
                     axes[ax+13].set_yticks([])  
                     axes[ax+13].set_yticklabels([], fontsize=12)
-                    axes[ax+13].set_ylabel('Membrane                ', fontsize=13.5, rotation=0, va='center')
+                    axes[ax+13].set_ylabel('Membrane', fontsize=13.5, rotation=0, va='center')
                     axes[ax+13].set_ylim(-0.5, 0.5)  
+                    axes[ax+13].yaxis.set_label_coords(-0.06, 0.5)
                 except Exception as e:
                     logger.warning(f"Error occurred while adding Membrane info in {gene} ({uni_id}-F{af_f}):")
                     logger.warning(f"{e}")
@@ -1007,8 +1047,9 @@ def genes_plots(gene_result,
                             added_motif.append(name)
                     axes[ax+14].set_yticks([])  
                     axes[ax+14].set_yticklabels([], fontsize=12)
-                    axes[ax+14].set_ylabel('Motif        ', fontsize=13.5, rotation=0, va='center')
+                    axes[ax+14].set_ylabel('Motif', fontsize=13.5, rotation=0, va='center')
                     axes[ax+14].set_ylim(-0.5, 0.5) 
+                    axes[ax+14].yaxis.set_label_coords(-0.06, 0.5)
                 except Exception as e:
                     logger.warning(f"Error occurred while adding Motifs info in {gene} ({uni_id}-F{af_f}):")
                     logger.warning(f"{e}")
@@ -1087,7 +1128,6 @@ def generate_plot(gene_result_path,
         uniprot_feat["Description"] == "Zinc finger"), "Full_description"] = "Zinc finger"
     pdb_tool = pd.read_csv(os.path.join(annotations_dir, "pdb_tool_df.tsv"), sep="\t")
     disorder = pd.read_csv(os.path.join(datasets_dir, "confidence.tsv"), sep="\t", low_memory=False)
-    dict_transcripts = plot_pars["dict_transcripts"]
 
     # Filter Oncodrive3D result
     gene_result, pos_result, genes, uni_ids = filter_o3d_result(gene_result, 
@@ -1202,7 +1242,6 @@ if __name__ == "__main__":
     plot_pars["sse_fill_width"] = 0.43
     plot_pars["dist_thr"] = 0.05
     plot_pars["color_cnsq"] = color_cnsq
-    plot_pars["dict_transcripts"] = {"PTEN" : "ENST00000688308"}  # For now this is used to get a specific transcript for pfam domains
     
     path_o3d_result = "/workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_2024-03-06_11-47-05"
     path_o3d_result = "/workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_2024-03-19_10-52-36"
