@@ -386,7 +386,7 @@ def run(input_maf_path,
         output_path_genes = os.path.join(output_dir, f"{cohort}.3d_clustering_genes.tsv")
         
         # Add extra metadata
-        metadata_cols = ["Uniprot_ID", "Gene", "Ens_Gene_ID", "Ens_Transcr_ID", "MANE_Refseq_prot"]
+        metadata_cols = ["Uniprot_ID", "Gene", "Ens_Gene_ID", "Ens_Transcr_ID", "Refseq_prot"]
         seq_cols = [col for col in metadata_cols if col in seq_df_all.columns]
         result_gene = result_gene.merge(seq_df_all[seq_cols], on=["Gene", "Uniprot_ID"], how="left")
         
