@@ -278,10 +278,11 @@ def sort_cols(result_gene):
     """
 
     cols = ['Gene', 
+            'HGNC_ID',
+            'Refseq_prot',
             'Uniprot_ID', 
             'Ens_Gene_ID', 
             'Ens_Transcr_ID',
-            'Refseq_prot',
             'pval', 
             'qval', 
             'C_gene', 
