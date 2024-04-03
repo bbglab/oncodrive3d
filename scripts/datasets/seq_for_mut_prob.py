@@ -28,6 +28,7 @@ import pandas as pd
 from tqdm import tqdm
 from bgreference import hg38, mm10
 from Bio.Seq import Seq
+from urllib.request import urlretrieve
 
 from scripts import __logger_name__
 from scripts.datasets.utils import (get_af_id_from_pdb,
@@ -174,7 +175,7 @@ def initialize_seq_df_from_mane(path_to_datasets):
     seq_df = pd.DataFrame({"Uniprot_ID" : uni_id_lst, 
                            "F" : f_lst, 
                            "Gene" : gene_lst, 
-                           "HGNC_ID" : gene_lst, 
+                           "HGNC_ID" : hgnc_lst, 
                            "Refseq_prot" : refseq_lst,
                            "Mane_missing" : mane_missing_lst,
                            "Seq" : seq_lst
@@ -700,7 +701,7 @@ def get_seq_df(datasets_dir,
         seq_df = initialize_seq_df(input_dir, uniprot_to_gene_dict)
         seq_df["Refseq_prot"] = np.nan
     else:
-        seq_df = initialize_seq_df(datasets_dir)
+        seq_df = initialize_seq_df_from_mane(datasets_dir)
     
     # Add coordinates for mutability integration and ref DNA sequence extraction
     logger.debug("Retrieving exons coordinate..")
