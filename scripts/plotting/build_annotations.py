@@ -36,7 +36,6 @@ def get_annotations(data_dir,
 
     # Empty directory and load sequence df
     clean_annot_dir(output_dir, 'd')
-    seq_df = pd.read_csv(os.path.join(data_dir, "seq_for_mut_prob.tsv"), sep="\t")    
 
     # Download DDG
     species = get_species(organism)
@@ -76,6 +75,7 @@ def get_annotations(data_dir,
     
     # Get Pfam annotations
     logger.info(f"Downloading and parsing Pfam...")
+    seq_df = pd.read_csv(os.path.join(data_dir, "seq_for_mut_prob.tsv"), sep="\t")    
     pfam_df = get_pfam(seq_df = seq_df, 
                        output_tsv = os.path.join(output_dir, "pfam.tsv"))
     logger.info(f"Completed!")
