@@ -27,7 +27,13 @@ oncodrive3D run \
 singularity exec /workspace/projects/clustering_3d/clustering_3d/build/containers/oncodrive3d_231205.sif oncodrive3D run -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/kidney_pilot/all_mutations.all_samples.tsv -d /workspace/projects/clustering_3d/clustering_3d/datasets_normal -m /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/kidney_pilot/mutability_kidney.json -o <your_output_dir> -C kidney_normal -v -s 128 -t kidney 
 singularity exec /workspace/projects/clustering_3d/clustering_3d/build/containers/oncodrive3d_231205.sif oncodrive3D run -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/kidney_pilot/all_mutations.all_samples.tsv -d /workspace/projects/clustering_3d/clustering_3d/datasets_normal -m /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/kidney_pilot/mutability_kidney.json -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/kidney_231205_test -C kidney_normal -v -s 128 -t kidney 
 singularity exec oncodrive3D plot -i /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/kidney_231205_test -c kidney_normal
+
 oncodrive3D run -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/maf/HARTWIG_WGS_NSCLC_2020.in.maf -p /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/mut_profile/HARTWIG_WGS_NSCLC_2020.mutrate.json -d /workspace/nobackup/scratch/oncodrive3d/datasets_mane -C HARTWIG_WGS_NSCLC_2020 -o HARTWIG_WGS_NSCLC_2020 -s 128 -c 10
+oncodrive3D run -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/kidney_pilot/all_mutations.all_samples.tsv -d /workspace/nobackup/scratch/oncodrive3d/datasets -m /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/kidney_pilot/mutability_kidney.json -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/kidney_240404 -C kidney_normal -v -s 128 -t kidney 
+
+# Plot
+
+# oncodrive3D plot --output_tsv --non_significant -r TCGA_WXS_BLCA -g /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/results/TCGA_WXS_BLCA.3d_clustering_genes.tsv -p /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/results/TCGA_WXS_BLCA.3d_clustering_pos.tsv -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/maf/TCGA_WXS_BLCA.in.maf -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/plots -m /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/mut_profile/TCGA_WXS_BLCA.mutrate.json -d /workspace/projects/clustering_3d/clustering_3d/datasets -a /workspace/projects/clustering_3d/o3d_analysys/datasets/annotations
 """
 
 
@@ -314,7 +320,7 @@ def run(input_maf_path,
         ## Missense mut prob
         
         # Using mutabilities if provided
-        if  mutability_config_path is not None:
+        if mutability_config_path is not None:
             logger.info("Computing missense mut probabilities using mutabilities...")
             mutab_config = json.load(open(mutability_config_path, encoding="utf-8"))
             init_mutabilities_module(mutab_config)
@@ -352,8 +358,9 @@ def run(input_maf_path,
             miss_prob_dict = None
 
         # Run 3D-clustering
-        result_np_gene = pd.concat(result_np_gene_lst)
-        result_np_gene["Uniprot_ID"] = [gene_to_uniprot_dict[gene] if gene in gene_to_uniprot_dict.keys() else np.nan for gene in result_np_gene["Gene"].values]
+        if len(result_np_gene_lst):
+            result_np_gene = pd.concat(result_np_gene_lst)
+            result_np_gene["Uniprot_ID"] = [gene_to_uniprot_dict[gene] if gene in gene_to_uniprot_dict.keys() else np.nan for gene in result_np_gene["Gene"].values]
         if len(genes_to_process) > 0:
             logger.info(f"Performing 3D-clustering on [{len(seq_df)}] proteins...")
             result_pos, result_gene = clustering_3d_mp_wrapper(genes_to_process,
@@ -492,10 +499,6 @@ def build_annotations(data_dir,
 # oncodrive3D plot --annotations all --output_tsv --non_significant -r bladder_231204 -g /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/bladder_231204/bladder_231204.3d_clustering_genes.tsv -p /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/bladder_231204/bladder_231204.3d_clustering_pos.tsv -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/bladder_231204 -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/bladder_pilot/all_mutations.all_samples.tsv -d /workspace/projects/clustering_3d/clustering_3d/datasets -a /workspace/projects/clustering_3d/o3d_analysys/datasets/annotations -j /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/bladder_pilot/mutability_bladder.json
 # oncodrive3D plot --output_tsv --non_significant -r TCGA_WXS_COADREAD -g /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/results/TCGA_WXS_COADREAD.3d_clustering_genes.tsv -p /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/results/TCGA_WXS_COADREAD.3d_clustering_pos.tsv -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/maf/TCGA_WXS_COADREAD.in.maf -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/plots -m /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/mut_profile/TCGA_WXS_COADREAD.mutrate.json -d /workspace/projects/clustering_3d/clustering_3d/datasets -a /workspace/projects/clustering_3d/o3d_analysys/datasets/annotations
 # oncodrive3D plot --output_tsv --non_significant -r TCGA_WXS_BLCA -g /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/results/TCGA_WXS_BLCA.3d_clustering_genes.tsv -p /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/results/TCGA_WXS_BLCA.3d_clustering_pos.tsv -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/maf/TCGA_WXS_BLCA.in.maf -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/plots -m /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/mut_profile/TCGA_WXS_BLCA.mutrate.json -d /workspace/projects/clustering_3d/clustering_3d/datasets -a /workspace/projects/clustering_3d/o3d_analysys/datasets/annotations
-
-# TODO: If output is None: assign output to the where is located the gene and pos result
-# TODO: If mut profile and mutability not provided, use uniform dist
-# TODO: Suppress matplotlib debug messages
 
 
 @oncodrive3D.command(context_settings=dict(help_option_names=['-h', '--help']),
