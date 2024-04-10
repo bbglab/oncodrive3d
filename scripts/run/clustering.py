@@ -24,12 +24,14 @@ def clustering_3d(gene,
                   mut_gene_df,                                      
                   cmap_path,
                   miss_prob_dict,
+                  seq_gene,
                   alpha=0.01,
                   num_iteration=10000,
                   cmap_prob_thr=0.5,
                   seed=None,
                   pae_path=None,
-                  thr_not_in_structure=0.1):
+                  thr_not_in_structure=0.1,
+                  thr_wt_mismatch=0.1):
     """
     Compute local density of missense mutations for a sphere of 10A around          
     each amino acid position of the selected gene product. It performed a 
@@ -71,13 +73,28 @@ def clustering_3d(gene,
                                    "Uniprot_ID" : uniprot_id,
                                    "F" : af_f,                           
                                    "Mut_in_gene" : mut_count,
-                                   "Max_mut_pos" : np.nan,
-                                   "Structure_max_pos" : np.nan,
                                    "Ratio_not_in_structure" : 0,
+                                   "Ratio_WT_mismatch" : 0,
                                    "Mut_zero_mut_prob" : 0,
                                    "Pos_zero_mut_prob" : np.nan,
                                    "Status" : np.nan}, 
                                     index=[1])
+    
+    # Check for mismatch between WT reference and WT structure 
+    seq_gene = seq_df[seq_df["Gene"] == gene].Seq.values[0]
+    wt_mismatch_ix = ~mut_gene_df.apply(lambda x: seq_gene[x.Pos-1] == x.WT, axis=1)
+    if sum(wt_mismatch_ix) > 0:
+        ratio_mismatch = sum(wt_mismatch_ix) / mut_count
+        logger_out = f"Detected {sum(wt_mismatch_ix)} ({ratio_mismatch*100:.3}%) mut having a reference-structure WT aa mismatch in {gene} ({uniprot_id}-F{af_f}): "
+        result_gene_df["Ratio_WT_mismatch"] = ratio_mismatch
+        if ratio_mismatch > thr_wt_mismatch:
+            result_gene_df["Status"] = "WT_mismatch"
+            logger.warning(logger_out + "Filtering the gene...")
+            return None, result_gene_df
+        else:
+            logger.warning(logger_out + "Filtering the mutations...")
+            mut_gene_df = mut_gene_df[~wt_mismatch_ix]
+            mut_count = len(mut_gene_df)
 
     # Load cmap
     cmap_complete_path = f"{cmap_path}/{uniprot_id}-F{af_f}.npy"
@@ -101,9 +118,8 @@ def clustering_3d(gene,
         not_in_structure_ix = mut_gene_df.Pos > len(cmap)
         ratio_not_in_structure = sum(not_in_structure_ix) / len(mut_gene_df.Pos)
         logger_out = f"Detected {sum(not_in_structure_ix)} ({ratio_not_in_structure*100:.3}%) mut not in the structure of {gene} ({uniprot_id}-F{af_f}): "
+        result_gene_df["Ratio_not_in_structure"] = ratio_not_in_structure
         if ratio_not_in_structure > thr_not_in_structure:
-            result_gene_df["Max_mut_pos"] = max(mut_gene_df.Pos)  
-            result_gene_df["Structure_max_pos"] = len(cmap)
             result_gene_df["Status"] = "Mut_not_in_structure"
             logger.warning(logger_out + "Filtering the gene...")
             return None, result_gene_df
@@ -111,7 +127,6 @@ def clustering_3d(gene,
             logger.warning(logger_out + "Filtering the mutations...")
             mut_gene_df = mut_gene_df[~not_in_structure_ix]
             mut_count = len(mut_gene_df)
-        result_gene_df["Ratio_not_in_structure"] = ratio_not_in_structure
 
     # Samples info
     samples_info = get_samples_info(mut_gene_df, cmap)
@@ -253,6 +268,7 @@ def clustering_3d_mp(genes,
                      cmap_path,
                      miss_prob_dict,
                      gene_to_uniprot_dict,
+                     seq_df,
                      plddt_df,
                      num_process,
                      alpha=0.01,
@@ -260,7 +276,8 @@ def clustering_3d_mp(genes,
                      cmap_prob_thr=0.5,
                      seed=None,
                      pae_path=None,
-                     thr_not_in_structure=0.1):
+                     thr_not_in_structure=0.1,
+                     thr_wt_mismatch=0.1):
     """
     Run the 3D-clustering algorithm in parallel on multiple genes.
     """
@@ -272,6 +289,7 @@ def clustering_3d_mp(genes,
     
         mut_gene_df = data[data["Gene"] == gene]
         uniprot_id = gene_to_uniprot_dict[gene]
+        seq_gene = seq_df[seq_df["Gene"] == gene].Seq.values[0]
 
         # Add confidence to mut_gene_df
         plddt_df_gene_df = plddt_df[plddt_df["Uniprot_ID"] == uniprot_id]
@@ -282,12 +300,14 @@ def clustering_3d_mp(genes,
                                                 mut_gene_df, 
                                                 cmap_path,
                                                 miss_prob_dict,
+                                                seq_gene,
                                                 alpha=alpha,
                                                 num_iteration=num_iteration,
                                                 cmap_prob_thr=cmap_prob_thr,
                                                 seed=seed,
                                                 pae_path=pae_path,
-                                                thr_not_in_structure=thr_not_in_structure)
+                                                thr_not_in_structure=thr_not_in_structure,
+                                                thr_wt_mismatch=thr_wt_mismatch)
         result_gene_lst.append(result_gene)
         if pos_result is not None:
             result_pos_lst.append(pos_result)
@@ -308,6 +328,7 @@ def clustering_3d_mp_wrapper(genes,
                              cmap_path,
                              miss_prob_dict,
                              gene_to_uniprot_dict,
+                             seq_df,
                              plddt_df,
                              num_cores,
                              alpha=0.01,
@@ -315,7 +336,8 @@ def clustering_3d_mp_wrapper(genes,
                              cmap_prob_thr=0.5,
                              seed=None,
                              pae_path=None,
-                             thr_not_in_structure=0.1):
+                             thr_not_in_structure=0.1,
+                             thr_wt_mismatch=0.1):
     """
     Wrapper function to run the 3D-clustering algorithm in parallel on multiple genes.
     """
@@ -332,6 +354,7 @@ def clustering_3d_mp_wrapper(genes,
                                                    cmap_path, 
                                                    miss_prob_dict, 
                                                    gene_to_uniprot_dict, 
+                                                   seq_df,
                                                    plddt_df, 
                                                    n_process,
                                                    alpha, 
@@ -339,7 +362,8 @@ def clustering_3d_mp_wrapper(genes,
                                                    cmap_prob_thr, 
                                                    seed, 
                                                    pae_path,
-                                                   thr_not_in_structure) 
+                                                   thr_not_in_structure,
+                                                   thr_wt_mismatch) 
                                                   for n_process, chunk in enumerate(chunks)])
         
     # Parse output

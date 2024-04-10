@@ -33,7 +33,7 @@ oncodrive3D run -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input
 
 # Plot
 
-# oncodrive3D plot --output_tsv --non_significant -r TCGA_WXS_BLCA -g /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/results/TCGA_WXS_BLCA.3d_clustering_genes.tsv -p /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/results/TCGA_WXS_BLCA.3d_clustering_pos.tsv -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/maf/TCGA_WXS_BLCA.in.maf -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/plots -m /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/mut_profile/TCGA_WXS_BLCA.mutrate.json -d /workspace/projects/clustering_3d/clustering_3d/datasets -a /workspace/projects/clustering_3d/o3d_analysys/datasets/annotations
+# oncodrive3D plot --output_tsv --non_significant -r kidney_normal -g /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/results/TCGA_WXS_BLCA.3d_clustering_genes.tsv -p /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/results/TCGA_WXS_BLCA.3d_clustering_pos.tsv -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/maf/TCGA_WXS_BLCA.in.maf -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/plots -m /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/mut_profile/TCGA_WXS_BLCA.mutrate.json -d /workspace/projects/clustering_3d/clustering_3d/datasets -a /workspace/projects/clustering_3d/o3d_analysys/datasets/annotations
 """
 
 
@@ -164,16 +164,18 @@ def build_datasets(output_dir,
 @click.option("-a", "--alpha", help="Significant threshold for the p-value of res and gene", type=float, default=0.01)
 @click.option("-P", "--cmap_prob_thr", type=float, default=0.5,
               help="Threshold to define AAs contacts based on distance on predicted structure and PAE")
-@click.option("-f", "--no_fragments", help="Disable processing of fragmented (AF-F) proteins", is_flag=True)
-@click.option("-x", "--only_processed", help="Include only processed genes in the output", is_flag=True)
-@click.option("-y", "--thr_not_in_structure", type=float, default=0.1,
-              help="Threshold to filter out genes based on the ratio of mutations outside of the structure")
 @click.option("-c", "--cores", type=click.IntRange(min=1, max=len(os.sched_getaffinity(0)), clamp=False), default=len(os.sched_getaffinity(0)),
               help="Set the number of cores to use in the computation")
 @click.option("-s", "--seed", help="Set seed to ensure reproducible results", type=int)
 @click.option("-v", "--verbose", help="Verbose", is_flag=True)
 @click.option("-t", "--cancer_type", help="Cancer type", type=str)
 @click.option("-C", "--cohort", help="Name of the cohort", type=str)
+@click.option("--no_fragments", help="Disable processing of fragmented (AF-F) proteins", is_flag=True)
+@click.option("--only_processed", help="Include only processed genes in the output", is_flag=True)
+@click.option("--thr_not_in_structure", type=float, default=0.1,
+              help="Threshold to filter out genes based on the ratio of mutations outside of the structure")
+@click.option("--thr_wt_mismatch", type=float, default=0.1,
+              help="Threshold to filter out genes based on the ratio of mutations having WT aa not matching the one in the structure")
 @setup_logging_decorator
 def run(input_maf_path,
         mut_profile_path,
@@ -183,14 +185,15 @@ def run(input_maf_path,
         n_iterations,
         alpha,
         cmap_prob_thr,
-        no_fragments,
-        only_processed,
-        thr_not_in_structure,
         cores,
         seed,
         verbose,
         cancer_type,
-        cohort):
+        cohort,
+        no_fragments,
+        only_processed,
+        thr_not_in_structure,
+        thr_wt_mismatch,):
     """Run Oncodrive3D."""
 
     ## Initialize
@@ -220,13 +223,14 @@ def run(input_maf_path,
     logger.info(f"Iterations: {n_iterations}")
     logger.info(f"Significant level: {alpha}")
     logger.info(f"Probability threshold for CMAPs: {cmap_prob_thr}")
-    logger.info(f"Disable fragments: {bool(no_fragments)}")
-    logger.info(f"Output only processed genes: {bool(only_processed)}")
-    logger.info(f"Ratio threshold mutations out of structure: {thr_not_in_structure}")
     logger.info(f"Cohort: {cohort}")
     logger.info(f"Cancer type: {cancer_type}")
     logger.info(f"Verbose: {bool(verbose)}")
     logger.info(f"Seed: {seed}")
+    logger.info(f"Disable fragments: {bool(no_fragments)}")
+    logger.info(f"Output only processed genes: {bool(only_processed)}")
+    logger.info(f"Ratio threshold mutations out of structure: {thr_not_in_structure}")
+    logger.info(f"Ratio threshold mutations with WT reference-structure mismatch: {thr_not_in_structure}")
     logger.info(f'Log path: {os.path.join(output_dir, "log")}')
     logger.info("")
 
@@ -257,9 +261,9 @@ def run(input_maf_path,
                                         "Uniprot_ID" : np.nan,
                                         "F" : np.nan,
                                         "Mut_in_gene" : 1,
-                                        "Max_mut_pos" : np.nan,
-                                        "Structure_max_pos" : np.nan,
                                         "Ratio_not_in_structure" : 0,
+                                        "Ratio_WT_mismatch" : 0,
+                                        "Max_mut_pos" : 0,
                                         "Mut_zero_mut_prob" : 0,
                                         "Pos_zero_mut_prob" : np.nan,
                                         "Status" : "No_mut"})
@@ -277,10 +281,9 @@ def run(input_maf_path,
                                         "Uniprot_ID" : np.nan,
                                         "F" : np.nan,
                                         "Mut_in_gene" : genes_no_mapping.values,
-                                        "Max_mut_pos" : np.nan,
-                                        "Structure_max_pos" : np.nan,
-                                        "Ratio_not_in_structure" : 0,
-                                        "Mut_zero_mut_prob" : 0,
+                                        "Ratio_not_in_structure" : np.nan,
+                                        "Ratio_WT_mismatch" : np.nan,
+                                        "Mut_zero_mut_prob" : np.nan,
                                         "Pos_zero_mut_prob" : np.nan,
                                         "Status" : "No_ID_mapping"})
             result_np_gene_lst.append(result_gene)
@@ -298,10 +301,9 @@ def run(input_maf_path,
                                             "Uniprot_ID" : np.nan, 
                                             "F" : np.nan,
                                             "Mut_in_gene" : genes_frag_mut.values,
-                                            "Max_mut_pos" : np.nan,
-                                            "Structure_max_pos" : np.nan,
-                                            "Ratio_not_in_structure" : 0,
-                                            "Mut_zero_mut_prob" : 0,
+                                            "Ratio_not_in_structure" : np.nan,
+                                            "Ratio_WT_mismatch" : np.nan,
+                                            "Mut_zero_mut_prob" : np.nan,
                                             "Pos_zero_mut_prob" : np.nan,
                                             "Status" : "Fragmented"})
                 result_np_gene_lst.append(result_gene)
@@ -337,10 +339,9 @@ def run(input_maf_path,
                                             "Uniprot_ID" : np.nan,
                                             "F" : np.nan,
                                             "Mut_in_gene" : np.nan,
-                                            "Max_mut_pos" : np.nan,
-                                            "Structure_max_pos" : np.nan,
-                                            "Ratio_not_in_structure" : 0,
-                                            "Mut_zero_mut_prob" : 0,
+                                            "Ratio_not_in_structure" : np.nan,
+                                            "Ratio_WT_mismatch" : np.nan,
+                                            "Mut_zero_mut_prob" : np.nan,
                                             "Pos_zero_mut_prob" : np.nan,
                                             "Status" : "No_mutability"})
                 result_np_gene_lst.append(result_gene)
@@ -369,13 +370,15 @@ def run(input_maf_path,
                                                                miss_prob_dict,
                                                                gene_to_uniprot_dict,
                                                                plddt_df,
+                                                               seq_df,
                                                                cores,
                                                                alpha=alpha,
                                                                num_iteration=n_iterations,
                                                                cmap_prob_thr=cmap_prob_thr,
                                                                seed=seed,
                                                                pae_path=pae_path,
-                                                               thr_not_in_structure=thr_not_in_structure)
+                                                               thr_not_in_structure=thr_not_in_structure,
+                                                               thr_wt_mismatch=thr_wt_mismatch)
             if result_np_gene_lst:
                 result_gene = pd.concat((result_gene, result_np_gene))
         else:
@@ -629,4 +632,3 @@ def plot(gene_result_path,
 
 if __name__ == "__main__":
     oncodrive3D()
-# End-of-file (EOF)
