@@ -263,7 +263,7 @@ def split_lst_into_chunks(lst, batch_size = 5000):
 
 def uniprot_to_hudo_df(uniprot_ids):
     """
-    Given a list of Uniprot IDs (from any species), request an Id 
+    Given a list of Uniprot IDs (from any species), request an ID 
     mapping job to UniprotKB to retrieve the corresponding Hugo 
     symbols and additional protein info. Return a pandas dataframe.
     It is recommended to provide batches of IDs up to 5000 elements.
@@ -278,7 +278,7 @@ def uniprot_to_hudo_df(uniprot_ids):
         time.sleep(1)
         df = load_df_from_url(url)
         if i % 60 == 0:
-            logger.debug(f"Waiting for UniprotKB mapping job to produce url...")
+            logger.debug(f"Waiting for UniprotKB mapping job to produce url..")
         i += 1 
         
     return df
