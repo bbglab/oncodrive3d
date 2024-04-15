@@ -11,6 +11,8 @@ import os
 import time
 import tarfile
 from difflib import SequenceMatcher
+from unipressed import IdMappingClient
+import sys
 
 import daiquiri
 import numpy as np
@@ -110,7 +112,7 @@ def download_single_file(url: str, destination: str, threads: int) -> None:
 
 def extract_tar_file(file_path, path):
      
-    checkpoint = os.path.join(path, ".checkpoint.txt")
+    checkpoint = os.path.join(path, ".tar_checkpoint.txt")
 
     if os.path.exists(checkpoint):
          logger.debug('Tar already extracted: skipping...')
@@ -195,6 +197,69 @@ def get_seq_similarity(a, b, decimals=3):
 
 # Uniprot ID to Hugo symbols mapping
 
+def split_lst_into_chunks(lst, batch_size = 5000):
+    """
+    Simple split a list into list of list of chunk_size elements.
+    """
+    
+    return [lst[i:i+batch_size] for i in range(0, len(lst), batch_size)]
+
+
+def convert_dict_hugo_to_uniprot(dict_uniprot_hugo):
+    """
+    Convert a Uniprot IDs to Hugo symbol dictionary to a Hugo symbo to 
+    Uniprot IDs dictionary, if multiple Hugo symbols are mapped to the 
+    same Uniprot ID, add them as multiple keys.
+    """
+    
+    dict_hugo_uniprot = {}
+
+    for uni_id, gene in dict_uniprot_hugo.items():
+        if type(gene) == str:
+            for g in gene.split(" "):
+                dict_hugo_uniprot[g] = uni_id
+                
+    return dict_hugo_uniprot
+
+
+def uniprot_to_hudo_df(uniprot_ids):
+    """
+    Given a list of Uniprot IDs (from any species), request an Id 
+    mapping job to UniprotKB to retrieve the corresponding Hugo 
+    symbols and additional protein info. Return a pandas dataframe.
+    It is recommended to provide batches of IDs up to 5000 elements.
+    """
+    
+    job_id = get_mapping_jobid(uniprot_ids)
+    url = f"https://rest.uniprot.org/idmapping/uniprotkb/results/stream/{job_id}?compressed=true&fields=accession%2Cid%2Cprotein_name%2Cgene_names%2Corganism_name%2Clength&format=tsv"
+    df = load_df_from_url(url)
+    
+    i = 60
+    while df is None:
+        time.sleep(1)
+        df = load_df_from_url(url)
+        if i % 60 == 0:
+            logger.debug(f"Waiting for UniprotKB mapping job to produce url...")
+        i += 1 
+        
+    return df
+
+
+def load_df_from_url(url):
+    """
+    Load a pandas dataframe from url.
+    """
+
+    try:
+        response = requests.get(url, timeout=(160, 160))
+        decompressed_data = gzip.decompress(response.content)
+        df = pd.read_csv(io.BytesIO(decompressed_data), sep='\t')
+    except:
+        df = None
+    
+    return df
+
+
 def get_response_jobid(response):
     """
     Get jobId after submitting ID Mapping job to UniprotKB. 
@@ -224,7 +289,7 @@ def get_mapping_jobid(uniprot_ids):
             response = requests.post(command)
         except requests.exceptions.RequestException as e:                          
             response = "ERROR"                                                     
-            logger.debug(f"Request failed: {e}")    
+            logger.debug(f"Request failed {e}: Retrying")    
             
     job_id = get_response_jobid(response)
     i = 60
@@ -236,69 +301,6 @@ def get_mapping_jobid(uniprot_ids):
         i += 1
     
     return job_id
-
-
-def load_df_from_url(url):
-    """
-    Load a pandas dataframe from url.
-    """
-
-    try:
-        response = requests.get(url, timeout=(160, 160))
-        decompressed_data = gzip.decompress(response.content)
-        df = pd.read_csv(io.BytesIO(decompressed_data), sep='\t')
-    except:
-        df = None
-    
-    return df
-
-
-def split_lst_into_chunks(lst, batch_size = 5000):
-    """
-    Simple split a list into list of list of chunk_size elements.
-    """
-    
-    return [lst[i:i+batch_size] for i in range(0, len(lst), batch_size)]
-
-
-def uniprot_to_hudo_df(uniprot_ids):
-    """
-    Given a list of Uniprot IDs (from any species), request an ID 
-    mapping job to UniprotKB to retrieve the corresponding Hugo 
-    symbols and additional protein info. Return a pandas dataframe.
-    It is recommended to provide batches of IDs up to 5000 elements.
-    """
-    
-    job_id = get_mapping_jobid(uniprot_ids)
-    url = f"https://rest.uniprot.org/idmapping/uniprotkb/results/stream/{job_id}?compressed=true&fields=accession%2Cid%2Cprotein_name%2Cgene_names%2Corganism_name%2Clength&format=tsv"
-    df = load_df_from_url(url)
-    
-    i = 60
-    while df is None:
-        time.sleep(1)
-        df = load_df_from_url(url)
-        if i % 60 == 0:
-            logger.debug(f"Waiting for UniprotKB mapping job to produce url..")
-        i += 1 
-        
-    return df
-
-
-def convert_dict_hugo_to_uniprot(dict_uniprot_hugo):
-    """
-    Convert a Uniprot IDs to Hugo symbol dictionary to a Hugo symbo to 
-    Uniprot IDs dictionary, if multiple Hugo symbols are mapped to the 
-    same Uniprot ID, add them as multiple keys.
-    """
-    
-    dict_hugo_uniprot = {}
-
-    for uni_id, gene in dict_uniprot_hugo.items():
-        if type(gene) == str:
-            for g in gene.split(" "):
-                dict_hugo_uniprot[g] = uni_id
-                
-    return dict_hugo_uniprot
 
 
 def uniprot_to_hugo(uniprot_ids, hugo_as_keys=False, batch_size=5000):
@@ -330,3 +332,56 @@ def uniprot_to_hugo(uniprot_ids, hugo_as_keys=False, batch_size=5000):
         dictio = convert_dict_hugo_to_uniprot(dictio)
             
     return dictio
+
+
+def uniprot_to_hugo_pressed(uniprot_ids, hugo_as_keys=False, batch_size=5000, max_attempts=15):
+    """
+    Given a list of Uniprot IDs (any species.), return a 
+    dictionary of Uniprot IDs to Hugo symbols or vice versa.
+    """
+    
+    # Split uniprot IDs into chunks
+    uniprot_ids_lst = split_lst_into_chunks(uniprot_ids, batch_size)
+    
+    # Get a dataframe including all IDs mapping info
+    result_lst = []
+    
+    for i, ids in enumerate(uniprot_ids_lst):
+        logger.debug(f"Batch {i+1}/{len(uniprot_ids_lst)} ({len(ids)} IDs)..")
+        status = "INIT"
+        
+        n = 0
+        while status != "FINISHED":
+            try:
+                request = IdMappingClient.submit(source="UniProtKB_AC-ID", 
+                                                 dest="Gene_Name", 
+                                                 ids={uni_id for uni_id in ids})
+                j = 0
+                while status != "FINISHED":
+                    time.sleep(15)
+                    status = request.get_status()
+                    if status == "FINISHED":
+                        result_lst.append(list(request.each_result()))
+                    else:
+                        logger.debug(f"Waiting for UniprotKB to process the job..")
+                        j += 1
+                        if j == max_attempts:
+                            logger.debug(f"Failed to obtain Uniprot ID to Hugo Symbol mapping: Retrying..")
+                            sys.exit() 
+            except Exception as e:
+                n += 1
+                if n == max_attempts:
+                    logger.error(f"Failed to obtain Uniprot ID to Hugo Symbol mapping and reached maximum attempts: Exiting..")
+                    sys.exit() 
+                else:
+                    status = "ERROR"
+                    logger.debug(f"Error while obtaining Uniprot ID to Hugo Symbol mapping {e}: Retrying..")
+
+    result_lst = [entry for batch in result_lst for entry in batch]
+    result_dict = {r["from"] : (r["to"].split()[0] if len(r["to"].split()) > 1 else r["to"]) for r in result_lst}
+    
+    # Convert to a dictionary of Hugo symbols to Uniprot IDs
+    if hugo_as_keys:
+        result_dict = convert_dict_hugo_to_uniprot(result_dict)
+            
+    return result_dict
