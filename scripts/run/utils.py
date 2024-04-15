@@ -52,7 +52,7 @@ def read_csv_without_comments(path):
     return df
 
 
-def parse_vep_output(df):
+def parse_vep_output(df, seq_df=None, use_o3d_transcripts=False):
     """
     Parse the dataframe in case it is the direct output of VEP without any 
     processing. Rename the columns to match the fields name of a MAF file, 
@@ -67,17 +67,34 @@ def parse_vep_output(df):
     for key, value in rename_dict.items():
         if key in df.columns and value not in df.columns:
             df.rename(columns={key: value}, inplace=True)
-            
-    # Include only canonical transcripts
-    if "CANONICAL" in df.columns:
-        if (df["CANONICAL"] != "YES").any():
-            logger.warning("The 'CANONICAL' field is present in the MAF file: Selecting only canonical transcripts...")
-            df = df[df["CANONICAL"] == "YES"]
+    
+    ## Transcripts filtering
+    
+    # Include O3D transcripts
+    if use_o3d_transcripts:
+        logger.info("Filtering input by Oncodrive3D built transcripts..")
+        if seq_df is not None:
+            if "CANONICAL" in df.columns and "Feature" in df.columns and "Transcripts" in df["Feature_Type"].unique():
+                # For the genes without available transcript info in O3D built datasets, select canonical
+                df_tr_missing = df[df["SYMBOL"].isin(seq_df.loc[seq_df["Reference_info"] == -1, "Gene"])]
+                df_tr_missing = df_tr_missing[df_tr_missing["CANONICAL"] == "YES"]
+                # For those with transcript info, select transcript in O3D build datasets
+                df_tr_available = df[df["Feature"].isin(seq_df.loc[seq_df["Reference_info"] != -1, "Ens_Transcr_ID"])]
+            else:
+                raise RuntimeError(f"Failed to filter VEP output by Oncodrive3D transcripts. Canonical or transcripts information not found: Exiting..")
+        else:
+            raise RuntimeError(f"Failed to filter VEP output by Oncodrive3D transcripts. Dataframe of sequences not provided: Exiting..")
+    else:
+        # Include canonical transcripts
+        if "CANONICAL" in df.columns:
+            if (df["CANONICAL"] != "YES").any():
+                logger.warning("The 'CANONICAL' field is present in the MAF file: Selecting only canonical transcripts..")
+                df = df[df["CANONICAL"] == "YES"]
             
     # Get HGVSp
     if "HGVSp_Short" not in df.columns:
         if "Amino_acids" in df.columns and "Protein_position" in df.columns:
-            logger.debug("Input detected as direct VEP output: Parsing translational effect of variant...")            
+            logger.debug("Input detected as direct VEP output: Parsing translational effect of variant..")            
             df["HGVSp_Short"] = df.apply(
                 lambda x: (
                     "p." + x["Amino_acids"].split("/")[0] + str(x["Protein_position"]) + x["Amino_acids"].split("/")[1] 
@@ -90,7 +107,7 @@ def parse_vep_output(df):
     return df
 
 
-def parse_maf_input(maf_input_path):
+def parse_maf_input(maf_input_path, seq_df=None, use_o3d_transcripts=False):
     """
     Parse the MAF file which is used as input for Oncodrive3D.
     """
@@ -103,7 +120,7 @@ def parse_maf_input(maf_input_path):
     else:
         maf = pd.read_csv(maf_input_path, sep="\t", dtype={'Chromosome': str})
     logger.debug(f"Processing [{len(maf)}] total mutations...")
-    maf = parse_vep_output(maf)
+    maf = parse_vep_output(maf, seq_df, use_o3d_transcripts)
 
     # Select only missense mutation and extract mutations
     maf = maf[maf['Variant_Classification'].str.contains('Missense_Mutation')
