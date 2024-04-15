@@ -15,11 +15,12 @@ logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
 
 CHECKSUM = {
     "UP000005640_9606_HUMAN_v4": "bf62d5402cb1c4580d219335a9af1ac831416edfbf2892391c8197a8356091f2",
-    "UP000000589_10090_MOUSE_v4" : "eb6c529c8757d511b75f4856c1a789378478e6255a442517ad8579708787bbab"
+    "UP000000589_10090_MOUSE_v4" : "eb6c529c8757d511b75f4856c1a789378478e6255a442517ad8579708787bbab",
+    "mane_overlap_v4" : "c01e9b858c5415cfe2eae7e52a561aa8a872ba0d5d4891ba0cec327b3af49d69"
 }
 
 
-def assert_integrity_human(file_path, proteome):
+def assert_proteome_integrity(file_path, proteome):
 
     if proteome in CHECKSUM.keys():
         logger.debug('Asserting integrity of file...')
@@ -89,7 +90,7 @@ def get_structures(path: str,
     # Select proteome
     if mane:
         if species == "Homo sapiens":
-            proteome = "mane_overlap_v4"
+            proteome = f"mane_overlap_v{af_version}"
         else:
             raise RuntimeError(f"Structures with MANE transcripts overlap are available only for 'Homo sapiens'. Exiting...")
     else:
@@ -110,7 +111,7 @@ def get_structures(path: str,
         status = "INIT"
         while status != "PASS":
             download_single_file(af_url, file_path, threads)
-            status = assert_integrity_human(file_path, proteome)
+            status = assert_proteome_integrity(file_path, proteome)
             attempts += 1
             if attempts >= max_attempts:
                 raise RuntimeError(f"Failed to download with integrity after {max_attempts} attempts. Exiting...")
