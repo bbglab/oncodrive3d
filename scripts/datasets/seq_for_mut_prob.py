@@ -762,7 +762,7 @@ def add_extra_genes_to_seq_df(seq_df, uniprot_to_gene_dict):
 #     logger.debug(f"Sequences dataframe saved in: {output_seq_df}")
 
 
-def get_mane_summary(path_to_file, v=1.0, max_attempts=15):
+def get_mane_summary(path_to_file, v=1.3, max_attempts=15):
     
     mane_summary_url = f"https://ftp.ncbi.nlm.nih.gov/refseq/MANE/MANE_human/release_{v}/MANE.GRCh38.v{v}.summary.txt.gz"
     logger.debug(f"Downloading MANE summary file {mane_summary_url} to {path_to_file}")
@@ -913,7 +913,7 @@ def drop_gene_duplicates(df):
     return df.reset_index(drop=True)
     
 
-def process_seq_df(seq_df, datasets_dir, organism, uniprot_to_gene_dict, num_cores=1, rm_weird_chr=False):
+def process_seq_df(seq_df, datasets_dir, organism, uniprot_to_gene_dict, num_cores=1, rm_weird_chr=False, mane_version=1.3):
     """
     Retrieve DNA sequence and tri-nucleotide context 
     for each structure in the initialized dataframe 
@@ -951,7 +951,7 @@ def process_seq_df(seq_df, datasets_dir, organism, uniprot_to_gene_dict, num_cor
     
     # Retrieve transcripts from MANE metadata
     if organism == "Homo sapiens":                                                 
-        mane_mapping = get_mane_to_af_mapping(datasets_dir)
+        mane_mapping = get_mane_to_af_mapping(datasets_dir, mane_version=mane_version)
         seq_df_notr = seq_df_notr.drop(columns=["Ens_Gene_ID", "Ens_Transcr_ID", "Chr", "Reverse_strand"])
         seq_df_notr = seq_df_notr.merge(mane_mapping.drop(columns=["Gene", "Refseq_prot"]), on="Uniprot_ID", how="left").dropna(subset="Gene")
 
@@ -971,7 +971,7 @@ def process_seq_df(seq_df, datasets_dir, organism, uniprot_to_gene_dict, num_cor
         seq_df_manetr = get_ref_dna_from_ensembl_mp(seq_df_manetr, cores=num_cores)
 
         # Set failed and len-mismatching entries as no-transcripts entries
-        failed_ix = seq_df_mane.apply(lambda x: True if pd.isna(x.Seq_dna) else len(x.Seq_dna) / 3 != len(x.Seq), axis=1)
+        failed_ix = seq_df_manetr.apply(lambda x: True if pd.isna(x.Seq_dna) else len(x.Seq_dna) / 3 != len(x.Seq), axis=1)
         if sum(failed_ix) > 0:
             seq_df_manetr_failed = seq_df_manetr[failed_ix]
             seq_df_manetr = seq_df_manetr[~failed_ix]
@@ -1007,7 +1007,7 @@ def process_seq_df(seq_df, datasets_dir, organism, uniprot_to_gene_dict, num_cor
     return seq_df
 
 
-def process_seq_df_mane(seq_df, datasets_dir, uniprot_to_gene_dict, num_cores=1):
+def process_seq_df_mane(seq_df, datasets_dir, uniprot_to_gene_dict, num_cores=1, mane_version=1.3):
     """
     Retrieve DNA sequence and tri-nucleotide context 
     for each structure in the initialized dataframe
@@ -1019,7 +1019,7 @@ def process_seq_df_mane(seq_df, datasets_dir, uniprot_to_gene_dict, num_cores=1)
        -1 : Not available transcripts, seq DNA retrieved from Backtranseq API
     """
     
-    mane_mapping, mane_mapping_not_af = get_mane_to_af_mapping(datasets_dir, include_not_af=True)
+    mane_mapping, mane_mapping_not_af = get_mane_to_af_mapping(datasets_dir, include_not_af=True, mane_version=mane_version)
     seq_df_mane = seq_df[seq_df.Uniprot_ID.isin(mane_mapping.Uniprot_ID)].reset_index(drop=True)
     seq_df_nomane = seq_df[~seq_df.Uniprot_ID.isin(mane_mapping.Uniprot_ID)].reset_index(drop=True)
     
@@ -1062,9 +1062,9 @@ def process_seq_df_mane(seq_df, datasets_dir, uniprot_to_gene_dict, num_cores=1)
     seq_df_not_uniprot["Tri_context"] = seq_df_not_uniprot["Seq_dna"].apply(
         lambda x: ",".join(per_site_trinucleotide_context(x, no_flanks=True)))
     
-    # Prepare final output
-    seq_df_nomane_tr = drop_gene_duplicates(seq_df_nomane_tr)          
+    # Prepare final output  
     seq_df = pd.concat((seq_df_not_uniprot, seq_df_nomane_tr)).reset_index(drop=True)
+    seq_df = drop_gene_duplicates(seq_df)                                # The only duplicates are Reference info -1 and 0 & -1 and 1
     report_df = seq_df.Reference_info.value_counts().reset_index()
     report_df = report_df.rename(columns={"index" : "Source"})
     report_df.Source = report_df.Source.map({1 : "Proteins API",
@@ -1083,7 +1083,8 @@ def get_seq_df(datasets_dir,
                organism = "Homo sapiens",
                mane=False,
                num_cores=1,
-               rm_weird_chr=False):
+               rm_weird_chr=False,
+               mane_version=1.3):
     """
     Generate a dataframe including IDs mapping information, the protein 
     sequence, the DNA sequence and its tri-nucleotide context, which is 
@@ -1119,9 +1120,19 @@ def get_seq_df(datasets_dir,
     seq_df = initialize_seq_df(pdb_dir, uniprot_to_gene_dict)                                                            
     
     if mane:
-       seq_df = process_seq_df_mane(seq_df, datasets_dir, uniprot_to_gene_dict, num_cores)
+       seq_df = process_seq_df_mane(seq_df, 
+                                    datasets_dir, 
+                                    uniprot_to_gene_dict, 
+                                    num_cores, 
+                                    mane_version=mane_version)
     else:
-        seq_df = process_seq_df(seq_df, datasets_dir, organism, uniprot_to_gene_dict, num_cores, rm_weird_chr)
+        seq_df = process_seq_df(seq_df, 
+                                datasets_dir, 
+                                organism, 
+                                uniprot_to_gene_dict, 
+                                num_cores, 
+                                rm_weird_chr, 
+                                mane_version=mane_version)
     
     # Save
     seq_df.to_csv(output_seq_df, index=False, sep="\t")                    

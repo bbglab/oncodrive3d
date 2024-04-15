@@ -94,9 +94,14 @@ def oncodrive3D():
 
 @oncodrive3D.command(context_settings=dict(help_option_names=['-h', '--help']),
                      help="Build datasets - Required once after installation.")
-@click.option("-o", "--output_dir", help="Directory where to save the files", type=str, default='datasets')
-@click.option("-s", "--organism", type=click.Choice(["Homo sapiens", 'human', "Mus musculus", 'mouse']), help="Organism name", default="Homo sapiens")
-@click.option("-m", "--mane", help="Use structures predicted from MANE Select transcripts (Homo sapiens only)", is_flag=True)
+@click.option("-o", "--output_dir", 
+              help="Directory where to save the files", type=str, default='datasets')
+@click.option("-s", "--organism", type=click.Choice(["Homo sapiens", 'human', "Mus musculus", 'mouse']), 
+              help="Organism name", default="Homo sapiens")
+@click.option("-m", "--mane", 
+              help="Use structures predicted from MANE Select transcripts (Homo sapiens only)", is_flag=True)
+@click.option("-M", "--mane_version", default=1.3, 
+              help="Version of the MANE Select release from NCBI")
 @click.option("-d", "--distance_threshold", type=click.INT, default=10,
               help="Distance threshold (Å) to define contact between amino acids")
 @click.option("-u", "--uniprot_to_hugo", type=click.Path(exists=True), 
@@ -105,9 +110,12 @@ def oncodrive3D():
               help="Number of cores to use in the computation")
 @click.option("-a", "--af_version", type=click.IntRange(min=1, max=4, clamp=False), default=4,
               help="Version of AlphaFold 2 predictions")
-@click.option("-r", "--rm_pdb_files", help="Delete PDB files after datasets building", is_flag=True)
-@click.option("-y", "--yes", help="No interaction", is_flag=True)
-@click.option("-v", "--verbose", help="Verbose", is_flag=True)
+@click.option("-r", "--rm_pdb_files", 
+              help="Delete PDB files after datasets building", is_flag=True)
+@click.option("-y", "--yes", 
+              help="No interaction", is_flag=True)
+@click.option("-v", "--verbose", 
+              help="Verbose", is_flag=True)
 @setup_logging_decorator
 def build_datasets(output_dir,
                    organism,
