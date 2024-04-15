@@ -766,6 +766,7 @@ def get_mane_summary(path_to_file, v=1.0, max_attempts=15):
     
     mane_summary_url = f"https://ftp.ncbi.nlm.nih.gov/refseq/MANE/MANE_human/release_{v}/MANE.GRCh38.v{v}.summary.txt.gz"
     logger.debug(f"Downloading MANE summary file {mane_summary_url} to {path_to_file}")
+    attempts = 0
     
     while not os.path.exists(path_to_file):
         download_single_file(mane_summary_url, path_to_file, threads=1)
