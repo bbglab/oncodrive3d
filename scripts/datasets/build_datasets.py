@@ -42,6 +42,7 @@ def build(output_datasets,
           uniprot_to_hugo,
           num_cores,
           af_version,
+          mane_version,
           rm_pdb_files,
           ):
     """
@@ -87,7 +88,8 @@ def build(output_datasets,
                uniprot_to_gene_dict=uniprot_to_hugo,
                organism=species,
                mane=mane,
-               num_cores=num_cores)
+               num_cores=num_cores,
+               mane_version=mane_version)
     logger.info("Generation of sequences dataframe completed!")
 
     # Get PAE

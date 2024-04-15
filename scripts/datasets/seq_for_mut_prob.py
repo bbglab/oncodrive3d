@@ -772,7 +772,7 @@ def get_mane_summary(path_to_file, v=1.3, max_attempts=15):
         download_single_file(mane_summary_url, path_to_file, threads=1)
         attempts += 1
         if attempts >= max_attempts:
-            raise RuntimeError(f"Failed to download MANE summary file after {max_attempts} attempts. Exiting...")
+            raise RuntimeError(f"Failed to download MANE summary file after {max_attempts} attempts. Exiting..")
         time.sleep(5)
 
 
@@ -855,7 +855,7 @@ def get_ref_dna_from_ensembl(transcript_id):
             i += 1
             status = "ERROR"
             if i == 100:
-                logger.debug(f"Failed to retrieve sequence for {transcript_id} ({e}): Skipping..")
+                logger.debug(f"Failed to retrieve sequence for {transcript_id}: Skipping..")
                 return np.nan
                 
             time.sleep(0.5)

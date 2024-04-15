@@ -124,6 +124,7 @@ def build_datasets(output_dir,
                    uniprot_to_hugo,
                    cores, 
                    af_version,
+                   mane_version,
                    rm_pdb_files,
                    yes,
                    verbose):
@@ -138,6 +139,7 @@ def build_datasets(output_dir,
     logger.info(f"Custom IDs mapping: {uniprot_to_hugo}")
     logger.info(f"CPU cores: {cores}")
     logger.info(f"AlphaFold version: {af_version}")
+    logger.info(f"MANE version: {mane_version}")
     logger.info(f"Remove PDB files: {rm_pdb_files}")
     logger.info(f"Verbose: {verbose}")
     logger.info(f'Log path: {os.path.join(output_dir, "log")}')
@@ -150,6 +152,7 @@ def build_datasets(output_dir,
           uniprot_to_hugo,
           cores,
           af_version,
+          mane_version,
           rm_pdb_files)
 
 
@@ -160,30 +163,39 @@ def build_datasets(output_dir,
 
 @oncodrive3D.command(context_settings=dict(help_option_names=['-h', '--help']),
                      help="Run 3D-clustering analysis.")
-@click.option("-i", "--input_maf_path",
-              type=click.Path(exists=True),
-              required=True,
-              help="Path of the MAF file used as input")
-@click.option("-p", "--mut_profile_path", type=click.Path(exists=True), help="Path of the mutation profile (192 trinucleotide contexts) used as optional input")
-@click.option("-m", "--mutability_config_path", type=click.Path(exists=True), help="Path of the config file with information on mutability")
-@click.option("-o", "--output_dir", help="Path to output directory", type=str, default='results')
-@click.option("-d", "--data_dir", help="Path to datasets", type=click.Path(exists=True), default = os.path.join('datasets'))
-@click.option("-n", "--n_iterations", help="Number of densities to be simulated", type=int, default=10000)
-@click.option("-a", "--alpha", help="Significant threshold for the p-value of res and gene", type=float, default=0.01)
+@click.option("-i", "--input_maf_path", type=click.Path(exists=True), required=True,
+              help="Path of the MAF file (or direct VEP output) used as input")
+@click.option("-p", "--mut_profile_path", type=click.Path(exists=True), 
+              help="Path of the mutation profile (192 trinucleotide contexts) used as optional input")
+@click.option("-m", "--mutability_config_path", type=click.Path(exists=True), 
+              help="Path of the config file with information on mutability")
+@click.option("-o", "--output_dir", type=str, default='results', 
+              help="Path to output directory")
+@click.option("-d", "--data_dir", type=click.Path(exists=True), default = os.path.join('datasets'), 
+              help="Path to datasets")
+@click.option("-n", "--n_iterations", type=int, default=10000, 
+              help="Number of densities to be simulated")
+@click.option("-a", "--alpha", type=float, default=0.01, 
+              help="Significant threshold for the p-value of res and gene")
 @click.option("-P", "--cmap_prob_thr", type=float, default=0.5,
               help="Threshold to define AAs contacts based on distance on predicted structure and PAE")
 @click.option("-c", "--cores", type=click.IntRange(min=1, max=len(os.sched_getaffinity(0)), clamp=False), default=len(os.sched_getaffinity(0)),
               help="Set the number of cores to use in the computation")
-@click.option("-s", "--seed", help="Set seed to ensure reproducible results", type=int)
+@click.option("-s", "--seed", type=int,
+              help="Set seed to ensure reproducible results")
 @click.option("-v", "--verbose", help="Verbose", is_flag=True)
 @click.option("-t", "--cancer_type", help="Cancer type", type=str)
 @click.option("-C", "--cohort", help="Name of the cohort", type=str)
-@click.option("--no_fragments", help="Disable processing of fragmented (AF-F) proteins", is_flag=True)
-@click.option("--only_processed", help="Include only processed genes in the output", is_flag=True)
+@click.option("--no_fragments", is_flag=True, 
+              help="Disable processing of fragmented (AF-F) proteins")
+@click.option("--only_processed", is_flag=True,
+              help="Include only processed genes in the output")
 @click.option("--thr_not_in_structure", type=float, default=0.1,
               help="Threshold to filter out genes based on the ratio of mutations outside of the structure")
 @click.option("--thr_wt_mismatch", type=float, default=0.1,
               help="Threshold to filter out genes based on the ratio of mutations having WT aa not matching the one in the structure")
+@click.option("-T", "--o3d_transcripts", is_flag=True,
+              help="Filter mutations by keeping transcripts included in Oncodrive3D built sequence dataframe. Input file (--i) must be the VEP output")
 @setup_logging_decorator
 def run(input_maf_path,
         mut_profile_path,
@@ -201,7 +213,8 @@ def run(input_maf_path,
         no_fragments,
         only_processed,
         thr_not_in_structure,
-        thr_wt_mismatch,):
+        thr_wt_mismatch,
+        o3d_transcripts):
     """Run Oncodrive3D."""
 
     ## Initialize
@@ -233,27 +246,22 @@ def run(input_maf_path,
     logger.info(f"Probability threshold for CMAPs: {cmap_prob_thr}")
     logger.info(f"Cohort: {cohort}")
     logger.info(f"Cancer type: {cancer_type}")
-    logger.info(f"Verbose: {bool(verbose)}")
-    logger.info(f"Seed: {seed}")
     logger.info(f"Disable fragments: {bool(no_fragments)}")
     logger.info(f"Output only processed genes: {bool(only_processed)}")
     logger.info(f"Ratio threshold mutations out of structure: {thr_not_in_structure}")
     logger.info(f"Ratio threshold mutations with WT reference-structure mismatch: {thr_not_in_structure}")
+    logger.info(f"Seed: {seed}")
+    logger.info(f"Filter input by Oncodrive3D transcripts: {o3d_transcripts}")
+    logger.info(f"Verbose: {bool(verbose)}")
     logger.info(f'Log path: {os.path.join(output_dir, "log")}')
     logger.info("")
 
 
     ## Load input and df of DNA sequences
 
-    data = parse_maf_input(input_maf_path)
+    seq_df = pd.read_csv(seq_df_path, sep="\t")
+    data = parse_maf_input(input_maf_path, seq_df, use_o3d_transcripts=use_o3d_transcripts)
     if len(data) > 0:
-        seq_df = pd.read_csv(seq_df_path, sep="\t")
-        plddt_df = pd.read_csv(plddt_path, sep="\t", dtype={"Pos" : int,
-                                                            "Res" : str, 
-                                                            "Confidence" : float, 
-                                                            "Uniprot_ID" : str, 
-                                                            "AF_F" : str})
-
 
         ## Run
 
@@ -372,6 +380,11 @@ def run(input_maf_path,
             result_np_gene["Uniprot_ID"] = [gene_to_uniprot_dict[gene] if gene in gene_to_uniprot_dict.keys() else np.nan for gene in result_np_gene["Gene"].values]
         if len(genes_to_process) > 0:
             logger.info(f"Performing 3D-clustering on [{len(seq_df)}] proteins...")
+            plddt_df = pd.read_csv(plddt_path, sep="\t", dtype={"Pos" : int,
+                                                                "Res" : str, 
+                                                                "Confidence" : float, 
+                                                                "Uniprot_ID" : str, 
+                                                                "AF_F" : str})
             result_pos, result_gene = clustering_3d_mp_wrapper(genes_to_process,
                                                                data,
                                                                cmap_path,
