@@ -124,8 +124,8 @@ def parse_maf_input(maf_input_path):
     maf["Pos"] = maf.loc[:, "HGVSp_Short"].apply(lambda x: int(re.sub("\\D", "", (x[2:]))))
     maf["WT"] = maf["HGVSp_Short"].apply(lambda x: re.findall("\\D", x[2:])[0])
     maf["Mut"] = maf["HGVSp_Short"].apply(lambda x: re.findall("\\D", x[2:])[1])
-    maf = maf[["Hugo_Symbol", "Pos", "WT", "Mut", "Tumor_Sample_Barcode"]]
-    maf = maf.sort_values("Pos").rename(columns={"Hugo_Symbol" : "Gene"})
+    maf = maf[["Hugo_Symbol", "Pos", "WT", "Mut", "Tumor_Sample_Barcode", "Feature"]]
+    maf = maf.sort_values("Pos").rename(columns={"Hugo_Symbol" : "Gene", "Feature" : "Ens_Transcr_ID"})
     
     return maf.reset_index(drop=True)
 
