@@ -40,7 +40,7 @@ def download_pae(uniprot_id: str, af_version: int, output_dir: str) -> None:
             logger.debug(f"Request failed: {e}")    
 
 
-def get_pae(input_dir: str, output_dir: str, threads: int, af_version: int = 4) -> None:
+def get_pae(input_dir: str, output_dir: str, num_cores: int, af_version: int = 4) -> None:
     """
     Download Predicted Aligned Error (PAE) files for all non-fragmented PDB 
     structures in the input directory.

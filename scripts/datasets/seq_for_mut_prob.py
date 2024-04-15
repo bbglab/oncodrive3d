@@ -28,7 +28,7 @@ import pandas as pd
 import requests
 import sys
 from tqdm import tqdm
-from bgreference import hg38, mm10
+from bgreference import hg38, mm39
 from Bio.Seq import Seq
 from urllib.request import urlretrieve
 
@@ -913,7 +913,7 @@ def drop_gene_duplicates(df):
     return df.reset_index(drop=True)
     
 
-def process_seq_df(seq_df, datasets_dir, organism, uniprot_to_gene_dict, rm_weird_chr=False):
+def process_seq_df(seq_df, datasets_dir, organism, uniprot_to_gene_dict, num_cores=1, rm_weird_chr=False):
     """
     Retrieve DNA sequence and tri-nucleotide context 
     for each structure in the initialized dataframe 
@@ -968,7 +968,7 @@ def process_seq_df(seq_df, datasets_dir, organism, uniprot_to_gene_dict, rm_weir
 
         # Add DNA seq from Ensembl for structures with available transcript ID
         logger.debug(f"Retrieving CDS DNA seq from transcript ID (Ensembl API): {len(seq_df_manetr)} structures..")
-        seq_df_manetr = get_ref_dna_from_ensembl_mp(seq_df_manetr, cores=threads)
+        seq_df_manetr = get_ref_dna_from_ensembl_mp(seq_df_manetr, cores=num_cores)
 
         # Set failed and len-mismatching entries as no-transcripts entries
         failed_ix = seq_df_mane.apply(lambda x: True if pd.isna(x.Seq_dna) else len(x.Seq_dna) / 3 != len(x.Seq), axis=1)
@@ -1007,7 +1007,7 @@ def process_seq_df(seq_df, datasets_dir, organism, uniprot_to_gene_dict, rm_weir
     return seq_df
 
 
-def process_seq_df_mane(seq_df, datasets_dir, uniprot_to_gene_dict):
+def process_seq_df_mane(seq_df, datasets_dir, uniprot_to_gene_dict, num_cores=1):
     """
     Retrieve DNA sequence and tri-nucleotide context 
     for each structure in the initialized dataframe
@@ -1029,7 +1029,7 @@ def process_seq_df_mane(seq_df, datasets_dir, uniprot_to_gene_dict):
     
     # Add DNA seq from Ensembl for structures with available transcript ID
     logger.debug(f"Retrieving CDS DNA seq from transcript ID (Ensembl API): {len(seq_df_mane)} structures..")
-    seq_df_mane = get_ref_dna_from_ensembl_mp(seq_df_mane, cores=8)
+    seq_df_mane = get_ref_dna_from_ensembl_mp(seq_df_mane, cores=num_cores)
     
     # Set failed and len-mismatching entries as no-transcripts entries
     failed_ix = seq_df_mane.apply(lambda x: True if pd.isna(x.Seq_dna) else len(x.Seq_dna) / 3 != len(x.Seq), axis=1)
@@ -1082,7 +1082,7 @@ def get_seq_df(datasets_dir,
                uniprot_to_gene_dict = None, 
                organism = "Homo sapiens",
                mane=False,
-               threads=1,
+               num_cores=1,
                rm_weird_chr=False):
     """
     Generate a dataframe including IDs mapping information, the protein 
@@ -1119,9 +1119,9 @@ def get_seq_df(datasets_dir,
     seq_df = initialize_seq_df(pdb_dir, uniprot_to_gene_dict)                                                            
     
     if mane:
-       seq_df = process_seq_df_mane(seq_df, datasets_dir, uniprot_to_gene_dict)
+       seq_df = process_seq_df_mane(seq_df, datasets_dir, uniprot_to_gene_dict, num_cores)
     else:
-        seq_df = process_seq_df(seq_df, datasets_dir, organism, uniprot_to_gene_dict, rm_weird_chr)
+        seq_df = process_seq_df(seq_df, datasets_dir, organism, uniprot_to_gene_dict, num_cores, rm_weird_chr)
     
     # Save
     seq_df.to_csv(output_seq_df, index=False, sep="\t")                    
