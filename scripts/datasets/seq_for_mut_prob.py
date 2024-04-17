@@ -729,7 +729,7 @@ def add_extra_genes_to_seq_df(seq_df, uniprot_to_gene_dict):
 #     if organism == "Homo sapiens":
 #         genome_fun = hg38
 #     elif organism == "Mus musculus":
-#         genome_fun = mm10
+#         genome_fun = mm39
 #     else:
 #         raise RuntimeError(f"Failed to recognize '{organism}' as organism. Currently accepted ones are 'Homo sapiens' and 'Mus musculus'. Exiting..")
 #     seq_df = add_ref_dna_and_context(seq_df, genome_fun)
@@ -942,7 +942,7 @@ def process_seq_df(seq_df, datasets_dir, organism, uniprot_to_gene_dict, num_cor
     if organism == "Homo sapiens":
         genome_fun = hg38
     elif organism == "Mus musculus":
-        genome_fun = mm10
+        genome_fun = mm39
     else:
         raise RuntimeError(f"Failed to recognize '{organism}' as organism. Currently accepted ones are 'Homo sapiens' and 'Mus musculus'. Exiting..")
     seq_df = add_ref_dna_and_context(seq_df, genome_fun)
