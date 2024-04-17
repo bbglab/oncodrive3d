@@ -392,7 +392,7 @@ def get_batch_exons_coord(batch_ids):
             len_dna = sum([coord[end] - coord[start] + 1 for coord in ranges])
             if len_dna / 3 == len(seq):
                 break
-            # If there is no transcript with matching sequence, return NA
+            # If there is no transcript with matching sequence length, return NA
             elif i == len(dic["gnCoordinate"]) - 1:
                 ens_gene_id = np.nan
                 ens_transcr_id = np.nan
@@ -513,7 +513,7 @@ def get_ref_dna_and_context(row, genome_fun):
         if not str(e).startswith("Sequence"):
             logger.warning(f"Error occurred during retrieving DNA seq from ref coordinates {transcript_id}: {e}")
         
-        return transcript_id, np.nan, np.nan, -1
+        return np.nan, np.nan, np.nan, -1
 
 
 def add_ref_dna_and_context(seq_df, genome_fun=hg38):
@@ -529,6 +529,10 @@ def add_ref_dna_and_context(seq_df, genome_fun=hg38):
     ref_dna_and_context.columns = ["Ens_Transcr_ID", "Seq_dna", "Tri_context", "Reference_info"]
     seq_df = seq_df.merge(ref_dna_and_context, on=["Ens_Transcr_ID"], how="left")
     seq_df["Reference_info"] = seq_df["Reference_info"].fillna(-1).astype(int)
+    seq_df.loc[seq_df["Reference_info"] == -1, "Ens_Transcr_ID"] = np.nan
+    seq_df.loc[seq_df["Reference_info"] == -1, "Seq_dna"] = np.nan
+    seq_df.loc[seq_df["Reference_info"] == -1, "Exons_coord"] = np.nan
+    seq_df.loc[seq_df["Reference_info"] == -1, "Tri_context"] = np.nan
     
     return seq_df
 
