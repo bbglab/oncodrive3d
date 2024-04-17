@@ -104,7 +104,7 @@ def clean_directory(path: str, loc: str) -> None:
     if loc == "d":
         logger.debug(f"Cleaning {path}")
         rm_files(path, ext=[".tsv", ".csv", ".json", ".txt", ".txt.gz"])
-        dirs = "pae", "pdb_structures", "pdb_structures_mane", "prob_cmaps", "log"
+        dirs = "pae", "pdb_structures", "pdb_structures_mane", "prob_cmaps"
         path_dirs = [os.path.join(path, d) for d in dirs]
         for path in path_dirs:
             rm_dir(path)
