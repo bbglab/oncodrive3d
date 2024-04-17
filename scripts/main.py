@@ -68,7 +68,7 @@ from scripts.globals import DATE, setup_logging_decorator, startup_message
 from scripts.run.clustering import clustering_3d_mp_wrapper
 from scripts.run.miss_mut_prob import get_miss_mut_prob_dict, mut_rate_vec_to_dict
 from scripts.run.pvalues import get_final_gene_result
-from scripts.run.utils import add_nan_clust_cols, parse_maf_input, sort_cols, empty_result_pos
+from scripts.run.utils import get_gene_entry, add_nan_clust_cols, parse_maf_input, sort_cols, empty_result_pos
 from scripts.plotting.build_annotations import get_annotations
 from scripts.plotting.plot import generate_plot
 from scripts.plotting.utils import init_annotations
@@ -271,17 +271,22 @@ def run(input_maf_path,
         genes = data.groupby("Gene").apply(len)
         genes_mut = genes[genes >= 2]
         genes_no_mut = genes[genes < 2].index
+        
+        
+        
         if len(genes_no_mut) > 0:
             logger.debug(f"Detected [{len(genes_no_mut)}] genes without enough mutations: Skipping...")
             result_gene = pd.DataFrame({"Gene" : genes_no_mut,
                                         "Uniprot_ID" : np.nan,
                                         "F" : np.nan,
                                         "Mut_in_gene" : 1,
-                                        "Ratio_not_in_structure" : 0,
-                                        "Ratio_WT_mismatch" : 0,
-                                        "Max_mut_pos" : 0,
-                                        "Mut_zero_mut_prob" : 0,
+                                        "Ratio_not_in_structure" : np.nan,
+                                        "Ratio_WT_mismatch" : np.nan,
+                                        "Mut_zero_mut_prob" : np.nan,
                                         "Pos_zero_mut_prob" : np.nan,
+                                        "Transcript_ID" : get_gene_entry(data, genes_no_mut, "Transcript_ID"),
+                                        "O3D_transcript_ID" : get_gene_entry(data, genes_no_mut, "O3D_transcript_ID"),
+                                        "Transcript_status" : get_gene_entry(data, genes_no_mut, "Transcript_status"),
                                         "Status" : "No_mut"})
             result_np_gene_lst.append(result_gene)
 
@@ -301,6 +306,9 @@ def run(input_maf_path,
                                         "Ratio_WT_mismatch" : np.nan,
                                         "Mut_zero_mut_prob" : np.nan,
                                         "Pos_zero_mut_prob" : np.nan,
+                                        "Transcript_ID" : get_gene_entry(data, genes_no_mapping.index, "Transcript_ID"),
+                                        "O3D_transcript_ID" : get_gene_entry(data, genes_no_mapping.index, "O3D_transcript_ID"),
+                                        "Transcript_status" : get_gene_entry(data, genes_no_mapping.index, "Transcript_status"),
                                         "Status" : "No_ID_mapping"})
             result_np_gene_lst.append(result_gene)
         
@@ -321,6 +329,9 @@ def run(input_maf_path,
                                             "Ratio_WT_mismatch" : np.nan,
                                             "Mut_zero_mut_prob" : np.nan,
                                             "Pos_zero_mut_prob" : np.nan,
+                                            "Transcript_ID" : get_gene_entry(data, genes_frag, "Transcript_ID"),
+                                            "O3D_transcript_ID" : get_gene_entry(data, genes_frag, "O3D_transcript_ID"),
+                                            "Transcript_status" : get_gene_entry(data, genes_frag, "Transcript_status"),
                                             "Status" : "Fragmented"})
                 result_np_gene_lst.append(result_gene)
                 # Filter out from genes to process and seq df
@@ -359,6 +370,9 @@ def run(input_maf_path,
                                             "Ratio_WT_mismatch" : np.nan,
                                             "Mut_zero_mut_prob" : np.nan,
                                             "Pos_zero_mut_prob" : np.nan,
+                                            "Transcript_ID" : get_gene_entry(data, genes_not_mutability, "Transcript_ID"),
+                                            "O3D_transcript_ID" : get_gene_entry(data, genes_not_mutability, "O3D_transcript_ID"),
+                                            "Transcript_status" : get_gene_entry(data, genes_not_mutability, "Transcript_status"),
                                             "Status" : "No_mutability"})
                 result_np_gene_lst.append(result_gene)
                 
@@ -427,7 +441,7 @@ def run(input_maf_path,
         if result_pos is None:
             # Save gene-level result and empty res-level result
             logger.warning("Did not processed any genes!")
-            result_gene = add_nan_clust_cols(result_gene).drop(columns = ["Max_mut_pos", "Structure_max_pos"])
+            result_gene = add_nan_clust_cols(result_gene)
             result_gene = sort_cols(result_gene)
             if no_fragments:
                 result_gene = result_gene.drop(columns=[col for col in ["F", "Mut_in_top_F", "Top_F"] if col in result_gene.columns])
@@ -445,7 +459,7 @@ def run(input_maf_path,
 
             # Get gene global pval, qval, and clustering annotations and save gene-level result
             result_gene = get_final_gene_result(result_pos, result_gene, alpha)
-            result_gene = result_gene.drop(columns = ["Max_mut_pos", "Structure_max_pos"])
+            result_gene = result_gene
             result_gene = sort_cols(result_gene) 
             if no_fragments:
                 result_gene = result_gene.drop(columns=[col for col in ["F", "Mut_in_top_F", "Top_F"] if col in result_gene.columns])

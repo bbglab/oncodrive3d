@@ -74,12 +74,13 @@ def parse_vep_output(df, seq_df=None, use_o3d_transcripts=False):
     if use_o3d_transcripts:
         logger.info("Filtering input by Oncodrive3D built transcripts..")
         if seq_df is not None:
-            if "CANONICAL" in df.columns and "Feature" in df.columns and "Transcripts" in df["Feature_Type"].unique():
+            if "CANONICAL" in df.columns and "Feature" in df.columns and "Transcript" in df["Feature_type"].unique():
                 # For the genes without available transcript info in O3D built datasets, select canonical
-                df_tr_missing = df[df["SYMBOL"].isin(seq_df.loc[seq_df["Reference_info"] == -1, "Gene"])]
+                df_tr_missing = df[df["Hugo_Symbol"].isin(seq_df.loc[seq_df["Reference_info"] == -1, "Gene"])]
                 df_tr_missing = df_tr_missing[df_tr_missing["CANONICAL"] == "YES"]
                 # For those with transcript info, select transcript in O3D build datasets
                 df_tr_available = df[df["Feature"].isin(seq_df.loc[seq_df["Reference_info"] != -1, "Ens_Transcr_ID"])]
+                df = pd.concat((df_tr_available, df_tr_missing))
             else:
                 raise RuntimeError(f"Failed to filter VEP output by Oncodrive3D transcripts. Canonical or transcripts information not found: Exiting..")
         else:
@@ -119,7 +120,7 @@ def parse_maf_input(maf_input_path, seq_df=None, use_o3d_transcripts=False):
         maf = read_csv_without_comments(maf_input_path)
     else:
         maf = pd.read_csv(maf_input_path, sep="\t", dtype={'Chromosome': str})
-    logger.debug(f"Processing [{len(maf)}] total mutations...")
+    logger.debug(f"Processing [{len(maf)}] total mutations..")
     maf = parse_vep_output(maf, seq_df, use_o3d_transcripts)
 
     # Select only missense mutation and extract mutations
@@ -137,17 +138,38 @@ def parse_maf_input(maf_input_path, seq_df=None, use_o3d_transcripts=False):
             logger.warning(f"Parsed {sum(dbs_ix)} double base substitutions: Filtering the mutations...")
             maf = maf[~dbs_ix]
     
+    # Parse mut
     logger.debug(f"Processing [{len(maf)}] missense mutations...")
     maf["Pos"] = maf.loc[:, "HGVSp_Short"].apply(lambda x: int(re.sub("\\D", "", (x[2:]))))
     maf["WT"] = maf["HGVSp_Short"].apply(lambda x: re.findall("\\D", x[2:])[0])
     maf["Mut"] = maf["HGVSp_Short"].apply(lambda x: re.findall("\\D", x[2:])[1])
-    maf = maf[["Hugo_Symbol", "Pos", "WT", "Mut", "Tumor_Sample_Barcode", "Feature"]]
-    maf = maf.sort_values("Pos").rename(columns={"Hugo_Symbol" : "Gene", "Feature" : "Ens_Transcr_ID"})
+    maf = maf[["Hugo_Symbol", "Pos", "WT", "Mut"] + [col for col in ["Tumor_Sample_Barcode", "Feature", ""] if col in maf.columns]]
+    maf = maf.sort_values("Pos").rename(columns={"Hugo_Symbol" : "Gene"})
+    if "Feature" in maf.columns:
+        maf = maf.rename(columns={"Feature" : "Transcript_ID"})
+    
+    # Add transcript info
+    if seq_df is not None:
+        if "Transcript_ID" not in maf.columns:
+            logger.warning("Input transcript ID not found")
+            maf["Transcript_ID"] = np.nan
+        maf = maf.merge(seq_df[[col for col in ["Gene", "Ens_Transcr_ID", "Refseq_prot"] if col in seq_df.columns]], how="left", on="Gene")
+        maf = maf.rename(columns={"Ens_Transcr_ID" : "O3D_transcript_ID"})
+        maf["Transcript_status"] = maf.apply(lambda x: "Input_missing" if pd.isna(x["Transcript_ID"]) 
+                                             else "O3D_missing" if pd.isna(x["O3D_transcript_ID"]) 
+                                             else "Mismatch" if x["Transcript_ID"] != x["O3D_transcript_ID"]
+                                             else if "Match" x["Transcript_ID"] == x["O3D_transcript_ID"]
+                                             else np.nan, axis=1)
     
     return maf.reset_index(drop=True)
 
 
 ## Other utils
+
+def get_gene_entry(data, genes, entry):
+
+    return [data.loc[data["Gene"] == gene, entry].values[0] for gene in genes]
+
 
 def weighted_avg_plddt_vol(target_pos, mut_plddt_df, cmap):
     """
@@ -296,10 +318,9 @@ def sort_cols(result_gene):
 
     cols = ['Gene', 
             'HGNC_ID',
+            'Ens_Gene_ID', 
             'Refseq_prot',
             'Uniprot_ID', 
-            'Ens_Gene_ID', 
-            'Ens_Transcr_ID',
             'pval', 
             'qval', 
             'C_gene', 
@@ -322,9 +343,12 @@ def sort_cols(result_gene):
             'Ratio_WT_mismatch',
             'Mut_zero_mut_prob',
             'Pos_zero_mut_prob',
-            'Status', 
             'Cancer', 
-            'Cohort']
+            'Cohort',
+            'Transcript_ID',
+            'O3D_transcript_ID',
+            'Transcript_status',
+            'Status']
 
     return result_gene[[col for col in cols if col in result_gene.columns]]
 

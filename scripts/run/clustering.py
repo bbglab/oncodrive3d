@@ -77,6 +77,9 @@ def clustering_3d(gene,
                                    "Ratio_WT_mismatch" : 0,
                                    "Mut_zero_mut_prob" : 0,
                                    "Pos_zero_mut_prob" : np.nan,
+                                   "Transcript_ID" : mut_gene_df.Transcript_ID.unique()[0],
+                                   "O3D_transcript_ID" : mut_gene_df.O3D_transcript_ID.unique()[0],
+                                   "Transcript_status" : mut_gene_df.Transcript_status.unique()[0],
                                    "Status" : np.nan}, 
                                     index=[1])
     
