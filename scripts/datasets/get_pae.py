@@ -48,7 +48,7 @@ def get_pae(input_dir: str, output_dir: str, num_cores: int, af_version: int = 4
     Args:
         input_dir (str): Input directory including the PDB structures.
         output_dir (str): Output directory where to download the PAE files.
-        threads (int): Number of cores for multithreading download.
+        num_cores (int): Number of cores for multithreading download.
         af_version (int): AlphaFold 2 version (default is 4).
     """
 
@@ -63,7 +63,7 @@ def get_pae(input_dir: str, output_dir: str, num_cores: int, af_version: int = 4
     pdb_files = [file for file in os.listdir(input_dir) if file.startswith("AF-") and file.endswith(f"-model_v{af_version}.pdb.gz")]
     uniprot_ids = [pdb_file.split("-")[1] for pdb_file in pdb_files]
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=threads) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=num_cores) as executor:
         tasks = [executor.submit(download_pae, uniprot_id, af_version, output_dir) for uniprot_id in uniprot_ids]
 
         for _ in tqdm(concurrent.futures.as_completed(tasks), total=len(tasks), desc="Downloading PAE"):
