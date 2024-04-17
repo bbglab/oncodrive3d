@@ -82,9 +82,9 @@ def parse_vep_output(df, seq_df=None, use_o3d_transcripts=False):
                 df_tr_available = df[df["Feature"].isin(seq_df.loc[seq_df["Reference_info"] != -1, "Ens_Transcr_ID"])]
                 df = pd.concat((df_tr_available, df_tr_missing))
             else:
-                raise RuntimeError(f"Failed to filter VEP output by Oncodrive3D transcripts. Canonical or transcripts information not found: Exiting..")
+                raise RuntimeError(f"Failed to filter input by O3D transcripts. Please provide as input the output of VEP with canonical and transcripts information: Exiting..")
         else:
-            raise RuntimeError(f"Failed to filter VEP output by Oncodrive3D transcripts. Dataframe of sequences not provided: Exiting..")
+            raise RuntimeError(f"Failed to filter input by O3D transcripts. Dataframe of sequences not provided: Exiting..")
     else:
         # Include canonical transcripts
         if "CANONICAL" in df.columns:
@@ -143,7 +143,7 @@ def parse_maf_input(maf_input_path, seq_df=None, use_o3d_transcripts=False):
     maf["Pos"] = maf.loc[:, "HGVSp_Short"].apply(lambda x: int(re.sub("\\D", "", (x[2:]))))
     maf["WT"] = maf["HGVSp_Short"].apply(lambda x: re.findall("\\D", x[2:])[0])
     maf["Mut"] = maf["HGVSp_Short"].apply(lambda x: re.findall("\\D", x[2:])[1])
-    maf = maf[["Hugo_Symbol", "Pos", "WT", "Mut"] + [col for col in ["Tumor_Sample_Barcode", "Feature", ""] if col in maf.columns]]
+    maf = maf[["Hugo_Symbol", "Pos", "WT", "Mut"] + [col for col in ["Tumor_Sample_Barcode", "Feature", "Transcript_ID"] if col in maf.columns]]
     maf = maf.sort_values("Pos").rename(columns={"Hugo_Symbol" : "Gene"})
     if "Feature" in maf.columns:
         maf = maf.rename(columns={"Feature" : "Transcript_ID"})
@@ -158,8 +158,14 @@ def parse_maf_input(maf_input_path, seq_df=None, use_o3d_transcripts=False):
         maf["Transcript_status"] = maf.apply(lambda x: "Input_missing" if pd.isna(x["Transcript_ID"]) 
                                              else "O3D_missing" if pd.isna(x["O3D_transcript_ID"]) 
                                              else "Mismatch" if x["Transcript_ID"] != x["O3D_transcript_ID"]
-                                             else if "Match" x["Transcript_ID"] == x["O3D_transcript_ID"]
+                                             else "Match" if x["Transcript_ID"] == x["O3D_transcript_ID"]
                                              else np.nan, axis=1)
+        
+        transcript_report = maf.Transcript_status.value_counts().reset_index()
+        transcript_report.columns = "Status", "Count"
+        transcript_report = ", ".join([f"{v}: {c}" for (v, c) in zip(transcript_report.Status, 
+                                                                     transcript_report.Count)])
+        logger.info(f"Tanscript status > {transcript_report}")
     
     return maf.reset_index(drop=True)
 
