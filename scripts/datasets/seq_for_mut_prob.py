@@ -937,11 +937,9 @@ def process_seq_df(seq_df, datasets_dir, organism, uniprot_to_gene_dict, num_cor
     #---------------------------------------------------
     
     # Add coordinates for mutability integration (entries in Proteins API)
-    logger.warning(f"seq_df0 {len(seq_df)}")
     logger.debug(f"Retrieving CDS DNA seq from reference genome (Proteins API): {len(seq_df['Uniprot_ID'].unique())} structures..")
     coord_df = get_exons_coord(seq_df["Uniprot_ID"].unique())
     seq_df = seq_df.merge(coord_df, on=["Seq", "Uniprot_ID"], how="left").reset_index(drop=True)
-    logger.warning(f"seq_df after coord CDS {len(seq_df)}")
     
     # Add ref DNA seq and its per-site trinucleotide context (entries in Proteins API)
     if organism == "Homo sapiens":
@@ -951,12 +949,9 @@ def process_seq_df(seq_df, datasets_dir, organism, uniprot_to_gene_dict, num_cor
     else:
         raise RuntimeError(f"Failed to recognize '{organism}' as organism. Currently accepted ones are 'Homo sapiens' and 'Mus musculus'. Exiting..")
     seq_df = add_ref_dna_and_context(seq_df, genome_fun)
-    logger.warning(f"seq_df after ref DNA CDS {len(seq_df)}")
     seq_df_tr = seq_df[seq_df["Reference_info"] == 1]
-    logger.warning(f"seq_df_tr {len(seq_df_tr)}")
     seq_df_notr = seq_df[seq_df["Reference_info"] == -1]
-    logger.warning(f"seq_df_notr0 {len(seq_df_notr)}")
-    
+
     
     # Process entries not in Proteins API (Reference_info 0 & -1)
     #------------------------------------------------------------
@@ -966,7 +961,6 @@ def process_seq_df(seq_df, datasets_dir, organism, uniprot_to_gene_dict, num_cor
         mane_mapping = get_mane_to_af_mapping(datasets_dir, mane_version=mane_version)
         seq_df_notr = seq_df_notr.drop(columns=["Ens_Gene_ID", "Ens_Transcr_ID", "Chr", "Reverse_strand"])
         seq_df_notr = seq_df_notr.merge(mane_mapping.drop(columns=["Gene", "Refseq_prot"]), on="Uniprot_ID", how="left").dropna(subset="Gene")
-        logger.warning(f"seq_df_notr {len(seq_df_notr)}")
 
         # Assign reference label to transcripts retrieved from MANE
         seq_df_natr = seq_df_notr[seq_df_notr.Ens_Transcr_ID.isna()]
@@ -981,22 +975,16 @@ def process_seq_df(seq_df, datasets_dir, organism, uniprot_to_gene_dict, num_cor
 
         # Add DNA seq from Ensembl for structures with available transcript ID
         logger.debug(f"Retrieving CDS DNA seq from transcript ID (Ensembl API): {len(seq_df_manetr)} structures..")
-        logger.warning(f"seq_df_manetr1 {len(seq_df_manetr)}")
         seq_df_manetr = get_ref_dna_from_ensembl_mp(seq_df_manetr, cores=num_cores)
-        logger.warning(f"seq_df_manetr2 {len(seq_df_manetr)}")
 
         # Set failed and len-mismatching entries as no-transcripts entries
         failed_ix = seq_df_manetr.apply(lambda x: True if pd.isna(x.Seq_dna) else len(x.Seq_dna) / 3 != len(x.Seq), axis=1)
-        logger.warning(f"Failed ix {sum(failed_ix)}")
         if sum(failed_ix) > 0:
             seq_df_manetr_failed = seq_df_manetr[failed_ix]
             seq_df_manetr = seq_df_manetr[~failed_ix]
             seq_df_manetr_failed["Reference_info"] = -1
             seq_df_manetr_failed.drop(columns=["Ens_Gene_ID", "Ens_Transcr_ID", "Reverse_strand", "Chr"])
-            logger.warning(f"seq_df_notr1 {len(seq_df_notr)}")
-            logger.warning(f"seq_df_manetr_failed {len(seq_df_manetr_failed)}")
             seq_df_notr = pd.concat((seq_df_notr, seq_df_manetr_failed))
-            logger.warning(f"seq_df_notr2 {len(seq_df_notr)}")
     else:
         seq_df_manetr = pd.DataFrame()
     
