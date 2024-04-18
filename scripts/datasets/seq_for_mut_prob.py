@@ -255,7 +255,7 @@ def backtranseq(protein_seqs, organism = "Homo sapiens"):
             status = result.text.strip()                                              
         except requests.exceptions.RequestException as e:                          
             status = "ERROR"                                                     
-            logger.debug(f"Request failed: {e}")                               
+            logger.debug(f"Request failed {e}: Retrying..")                               
 
     # Retrieve the results of the job
     status = "INIT"
@@ -265,7 +265,7 @@ def backtranseq(protein_seqs, organism = "Homo sapiens"):
             status = "FINISHED"
         except requests.exceptions.RequestException as e:
             status = "ERROR"                                                     
-            logger.debug(f"Request failed: {e}")                               
+            logger.debug(f"Request failed {e}: Retrying..")                               
         time.sleep(10)                                                       
         
     dna_seq = result.text.strip()
@@ -332,11 +332,11 @@ def _uniprot_request_coord(lst_uniprot_ids):
             if r.ok:
                 status = "FINISHED"
             else:
-                logger.debug(f"Error occurred after successfully sending request. Status: {r.raise_for_status()}")             
+                logger.debug(f"Error occurred after successfully sending request {r.raise_for_status()}: Retrying..")             
                 status = "ERROR"
         except requests.exceptions.RequestException as e:                          
             status = "ERROR"                                                     
-            logger.debug(f"Request failed: {e}")                               
+            logger.debug(f"Request failed ({e}): Retrying..")                               
     
     for dictio in json.loads(r.text):
 
@@ -511,7 +511,7 @@ def get_ref_dna_and_context(row, genome_fun):
     
     except Exception as e:
         if not str(e).startswith("Sequence"):
-            logger.warning(f"Error occurred during retrieving DNA seq from ref coordinates {transcript_id}: {e}")
+            logger.warning(f"Error occurred during retrieving DNA seq from ref coordinates {transcript_id} {e}: Skipping..")
         
         return np.nan, np.nan, np.nan, -1
 
@@ -527,7 +527,7 @@ def add_ref_dna_and_context(seq_df, genome_fun=hg38):
     seq_df_with_coord = seq_df[["Ens_Transcr_ID", "Chr", "Reverse_strand", "Exons_coord"]].dropna().drop_duplicates()
     ref_dna_and_context = seq_df_with_coord.apply(lambda x: get_ref_dna_and_context(x, genome_fun), axis=1, result_type='expand')
     ref_dna_and_context.columns = ["Ens_Transcr_ID", "Seq_dna", "Tri_context", "Reference_info"]
-    seq_df = seq_df.merge(ref_dna_and_context, on=["Ens_Transcr_ID"], how="left")
+    seq_df = seq_df.merge(ref_dna_and_context, on=["Ens_Transcr_ID"], how="left").drop_duplicates().reset_index(drop=True)
     seq_df["Reference_info"] = seq_df["Reference_info"].fillna(-1).astype(int)
     seq_df.loc[seq_df["Reference_info"] == -1, "Ens_Transcr_ID"] = np.nan
     seq_df.loc[seq_df["Reference_info"] == -1, "Seq_dna"] = np.nan
@@ -769,7 +769,6 @@ def add_extra_genes_to_seq_df(seq_df, uniprot_to_gene_dict):
 def get_mane_summary(path_to_file, v=1.3, max_attempts=15):
     
     mane_summary_url = f"https://ftp.ncbi.nlm.nih.gov/refseq/MANE/MANE_human/release_{v}/MANE.GRCh38.v{v}.summary.txt.gz"
-    logger.debug(f"Downloading MANE summary file {mane_summary_url} to {path_to_file}")
     attempts = 0
     
     while not os.path.exists(path_to_file):
@@ -850,6 +849,7 @@ def get_ref_dna_from_ensembl(transcript_id):
             r = requests.get(server+ext, headers={ "Content-Type" : "text/x-fasta"}, timeout=160)
             if not r.ok:
                 r.raise_for_status()
+                
                 status = "ERROR"
                 sys.exit()
             else:
@@ -857,12 +857,15 @@ def get_ref_dna_from_ensembl(transcript_id):
             
         except requests.exceptions.RequestException as e:
             i += 1
-            status = "ERROR"
+            status = "ERROR"            
+            if i%10 == 0:
+                logger.debug(f"Failed to retrieve sequence for {transcript_id} {e}: Retrying..") 
+                time.sleep(5)
             if i == 100:
-                logger.debug(f"Failed to retrieve sequence for {transcript_id}: Skipping..")
+                logger.debug(f"Failed to retrieve sequence for {transcript_id} {e}: Skipping..")
                 return np.nan
                 
-            time.sleep(0.5)
+            time.sleep(1)
 
     seq_dna = "".join(r.text.strip().split("\n")[1:])
 
@@ -934,9 +937,11 @@ def process_seq_df(seq_df, datasets_dir, organism, uniprot_to_gene_dict, num_cor
     #---------------------------------------------------
     
     # Add coordinates for mutability integration (entries in Proteins API)
+    logger.warning(f"seq_df0 {len(seq_df)}")
     logger.debug(f"Retrieving CDS DNA seq from reference genome (Proteins API): {len(seq_df['Uniprot_ID'].unique())} structures..")
     coord_df = get_exons_coord(seq_df["Uniprot_ID"].unique())
     seq_df = seq_df.merge(coord_df, on=["Seq", "Uniprot_ID"], how="left").reset_index(drop=True)
+    logger.warning(f"seq_df after coord CDS {len(seq_df)}")
     
     # Add ref DNA seq and its per-site trinucleotide context (entries in Proteins API)
     if organism == "Homo sapiens":
@@ -946,8 +951,11 @@ def process_seq_df(seq_df, datasets_dir, organism, uniprot_to_gene_dict, num_cor
     else:
         raise RuntimeError(f"Failed to recognize '{organism}' as organism. Currently accepted ones are 'Homo sapiens' and 'Mus musculus'. Exiting..")
     seq_df = add_ref_dna_and_context(seq_df, genome_fun)
+    logger.warning(f"seq_df after ref DNA CDS {len(seq_df)}")
     seq_df_tr = seq_df[seq_df["Reference_info"] == 1]
+    logger.warning(f"seq_df_tr {len(seq_df_tr)}")
     seq_df_notr = seq_df[seq_df["Reference_info"] == -1]
+    logger.warning(f"seq_df_notr0 {len(seq_df_notr)}")
     
     
     # Process entries not in Proteins API (Reference_info 0 & -1)
@@ -958,6 +966,7 @@ def process_seq_df(seq_df, datasets_dir, organism, uniprot_to_gene_dict, num_cor
         mane_mapping = get_mane_to_af_mapping(datasets_dir, mane_version=mane_version)
         seq_df_notr = seq_df_notr.drop(columns=["Ens_Gene_ID", "Ens_Transcr_ID", "Chr", "Reverse_strand"])
         seq_df_notr = seq_df_notr.merge(mane_mapping.drop(columns=["Gene", "Refseq_prot"]), on="Uniprot_ID", how="left").dropna(subset="Gene")
+        logger.warning(f"seq_df_notr {len(seq_df_notr)}")
 
         # Assign reference label to transcripts retrieved from MANE
         seq_df_natr = seq_df_notr[seq_df_notr.Ens_Transcr_ID.isna()]
@@ -972,16 +981,22 @@ def process_seq_df(seq_df, datasets_dir, organism, uniprot_to_gene_dict, num_cor
 
         # Add DNA seq from Ensembl for structures with available transcript ID
         logger.debug(f"Retrieving CDS DNA seq from transcript ID (Ensembl API): {len(seq_df_manetr)} structures..")
+        logger.warning(f"seq_df_manetr1 {len(seq_df_manetr)}")
         seq_df_manetr = get_ref_dna_from_ensembl_mp(seq_df_manetr, cores=num_cores)
+        logger.warning(f"seq_df_manetr2 {len(seq_df_manetr)}")
 
         # Set failed and len-mismatching entries as no-transcripts entries
         failed_ix = seq_df_manetr.apply(lambda x: True if pd.isna(x.Seq_dna) else len(x.Seq_dna) / 3 != len(x.Seq), axis=1)
+        logger.warning(f"Failed ix {sum(failed_ix)}")
         if sum(failed_ix) > 0:
             seq_df_manetr_failed = seq_df_manetr[failed_ix]
             seq_df_manetr = seq_df_manetr[~failed_ix]
             seq_df_manetr_failed["Reference_info"] = -1
             seq_df_manetr_failed.drop(columns=["Ens_Gene_ID", "Ens_Transcr_ID", "Reverse_strand", "Chr"])
+            logger.warning(f"seq_df_notr1 {len(seq_df_notr)}")
+            logger.warning(f"seq_df_manetr_failed {len(seq_df_manetr_failed)}")
             seq_df_notr = pd.concat((seq_df_notr, seq_df_manetr_failed))
+            logger.warning(f"seq_df_notr2 {len(seq_df_notr)}")
     else:
         seq_df_manetr = pd.DataFrame()
     
@@ -1002,10 +1017,8 @@ def process_seq_df(seq_df, datasets_dir, organism, uniprot_to_gene_dict, num_cor
     seq_df = pd.concat((seq_df_tr, seq_df_not_uniprot)).reset_index(drop=True)
     logger_report = ", ".join([f"{v}: {c}" for (v, c) in zip(seq_df.Reference_info.value_counts().index, 
                                                               seq_df.Reference_info.value_counts().values)])
-    logger.debug(f"Built of sequence dataframe completed. Retrieved {len(seq_df)} structures: {logger_report}")
-    seq_df.to_csv(datasets_dir + "/seq_df_pre_add_extra.tsv", index=False, sep="\t")                                                      ## TO DEL                 
-    seq_df = add_extra_genes_to_seq_df(seq_df, uniprot_to_gene_dict)
-    seq_df.to_csv(datasets_dir + "/seq_df_pre_drop_dupl.tsv", index=False, sep="\t")                                                      ## TO DEL               
+    logger.debug(f"Built of sequence dataframe completed. Retrieved {len(seq_df)} structures ({logger_report})")               
+    seq_df = add_extra_genes_to_seq_df(seq_df, uniprot_to_gene_dict)         
     seq_df = drop_gene_duplicates(seq_df)
     
     return seq_df
@@ -1053,7 +1066,7 @@ def process_seq_df_mane(seq_df, datasets_dir, uniprot_to_gene_dict, num_cores=1,
     logger.debug(f"Retrieving CDS DNA seq from reference genome (Proteins API): {len(seq_df_nomane['Uniprot_ID'].unique())} structures..")
     coord_df = get_exons_coord(seq_df_nomane["Uniprot_ID"].unique())
     seq_df_nomane = seq_df_nomane.merge(coord_df, on=["Seq", "Uniprot_ID"], how="left").reset_index(drop=True)
-    seq_df_nomane = add_ref_dna_and_context(seq_df_nomane, hg38)                                                        ## GOT ERROR HERE
+    seq_df_nomane = add_ref_dna_and_context(seq_df_nomane, hg38)                                                     
     seq_df_nomane_tr = seq_df_nomane[seq_df_nomane["Reference_info"] == 1]
     seq_df_nomane_notr = seq_df_nomane[seq_df_nomane["Reference_info"] == -1]
     
@@ -1072,11 +1085,11 @@ def process_seq_df_mane(seq_df, datasets_dir, uniprot_to_gene_dict, num_cores=1,
     report_df = seq_df.Reference_info.value_counts().reset_index()
     report_df = report_df.rename(columns={"index" : "Source"})
     report_df.Source = report_df.Source.map({1 : "Proteins API",
-                                             0 : "MANE + Ensembl",
-                                            -1 : "Backtranseq"})
+                                             0 : "MANE + Ensembl API",
+                                            -1 : "Backtranseq API"})
     logger_report = ", ".join([f"{v}: {c}" for (v, c) in zip(report_df.Source, 
                                                               report_df.Reference_info)])
-    logger.debug(f"Built of sequence dataframe completed. Retrieved {len(seq_df)} structures: {logger_report}")
+    logger.debug(f"Built of sequence dataframe completed. Retrieved {len(seq_df)} structures ({logger_report})")
     
     return seq_df
     

@@ -61,7 +61,7 @@ def get_species(species):
     elif species == "mouse" or species.capitalize() == "Mus musculus": 
         species = "Mus musculus"
     else:
-        raise RuntimeError(f"Failed to recognize '{species}' as species. Currently accepted ones are 'Homo sapiens' and 'Mus musculus'. Exiting...")
+        raise RuntimeError(f"Failed to recognize '{species}' as species. Currently accepted ones are 'Homo sapiens' and 'Mus musculus'. Exiting..")
 
     return species
 
@@ -99,9 +99,9 @@ def download_single_file(url: str, destination: str, threads: int) -> None:
     num_connections = 40 if threads > 40 else threads
 
     if os.path.exists(destination):
-        logger.debug(f"File {destination} already exists: Skipping download...")
+        logger.debug(f"File {destination} already exists: Skipping download..")
     else:
-        logger.debug(f'Downloading from {url}')
+        logger.debug(f'Downloading {url}')
         logger.debug(f"Downloading to {destination}")
         dl = Downloader()
         dl.start(url, destination, num_connections=num_connections, display=True)
@@ -115,7 +115,7 @@ def extract_tar_file(file_path, path):
     checkpoint = os.path.join(path, ".tar_checkpoint.txt")
 
     if os.path.exists(checkpoint):
-         logger.debug('Tar already extracted: skipping...')
+         logger.debug('Tar already extracted: Skipping..')
     else:
         with tarfile.open(file_path, "r") as tar:
             tar.extractall(path)
@@ -128,7 +128,7 @@ def extract_zip_file(file_path, path):
     checkpoint = os.path.join(path, ".zip_checkpoint.txt")
 
     if os.path.exists(checkpoint):
-        logger.debug('ZIP file already extracted: skipping...')
+        logger.debug('ZIP file already extracted: Skipping..')
     else:
         with ZipFile(file_path, "r") as zip_file:
             zip_file.extractall(path)
@@ -238,8 +238,8 @@ def uniprot_to_hudo_df(uniprot_ids):
     while df is None:
         time.sleep(1)
         df = load_df_from_url(url)
-        if i % 60 == 0:
-            logger.debug(f"Waiting for UniprotKB mapping job to produce url...")
+        if i % 180 == 0:
+            logger.debug(f"Waiting for UniprotKB mapping job to produce url..")
         i += 1 
         
     return df
@@ -297,7 +297,7 @@ def get_mapping_jobid(uniprot_ids):
         time.sleep(1) 
         job_id = get_response_jobid(response)
         if i % 60 == 0:
-            logger.debug(f"Requesting ID mapping job to UniprotKB for IDs...")
+            logger.debug(f"Requesting ID mapping job to UniprotKB for IDs..")
         i += 1
     
     return job_id
@@ -316,7 +316,7 @@ def uniprot_to_hugo(uniprot_ids, hugo_as_keys=False, batch_size=5000):
     # Get a dataframe including all IDs mapping info
     df_lst = []
     for i, ids in enumerate(uniprot_ids_lst):
-        logger.debug(f"Batch {i+1}/{len(uniprot_ids_lst)} ({len(ids)} IDs)...")
+        logger.debug(f"Batch {i+1}/{len(uniprot_ids_lst)} ({len(ids)} IDs)..")
         df = uniprot_to_hudo_df(ids)
         df_lst.append(df)
     df = pd.concat(df_lst)

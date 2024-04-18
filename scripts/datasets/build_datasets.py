@@ -131,4 +131,5 @@ if __name__ == "__main__":
         uniprot_to_hugo=None,
         num_cores=8,
         af_version=4,
+        mane_version=1.3,
         rm_pdb_files=True)
