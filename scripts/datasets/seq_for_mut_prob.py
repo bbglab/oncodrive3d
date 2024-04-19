@@ -906,18 +906,18 @@ def drop_gene_duplicates(df):
     """
     
     df = df.copy()
-    df = df.sort_values(["Gene", "Reference_info"], ascending=False).drop_duplicates(subset='Gene').reset_index(drop=True)
     df.Uniprot_ID = df.Uniprot_ID.str.replace(";", "")
     df.Gene = df.Gene.str.replace(";", "")
+    df = df.sort_values(["Gene", "Reference_info"], ascending=False).drop_duplicates(subset='Gene').reset_index(drop=True)
 
     # Check if there are still duplicates
     n_duplicates = sum(df["Gene"].value_counts() > 1)
     if n_duplicates > 0:
-        logger.debug(f"Found {n_duplicates} duplicates gene entries: Mapping HUGO Symbol to protein info might be affected.")
+        logger.warning(f"Found {n_duplicates} duplicates gene entries: Mapping HUGO Symbol to protein info might be affected.")
     else:
         logger.debug("Duplicates gene entries correctly removed!")
 
-    return df.reset_index(drop=True)
+    return df
     
 
 def process_seq_df(seq_df, datasets_dir, organism, uniprot_to_gene_dict, num_cores=1, rm_weird_chr=False, mane_version=1.3):
@@ -1069,7 +1069,8 @@ def process_seq_df_mane(seq_df, datasets_dir, uniprot_to_gene_dict, num_cores=1,
     
     # Prepare final output  
     seq_df = pd.concat((seq_df_not_uniprot, seq_df_nomane_tr)).reset_index(drop=True)
-    seq_df = drop_gene_duplicates(seq_df)                                # The only duplicates are Reference info -1 and 0 & -1 and 1
+    seq_df.to_csv(datasets_dir+"/seq_df.debug_dupl.csv", index=False, sep="\t")                               ##### FOR DEBUGGING: TO DEL
+    seq_df = drop_gene_duplicates(seq_df)                                
     report_df = seq_df.Reference_info.value_counts().reset_index()
     report_df = report_df.rename(columns={"index" : "Source"})
     report_df.Source = report_df.Source.map({1 : "Proteins API",
