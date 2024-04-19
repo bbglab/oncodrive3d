@@ -7,34 +7,11 @@ import subprocess
 import shutil
 
 from scripts import __logger_name__
-from scripts.datasets.utils import calculate_hash, download_single_file, extract_tar_file
+from scripts.datasets.utils import calculate_hash, download_single_file, extract_tar_file, assert_proteome_integrity, CHECKSUM
 
 logger = daiquiri.getLogger(__logger_name__ + ".build.AF-pdb")
 
 logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
-
-CHECKSUM = {
-    "UP000005640_9606_HUMAN_v4": "bf62d5402cb1c4580d219335a9af1ac831416edfbf2892391c8197a8356091f2",
-    "UP000000589_10090_MOUSE_v4" : "eb6c529c8757d511b75f4856c1a789378478e6255a442517ad8579708787bbab",
-    "mane_overlap_v4" : "c01e9b858c5415cfe2eae7e52a561aa8a872ba0d5d4891ba0cec327b3af49d69"
-}
-
-
-def assert_proteome_integrity(file_path, proteome):
-
-    if proteome in CHECKSUM.keys():
-        logger.debug('Asserting integrity of file...')
-        try:
-            assert CHECKSUM[proteome] == calculate_hash(file_path)
-            logger.debug('File integrity check: PASS')
-            return "PASS"
-        except Exception as e:
-            logger.critical('File integrity check: FAIL')
-            logger.critical(f'error: {e}') 
-            return "FAIL"
-    else:
-        logger.warning("Assertion skipped: Proteome checksum not in records.")
-        return "PASS"
     
 
 def mv_mane_pdb(path_datasets, pdb_dir, mane_pdb_dir) -> None:
@@ -67,7 +44,7 @@ def get_structures(path: str,
                    mane: bool = False,
                    af_version: str = '4', 
                    threads: int = 1, 
-                   max_attempts: int = 15) -> None:
+                   max_attempts: int = 25) -> None:
     """
     Downloads AlphaFold predicted structures for a given organism and version.
 
@@ -110,7 +87,9 @@ def get_structures(path: str,
         attempts = 0
         status = "INIT"
         while status != "PASS":
-            download_single_file(af_url, file_path, threads)
+            print("Downloading")
+            download_single_file(af_url, file_path, threads, proteome)
+            print("Assessing")
             status = assert_proteome_integrity(file_path, proteome)
             attempts += 1
             if attempts >= max_attempts:

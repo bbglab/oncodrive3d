@@ -68,6 +68,33 @@ def get_species(species):
 
 # Download
 
+CHECKSUM = {
+    "UP000005640_9606_HUMAN_v4": "bf62d5402cb1c4580d219335a9af1ac831416edfbf2892391c8197a8356091f2",
+    "UP000000589_10090_MOUSE_v4" : "eb6c529c8757d511b75f4856c1a789378478e6255a442517ad8579708787bbab",
+    "mane_overlap_v4" : "c01e9b858c5415cfe2eae7e52a561aa8a872ba0d5d4891ba0cec327b3af49d69"
+}
+
+
+def assert_proteome_integrity(file_path, proteome):
+
+    if proteome in CHECKSUM.keys():
+        logger.debug('Asserting integrity of file..')
+        try:
+            if CHECKSUM[proteome] == calculate_hash(file_path):
+                logger.debug('File integrity check: PASS')
+                return "PASS"
+            else:
+                logger.debug('File integrity check: FAIL')
+                return "FAIL"
+        except Exception as e:
+            logger.debug('File integrity check: FAIL')
+            logger.debug(f'Error: {e}') 
+            return "FAIL"
+    else:
+        logger.warning("Assertion skipped: Proteome checksum not in records.")
+        return "PASS"
+
+
 def calculate_hash(filepath: str, hash_func=hashlib.sha256) -> str:
     """
     Calculate the hash of a file using the specified hash function.
@@ -87,7 +114,7 @@ def calculate_hash(filepath: str, hash_func=hashlib.sha256) -> str:
     return hash_obj.hexdigest()
 
 
-def download_single_file(url: str, destination: str, threads: int) -> None:
+def download_single_file(url: str, destination: str, threads: int, proteome=None) -> None:
     """
     Downloads a file from a URL and saves it to the specified destination.
 
@@ -99,15 +126,22 @@ def download_single_file(url: str, destination: str, threads: int) -> None:
     num_connections = 40 if threads > 40 else threads
 
     if os.path.exists(destination):
-        logger.debug(f"File {destination} already exists: Skipping download..")
-    else:
-        logger.debug(f'Downloading {url}')
-        logger.debug(f"Downloading to {destination}")
-        dl = Downloader()
-        dl.start(url, destination, num_connections=num_connections, display=True)
-        subprocess.run("clear")
-        logger.debug('clear')
-        logger.debug('Download complete')
+        logger.debug(f"File {destination} already exists..")
+        if proteome is not None:
+            status = assert_proteome_integrity(destination, proteome)
+            if status == "PASS":
+                logger.debug(f"File {destination} already exists: Skipping download..")
+                return None
+            else:
+                logger.debug(f"File {destination} already exists but failed integrity check: Retrying download..")
+
+    logger.debug(f'Downloading {url}')
+    logger.debug(f"Downloading to {destination}")
+    dl = Downloader()
+    dl.start(url, destination, num_connections=num_connections, display=True)
+    os.system("clear")
+    logger.debug('clear')
+    logger.debug('Download complete')
 
 
 def extract_tar_file(file_path, path):
