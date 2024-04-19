@@ -24,8 +24,10 @@ def download_pae(uniprot_id: str, af_version: int, output_dir: str) -> None:
     file_path = os.path.join(output_dir, f"{uniprot_id}-F1-predicted_aligned_error.json")
     download_url = f"https://alphafold.ebi.ac.uk/files/AF-{uniprot_id}-F1-predicted_aligned_error_v{af_version}.json"
 
+    i = 0
     status = "INIT"
     while status != "FINISHED":
+        i += 1
         if status != "INIT":
             time.sleep(30)
         try:  
@@ -36,8 +38,9 @@ def download_pae(uniprot_id: str, af_version: int, output_dir: str) -> None:
                     output_file.write(content)
                 status = "FINISHED"
         except requests.exceptions.RequestException as e:                          
-            status = "ERROR"                                                  
-            logger.debug(f"Request failed {e}: Retrying")    
+            status = "ERROR"       
+            if i % 10 == 0:                                           
+                logger.debug(f"Request failed {e}: Retrying")    
 
 
 def get_pae(input_dir: str, output_dir: str, num_cores: int, af_version: int = 4) -> None:

@@ -42,9 +42,7 @@ def build(output_datasets,
           uniprot_to_hugo,
           num_cores,
           af_version,
-          mane_version,
-          rm_pdb_files,
-          ):
+          mane_version):
     """
     Build datasets necessary to run Oncodrive3D.
     """
@@ -131,5 +129,4 @@ if __name__ == "__main__":
         uniprot_to_hugo=None,
         num_cores=8,
         af_version=4,
-        mane_version=1.3,
-        rm_pdb_files=True)
+        mane_version=1.3)

@@ -110,8 +110,6 @@ def oncodrive3D():
               help="Number of cores to use in the computation")
 @click.option("-a", "--af_version", type=click.IntRange(min=1, max=4, clamp=False), default=4,
               help="Version of AlphaFold 2 predictions")
-@click.option("-r", "--rm_pdb_files", 
-              help="Delete PDB files after datasets building", is_flag=True)
 @click.option("-y", "--yes", 
               help="No interaction", is_flag=True)
 @click.option("-v", "--verbose", 
@@ -125,7 +123,6 @@ def build_datasets(output_dir,
                    cores, 
                    af_version,
                    mane_version,
-                   rm_pdb_files,
                    yes,
                    verbose):
     """"Build datasets necessary to run Oncodrive3D."""
@@ -140,7 +137,6 @@ def build_datasets(output_dir,
     logger.info(f"CPU cores: {cores}")
     logger.info(f"AlphaFold version: {af_version}")
     logger.info(f"MANE version: {mane_version}")
-    logger.info(f"Remove PDB files: {rm_pdb_files}")
     logger.info(f"Verbose: {verbose}")
     logger.info(f'Log path: {os.path.join(output_dir, "log")}')
     logger.info("")
@@ -152,8 +148,7 @@ def build_datasets(output_dir,
           uniprot_to_hugo,
           cores,
           af_version,
-          mane_version,
-          rm_pdb_files)
+          mane_version)
 
 
 

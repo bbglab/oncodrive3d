@@ -165,7 +165,7 @@ def parse_maf_input(maf_input_path, seq_df=None, use_o3d_transcripts=False):
         transcript_report.columns = "Status", "Count"
         transcript_report = ", ".join([f"{v}: {c}" for (v, c) in zip(transcript_report.Status, 
                                                                      transcript_report.Count)])
-        logger.info(f"Tanscript status > {transcript_report}")
+        logger.info(f"Tanscript status = {transcript_report}")
     
     return maf.reset_index(drop=True)
 
