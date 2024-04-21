@@ -139,7 +139,7 @@ def clean_dir(path: str, loc: str = 'd', txt_file=False) -> None:
         pass
             
             
-def clean_temp_files(path: str, rm_pdb_files=False) -> None:
+def clean_temp_files(path: str) -> None:
     """
     Clean temp files from dir after completing building the datasets. 
 

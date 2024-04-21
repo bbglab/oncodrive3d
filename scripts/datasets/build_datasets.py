@@ -113,8 +113,7 @@ def build(output_datasets,
 
     # Clean datasets
     logger.info("Cleaning datasets...")
-    clean_temp_files(path=output_datasets,
-                     rm_pdb_files=rm_pdb_files)
+    clean_temp_files(path=output_datasets)
     logger.info("Datasets cleaning completed!")
 
     # TO DO: add a step that clean up all structures not added in the sequence df

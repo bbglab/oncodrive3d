@@ -87,9 +87,7 @@ def get_structures(path: str,
         attempts = 0
         status = "INIT"
         while status != "PASS":
-            print("Downloading")
             download_single_file(af_url, file_path, threads, proteome)
-            print("Assessing")
             status = assert_proteome_integrity(file_path, proteome)
             attempts += 1
             if attempts >= max_attempts:
