@@ -192,9 +192,12 @@ def build_datasets(output_dir,
               help="Set the number of cores to use in the computation")
 @click.option("-s", "--seed", type=int,
               help="Set seed to ensure reproducible results")
-@click.option("-v", "--verbose", help="Verbose", is_flag=True)
-@click.option("-t", "--cancer_type", help="Cancer type", type=str)
-@click.option("-C", "--cohort", help="Name of the cohort", type=str)
+@click.option("-v", "--verbose", 
+              help="Verbose", is_flag=True)
+@click.option("-t", "--cancer_type", 
+              help="Cancer type", type=str)
+@click.option("-C", "--cohort", 
+              help="Name of the cohort", type=str)
 @click.option("--no_fragments", is_flag=True, 
               help="Disable processing of fragmented (AF-F) proteins")
 @click.option("--only_processed", is_flag=True,
@@ -204,7 +207,11 @@ def build_datasets(output_dir,
 @click.option("--thr_wt_mismatch", type=float, default=0.1,
               help="Threshold to filter out genes based on the ratio of mutations having WT aa not matching the one in the structure")
 @click.option("-T", "--o3d_transcripts", is_flag=True,
-              help="Filter mutations by keeping transcripts included in Oncodrive3D built sequence dataframe. Input file (--i) must be the VEP output")
+              help="Filter mutations by keeping transcripts included in Oncodrive3D built sequence dataframe. Input file (--i) must be a VEP output")
+@click.option("-T", "--use_input_symbols", is_flag=True,
+              help="Update HUGO symbols in Oncodrive3D built datasets by using input file entries. Input file (--i) must be a VEP output")
+@click.option("-M", "--mane", is_flag=True,
+              help="If multiple structures are associated to the same HUGO symbol in the input file, use the MANE ones.")
 @setup_logging_decorator
 def run(input_maf_path,
         mut_profile_path,
@@ -223,7 +230,9 @@ def run(input_maf_path,
         only_processed,
         thr_not_in_structure,
         thr_wt_mismatch,
-        o3d_transcripts):
+        o3d_transcripts,
+        use_input_symbols,
+        mane):
     """Run Oncodrive3D."""
 
     ## Initialize
@@ -260,7 +269,9 @@ def run(input_maf_path,
     logger.info(f"Ratio threshold mutations out of structure: {thr_not_in_structure}")
     logger.info(f"Ratio threshold mutations with WT seq reference-structure mismatch: {thr_not_in_structure}")
     logger.info(f"Seed: {seed}")
-    logger.info(f"Filter input by Oncodrive3D transcripts: {o3d_transcripts}")
+    logger.info(f"Filter input by Oncodrive3D transcripts (only if VEP output is used as input): {o3d_transcripts}")
+    logger.info(f"Use HUGO symbols of input file (only if VEP output is used as input): {use_input_symbols}")
+    logger.info(f"Prioritize MANE transcripts when using HUGO symbols of input file: {mane}")
     logger.info(f"Verbose: {bool(verbose)}")
     logger.info(f'Log path: {os.path.join(output_dir, "log")}')
     logger.info("")
@@ -269,7 +280,11 @@ def run(input_maf_path,
     ## Load input and df of DNA sequences
 
     seq_df = pd.read_csv(seq_df_path, sep="\t")
-    data = parse_maf_input(input_maf_path, seq_df, use_o3d_transcripts=o3d_transcripts)
+    data, seq_df = parse_maf_input(input_maf_path, 
+                                   seq_df, 
+                                   use_o3d_transcripts=o3d_transcripts,
+                                   use_input_symbols=use_input_symbols, 
+                                   mane=mane)
     if len(data) > 0:
 
         ## Run

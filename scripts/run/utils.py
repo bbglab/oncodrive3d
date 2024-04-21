@@ -52,7 +52,44 @@ def read_csv_without_comments(path):
     return df
 
 
-def parse_vep_output(df, seq_df=None, use_o3d_transcripts=False):
+def get_seq_df_input_symbols(input_df, seq_df, mane=False):
+    """
+    Update gene names (HUGO Symbols) of O3D built sequence with names in input file.
+    Do it only for entries in the sequence df with available transcript information
+    and use transcript ID to get gene name.
+    """
+
+    # Split sequence df by entries with available transcript info (Reference_info 0 and 1) and not available ones (-1)
+    seq_df = seq_df.copy()
+    seq_df_tr_missing = seq_df[seq_df["Reference_info"] == -1].reset_index(drop=True)
+    seq_df_tr_available = seq_df[seq_df["Reference_info"] != -1].reset_index(drop=True)
+
+    # Use names from input
+    seq_df_tr_available = seq_df_tr_available.drop(columns=["Gene"]).drop_duplicates()
+    df_mapping = input_df[["Hugo_Symbol", "Feature"]].rename(columns={"Hugo_Symbol" : "Gene", "Feature" : "Ens_Transcr_ID"})
+    seq_df_tr_available = seq_df_tr_available.merge(df_mapping, how="left", on="Ens_Transcr_ID")
+
+    # If the same gene is associated to multiple structures, keep the first one obtained from Uniprot (descending, Reference_info 1) or keep the MANE (ascending, Reference_info 0)
+    # TO DO: Use the one reviewed (UniProtKB reviewed (Swiss-Prot)), if multiple Uniprot ones are present. The info must be added during the build step
+    if mane:
+        ascending = True
+    else:
+        ascending = False
+    seq_df_tr_available = seq_df_tr_available.sort_values(["Gene", "Reference_info"], ascending=ascending).drop_duplicates(subset='Gene').reset_index(drop=True)
+    
+    seq_df = pd.concat((seq_df_tr_missing, seq_df_tr_available)).sort_values(["Gene"]).reset_index(drop=True)
+
+    # If the same genes is associated to multiple structures, keep the one not obtained by Backtranseq (Reference_info -1)
+    seq_df = seq_df.sort_values(["Gene", "Reference_info"], ascending=ascending).drop_duplicates(subset='Gene').reset_index(drop=True)
+
+    return seq_df
+
+
+def parse_vep_output(df, 
+                     seq_df=None, 
+                     use_o3d_transcripts=False, 
+                     use_input_symbols=False, 
+                     mane=False):
     """
     Parse the dataframe in case it is the direct output of VEP without any 
     processing. Rename the columns to match the fields name of a MAF file, 
@@ -67,6 +104,11 @@ def parse_vep_output(df, seq_df=None, use_o3d_transcripts=False):
     for key, value in rename_dict.items():
         if key in df.columns and value not in df.columns:
             df.rename(columns={key: value}, inplace=True)
+            
+    # Adapt Hugo_Symbol in seq_df to input file
+    if seq_df is not None and use_input_symbols:
+        logger.debug("Adapting Oncodrive3D HUGO Symbols of built datasets to input file..")
+        seq_df = get_seq_df_input_symbols(df, seq_df, mane)
     
     ## Transcripts filtering
     
@@ -105,15 +147,19 @@ def parse_vep_output(df, seq_df=None, use_o3d_transcripts=False):
         else:
             logger.critical("Translational effect of variant allele not found: Input file must include either the field 'HGVSp_Short' or 'Amino_acids' and 'Protein_positions'.")
         
-    return df
+    return df, seq_df
 
 
-def parse_maf_input(maf_input_path, seq_df=None, use_o3d_transcripts=False):
+def parse_maf_input(maf_input_path, 
+                    seq_df=None, 
+                    use_o3d_transcripts=False, 
+                    use_input_symbols=False, 
+                    mane=False):
     """
     Parse the MAF file which is used as input for Oncodrive3D.
     """
 
-    # Load and parse from VEP if needed
+    # Load, parse from VEP and update seq_df if needed
     logger.debug(f"Reading input MAF...")
     if has_comments_as_header(maf_input_path):
         logger.debug("Detected '##' comments in the file header: Reading the file without comments...")
@@ -121,7 +167,11 @@ def parse_maf_input(maf_input_path, seq_df=None, use_o3d_transcripts=False):
     else:
         maf = pd.read_csv(maf_input_path, sep="\t", dtype={'Chromosome': str})
     logger.debug(f"Processing [{len(maf)}] total mutations..")
-    maf = parse_vep_output(maf, seq_df, use_o3d_transcripts)
+    maf, seq_df = parse_vep_output(maf, 
+                                   seq_df, 
+                                   use_o3d_transcripts, 
+                                   use_input_symbols, 
+                                   mane)
 
     # Select only missense mutation and extract mutations
     maf = maf[maf['Variant_Classification'].str.contains('Missense_Mutation')
@@ -167,7 +217,7 @@ def parse_maf_input(maf_input_path, seq_df=None, use_o3d_transcripts=False):
                                                                      transcript_report.Count)])
         logger.info(f"Tanscript status = {transcript_report}")
     
-    return maf.reset_index(drop=True)
+    return maf.reset_index(drop=True), seq_df
 
 
 ## Other utils
