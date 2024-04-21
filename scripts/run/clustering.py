@@ -82,22 +82,6 @@ def clustering_3d(gene,
                                    "Transcript_status" : mut_gene_df.Transcript_status.unique()[0],
                                    "Status" : np.nan}, 
                                     index=[1])
-    
-    # Check for mismatch between WT reference and WT structure 
-    seq_gene = seq_df[seq_df["Gene"] == gene].Seq.values[0]
-    wt_mismatch_ix = ~mut_gene_df.apply(lambda x: seq_gene[x.Pos-1] == x.WT, axis=1)
-    if sum(wt_mismatch_ix) > 0:
-        ratio_mismatch = sum(wt_mismatch_ix) / mut_count
-        logger_out = f"Detected {sum(wt_mismatch_ix)} ({ratio_mismatch*100:.3}%) mut having a reference-structure WT aa mismatch in {gene} ({uniprot_id}-F{af_f}): "
-        result_gene_df["Ratio_WT_mismatch"] = ratio_mismatch
-        if ratio_mismatch > thr_wt_mismatch:
-            result_gene_df["Status"] = "WT_mismatch"
-            logger.warning(logger_out + "Filtering the gene...")
-            return None, result_gene_df
-        else:
-            logger.warning(logger_out + "Filtering the mutations...")
-            mut_gene_df = mut_gene_df[~wt_mismatch_ix]
-            mut_count = len(mut_gene_df)
 
     # Load cmap
     cmap_complete_path = f"{cmap_path}/{uniprot_id}-F{af_f}.npy"
@@ -120,7 +104,7 @@ def clustering_3d(gene,
     if max(mut_gene_df.Pos) > len(cmap):
         not_in_structure_ix = mut_gene_df.Pos > len(cmap)
         ratio_not_in_structure = sum(not_in_structure_ix) / len(mut_gene_df.Pos)
-        logger_out = f"Detected {sum(not_in_structure_ix)} ({ratio_not_in_structure*100:.3}%) mut not in the structure of {gene} ({uniprot_id}-F{af_f}): "
+        logger_out = f"Detected {sum(not_in_structure_ix)} ({ratio_not_in_structure*100:.1f}%) mut not in the structure of {gene} ({uniprot_id}-F{af_f}): "
         result_gene_df["Ratio_not_in_structure"] = ratio_not_in_structure
         if ratio_not_in_structure > thr_not_in_structure:
             result_gene_df["Status"] = "Mut_not_in_structure"
@@ -129,6 +113,21 @@ def clustering_3d(gene,
         else:
             logger.warning(logger_out + "Filtering the mutations...")
             mut_gene_df = mut_gene_df[~not_in_structure_ix]
+            mut_count = len(mut_gene_df)
+            
+    # Check for mismatch between WT reference and WT structure 
+    wt_mismatch_ix = ~mut_gene_df.apply(lambda x: seq_gene[x.Pos-1] == x.WT, axis=1)
+    if sum(wt_mismatch_ix) > 0:
+        ratio_mismatch = sum(wt_mismatch_ix) / mut_count
+        logger_out = f"Detected {sum(wt_mismatch_ix)} ({ratio_mismatch*100:.1f}%) mut having a reference-structure WT aa mismatch in {gene} ({uniprot_id}-F{af_f}): "
+        result_gene_df["Ratio_WT_mismatch"] = ratio_mismatch
+        if ratio_mismatch > thr_wt_mismatch:
+            result_gene_df["Status"] = "WT_mismatch"
+            logger.warning(logger_out + "Filtering the gene...")
+            return None, result_gene_df
+        else:
+            logger.warning(logger_out + "Filtering the mutations...")
+            mut_gene_df = mut_gene_df[~wt_mismatch_ix]
             mut_count = len(mut_gene_df)
 
     # Samples info

@@ -44,7 +44,7 @@ def get_structures(path: str,
                    mane: bool = False,
                    af_version: str = '4', 
                    threads: int = 1, 
-                   max_attempts: int = 25) -> None:
+                   max_attempts: int = 30) -> None:
     """
     Downloads AlphaFold predicted structures for a given organism and version.
 

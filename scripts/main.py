@@ -28,8 +28,22 @@ singularity exec /workspace/projects/clustering_3d/clustering_3d/build/container
 singularity exec /workspace/projects/clustering_3d/clustering_3d/build/containers/oncodrive3d_231205.sif oncodrive3D run -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/kidney_pilot/all_mutations.all_samples.tsv -d /workspace/projects/clustering_3d/clustering_3d/datasets_normal -m /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/kidney_pilot/mutability_kidney.json -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/kidney_231205_test -C kidney_normal -v -s 128 -t kidney 
 singularity exec oncodrive3D plot -i /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/kidney_231205_test -c kidney_normal
 
-oncodrive3D run -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/maf/HARTWIG_WGS_NSCLC_2020.in.maf -p /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/mut_profile/HARTWIG_WGS_NSCLC_2020.mutrate.json -d /workspace/nobackup/scratch/oncodrive3d/datasets_mane -C HARTWIG_WGS_NSCLC_2020 -o HARTWIG_WGS_NSCLC_2020 -s 128 -c 10
 oncodrive3D run -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/kidney_pilot/all_mutations.all_samples.tsv -d /workspace/nobackup/scratch/oncodrive3d/datasets -m /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/kidney_pilot/mutability_kidney.json -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/kidney_240404 -C kidney_normal -v -s 128 -t kidney 
+
+
+-- Old & nEw comparison
+
+- Old
+oncodrive3D run -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/maf/PCAWG_WGS_ESO_ADENOCA.in.maf -p /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/mut_profile/PCAWG_WGS_ESO_ADENOCA.mutrate.json -d /workspace/nobackup/scratch/oncodrive3d/datasets_last_real -C PCAWG_WGS_ESO_ADENOCA -o /workspace/projects/clustering_3d/dev_testing/result/o3d/PCAWG_WGS_ESO_ADENOCA -s 128 -c 10
+
+- New
+oncodrive3D run -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/maf/PCAWG_WGS_ESO_ADENOCA.in.maf -p /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/mut_profile/PCAWG_WGS_ESO_ADENOCA.sig.json -d /workspace/nobackup/scratch/oncodrive3d/datasets_last_real -C PCAWG_WGS_ESO_ADENOCA -o /workspace/projects/clustering_3d/dev_testing/result/o3d/PCAWG_WGS_ESO_ADENOCA_new -s 128 -c 10
+
+- New vep output as input
+oncodrive3D run -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/vep/PCAWG_WGS_ESO_ADENOCA.vep.tsv.gz -p /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/mut_profile/PCAWG_WGS_ESO_ADENOCA.sig.json -d /workspace/nobackup/scratch/oncodrive3d/datasets_last_real -C PCAWG_WGS_ESO_ADENOCA -o /workspace/projects/clustering_3d/dev_testing/result/o3d/PCAWG_WGS_ESO_ADENOCA_new_vep -s 128 -c 10 --o3d_transcripts
+
+# New vep output as input MANE
+oncodrive3D run -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/vep/PCAWG_WGS_ESO_ADENOCA.vep.tsv.gz -p /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/mut_profile/PCAWG_WGS_ESO_ADENOCA.sig.json -d /workspace/nobackup/scratch/oncodrive3d/datasets_mane_last_real -C PCAWG_WGS_ESO_ADENOCA -o /workspace/projects/clustering_3d/dev_testing/result/o3d/PCAWG_WGS_ESO_ADENOCA_new_mane_vep -s 128 -c 10 --o3d_transcripts
 
 # Plot
 
@@ -244,7 +258,7 @@ def run(input_maf_path,
     logger.info(f"Disable fragments: {bool(no_fragments)}")
     logger.info(f"Output only processed genes: {bool(only_processed)}")
     logger.info(f"Ratio threshold mutations out of structure: {thr_not_in_structure}")
-    logger.info(f"Ratio threshold mutations with WT reference-structure mismatch: {thr_not_in_structure}")
+    logger.info(f"Ratio threshold mutations with WT seq reference-structure mismatch: {thr_not_in_structure}")
     logger.info(f"Seed: {seed}")
     logger.info(f"Filter input by Oncodrive3D transcripts: {o3d_transcripts}")
     logger.info(f"Verbose: {bool(verbose)}")
@@ -255,7 +269,7 @@ def run(input_maf_path,
     ## Load input and df of DNA sequences
 
     seq_df = pd.read_csv(seq_df_path, sep="\t")
-    data = parse_maf_input(input_maf_path, seq_df, use_o3d_transcripts=use_o3d_transcripts)
+    data = parse_maf_input(input_maf_path, seq_df, use_o3d_transcripts=o3d_transcripts)
     if len(data) > 0:
 
         ## Run
@@ -266,9 +280,7 @@ def run(input_maf_path,
         genes = data.groupby("Gene").apply(len)
         genes_mut = genes[genes >= 2]
         genes_no_mut = genes[genes < 2].index
-        
-        
-        
+
         if len(genes_no_mut) > 0:
             logger.debug(f"Detected [{len(genes_no_mut)}] genes without enough mutations: Skipping...")
             result_gene = pd.DataFrame({"Gene" : genes_no_mut,
@@ -393,15 +405,15 @@ def run(input_maf_path,
                                                                 "Res" : str, 
                                                                 "Confidence" : float, 
                                                                 "Uniprot_ID" : str, 
-                                                                "AF_F" : str})
-            result_pos, result_gene = clustering_3d_mp_wrapper(genes_to_process,
-                                                               data,
-                                                               cmap_path,
-                                                               miss_prob_dict,
-                                                               gene_to_uniprot_dict,
-                                                               plddt_df,
-                                                               seq_df,
-                                                               cores,
+                                                                "AF_F" : str})     
+            result_pos, result_gene = clustering_3d_mp_wrapper(genes=genes_to_process,
+                                                               data=data,
+                                                               cmap_path=cmap_path,
+                                                               miss_prob_dict=miss_prob_dict,
+                                                               gene_to_uniprot_dict=gene_to_uniprot_dict,
+                                                               seq_df=seq_df,
+                                                               plddt_df=plddt_df,
+                                                               num_cores=cores,
                                                                alpha=alpha,
                                                                num_iteration=n_iterations,
                                                                cmap_prob_thr=cmap_prob_thr,
