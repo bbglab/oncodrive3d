@@ -315,11 +315,15 @@ def run(input_maf_path,
                                         "Status" : "No_mut"})
             result_np_gene_lst.append(result_gene)
 
-        # Get genes with corresponding Uniprot-ID mapping
-        seq_df_all = seq_df.copy() # It will be used to map non-processed IDs
+        # Seq df for metadata info
+        metadata_cols = ["Uniprot_ID", "Gene", "Refseq_prot", "HGNC_ID", "Ens_Gene_ID", "Ens_Transcr_ID"]
+        seq_cols = [col for col in metadata_cols if col in seq_df.columns]
+        seq_df_all = seq_df[seq_cols].copy()
+
+        # Get genes with corresponding Uniprot-ID mapping        
         gene_to_uniprot_dict = {gene : uni_id for gene, uni_id in seq_df[["Gene", "Uniprot_ID"]].drop_duplicates().values}
         genes_to_process = [gene for gene in genes_mut.index if gene in gene_to_uniprot_dict.keys()]
-        seq_df = seq_df[[gene in genes_to_process for gene in seq_df["Gene"]]].reset_index(drop=True)
+        seq_df = seq_df[seq_df["Gene"].isin(genes_to_process)].reset_index(drop=True)
         genes_no_mapping = genes[[gene in genes_mut.index and gene not in gene_to_uniprot_dict.keys() for gene in genes.index]]
         if len(genes_no_mapping) > 0:
             logger.debug(f"Detected [{len(genes_no_mapping)}] genes without IDs mapping: Skipping...")
@@ -361,7 +365,7 @@ def run(input_maf_path,
                 result_np_gene_lst.append(result_gene)
                 # Filter out from genes to process and seq df
                 genes_to_process = [gene for gene in genes_to_process if gene not in genes_frag]
-                seq_df = seq_df[[gene in genes_to_process for gene in seq_df["Gene"]]].reset_index(drop=True)
+                seq_df = seq_df[seq_df["Gene"].isin(genes_to_process)].reset_index(drop=True)
                 
         # Filter on start-loss mutations
         start_mut_ix = data["Pos"] == 1
@@ -419,6 +423,7 @@ def run(input_maf_path,
             result_np_gene["Uniprot_ID"] = [gene_to_uniprot_dict[gene] if gene in gene_to_uniprot_dict.keys() else np.nan for gene in result_np_gene["Gene"].values]
         if len(genes_to_process) > 0:
             logger.info(f"Performing 3D-clustering on [{len(seq_df)}] proteins...")
+            seq_df = seq_df[["Gene", "Seq"]]
             plddt_df = pd.read_csv(plddt_path, sep="\t", dtype={"Pos" : int,
                                                                 "Res" : str, 
                                                                 "Confidence" : float, 
@@ -456,9 +461,7 @@ def run(input_maf_path,
         output_path_genes = os.path.join(output_dir, f"{cohort}.3d_clustering_genes.tsv")
         
         # Add extra metadata
-        metadata_cols = ["Uniprot_ID", "Gene", "Refseq_prot", "HGNC_ID", "Ens_Gene_ID", "Ens_Transcr_ID",]
-        seq_cols = [col for col in metadata_cols if col in seq_df_all.columns]
-        result_gene = result_gene.merge(seq_df_all[seq_cols], on=["Gene", "Uniprot_ID"], how="left")
+        result_gene = result_gene.merge(seq_df_all, on=["Gene", "Uniprot_ID"], how="left")
         
         if only_processed:
             result_gene = result_gene[result_gene["Status"] == "Processed"]

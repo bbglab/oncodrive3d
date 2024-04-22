@@ -2,6 +2,7 @@
 // nextflow run main.nf --indir /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/ --cohort_pattern TCGA* --data_dir /workspace/nobackup/scratch/oncodrive3d/datasets
 // nextflow run main.nf --indir /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/ --outdir /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output --data_dir /workspace/nobackup/scratch/oncodrive3d/datasets -profile conda
 // nextflow run main.nf --indir /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/ --outdir /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/new_no_mane --data_dir /workspace/nobackup/scratch/oncodrive3d/datasets_last_real -profile conda --cohort_pattern PCAWG_WGS_ESO_ADENOCA --vep_input
+// nextflow run main.nf --indir /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/ --outdir /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/new_mane --data_dir /workspace/nobackup/scratch/oncodrive3d/datasets_mane_last_real -profile conda --vep_input true --mane true --verbose true
 
 // Run no-MANE old input
 // Run MANE new input -> add vep input 
