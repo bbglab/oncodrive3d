@@ -85,6 +85,21 @@ def get_seq_df_input_symbols(input_df, seq_df, mane=False):
     return seq_df
 
 
+def get_hgvsp_mut(df_row):
+    """
+    Parse mutation entries to get HGVSp_Short format.
+    """
+    
+    if pd.isna(df_row["Amino_acids"]):
+        return np.nan
+    
+    elif len(df_row["Amino_acids"].split("/")) > 1:
+        return "p." + df_row["Amino_acids"].split("/")[0] + str(df_row["Protein_position"]) + df_row["Amino_acids"].split("/")[1] 
+    
+    else:
+        return np.nan
+
+
 def parse_vep_output(df, 
                      seq_df=None, 
                      use_o3d_transcripts=False, 
@@ -138,12 +153,7 @@ def parse_vep_output(df,
     if "HGVSp_Short" not in df.columns:
         if "Amino_acids" in df.columns and "Protein_position" in df.columns:
             logger.debug("Input detected as direct VEP output: Parsing translational effect of variant..")            
-            df["HGVSp_Short"] = df.apply(
-                lambda x: (
-                    "p." + x["Amino_acids"].split("/")[0] + str(x["Protein_position"]) + x["Amino_acids"].split("/")[1] 
-                    if len(x["Amino_acids"].split("/")) > 1 
-                    else np.nan), 
-                axis=1)
+            df["HGVSp_Short"] = df.apply(lambda x: get_hgvsp_mut(x), axis=1)
         else:
             logger.critical("Translational effect of variant allele not found: Input file must include either the field 'HGVSp_Short' or 'Amino_acids' and 'Protein_positions'.")
         
@@ -190,6 +200,7 @@ def parse_maf_input(maf_input_path,
     
     # Parse mut
     logger.debug(f"Processing [{len(maf)}] missense mutations...")
+    maf = maf.dropna(subset="HGVSp_Short")
     maf["Pos"] = maf.loc[:, "HGVSp_Short"].apply(lambda x: int(re.sub("\\D", "", (x[2:]))))
     maf["WT"] = maf["HGVSp_Short"].apply(lambda x: re.findall("\\D", x[2:])[0])
     maf["Mut"] = maf["HGVSp_Short"].apply(lambda x: re.findall("\\D", x[2:])[1])

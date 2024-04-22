@@ -119,7 +119,7 @@ def clustering_3d(gene,
     wt_mismatch_ix = ~mut_gene_df.apply(lambda x: seq_gene[x.Pos-1] == x.WT, axis=1)
     if sum(wt_mismatch_ix) > 0:
         ratio_mismatch = sum(wt_mismatch_ix) / mut_count
-        logger_out = f"Detected {sum(wt_mismatch_ix)} ({ratio_mismatch*100:.1f}%) mut having a reference-structure WT aa mismatch in {gene} ({uniprot_id}-F{af_f}): "
+        logger_out = f"Detected {sum(wt_mismatch_ix)} ({ratio_mismatch*100:.1f}%) mut having a reference-structure WT AA mismatch in {gene} ({uniprot_id}-F{af_f}): "
         result_gene_df["Ratio_WT_mismatch"] = ratio_mismatch
         if ratio_mismatch > thr_wt_mismatch:
             result_gene_df["Status"] = "WT_mismatch"

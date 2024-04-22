@@ -41,9 +41,12 @@ oncodrive3D run -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input
 
 - New vep output as input
 oncodrive3D run -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/vep/PCAWG_WGS_ESO_ADENOCA.vep.tsv.gz -p /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/mut_profile/PCAWG_WGS_ESO_ADENOCA.sig.json -d /workspace/nobackup/scratch/oncodrive3d/datasets_last_real -C PCAWG_WGS_ESO_ADENOCA -o /workspace/projects/clustering_3d/dev_testing/result/o3d/PCAWG_WGS_ESO_ADENOCA_new_vep -s 128 -c 10 --o3d_transcripts
+oncodrive3D run -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/vep/TCGA_WXS_BLCA.vep.tsv.gz -p /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/mut_profile/TCGA_WXS_BLCA.sig.json -d /workspace/nobackup/scratch/oncodrive3d/datasets_last_real -C TCGA_WXS_BLCA -o /workspace/projects/clustering_3d/dev_testing/result/o3d/TCGA_WXS_BLCA_new -s 128 -c 10 --o3d_transcripts --use_input_symbols -v
 
 # New vep output as input MANE
-oncodrive3D run -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/vep/PCAWG_WGS_ESO_ADENOCA.vep.tsv.gz -p /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/mut_profile/PCAWG_WGS_ESO_ADENOCA.sig.json -d /workspace/nobackup/scratch/oncodrive3d/datasets_mane_last_real -C PCAWG_WGS_ESO_ADENOCA -o /workspace/projects/clustering_3d/dev_testing/result/o3d/PCAWG_WGS_ESO_ADENOCA_new_mane_vep -s 128 -c 10 --o3d_transcripts
+oncodrive3D run -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/vep/PCAWG_WGS_ESO_ADENOCA.vep.tsv.gz -p /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/mut_profile/PCAWG_WGS_ESO_ADENOCA.sig.json -d /workspace/nobackup/scratch/oncodrive3d/datasets_mane_last_real -C PCAWG_WGS_ESO_ADENOCA -o /workspace/projects/clustering_3d/dev_testing/result/o3d/PCAWG_WGS_ESO_ADENOCA_new_mane_vep -s 128 -c 10 --o3d_transcripts --use_input_symbols -v --mane
+oncodrive3D run -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/vep/TCGA_WXS_BLCA.vep.tsv.gz -p /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/mut_profile/TCGA_WXS_BLCA.sig.json -d /workspace/nobackup/scratch/oncodrive3d/datasets_mane_last_real -C TCGA_WXS_BLCA -o /workspace/projects/clustering_3d/dev_testing/result/o3d/TCGA_WXS_BLCA_new_mane -s 128 -c 10 --o3d_transcripts --use_input_symbols -v --mane
+
 
 # Plot
 
@@ -271,7 +274,7 @@ def run(input_maf_path,
     logger.info(f"Seed: {seed}")
     logger.info(f"Filter input by Oncodrive3D transcripts (only if VEP output is used as input): {o3d_transcripts}")
     logger.info(f"Use HUGO symbols of input file (only if VEP output is used as input): {use_input_symbols}")
-    logger.info(f"Prioritize MANE transcripts when using HUGO symbols of input file: {mane}")
+    logger.info(f"Prioritize MANE transcripts when using input HUGO symbols: {mane}")
     logger.info(f"Verbose: {bool(verbose)}")
     logger.info(f'Log path: {os.path.join(output_dir, "log")}')
     logger.info("")
