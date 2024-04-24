@@ -96,9 +96,6 @@ def rm_files(dir_path, ext=[".cif.gz", ".cif"]) -> None:
 def clean_directory(path: str, loc: str) -> None:
     """
     Clean a directory by removing specific files and subdirectories.
-
-    Args:
-        path (str): Path to the directory to be cleaned.
     """
 
     if loc == "d":
@@ -117,9 +114,6 @@ def clean_directory(path: str, loc: str) -> None:
 def clean_dir(path: str, loc: str = 'd', txt_file=False) -> None:
     """
     Clean it upon request if it already exists.
-
-    Args:
-        path (str): Path to the directory to be created or cleaned.
     """
 
     if os.listdir(path) != ['log']:
@@ -142,19 +136,10 @@ def clean_dir(path: str, loc: str = 'd', txt_file=False) -> None:
 def clean_temp_files(path: str) -> None:
     """
     Clean temp files from dir after completing building the datasets. 
-
-    Args:
-        path (str): Path to build directory to be cleaned.
     """
     
     pdb_dir = os.path.join(path, "pdb_structures")
-    if rm_pdb_files:
-        logger.debug(f"Removing {pdb_dir}")
-        logger.warning(f"Removing {pdb_dir}: building annotations might be affected.")
-        rm_dir(pdb_dir)
-    else:
-        rm_files(pdb_dir, ext=[".cif.gz", ".cif", ".tar"])
-        rm_dir(os.path.join(pdb_dir, "fragmented_pdbs"))
-      
+    rm_files(pdb_dir, ext=[".cif.gz", ".cif", ".tar"])
     rm_files(os.path.join(path, "pae"), ext=[".json"])
     rm_dir(os.path.join(path, "pdb_structures_mane"))
+    rm_dir(os.path.join(pdb_dir, "fragmented_pdbs"))

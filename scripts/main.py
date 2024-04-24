@@ -173,6 +173,32 @@ def build_datasets(output_dir,
 #                                     RUN
 # =============================================================================
 
+#################### DEBUG MEMORY ################À
+
+import psutil
+
+def memory_usage_psutil():
+
+    process = psutil.Process()
+    mem = process.memory_info().rss / (1024 * 1024)
+    return f"Memory usage: {mem:.0f} MB"
+
+def memory_usage_df(df):
+    
+    memory_usage_per_column = df.memory_usage(deep=True)
+    total_memory_usage = memory_usage_per_column.sum()
+    total_memory_usage_mb = total_memory_usage / (1024 * 1024)
+
+    return f"Memory usage df: {total_memory_usage_mb:.0f} MB"
+
+def memory_usage_psutil_alt():
+    
+    return f"RAM used {psutil.virtual_memory()[3]/1000000000:.0f}GB ({psutil.virtual_memory()[2]}%)"
+
+import gc  # Import garbage collector interface
+   #################### DEBUG MEMORY ################
+
+
 @oncodrive3D.command(context_settings=dict(help_option_names=['-h', '--help']),
                      help="Run 3D-clustering analysis.")
 @click.option("-i", "--input_maf_path", type=click.Path(exists=True), required=True,
@@ -283,11 +309,76 @@ def run(input_maf_path,
     ## Load input and df of DNA sequences
 
     seq_df = pd.read_csv(seq_df_path, sep="\t")
+    logger.warning(f"{memory_usage_psutil_alt()}")                                               ############################# MEMORY DEBUG ################################
     data, seq_df = parse_maf_input(input_maf_path, 
                                    seq_df, 
                                    use_o3d_transcripts=o3d_transcripts,
                                    use_input_symbols=use_input_symbols, 
                                    mane=mane)
+    logger.warning(f"{memory_usage_psutil_alt()}")                                               ############################# MEMORY DEBUG ################################
+
+    ### OPTIMIZE FILTERING
+    
+    # def get_mapping_survey_df(data, seq_df):
+
+    #     gene_lst = []
+    #     mut_mismatch_lst = []
+    #     ratio_mismatch_lst = []
+    #     mut_count_lst = []
+    #     status_lst = []
+    #     mut_not_in_structure_lst = []
+    #     mut_not_in_seq_df = []
+    #     for gene in data.Gene.unique():
+    #         gene_lst.append(gene)
+    #         gene_maf = data[data["Gene"] == gene]
+    #         mut_count_lst.append(len(gene_maf))
+        
+    #         if gene in seq_df.Gene.unique():
+    #             seq_gene = seq_df[seq_df["Gene"] == gene].Seq.values[0]
+            
+    #             if gene_maf.Pos.max()-1 >= len(seq_gene):
+    #                 status_lst.append("not_in_structure")
+    #                 mut_mismatch_lst.append(0)
+    #                 ratio_mismatch_lst.append(0)
+    #                 mut_not_in_structure_lst.append(len(gene_maf))
+    #                 mut_not_in_seq_df.append(0)
+    #             else:
+    #                 wd_mismatch_ix = ~gene_maf.apply(lambda x: seq_gene[x.Pos-1] == x.WT, axis=1)
+    #                 if sum(wd_mismatch_ix) > 0:
+    #                     mut_mismatch = sum(wd_mismatch_ix)
+    #                     ratio_mismatch = mut_mismatch / len(gene_maf)
+    #                     mut_mismatch_lst.append(mut_mismatch)
+    #                     ratio_mismatch_lst.append(ratio_mismatch)
+    #                     status_lst.append("WT_mismatch")
+    #                 else:
+    #                     mut_mismatch_lst.append(0)
+    #                     ratio_mismatch_lst.append(0)
+    #                     status_lst.append("ok")
+    #                 mut_not_in_structure_lst.append(0)
+    #                 mut_not_in_seq_df.append(0)
+                
+    #         else:
+    #             status_lst.append("not_in_seq_df")
+    #             mut_mismatch_lst.append(0)
+    #             ratio_mismatch_lst.append(0)
+    #             mut_not_in_structure_lst.append(0)
+    #             mut_not_in_seq_df.append(len(gene_maf))
+
+    #     mut_match = np.array(mut_count_lst) - np.array(mut_mismatch)
+    #     df = pd.DataFrame({"Gene" : gene_lst,
+    #                     "Mut_count" : mut_count_lst,
+    #                     "Mut_match" : mut_match,
+    #                     "Mut_mismatch" : mut_mismatch_lst,
+    #                     "Ratio_mismatch" : ratio_mismatch_lst,
+    #                     "Mut_not_structure" : mut_not_in_structure_lst,
+    #                     "Mut_not_seq_df" : mut_not_in_seq_df,
+    #                     "Status" : status_lst})
+    #     return df
+    
+    ### END 
+    
+    
+    
     if len(data) > 0:
 
         ## Run
@@ -314,6 +405,40 @@ def run(input_maf_path,
                                         "Transcript_status" : get_gene_entry(data, genes_no_mut, "Transcript_status"),
                                         "Status" : "No_mut"})
             result_np_gene_lst.append(result_gene)
+            
+        #### APPLY FILTER HERE --------------------------------------------->
+        
+        # # Check if there is a mutation that is not in the structure      
+        # if max(mut_gene_df.Pos) > len(seq_gene):
+        #     not_in_structure_ix = mut_gene_df.Pos > len(seq_gene)
+        #     ratio_not_in_structure = sum(not_in_structure_ix) / len(mut_gene_df.Pos)
+        #     logger_out = f"Detected {sum(not_in_structure_ix)} ({ratio_not_in_structure*100:.1f}%) mut not in the structure of {gene} ({uniprot_id}-F{af_f}): "
+        #     result_gene_df["Ratio_not_in_structure"] = ratio_not_in_structure
+        #     if ratio_not_in_structure > thr_not_in_structure:
+        #         result_gene_df["Status"] = "Mut_not_in_structure"
+        #         logger.debug(logger_out + "Filtering the gene...")
+        #         return None, result_gene_df
+        #     else:
+        #         logger.debug(logger_out + "Filtering the mutations...")
+        #         mut_gene_df = mut_gene_df[~not_in_structure_ix]
+        #         mut_count = len(mut_gene_df)
+                
+        # # Check for mismatch between WT reference and WT structure 
+        # wt_mismatch_ix = mut_gene_df.apply(lambda x: seq_gene[x.Pos-1] != x.WT, axis=1)
+        # if sum(wt_mismatch_ix) > 0:
+        #     ratio_mismatch = sum(wt_mismatch_ix) / mut_count
+        #     logger_out = f"Detected {sum(wt_mismatch_ix)} ({ratio_mismatch*100:.1f}%) mut having a reference-structure WT AA mismatch in {gene} ({uniprot_id}-F{af_f}): "
+        #     result_gene_df["Ratio_WT_mismatch"] = ratio_mismatch
+        #     if ratio_mismatch > thr_wt_mismatch:
+        #         result_gene_df["Status"] = "WT_mismatch"
+        #         logger.debug(logger_out + "Filtering the gene...")
+        #         return None, result_gene_df
+        #     else:
+        #         logger.debug(logger_out + "Filtering the mutations...")
+        #         mut_gene_df = mut_gene_df[~wt_mismatch_ix]
+        #         mut_count = len(mut_gene_df)
+            
+        #### APPLY FILTER HERE --------------------------------------------->
 
         # Seq df for metadata info
         metadata_cols = ["Uniprot_ID", "Gene", "Refseq_prot", "HGNC_ID", "Ens_Gene_ID", "Ens_Transcr_ID"]
@@ -423,17 +548,23 @@ def run(input_maf_path,
             result_np_gene["Uniprot_ID"] = [gene_to_uniprot_dict[gene] if gene in gene_to_uniprot_dict.keys() else np.nan for gene in result_np_gene["Gene"].values]
         if len(genes_to_process) > 0:
             logger.info(f"Performing 3D-clustering on [{len(seq_df)}] proteins...")
-            seq_df = seq_df[["Gene", "Seq"]]
-            plddt_df = pd.read_csv(plddt_path, sep="\t", dtype={"Pos" : int,
-                                                                "Res" : str, 
-                                                                "Confidence" : float, 
-                                                                "Uniprot_ID" : str, 
-                                                                "AF_F" : str})     
+            seq_df = seq_df[["Gene", "Uniprot_ID", "F", "Seq"]]
+            plddt_df = pd.read_csv(plddt_path, sep="\t", usecols=["Pos", "Confidence", "Uniprot_ID"], dtype={"Pos" : np.int32,
+                                                                                                             "Confidence" : np.float32, 
+                                                                                                             "Uniprot_ID" : "object"})  
+
+            ############################# MEMORY DEBUG ################################
+
+            logger.warning(f"> Before clustering")    
+            logger.warning(f"data {memory_usage_df(data)}")
+            logger.warning(f"seq_df {memory_usage_df(seq_df)}")
+            logger.warning(f"plddt_df {memory_usage_df(plddt_df)}")
+        
+            
             result_pos, result_gene = clustering_3d_mp_wrapper(genes=genes_to_process,
                                                                data=data,
                                                                cmap_path=cmap_path,
                                                                miss_prob_dict=miss_prob_dict,
-                                                               gene_to_uniprot_dict=gene_to_uniprot_dict,
                                                                seq_df=seq_df,
                                                                plddt_df=plddt_df,
                                                                num_cores=cores,
@@ -453,7 +584,7 @@ def run(input_maf_path,
         ## Save
         if not os.path.exists(output_dir):
             os.makedirs(os.path.join(output_dir))
-            logger.warning(f"Directory '{output_dir}' does not exists: Creating...")
+            logger.warning(f"Directory '{output_dir}' does not exists: Creating..")
 
         result_gene["Cancer"] = cancer_type
         result_gene["Cohort"] = cohort
@@ -497,6 +628,7 @@ def run(input_maf_path,
             logger.info(f"Saving {output_path_pos}")
             logger.info(f"Saving {output_path_genes}")
 
+        logger.critical(f"END {memory_usage_psutil_alt()}")       
         logger.info("3D-clustering analysis completed!")
 
     else:

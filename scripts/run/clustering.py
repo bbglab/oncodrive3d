@@ -19,12 +19,33 @@ from scripts.run.utils import add_samples_info, get_samples_info
 
 logger = daiquiri.getLogger(__logger_name__ + ".run.clustering")
 
+#################### DEBUG MEMORY ################À
+
+import psutil
+
+
+def memory_usage_df(df):
+    
+    memory_usage_per_column = df.memory_usage(deep=True)
+    total_memory_usage = memory_usage_per_column.sum()
+    total_memory_usage_mb = total_memory_usage / (1024 * 1024)
+
+    return f"Memory usage df: {total_memory_usage_mb:.0f} MB"
+
+def memory_usage_psutil_alt():
+    
+    return f"RAM used {psutil.virtual_memory()[3]/1000000000:.0f}GB ({psutil.virtual_memory()[2]}%)"
+
+   #################### DEBUG MEMORY ################
+
+
 def clustering_3d(gene, 
                   uniprot_id,
                   mut_gene_df,                                      
                   cmap_path,
                   miss_prob_dict,
                   seq_gene,
+                  af_f,
                   alpha=0.01,
                   num_iteration=10000,
                   cmap_prob_thr=0.5,
@@ -68,7 +89,6 @@ def clustering_3d(gene,
     ## Initialize
 
     mut_count = len(mut_gene_df)
-    af_f = mut_gene_df.AF_F.unique()[0]
     result_gene_df = pd.DataFrame({"Gene" : gene,
                                    "Uniprot_ID" : uniprot_id,
                                    "F" : af_f,                           
@@ -77,11 +97,41 @@ def clustering_3d(gene,
                                    "Ratio_WT_mismatch" : 0,
                                    "Mut_zero_mut_prob" : 0,
                                    "Pos_zero_mut_prob" : np.nan,
-                                   "Transcript_ID" : mut_gene_df.Transcript_ID.unique()[0],
-                                   "O3D_transcript_ID" : mut_gene_df.O3D_transcript_ID.unique()[0],
-                                   "Transcript_status" : mut_gene_df.Transcript_status.unique()[0],
+                                   "Transcript_ID" : mut_gene_df.Transcript_ID.iloc[0],
+                                   "O3D_transcript_ID" : mut_gene_df.O3D_transcript_ID.iloc[0],
+                                   "Transcript_status" : mut_gene_df.Transcript_status.iloc[0],
                                    "Status" : np.nan}, 
                                     index=[1])
+
+    # Check if there is a mutation that is not in the structure      
+    if max(mut_gene_df.Pos) > len(seq_gene):
+        not_in_structure_ix = mut_gene_df.Pos > len(seq_gene)
+        ratio_not_in_structure = sum(not_in_structure_ix) / len(mut_gene_df.Pos)
+        # logger_out = f"Detected {sum(not_in_structure_ix)} ({ratio_not_in_structure*100:.1f}%) mut not in the structure of {gene} ({uniprot_id}-F{af_f}): "
+        result_gene_df["Ratio_not_in_structure"] = ratio_not_in_structure
+        if ratio_not_in_structure > thr_not_in_structure:
+            result_gene_df["Status"] = "Mut_not_in_structure"
+            # logger.debug(logger_out + "Filtering the gene...")
+            return None, result_gene_df
+        else:
+            # logger.debug(logger_out + "Filtering the mutations...")
+            mut_gene_df = mut_gene_df[~not_in_structure_ix]
+            mut_count = len(mut_gene_df)
+            
+    # Check for mismatch between WT reference and WT structure 
+    wt_mismatch_ix = mut_gene_df.apply(lambda x: seq_gene[x.Pos-1] != x.WT, axis=1)
+    if sum(wt_mismatch_ix) > 0:
+        ratio_mismatch = sum(wt_mismatch_ix) / mut_count
+        logger_out = f"Detected {sum(wt_mismatch_ix)} ({ratio_mismatch*100:.1f}%) mut having a reference-structure WT AA mismatch in {gene} ({uniprot_id}-F{af_f}): "
+        result_gene_df["Ratio_WT_mismatch"] = ratio_mismatch
+        if ratio_mismatch > thr_wt_mismatch:
+            result_gene_df["Status"] = "WT_mismatch"
+            logger.debug(logger_out + "Filtering the gene...")
+            return None, result_gene_df
+        else:
+            logger.debug(logger_out + "Filtering the mutations...")
+            mut_gene_df = mut_gene_df[~wt_mismatch_ix]
+            mut_count = len(mut_gene_df)
 
     # Load cmap
     cmap_complete_path = f"{cmap_path}/{uniprot_id}-F{af_f}.npy"
@@ -99,36 +149,6 @@ def clustering_3d(gene,
         pae = np.load(pae_complete_path) 
     else:
         pae = None
-
-    # Check if there is a mutation that is not in the structure      
-    if max(mut_gene_df.Pos) > len(cmap):
-        not_in_structure_ix = mut_gene_df.Pos > len(cmap)
-        ratio_not_in_structure = sum(not_in_structure_ix) / len(mut_gene_df.Pos)
-        logger_out = f"Detected {sum(not_in_structure_ix)} ({ratio_not_in_structure*100:.1f}%) mut not in the structure of {gene} ({uniprot_id}-F{af_f}): "
-        result_gene_df["Ratio_not_in_structure"] = ratio_not_in_structure
-        if ratio_not_in_structure > thr_not_in_structure:
-            result_gene_df["Status"] = "Mut_not_in_structure"
-            logger.warning(logger_out + "Filtering the gene...")
-            return None, result_gene_df
-        else:
-            logger.warning(logger_out + "Filtering the mutations...")
-            mut_gene_df = mut_gene_df[~not_in_structure_ix]
-            mut_count = len(mut_gene_df)
-            
-    # Check for mismatch between WT reference and WT structure 
-    wt_mismatch_ix = ~mut_gene_df.apply(lambda x: seq_gene[x.Pos-1] == x.WT, axis=1)
-    if sum(wt_mismatch_ix) > 0:
-        ratio_mismatch = sum(wt_mismatch_ix) / mut_count
-        logger_out = f"Detected {sum(wt_mismatch_ix)} ({ratio_mismatch*100:.1f}%) mut having a reference-structure WT AA mismatch in {gene} ({uniprot_id}-F{af_f}): "
-        result_gene_df["Ratio_WT_mismatch"] = ratio_mismatch
-        if ratio_mismatch > thr_wt_mismatch:
-            result_gene_df["Status"] = "WT_mismatch"
-            logger.warning(logger_out + "Filtering the gene...")
-            return None, result_gene_df
-        else:
-            logger.warning(logger_out + "Filtering the mutations...")
-            mut_gene_df = mut_gene_df[~wt_mismatch_ix]
-            mut_count = len(mut_gene_df)
 
     # Samples info
     samples_info = get_samples_info(mut_gene_df, cmap)
@@ -269,7 +289,6 @@ def clustering_3d_mp(genes,
                      data,
                      cmap_path,
                      miss_prob_dict,
-                     gene_to_uniprot_dict,
                      seq_df,
                      plddt_df,
                      num_process,
@@ -290,11 +309,13 @@ def clustering_3d_mp(genes,
     for n, gene in enumerate(genes):
     
         mut_gene_df = data[data["Gene"] == gene]
-        uniprot_id = gene_to_uniprot_dict[gene]
-        seq_gene = seq_df[seq_df["Gene"] == gene].Seq.values[0]
-
+        seq_df_gene = seq_df[seq_df["Gene"] == gene]
+        uniprot_id = seq_df_gene['Uniprot_ID'].values[0]
+        seq = seq_df_gene['Seq'].values[0]
+        af_f = seq_df_gene['F'].values[0]
+        
         # Add confidence to mut_gene_df
-        plddt_df_gene_df = plddt_df[plddt_df["Uniprot_ID"] == uniprot_id]
+        plddt_df_gene_df = plddt_df[plddt_df["Uniprot_ID"] == uniprot_id].drop(columns=["Uniprot_ID"])
         mut_gene_df = mut_gene_df.merge(plddt_df_gene_df, on = ["Pos"], how = "left")
 
         pos_result, result_gene = clustering_3d(gene,
@@ -302,7 +323,8 @@ def clustering_3d_mp(genes,
                                                 mut_gene_df, 
                                                 cmap_path,
                                                 miss_prob_dict,
-                                                seq_gene,
+                                                seq_gene=seq,
+                                                af_f=af_f,
                                                 alpha=alpha,
                                                 num_iteration=num_iteration,
                                                 cmap_prob_thr=cmap_prob_thr,
@@ -314,13 +336,20 @@ def clustering_3d_mp(genes,
         if pos_result is not None:
             result_pos_lst.append(pos_result)
             
-        # logging - monitor processing
+        # Monitor processing
         if n == 0:
-            logger.debug(f"Process [{num_process+1}] starting...")
+            logger.debug(f"Process [{num_process+1}] starting..")
+            logger.warning(f"Process start {num_process+1}:")
+            logger.warning(f"{memory_usage_psutil_alt()}")                                               ############################# MEMORY DEBUG ################################
+            logger.warning(f"> data {memory_usage_df(data)}")                                              ############################# MEMORY DEBUG ################################
+            logger.warning(f"> seq_df {memory_usage_df(seq_df)}")                                              ############################# MEMORY DEBUG ################################
+            logger.warning(f"> plddt_df {memory_usage_df(plddt_df)}")                                              ############################# MEMORY DEBUG ################################
         elif n % 10 == 0:
-            logger.debug(f"Process [{num_process+1}] completed [{n+1}/{len(genes)}] structures...")
+            logger.debug(f"Process [{num_process+1}] completed [{n+1}/{len(genes)}] structures..")
         elif n+1 == len(genes):
             logger.debug(f"Process [{num_process+1}] completed!")
+            logger.warning(f"Process complete {num_process+1}:")
+            logger.warning(f"{memory_usage_psutil_alt()}")        
 
     return result_gene_lst, result_pos_lst
 
@@ -329,7 +358,6 @@ def clustering_3d_mp_wrapper(genes,
                              data,
                              cmap_path,
                              miss_prob_dict,
-                             gene_to_uniprot_dict,
                              seq_df,
                              plddt_df,
                              num_cores,
@@ -347,17 +375,21 @@ def clustering_3d_mp_wrapper(genes,
     # Split the genes into chunks for each process
     chunk_size = int(len(genes) / num_cores) + 1
     chunks = [genes[i : i + chunk_size] for i in range(0, len(genes), chunk_size)]
+    logger.warning(f"{memory_usage_psutil_alt()}")                                               ############################# MEMORY DEBUG ################################
+    logger.warning(f"data {memory_usage_df(data)}")                                              ############################# MEMORY DEBUG ################################
+    logger.warning(f"seq_df {memory_usage_df(seq_df)}")                                              ############################# MEMORY DEBUG ################################
+    logger.warning(f"plddt_df {memory_usage_df(plddt_df)}")                                              ############################# MEMORY DEBUG ################################
     
     # Create a pool of processes and run clustering in parallel
     with multiprocessing.Pool(processes = num_cores) as pool:
+        
         logger.debug(f'Starting [{len(chunks)}] processes...')
-        results = pool.starmap(clustering_3d_mp, [(chunk, 
-                                                   data, 
+        results = pool.starmap(clustering_3d_mp, [(chunk,
+                                                   data[data["Gene"].isin(chunk)], 
                                                    cmap_path, 
                                                    miss_prob_dict, 
-                                                   gene_to_uniprot_dict, 
-                                                   seq_df[seq_df["Gene"].isin(chunk)].reset_index(drop=True),
-                                                   plddt_df, 
+                                                   seq_df[seq_df["Gene"].isin(chunk)],
+                                                   plddt_df[plddt_df["Uniprot_ID"].isin(seq_df.loc[seq_df["Gene"].isin(chunk), "Uniprot_ID"])],
                                                    n_process,
                                                    alpha, 
                                                    num_iteration, 
