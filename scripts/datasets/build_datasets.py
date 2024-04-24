@@ -73,22 +73,23 @@ def build(output_datasets,
                       threads=num_cores)
       mv_mane_pdb(output_datasets, "pdb_structures", "pdb_structures_mane")
       logger.info("Download of MANE structures completed!")
+
+    # Create df including genes and proteins sequences & Hugo to Uniprot_ID mapping
+    logger.info("Generating dataframe for genes and proteins sequences...")
+    seq_df = get_seq_df(datasets_dir=output_datasets,
+                        output_seq_df=os.path.join(output_datasets, "seq_for_mut_prob.tsv"),
+                        uniprot_to_gene_dict=uniprot_to_hugo,
+                        organism=species,
+                        mane=mane,
+                        num_cores=num_cores,
+                        mane_version=mane_version)
+    logger.info("Generation of sequences dataframe completed!")
     
     # Get model confidence
     logger.info("Extracting AF model confidence...")
     get_confidence(input=os.path.join(output_datasets, "pdb_structures"),
-                   output_dir=os.path.join(output_datasets))
-
-    # Create df including genes and proteins sequences & Hugo to Uniprot_ID mapping
-    logger.info("Generating dataframe for genes and proteins sequences...")
-    get_seq_df(datasets_dir=output_datasets,
-               output_seq_df=os.path.join(output_datasets, "seq_for_mut_prob.tsv"),
-               uniprot_to_gene_dict=uniprot_to_hugo,
-               organism=species,
-               mane=mane,
-               num_cores=num_cores,
-               mane_version=mane_version)
-    logger.info("Generation of sequences dataframe completed!")
+                   output_dir=os.path.join(output_datasets),
+                   seq_df=seq_df)
 
     # Get PAE
     logger.info("Downloading AF predicted aligned error (PAE)...")

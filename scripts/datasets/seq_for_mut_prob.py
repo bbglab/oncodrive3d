@@ -1143,3 +1143,5 @@ def get_seq_df(datasets_dir,
     # Save
     seq_df.to_csv(output_seq_df, index=False, sep="\t")                    
     logger.debug(f"Sequences dataframe saved in: {output_seq_df}")
+    
+    return seq_df
