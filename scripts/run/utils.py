@@ -142,6 +142,8 @@ def parse_vep_output(df,
     and select the canonical transcripts if multiple ones are present.
     """
 
+    # TO DO: check for mut ID instead of tumor sample (IF VEP OUTPUT AS INPUT)
+
     df.rename(columns={"SYMBOL": "Hugo_Symbol",
                        "Consequence": "Variant_Classification",
                        "#Uploaded_variation": "Tumor_Sample_Barcode",
@@ -198,6 +200,8 @@ def add_transcript_info(maf, seq_df):
     Add transcript status information.
     """
     
+    if 'Transcript_ID' not in maf.columns:
+        maf['Transcript_ID'] = np.nan
     maf = maf.merge(seq_df[[col for col in ['Gene', 'Ens_Transcr_ID', 'Refseq_prot'] if col in seq_df.columns]].drop_duplicates(), 
                     on='Gene', how='left').rename(columns={"Ens_Transcr_ID" : "O3D_transcript_ID"})
 
@@ -213,8 +217,8 @@ def add_transcript_info(maf, seq_df):
 
     # Log transcript report
     transcript_report = maf['Transcript_status'].value_counts().reset_index(name='Count')
-    transcript_report = ", ".join([f"{status}: {count}" for status, count in transcript_report.to_numpy()])
-    logger.info(f"Transcript status: {transcript_report}")
+    transcript_report = ", ".join([f"{status} = {count}" for status, count in transcript_report.to_numpy()])
+    logger.info(f"Transcript status of {len(maf)} mutations: {transcript_report}")
 
     return maf
 
@@ -224,9 +228,9 @@ def read_input(input_path):
     Read input file optimizing memory usage.
     """
 
-    cols_to_read = ["#Uploaded_variation", 
-                    "#UploadedVariation", 
-                    "Variant_Classification",
+    cols_to_read = ["Variant_Classification",
+                    "#Uploaded_variation", 
+                    "#UploadedVariation",
                     "Tumor_Sample_Barcode",
                     "Feature", 
                     "Transcript_ID",
@@ -258,6 +262,12 @@ def parse_maf_input(maf_input_path, seq_df=None, use_o3d_transcripts=False, use_
     maf = read_input(maf_input_path)
     logger.debug(f"Processing [{len(maf)}] total mutations..")
     maf, seq_df = parse_vep_output(maf, seq_df, use_o3d_transcripts, use_input_symbols, mane)
+    
+    # ### DEBUG COMPARE INPUT
+    # logger.critical("Writing maf_00.tsv for debugging")
+    # maf.to_csv("/workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/2024/maf_00.tsv", sep="\t")
+    
+    # ###
 
     # Extract and parse missense mutations
     maf = maf[maf['Variant_Classification'].str.contains('Missense_Mutation|missense_variant')]
@@ -269,6 +279,11 @@ def parse_maf_input(maf_input_path, seq_df=None, use_o3d_transcripts=False, use_
     # Add transcript status from seq_df
     if seq_df is not None:
         maf = add_transcript_info(maf, seq_df)
+
+    # ### DEBUG COMPARE INPUT
+    # logger.critical("Writing maf_01.tsv for debugging")
+    # maf.to_csv("/workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/2024/maf_01.tsv", sep="\t")
+    # ###
     
     return maf.reset_index(drop=True), seq_df
 
@@ -381,12 +396,15 @@ def get_unique_pos_in_contact(lst_pos, cmap):
     return np.unique(np.concatenate([np.where(cmap[pos-1])[0]+1 for pos in lst_pos]))
 
 
-def add_samples_info(mut_gene_df, result_pos_df, samples_info, cmap, pae=None):
+def add_info(mut_gene_df, result_pos_df, cmap, pae=None):
     """
     Add information about the ratio of unique samples in the volume of 
     each mutated residues and in each detected community (meta-cluster) 
     to the residues-level output of the tool.
     """
+
+    # Get sample info
+    samples_info = get_samples_info(mut_gene_df, cmap)
 
     # Add samples in vol
     result_pos_df = result_pos_df.merge(samples_info.drop(columns=["Barcode"]), on="Pos", how="outer")
@@ -397,7 +415,6 @@ def add_samples_info(mut_gene_df, result_pos_df, samples_info, cmap, pae=None):
         result_pos_df["Mut_in_cl_vol"] = np.nan
         result_pos_df["Res_in_cl"] = np.nan
         result_pos_df["pLDDT_cl_vol"] = np.nan
-        #result_pos_df["Ratio_samples_in_comm"] = np.nan
     else:       
         community_pos = result_pos_df.groupby("Cluster").apply(lambda x: x.Pos.values)
         community_mut = community_pos.apply(lambda x: sum([pos in get_unique_pos_in_contact(x, cmap) for 
@@ -408,13 +425,9 @@ def add_samples_info(mut_gene_df, result_pos_df, samples_info, cmap, pae=None):
         community_plddt = community_pos.apply(lambda x: mut_gene_df.Confidence[[pos in get_unique_pos_in_contact(x, cmap) 
                                                                              for pos in mut_gene_df.Pos]].mean())
 
-        #community_samples_ratio = community_samples / samples_info["Tot_samples"].unique()[0]
-        #community_mut_ratio = community_mut / len(mut_gene_df)
         community_pos_count = community_pos.apply(lambda x: len(x))
         community_samples = pd.DataFrame({"Samples_in_cl_vol" : community_samples, 
-                                          #"Ratio_samples_in_comm" : community_samples_ratio,
                                           "Mut_in_cl_vol" : community_mut,
-                                          #"Ratio_mut_in_comm" : community_mut_ratio,
                                           "Res_in_cl" : community_pos_count,
                                           "pLDDT_cl_vol" : community_plddt})
         
@@ -428,6 +441,12 @@ def add_samples_info(mut_gene_df, result_pos_df, samples_info, cmap, pae=None):
         result_pos_df["PAE_vol"] = np.nan
         
     # AF confidence
+    for pos in result_pos_df.Pos:                                                                              ############### DEBUG
+        try:
+            mut_gene_df.Confidence[mut_gene_df["Pos"] == pos].values[0]
+        except:
+            logger.critical(f"FAIL pos: {pos}")
+            print(mut_gene_df[mut_gene_df["Pos"] == pos])        ############### DEBUG
     result_pos_df["pLDDT_res"] = result_pos_df.apply(lambda x: mut_gene_df.Confidence[mut_gene_df["Pos"] == x.Pos].values[0], axis=1)
     result_pos_df["pLDDT_vol"] = result_pos_df.apply(lambda x: weighted_avg_plddt_vol(x["Pos"], mut_gene_df, cmap), axis=1)
     result_pos_df["pLDDT_cl_vol"] = result_pos_df.pop("pLDDT_cl_vol")
@@ -502,6 +521,7 @@ def sort_cols(result_gene):
             'Ratio_WT_mismatch',
             'Mut_zero_mut_prob',
             'Pos_zero_mut_prob',
+            'Ratio_mut_zero_prob',
             'Cancer', 
             'Cohort',
             'Transcript_ID',

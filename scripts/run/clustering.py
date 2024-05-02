@@ -15,30 +15,59 @@ from scripts.run.communities import get_community_index_nx, get_network
 from scripts.run.miss_mut_prob import get_unif_gene_miss_prob
 from scripts.run.score_and_simulations import (get_anomaly_score,
                                                  get_sim_anomaly_score)
-from scripts.run.utils import add_samples_info, get_samples_info
+from scripts.run.utils import add_info, get_samples_info
 
 logger = daiquiri.getLogger(__logger_name__ + ".run.clustering")
 
-#################### DEBUG MEMORY ################À
 
-import psutil
+def process_mapping_issue(issue_ix, 
+                          mut_gene_df, 
+                          result_gene_df, 
+                          gene, uniprot_id, 
+                          af_f, 
+                          transcript_status, 
+                          thr, 
+                          issue_type):
+    """
+    Check if there are mutations not in the structure (mut pos exceed lenght of 
+    the structure protein sequence) or mutations with mismatches between WT AA 
+    between mut and structure protein sequence. If the ratio of mutations do 
+    not exceed threshold, filter out the specific mutations, else filter out 
+    all mutations of that gene.
+    """
 
-
-def memory_usage_df(df):
+    if issue_type == "Mut_not_in_structure":
+        logger_txt="mut not in the structure"
+        df_col = "Ratio_not_in_structure"
+    elif type == "WT_mismatch":
+        logger_txt="mut with ref-structure WT AA mismatch"
+        df_col = "Ratio_WT_mismatch"
+        
+    ratio_issue = sum(issue_ix) / len(mut_gene_df)
+    logger_out = f"Detected {sum(issue_ix)} ({ratio_issue*100:.1f}%) {logger_txt} of {gene} ({uniprot_id}-F{af_f}, transcript status = {transcript_status}): "
+    result_gene_df[df_col] = ratio_issue
     
-    memory_usage_per_column = df.memory_usage(deep=True)
-    total_memory_usage = memory_usage_per_column.sum()
-    total_memory_usage_mb = total_memory_usage / (1024 * 1024)
-
-    return f"Memory usage df: {total_memory_usage_mb:.0f} MB"
-
-def memory_usage_psutil_alt():
+    if ratio_issue > thr:
+        result_gene_df["Status"] = issue_type
+        if transcript_status == "Match":
+            logger.warning(logger_out + "Filtering the gene")
+        else:
+            logger.debug(logger_out + "Filtering the gene..")
+        filter_gene = True
+        
+        return filter_gene, result_gene_df, None
     
-    return f"RAM used {psutil.virtual_memory()[3]/1000000000:.0f}GB ({psutil.virtual_memory()[2]}%)"
-
-   #################### DEBUG MEMORY ################
-
-
+    else:
+        if transcript_status == "Match":
+            logger.warning(logger_out + "Filtering the mutations..")
+        else:
+            logger.debug(logger_out + "Filtering the mutations..")    
+        mut_gene_df = mut_gene_df[~issue_ix]
+        filter_gene = False
+        
+        return filter_gene, result_gene_df, mut_gene_df
+    
+    
 def clustering_3d(gene, 
                   uniprot_id,
                   mut_gene_df,                                      
@@ -51,8 +80,7 @@ def clustering_3d(gene,
                   cmap_prob_thr=0.5,
                   seed=None,
                   pae_path=None,
-                  thr_not_in_structure=0.1,
-                  thr_wt_mismatch=0.1):
+                  thr_mapping_issue=0.1):
     """
     Compute local density of missense mutations for a sphere of 10A around          
     each amino acid position of the selected gene product. It performed a 
@@ -89,6 +117,9 @@ def clustering_3d(gene,
     ## Initialize
 
     mut_count = len(mut_gene_df)
+    transcript_id_input = mut_gene_df.Transcript_ID.iloc[0]
+    transcript_id_o3d = mut_gene_df.O3D_transcript_ID.iloc[0]
+    transcript_status = mut_gene_df.Transcript_status.iloc[0]
     result_gene_df = pd.DataFrame({"Gene" : gene,
                                    "Uniprot_ID" : uniprot_id,
                                    "F" : af_f,                           
@@ -97,41 +128,42 @@ def clustering_3d(gene,
                                    "Ratio_WT_mismatch" : 0,
                                    "Mut_zero_mut_prob" : 0,
                                    "Pos_zero_mut_prob" : np.nan,
-                                   "Transcript_ID" : mut_gene_df.Transcript_ID.iloc[0],
-                                   "O3D_transcript_ID" : mut_gene_df.O3D_transcript_ID.iloc[0],
-                                   "Transcript_status" : mut_gene_df.Transcript_status.iloc[0],
+                                   "Transcript_ID" : transcript_id_input,
+                                   "O3D_transcript_ID" : transcript_id_o3d,
+                                   "Transcript_status" : transcript_status,
                                    "Status" : np.nan}, 
                                     index=[1])
+
 
     # Check if there is a mutation that is not in the structure      
     if max(mut_gene_df.Pos) > len(seq_gene):
         not_in_structure_ix = mut_gene_df.Pos > len(seq_gene)
-        ratio_not_in_structure = sum(not_in_structure_ix) / len(mut_gene_df.Pos)
-        # logger_out = f"Detected {sum(not_in_structure_ix)} ({ratio_not_in_structure*100:.1f}%) mut not in the structure of {gene} ({uniprot_id}-F{af_f}): "
-        result_gene_df["Ratio_not_in_structure"] = ratio_not_in_structure
-        if ratio_not_in_structure > thr_not_in_structure:
-            result_gene_df["Status"] = "Mut_not_in_structure"
-            # logger.debug(logger_out + "Filtering the gene...")
+        filter_gene, result_gene_df, mut_gene_df = process_mapping_issue(not_in_structure_ix, 
+                                                                         mut_gene_df, 
+                                                                         result_gene_df, 
+                                                                         gene, 
+                                                                         uniprot_id, 
+                                                                         af_f, 
+                                                                         transcript_status, 
+                                                                         thr_mapping_issue, 
+                                                                         logger_txt="mut not in the structure")
+        if filter_gene:
             return None, result_gene_df
-        else:
-            # logger.debug(logger_out + "Filtering the mutations...")
-            mut_gene_df = mut_gene_df[~not_in_structure_ix]
-            mut_count = len(mut_gene_df)
             
     # Check for mismatch between WT reference and WT structure 
     wt_mismatch_ix = mut_gene_df.apply(lambda x: seq_gene[x.Pos-1] != x.WT, axis=1)
     if sum(wt_mismatch_ix) > 0:
-        ratio_mismatch = sum(wt_mismatch_ix) / mut_count
-        logger_out = f"Detected {sum(wt_mismatch_ix)} ({ratio_mismatch*100:.1f}%) mut having a reference-structure WT AA mismatch in {gene} ({uniprot_id}-F{af_f}): "
-        result_gene_df["Ratio_WT_mismatch"] = ratio_mismatch
-        if ratio_mismatch > thr_wt_mismatch:
-            result_gene_df["Status"] = "WT_mismatch"
-            logger.debug(logger_out + "Filtering the gene...")
+        filter_gene, result_gene_df, mut_gene_df = process_mapping_issue(wt_mismatch_ix, 
+                                                                         mut_gene_df, 
+                                                                         result_gene_df, 
+                                                                         gene, 
+                                                                         uniprot_id, 
+                                                                         af_f, 
+                                                                         transcript_status, 
+                                                                         thr_mapping_issue, 
+                                                                         logger_txt="mut with ref-structure WT AA mismatch")
+        if filter_gene:
             return None, result_gene_df
-        else:
-            logger.debug(logger_out + "Filtering the mutations...")
-            mut_gene_df = mut_gene_df[~wt_mismatch_ix]
-            mut_count = len(mut_gene_df)
 
     # Load cmap
     cmap_complete_path = f"{cmap_path}/{uniprot_id}-F{af_f}.npy"
@@ -149,9 +181,6 @@ def clustering_3d(gene,
         pae = np.load(pae_complete_path) 
     else:
         pae = None
-
-    # Samples info
-    samples_info = get_samples_info(mut_gene_df, cmap)
     
 
     ## Get expected local myssense mutation density
@@ -174,12 +203,27 @@ def clustering_3d(gene,
         result_gene_df["Status"] = "Mut_with_zero_prob"
         pos_prob_vec = np.array(gene_miss_prob)[pos_vec-1]
         pos_zero_prob = list(pos_vec[pos_prob_vec == 0])
-        mut_zero_prob = sum([pos in pos_zero_prob for pos in mut_gene_df["Pos"].values])
-        result_gene_df["Mut_zero_mut_prob"] = mut_zero_prob
+        mut_zero_prob_ix = mut_gene_df["Pos"].isin(pos_zero_prob)
+        mut_zero_prob_count = sum(mut_zero_prob_ix)
+        result_gene_df["Mut_zero_mut_prob"] = mut_zero_prob_count
         result_gene_df["Pos_zero_mut_prob"] = str(pos_zero_prob)
-        result_gene_df["Status"] = "Mut_with_zero_prob"
-        logger.warning(f"Detected {mut_zero_prob} mut in {len(pos_zero_prob)} pos {pos_zero_prob} with zero mut prob in {gene} ({uniprot_id}-F{af_f}): Filtering the gene...")  
-        return None, result_gene_df
+        ratio_zero_prob = mut_zero_prob_count / len(mut_gene_df)
+        logger_out = f"Detected {mut_zero_prob_count} ({ratio_zero_prob*100:.1f}%) mut in {len(pos_zero_prob)} pos {pos_zero_prob} with zero mut prob in {gene} ({uniprot_id}-F{af_f}, transcript status = {transcript_status}): "
+        result_gene_df["Ratio_mut_zero_prob"] = ratio_zero_prob 
+        
+        if ratio_zero_prob > thr_mapping_issue:
+            result_gene_df["Status"] = "Mut_with_zero_prob"
+            if transcript_status == "Match":
+                logger.warning(logger_out + "Filtering the gene..")
+            else:
+                logger.debug(logger_out + "Filtering the gene..")
+            return None, result_gene_df
+        else:
+            if transcript_status == "Match":
+                logger.warning(logger_out + "Filtering the mutations..")
+            else:
+                logger.debug(logger_out + "Filtering the mutations..")    
+            mut_gene_df = mut_gene_df[~mut_zero_prob_ix]
 
     # Probability that the volume of each residue can be hit by a missense mut
     vol_missense_mut_prob = np.dot(cmap, gene_miss_prob)
@@ -204,7 +248,7 @@ def clustering_3d(gene,
     result_pos_df = pd.DataFrame({"Pos" : mutated_pos, "Mut_in_vol" : density_m[0, mutated_pos-1].astype(int)})
 
     # Get the ranked simulated score
-    sim_anomaly = get_sim_anomaly_score(mut_count, 
+    sim_anomaly = get_sim_anomaly_score(len(mut_gene_df), 
                                         cmap, 
                                         gene_miss_prob,
                                         vol_missense_mut_prob,                                                                               
@@ -214,12 +258,12 @@ def clustering_3d(gene,
     # Get ranked observed score (loglik+_LFC) 
     no_mut_pos = len(result_pos_df)
     sim_anomaly = sim_anomaly.iloc[:no_mut_pos,:].reset_index()
-    result_pos_df["Obs_anomaly"] = get_anomaly_score(result_pos_df["Mut_in_vol"], mut_count, vol_missense_mut_prob[result_pos_df["Pos"]-1])
+    result_pos_df["Obs_anomaly"] = get_anomaly_score(result_pos_df["Mut_in_vol"], len(mut_gene_df), vol_missense_mut_prob[result_pos_df["Pos"]-1])
     mut_in_res = count.reset_index().rename(columns = {"Pos" : "Mut_in_res", "index" : "Pos"})      
     result_pos_df = mut_in_res.merge(result_pos_df, on = "Pos", how = "outer")                          
     result_pos_df = result_pos_df.sort_values("Obs_anomaly", ascending=False).reset_index(drop=True)
     if np.isinf(result_pos_df["Obs_anomaly"].values).any():
-        logger.warning(f"Detected infinity observed anomaly in gene {gene} ({uniprot_id}-F{af_f}): replacing with 1...")
+        logger.warning(f"Detected infinity observed anomaly in gene {gene} ({uniprot_id}-F{af_f}): Replacing with 1..")
         result_pos_df.replace(np.inf, 1, inplace=True) # TO DO: ideally, we would like to avoid getting inf (e.g., IDH1 in TCGA_WXS_LGGNOS)   
 
 
@@ -276,8 +320,8 @@ def clustering_3d(gene,
     result_pos_df.insert(0, "Gene", gene)
     result_pos_df.insert(1, "Uniprot_ID", uniprot_id)
     result_pos_df.insert(2, "F", af_f)
-    result_pos_df.insert(4, "Mut_in_gene", mut_count)    
-    result_pos_df = add_samples_info(mut_gene_df, result_pos_df, samples_info, cmap, pae)
+    result_pos_df.insert(4, "Mut_in_gene", len(mut_gene_df))    
+    result_pos_df = add_info(mut_gene_df, result_pos_df, cmap, pae)
     result_gene_df["Clust_res"] = len(pos_hits)
     result_gene_df["Clust_mut"] = clustered_mut
     result_gene_df["Status"] = "Processed"
@@ -297,8 +341,7 @@ def clustering_3d_mp(genes,
                      cmap_prob_thr=0.5,
                      seed=None,
                      pae_path=None,
-                     thr_not_in_structure=0.1,
-                     thr_wt_mismatch=0.1):
+                     thr_mapping_issue=0.1):
     """
     Run the 3D-clustering algorithm in parallel on multiple genes.
     """
@@ -330,8 +373,7 @@ def clustering_3d_mp(genes,
                                                 cmap_prob_thr=cmap_prob_thr,
                                                 seed=seed,
                                                 pae_path=pae_path,
-                                                thr_not_in_structure=thr_not_in_structure,
-                                                thr_wt_mismatch=thr_wt_mismatch)
+                                                thr_mapping_issue=thr_mapping_issue)
         result_gene_lst.append(result_gene)
         if pos_result is not None:
             result_pos_lst.append(pos_result)
@@ -339,17 +381,10 @@ def clustering_3d_mp(genes,
         # Monitor processing
         if n == 0:
             logger.debug(f"Process [{num_process+1}] starting..")
-            logger.warning(f"Process start {num_process+1}:")
-            logger.warning(f"{memory_usage_psutil_alt()}")                                               ############################# MEMORY DEBUG ################################
-            logger.warning(f"> data {memory_usage_df(data)}")                                              ############################# MEMORY DEBUG ################################
-            logger.warning(f"> seq_df {memory_usage_df(seq_df)}")                                              ############################# MEMORY DEBUG ################################
-            logger.warning(f"> plddt_df {memory_usage_df(plddt_df)}")                                              ############################# MEMORY DEBUG ################################
         elif n % 10 == 0:
             logger.debug(f"Process [{num_process+1}] completed [{n+1}/{len(genes)}] structures..")
         elif n+1 == len(genes):
             logger.debug(f"Process [{num_process+1}] completed!")
-            logger.warning(f"Process complete {num_process+1}:")
-            logger.warning(f"{memory_usage_psutil_alt()}")        
 
     return result_gene_lst, result_pos_lst
 
@@ -366,8 +401,7 @@ def clustering_3d_mp_wrapper(genes,
                              cmap_prob_thr=0.5,
                              seed=None,
                              pae_path=None,
-                             thr_not_in_structure=0.1,
-                             thr_wt_mismatch=0.1):
+                             thr_mapping_issue=0.1):
     """
     Wrapper function to run the 3D-clustering algorithm in parallel on multiple genes.
     """
@@ -375,15 +409,12 @@ def clustering_3d_mp_wrapper(genes,
     # Split the genes into chunks for each process
     chunk_size = int(len(genes) / num_cores) + 1
     chunks = [genes[i : i + chunk_size] for i in range(0, len(genes), chunk_size)]
-    logger.warning(f"{memory_usage_psutil_alt()}")                                               ############################# MEMORY DEBUG ################################
-    logger.warning(f"data {memory_usage_df(data)}")                                              ############################# MEMORY DEBUG ################################
-    logger.warning(f"seq_df {memory_usage_df(seq_df)}")                                              ############################# MEMORY DEBUG ################################
-    logger.warning(f"plddt_df {memory_usage_df(plddt_df)}")                                              ############################# MEMORY DEBUG ################################
+    # num_cores = min(num_cores, len(chunks))
     
     # Create a pool of processes and run clustering in parallel
     with multiprocessing.Pool(processes = num_cores) as pool:
         
-        logger.debug(f'Starting [{len(chunks)}] processes...')
+        logger.debug(f'Starting [{len(chunks)}] processes..')
         results = pool.starmap(clustering_3d_mp, [(chunk,
                                                    data[data["Gene"].isin(chunk)], 
                                                    cmap_path, 
@@ -396,8 +427,7 @@ def clustering_3d_mp_wrapper(genes,
                                                    cmap_prob_thr, 
                                                    seed, 
                                                    pae_path,
-                                                   thr_not_in_structure,
-                                                   thr_wt_mismatch) 
+                                                   thr_mapping_issue) 
                                                   for n_process, chunk in enumerate(chunks)])
         
     # Parse output
