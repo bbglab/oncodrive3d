@@ -143,7 +143,7 @@ def build_datasets(output_dir,
                    yes,
                    verbose):
     """"Build datasets necessary to run Oncodrive3D."""
-    startup_message(__version__, "Initializing building datasets...")
+    startup_message(__version__, "Initializing building datasets..")
 
     logger.info(f"Current working directory: {os.getcwd()}")
     logger.info(f"Build folder path: {output_dir}")
@@ -172,32 +172,6 @@ def build_datasets(output_dir,
 # =============================================================================
 #                                     RUN
 # =============================================================================
-
-#################### DEBUG MEMORY ################À
-
-import psutil
-
-def memory_usage_psutil():
-
-    process = psutil.Process()
-    mem = process.memory_info().rss / (1024 * 1024)
-    return f"Memory usage: {mem:.0f} MB"
-
-def memory_usage_df(df):
-    
-    memory_usage_per_column = df.memory_usage(deep=True)
-    total_memory_usage = memory_usage_per_column.sum()
-    total_memory_usage_mb = total_memory_usage / (1024 * 1024)
-
-    return f"Memory usage df: {total_memory_usage_mb:.0f} MB"
-
-def memory_usage_psutil_alt():
-    
-    return f"RAM used {psutil.virtual_memory()[3]/1000000000:.0f}GB ({psutil.virtual_memory()[2]}%)"
-
-import gc  # Import garbage collector interface
-   #################### DEBUG MEMORY ################
-
 
 @oncodrive3D.command(context_settings=dict(help_option_names=['-h', '--help']),
                      help="Run 3D-clustering analysis.")
@@ -231,14 +205,12 @@ import gc  # Import garbage collector interface
               help="Disable processing of fragmented (AF-F) proteins")
 @click.option("--only_processed", is_flag=True,
               help="Include only processed genes in the output")
-@click.option("--thr_not_in_structure", type=float, default=0.1,
-              help="Threshold to filter out genes based on the ratio of mutations outside of the structure")
-@click.option("--thr_wt_mismatch", type=float, default=0.1,
-              help="Threshold to filter out genes based on the ratio of mutations having WT aa not matching the one in the structure")
+@click.option("--thr_mapping_issue", type=float, default=0.1,
+              help="Threshold to filter out genes by the ratio of mutations with mapping issue (out of structure, WT AA mismatch, zero prob to mutate)")
 @click.option("-T", "--o3d_transcripts", is_flag=True,
-              help="Filter mutations by keeping transcripts included in Oncodrive3D built sequence dataframe. Input file (--i) must be a VEP output")
+              help="Filter mutations by keeping transcripts included in Oncodrive3D built sequence dataframe. Only if input file (--i) is a raw VEP output")
 @click.option("-T", "--use_input_symbols", is_flag=True,
-              help="Update HUGO symbols in Oncodrive3D built datasets by using input file entries. Input file (--i) must be a VEP output")
+              help="Update HUGO symbols in Oncodrive3D built datasets by using input file entries. Only if input file (--i) is a raw VEP output")
 @click.option("-M", "--mane", is_flag=True,
               help="If multiple structures are associated to the same HUGO symbol in the input file, use the MANE ones.")
 @setup_logging_decorator
@@ -257,8 +229,7 @@ def run(input_maf_path,
         cohort,
         no_fragments,
         only_processed,
-        thr_not_in_structure,
-        thr_wt_mismatch,
+        thr_mapping_issue,
         o3d_transcripts,
         use_input_symbols,
         mane):
@@ -276,7 +247,7 @@ def run(input_maf_path,
     path_mutability_config = mutability_config_path if mutability_config_path else "Not provided, mutabilities will not be used"
 
     # Log
-    startup_message(__version__, "Initializing analysis...")
+    startup_message(__version__, "Initializing analysis..")
 
     logger.info(f"Input MAF: {input_maf_path}")
     logger.info(f"Input mut profile: {path_prob}")
@@ -295,8 +266,7 @@ def run(input_maf_path,
     logger.info(f"Cancer type: {cancer_type}")
     logger.info(f"Disable fragments: {bool(no_fragments)}")
     logger.info(f"Output only processed genes: {bool(only_processed)}")
-    logger.info(f"Ratio threshold mutations out of structure: {thr_not_in_structure}")
-    logger.info(f"Ratio threshold mutations with WT seq reference-structure mismatch: {thr_not_in_structure}")
+    logger.info(f"Ratio threshold mutations with mapping issue: {thr_mapping_issue}")
     logger.info(f"Seed: {seed}")
     logger.info(f"Filter input by Oncodrive3D transcripts (only if VEP output is used as input): {o3d_transcripts}")
     logger.info(f"Use HUGO symbols of input file (only if VEP output is used as input): {use_input_symbols}")
@@ -309,89 +279,24 @@ def run(input_maf_path,
     ## Load input and df of DNA sequences
 
     seq_df = pd.read_csv(seq_df_path, sep="\t")
-    logger.warning(f"{memory_usage_psutil_alt()}")                                               ############################# MEMORY DEBUG ################################
     data, seq_df = parse_maf_input(input_maf_path, 
                                    seq_df, 
                                    use_o3d_transcripts=o3d_transcripts,
                                    use_input_symbols=use_input_symbols, 
                                    mane=mane)
-    logger.warning(f"{memory_usage_psutil_alt()}")                                               ############################# MEMORY DEBUG ################################
-
-    ### OPTIMIZE FILTERING
-    
-    # def get_mapping_survey_df(data, seq_df):
-
-    #     gene_lst = []
-    #     mut_mismatch_lst = []
-    #     ratio_mismatch_lst = []
-    #     mut_count_lst = []
-    #     status_lst = []
-    #     mut_not_in_structure_lst = []
-    #     mut_not_in_seq_df = []
-    #     for gene in data.Gene.unique():
-    #         gene_lst.append(gene)
-    #         gene_maf = data[data["Gene"] == gene]
-    #         mut_count_lst.append(len(gene_maf))
-        
-    #         if gene in seq_df.Gene.unique():
-    #             seq_gene = seq_df[seq_df["Gene"] == gene].Seq.values[0]
-            
-    #             if gene_maf.Pos.max()-1 >= len(seq_gene):
-    #                 status_lst.append("not_in_structure")
-    #                 mut_mismatch_lst.append(0)
-    #                 ratio_mismatch_lst.append(0)
-    #                 mut_not_in_structure_lst.append(len(gene_maf))
-    #                 mut_not_in_seq_df.append(0)
-    #             else:
-    #                 wd_mismatch_ix = ~gene_maf.apply(lambda x: seq_gene[x.Pos-1] == x.WT, axis=1)
-    #                 if sum(wd_mismatch_ix) > 0:
-    #                     mut_mismatch = sum(wd_mismatch_ix)
-    #                     ratio_mismatch = mut_mismatch / len(gene_maf)
-    #                     mut_mismatch_lst.append(mut_mismatch)
-    #                     ratio_mismatch_lst.append(ratio_mismatch)
-    #                     status_lst.append("WT_mismatch")
-    #                 else:
-    #                     mut_mismatch_lst.append(0)
-    #                     ratio_mismatch_lst.append(0)
-    #                     status_lst.append("ok")
-    #                 mut_not_in_structure_lst.append(0)
-    #                 mut_not_in_seq_df.append(0)
-                
-    #         else:
-    #             status_lst.append("not_in_seq_df")
-    #             mut_mismatch_lst.append(0)
-    #             ratio_mismatch_lst.append(0)
-    #             mut_not_in_structure_lst.append(0)
-    #             mut_not_in_seq_df.append(len(gene_maf))
-
-    #     mut_match = np.array(mut_count_lst) - np.array(mut_mismatch)
-    #     df = pd.DataFrame({"Gene" : gene_lst,
-    #                     "Mut_count" : mut_count_lst,
-    #                     "Mut_match" : mut_match,
-    #                     "Mut_mismatch" : mut_mismatch_lst,
-    #                     "Ratio_mismatch" : ratio_mismatch_lst,
-    #                     "Mut_not_structure" : mut_not_in_structure_lst,
-    #                     "Mut_not_seq_df" : mut_not_in_seq_df,
-    #                     "Status" : status_lst})
-    #     return df
-    
-    ### END 
-    
-    
     
     if len(data) > 0:
 
         ## Run
 
-        result_np_gene_lst = []
-
         # Get genes with enough mut
+        result_np_gene_lst = []
         genes = data.groupby("Gene").apply(len)
         genes_mut = genes[genes >= 2]
         genes_no_mut = genes[genes < 2].index
 
         if len(genes_no_mut) > 0:
-            logger.debug(f"Detected [{len(genes_no_mut)}] genes without enough mutations: Skipping...")
+            logger.debug(f"Detected [{len(genes_no_mut)}] genes without enough mutations: Skipping..")
             result_gene = pd.DataFrame({"Gene" : genes_no_mut,
                                         "Uniprot_ID" : np.nan,
                                         "F" : np.nan,
@@ -405,40 +310,6 @@ def run(input_maf_path,
                                         "Transcript_status" : get_gene_entry(data, genes_no_mut, "Transcript_status"),
                                         "Status" : "No_mut"})
             result_np_gene_lst.append(result_gene)
-            
-        #### APPLY FILTER HERE --------------------------------------------->
-        
-        # # Check if there is a mutation that is not in the structure      
-        # if max(mut_gene_df.Pos) > len(seq_gene):
-        #     not_in_structure_ix = mut_gene_df.Pos > len(seq_gene)
-        #     ratio_not_in_structure = sum(not_in_structure_ix) / len(mut_gene_df.Pos)
-        #     logger_out = f"Detected {sum(not_in_structure_ix)} ({ratio_not_in_structure*100:.1f}%) mut not in the structure of {gene} ({uniprot_id}-F{af_f}): "
-        #     result_gene_df["Ratio_not_in_structure"] = ratio_not_in_structure
-        #     if ratio_not_in_structure > thr_not_in_structure:
-        #         result_gene_df["Status"] = "Mut_not_in_structure"
-        #         logger.debug(logger_out + "Filtering the gene...")
-        #         return None, result_gene_df
-        #     else:
-        #         logger.debug(logger_out + "Filtering the mutations...")
-        #         mut_gene_df = mut_gene_df[~not_in_structure_ix]
-        #         mut_count = len(mut_gene_df)
-                
-        # # Check for mismatch between WT reference and WT structure 
-        # wt_mismatch_ix = mut_gene_df.apply(lambda x: seq_gene[x.Pos-1] != x.WT, axis=1)
-        # if sum(wt_mismatch_ix) > 0:
-        #     ratio_mismatch = sum(wt_mismatch_ix) / mut_count
-        #     logger_out = f"Detected {sum(wt_mismatch_ix)} ({ratio_mismatch*100:.1f}%) mut having a reference-structure WT AA mismatch in {gene} ({uniprot_id}-F{af_f}): "
-        #     result_gene_df["Ratio_WT_mismatch"] = ratio_mismatch
-        #     if ratio_mismatch > thr_wt_mismatch:
-        #         result_gene_df["Status"] = "WT_mismatch"
-        #         logger.debug(logger_out + "Filtering the gene...")
-        #         return None, result_gene_df
-        #     else:
-        #         logger.debug(logger_out + "Filtering the mutations...")
-        #         mut_gene_df = mut_gene_df[~wt_mismatch_ix]
-        #         mut_count = len(mut_gene_df)
-            
-        #### APPLY FILTER HERE --------------------------------------------->
 
         # Seq df for metadata info
         metadata_cols = ["Uniprot_ID", "Gene", "Refseq_prot", "HGNC_ID", "Ens_Gene_ID", "Ens_Transcr_ID"]
@@ -451,7 +322,7 @@ def run(input_maf_path,
         seq_df = seq_df[seq_df["Gene"].isin(genes_to_process)].reset_index(drop=True)
         genes_no_mapping = genes[[gene in genes_mut.index and gene not in gene_to_uniprot_dict.keys() for gene in genes.index]]
         if len(genes_no_mapping) > 0:
-            logger.debug(f"Detected [{len(genes_no_mapping)}] genes without IDs mapping: Skipping...")
+            logger.debug(f"Detected [{len(genes_no_mapping)}] genes without IDs mapping: Skipping..")
             result_gene = pd.DataFrame({"Gene" : genes_no_mapping.index,
                                         "Uniprot_ID" : np.nan,
                                         "F" : np.nan,
@@ -474,7 +345,7 @@ def run(input_maf_path,
             genes_frag_mut = genes_mut[[gene in genes_frag for gene in genes_mut.index]]
             genes_frag = genes_frag_mut.index.values
             if len(genes_frag) > 0:
-                logger.debug(f"Detected [{len(genes_frag)}] fragmented genes with disabled fragments processing: Skipping...")
+                logger.debug(f"Detected [{len(genes_frag)}] fragmented genes with disabled fragments processing: Skipping..")
                 result_gene = pd.DataFrame({"Gene" : genes_frag,
                                             "Uniprot_ID" : np.nan, 
                                             "F" : np.nan,
@@ -498,13 +369,13 @@ def run(input_maf_path,
         if start_mut > 0:
             genes_start_mut = list(data[start_mut_ix].Gene.unique())
             data = data[~start_mut_ix]
-            logger.warning(f"Detected {start_mut} start-loss mutations in {len(genes_start_mut)} genes {genes_start_mut}: Filtering mutations...")
+            logger.warning(f"Detected {start_mut} start-loss mutations in {len(genes_start_mut)} genes {genes_start_mut}: Filtering mutations..")
 
         ## Missense mut prob
         
         # Using mutabilities if provided
         if mutability_config_path is not None:
-            logger.info("Computing missense mut probabilities using mutabilities...")
+            logger.info("Computing missense mut probabilities using mutabilities..")
             mutab_config = json.load(open(mutability_config_path, encoding="utf-8"))
             init_mutabilities_module(mutab_config)
             seq_df = seq_df[seq_df["Reference_info"] == 1]   
@@ -514,8 +385,15 @@ def run(input_maf_path,
             miss_prob_dict = get_miss_mut_prob_dict(mut_rate_dict=None, seq_df=seq_df,
                                                     mutability=True, mutability_config=mutab_config)
             
+            ### DEBUG
+            logger.critical("Writing miss_prob_dict.json for debugging")                                      ### TO DEL <---------------------------------------------------- DEL
+            with open(f"{output_dir}/miss_prob_dict.json", 'w') as file:
+                json.dump(miss_prob_dict, file, indent=4)
+            ### END DEBUG 
+            
+            
             if len(genes_not_mutability) > 0:   
-                logger.debug(f"Detected [{len(genes_not_mutability)}] genes without mutability information: Skipping...")
+                logger.debug(f"Detected [{len(genes_not_mutability)}] genes without mutability information: Skipping..")
                 result_gene = pd.DataFrame({"Gene" : genes_not_mutability,
                                             "Uniprot_ID" : np.nan,
                                             "F" : np.nan,
@@ -534,7 +412,7 @@ def run(input_maf_path,
         elif mut_profile_path is not None:
             # Compute dict from mut profile of the cohort and dna sequences
             mut_profile = json.load(open(mut_profile_path, encoding="utf-8"))
-            logger.info("Computing missense mut probabilities...")
+            logger.info("Computing missense mut probabilities..")
             if not isinstance(mut_profile, dict):
                 mut_profile = mut_rate_vec_to_dict(mut_profile)
             miss_prob_dict = get_miss_mut_prob_dict(mut_rate_dict=mut_profile, seq_df=seq_df)
@@ -547,19 +425,11 @@ def run(input_maf_path,
             result_np_gene = pd.concat(result_np_gene_lst)
             result_np_gene["Uniprot_ID"] = [gene_to_uniprot_dict[gene] if gene in gene_to_uniprot_dict.keys() else np.nan for gene in result_np_gene["Gene"].values]
         if len(genes_to_process) > 0:
-            logger.info(f"Performing 3D-clustering on [{len(seq_df)}] proteins...")
+            logger.info(f"Performing 3D-clustering on [{len(seq_df)}] proteins..")
             seq_df = seq_df[["Gene", "Uniprot_ID", "F", "Seq"]]
             plddt_df = pd.read_csv(plddt_path, sep="\t", usecols=["Pos", "Confidence", "Uniprot_ID"], dtype={"Pos" : np.int32,
                                                                                                              "Confidence" : np.float32, 
                                                                                                              "Uniprot_ID" : "object"})  
-
-            ############################# MEMORY DEBUG ################################
-
-            logger.warning(f"> Before clustering")    
-            logger.warning(f"data {memory_usage_df(data)}")
-            logger.warning(f"seq_df {memory_usage_df(seq_df)}")
-            logger.warning(f"plddt_df {memory_usage_df(plddt_df)}")
-        
             
             result_pos, result_gene = clustering_3d_mp_wrapper(genes=genes_to_process,
                                                                data=data,
@@ -573,8 +443,7 @@ def run(input_maf_path,
                                                                cmap_prob_thr=cmap_prob_thr,
                                                                seed=seed,
                                                                pae_path=pae_path,
-                                                               thr_not_in_structure=thr_not_in_structure,
-                                                               thr_wt_mismatch=thr_wt_mismatch)
+                                                               thr_mapping_issue=thr_mapping_issue)
             if result_np_gene_lst:
                 result_gene = pd.concat((result_gene, result_np_gene))
         else:
@@ -588,8 +457,8 @@ def run(input_maf_path,
 
         result_gene["Cancer"] = cancer_type
         result_gene["Cohort"] = cohort
-        output_path_pos = os.path.join(output_dir, f"{cohort}.3d_clustering_pos.tsv")
-        output_path_genes = os.path.join(output_dir, f"{cohort}.3d_clustering_genes.tsv")
+        output_path_pos = os.path.join(output_dir, f"{cohort}.3d_clustering_pos.csv")
+        output_path_genes = os.path.join(output_dir, f"{cohort}.3d_clustering_genes.csv")
         
         # Add extra metadata
         result_gene = result_gene.merge(seq_df_all, on=["Gene", "Uniprot_ID"], how="left")
@@ -604,8 +473,8 @@ def run(input_maf_path,
             result_gene = sort_cols(result_gene)
             if no_fragments:
                 result_gene = result_gene.drop(columns=[col for col in ["F", "Mut_in_top_F", "Top_F"] if col in result_gene.columns])
-            empty_result_pos().to_csv(output_path_pos, index=False, sep="\t")
-            result_gene.to_csv(output_path_genes, index=False, sep="\t")
+            empty_result_pos().to_csv(output_path_pos, index=False)
+            result_gene.to_csv(output_path_genes, index=False)
 
             logger.info(f"Saving (empty) {output_path_pos}")
             logger.info(f"Saving {output_path_genes}")
@@ -614,7 +483,7 @@ def run(input_maf_path,
             # Save res-level result
             result_pos["Cancer"] = cancer_type
             result_pos["Cohort"] = cohort
-            result_pos.to_csv(output_path_pos, index=False, sep="\t")
+            result_pos.to_csv(output_path_pos, index=False)
 
             # Get gene global pval, qval, and clustering annotations and save gene-level result
             result_gene = get_final_gene_result(result_pos, result_gene, alpha)
@@ -623,12 +492,11 @@ def run(input_maf_path,
             if no_fragments:
                 result_gene = result_gene.drop(columns=[col for col in ["F", "Mut_in_top_F", "Top_F"] if col in result_gene.columns])
             with np.printoptions(linewidth=10000):
-                result_gene.to_csv(output_path_genes, index=False, sep="\t")
+                result_gene.to_csv(output_path_genes, index=False)
 
             logger.info(f"Saving {output_path_pos}")
             logger.info(f"Saving {output_path_genes}")
 
-        logger.critical(f"END {memory_usage_psutil_alt()}")       
         logger.info("3D-clustering analysis completed!")
 
     else:
@@ -649,6 +517,7 @@ def run(input_maf_path,
                help="Get annotations - Required (once) only to plot annotations.")
 @click.option("-d", "--data_dir", help="Path to datasets", type=str, required=True)
 @click.option("-o", "--output_dir", help="Path to dir where to store annotations", type=str, default="annotations")
+@click.option("-g", "--ddg_dir", help="Path to custom ddG predictions", type=str)
 #@click.option("-S", "--path_pdb_tool_sif", help="Path to the PDB_Tool SIF", type=str, required=True) 
 @click.option("-s", "--organism", type=click.Choice(["Homo sapiens", 'human', "Mus musculus", 'mouse']), help="Organism name", default="Homo sapiens")
 @click.option("-c", "--cores", type=click.IntRange(min=1, max=len(os.sched_getaffinity(0)), clamp=False), default=len(os.sched_getaffinity(0)),
@@ -658,6 +527,7 @@ def run(input_maf_path,
 @setup_logging_decorator
 def build_annotations(data_dir,
                       output_dir,
+                      ddg_dir,
                       #path_pdb_tool_sif,
                       organism,
                       cores,
@@ -669,10 +539,11 @@ def build_annotations(data_dir,
     Example: oncodrive3D build-annotations -o /workspace/projects/clustering_3d/o3d_analysys/datasets/annotations -v
     """
 
-    startup_message(__version__, "Initializing building annotations...")
+    startup_message(__version__, "Initializing building annotations..")
     
     logger.info(f"Output directory: {output_dir}")
     logger.info(f"Path to datasets: {data_dir}")
+    logger.info(f"Path to custom ddG predictions: {ddg_dir}")
     #logger.info(f"Path to PDB_Tool SIF: {path_pdb_tool_sif}")
     logger.info(f"Organism: {organism}")
     logger.info(f"Cores: {cores}")
@@ -682,6 +553,7 @@ def build_annotations(data_dir,
 
     get_annotations(data_dir, 
                     output_dir, 
+                    ddg_dir,
                     #path_pdb_tool_sif,
                     organism,
                     cores)
@@ -693,10 +565,10 @@ def build_annotations(data_dir,
 # =============================================================================
 
 # Example:
-# oncodrive3D plot --annotations all --output_tsv --non_significant -r kidney_231204 -g /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/kidney_231204/kidney_231204.3d_clustering_genes.tsv -p /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/kidney_231204/kidney_231204.3d_clustering_pos.tsv -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/kidney_231204 -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/kidney_pilot/all_mutations.all_samples.tsv -d /workspace/projects/clustering_3d/clustering_3d/datasets -a /workspace/projects/clustering_3d/o3d_analysys/datasets/annotations -j /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/kidney_pilot/mutability_kidney.json
-# oncodrive3D plot --annotations all --output_tsv --non_significant -r bladder_231204 -g /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/bladder_231204/bladder_231204.3d_clustering_genes.tsv -p /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/bladder_231204/bladder_231204.3d_clustering_pos.tsv -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/bladder_231204 -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/bladder_pilot/all_mutations.all_samples.tsv -d /workspace/projects/clustering_3d/clustering_3d/datasets -a /workspace/projects/clustering_3d/o3d_analysys/datasets/annotations -j /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/bladder_pilot/mutability_bladder.json
-# oncodrive3D plot --output_tsv --non_significant -r TCGA_WXS_COADREAD -g /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/results/TCGA_WXS_COADREAD.3d_clustering_genes.tsv -p /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/results/TCGA_WXS_COADREAD.3d_clustering_pos.tsv -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/maf/TCGA_WXS_COADREAD.in.maf -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/plots -m /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/mut_profile/TCGA_WXS_COADREAD.mutrate.json -d /workspace/projects/clustering_3d/clustering_3d/datasets -a /workspace/projects/clustering_3d/o3d_analysys/datasets/annotations
-# oncodrive3D plot --output_tsv --non_significant -r TCGA_WXS_BLCA -g /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/results/TCGA_WXS_BLCA.3d_clustering_genes.tsv -p /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/results/TCGA_WXS_BLCA.3d_clustering_pos.tsv -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/maf/TCGA_WXS_BLCA.in.maf -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/plots -m /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/mut_profile/TCGA_WXS_BLCA.mutrate.json -d /workspace/projects/clustering_3d/clustering_3d/datasets -a /workspace/projects/clustering_3d/o3d_analysys/datasets/annotations
+# oncodrive3D plot --annotations all --output_tsv --non_significant -r kidney_231204 -g /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/kidney_231204/kidney_231204.3d_clustering_genes.csv -p /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/kidney_231204/kidney_231204.3d_clustering_pos.csv -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/kidney_231204 -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/kidney_pilot/all_mutations.all_samples.tsv -d /workspace/projects/clustering_3d/clustering_3d/datasets -a /workspace/projects/clustering_3d/o3d_analysys/datasets/annotations -j /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/kidney_pilot/mutability_kidney.json
+# oncodrive3D plot --annotations all --output_tsv --non_significant -r bladder_231204 -g /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/bladder_231204/bladder_231204.3d_clustering_genes.csv -p /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/bladder_231204/bladder_231204.3d_clustering_pos.csv -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/bladder_231204 -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/bladder_pilot/all_mutations.all_samples.tsv -d /workspace/projects/clustering_3d/clustering_3d/datasets -a /workspace/projects/clustering_3d/o3d_analysys/datasets/annotations -j /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/bladder_pilot/mutability_bladder.json
+# oncodrive3D plot --output_tsv --non_significant -r TCGA_WXS_COADREAD -g /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/results/TCGA_WXS_COADREAD.3d_clustering_genes.csv -p /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/results/TCGA_WXS_COADREAD.3d_clustering_pos.csv -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/maf/TCGA_WXS_COADREAD.in.maf -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/plots -m /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/mut_profile/TCGA_WXS_COADREAD.mutrate.json -d /workspace/projects/clustering_3d/clustering_3d/datasets -a /workspace/projects/clustering_3d/o3d_analysys/datasets/annotations
+# oncodrive3D plot --output_tsv --non_significant -r TCGA_WXS_BLCA -g /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/results/TCGA_WXS_BLCA.3d_clustering_genes.csv -p /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/results/TCGA_WXS_BLCA.3d_clustering_pos.csv -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/maf/TCGA_WXS_BLCA.in.maf -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/plots -m /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/mut_profile/TCGA_WXS_BLCA.mutrate.json -d /workspace/projects/clustering_3d/clustering_3d/datasets -a /workspace/projects/clustering_3d/o3d_analysys/datasets/annotations
 
 
 @oncodrive3D.command(context_settings=dict(help_option_names=['-h', '--help']),
@@ -753,7 +625,7 @@ def plot(gene_result_path,
          verbose):
     """"Generate plots for a quick interpretation of the 3D-clustering analysis."""
 
-    startup_message(__version__, "Starting plot generation...")
+    startup_message(__version__, "Starting plot generation..")
 
     logger.info(f"Gene-level Oncodrive3D result: {gene_result_path}")
     logger.info(f"Position-level Oncodrive3D result: {pos_result_path}")
