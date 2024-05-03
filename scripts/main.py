@@ -385,13 +385,6 @@ def run(input_maf_path,
             miss_prob_dict = get_miss_mut_prob_dict(mut_rate_dict=None, seq_df=seq_df,
                                                     mutability=True, mutability_config=mutab_config)
             
-            ### DEBUG
-            logger.critical("Writing miss_prob_dict.json for debugging")                                      ### TO DEL <---------------------------------------------------- DEL
-            with open(f"{output_dir}/miss_prob_dict.json", 'w') as file:
-                json.dump(miss_prob_dict, file, indent=4)
-            ### END DEBUG 
-            
-            
             if len(genes_not_mutability) > 0:   
                 logger.debug(f"Detected [{len(genes_not_mutability)}] genes without mutability information: Skipping..")
                 result_gene = pd.DataFrame({"Gene" : genes_not_mutability,

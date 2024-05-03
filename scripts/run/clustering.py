@@ -14,8 +14,9 @@ from scripts import __logger_name__
 from scripts.run.communities import get_community_index_nx, get_network
 from scripts.run.miss_mut_prob import get_unif_gene_miss_prob
 from scripts.run.score_and_simulations import (get_anomaly_score,
-                                                 get_sim_anomaly_score)
-from scripts.run.utils import add_info, get_samples_info
+                                               get_sim_anomaly_score,
+                                               recompute_inf_score)
+from scripts.run.utils import add_info
 
 logger = daiquiri.getLogger(__logger_name__ + ".run.clustering")
 
@@ -39,9 +40,14 @@ def process_mapping_issue(issue_ix,
     if issue_type == "Mut_not_in_structure":
         logger_txt="mut not in the structure"
         df_col = "Ratio_not_in_structure"
-    elif type == "WT_mismatch":
+    elif issue_type == "WT_mismatch":
         logger_txt="mut with ref-structure WT AA mismatch"
         df_col = "Ratio_WT_mismatch"
+    else:
+        logger.warning(f"'{issue_type}' is not a valid issue type, please select 'Mut_not_in_structure' or 'Ratio_not_in_structure': Skipping processing mapping issue..")
+        filter_gene = False
+        
+        return filter_gene, result_gene_df, mut_gene_df
         
     ratio_issue = sum(issue_ix) / len(mut_gene_df)
     logger_out = f"Detected {sum(issue_ix)} ({ratio_issue*100:.1f}%) {logger_txt} of {gene} ({uniprot_id}-F{af_f}, transcript status = {transcript_status}): "
@@ -145,8 +151,8 @@ def clustering_3d(gene,
                                                                          uniprot_id, 
                                                                          af_f, 
                                                                          transcript_status, 
-                                                                         thr_mapping_issue, 
-                                                                         logger_txt="mut not in the structure")
+                                                                         thr_mapping_issue,
+                                                                         issue_type="Mut_not_in_structure")
         if filter_gene:
             return None, result_gene_df
             
@@ -160,8 +166,8 @@ def clustering_3d(gene,
                                                                          uniprot_id, 
                                                                          af_f, 
                                                                          transcript_status, 
-                                                                         thr_mapping_issue, 
-                                                                         logger_txt="mut with ref-structure WT AA mismatch")
+                                                                         thr_mapping_issue,
+                                                                         issue_type="WT_mismatch")
         if filter_gene:
             return None, result_gene_df
 
@@ -258,13 +264,16 @@ def clustering_3d(gene,
     # Get ranked observed score (loglik+_LFC) 
     no_mut_pos = len(result_pos_df)
     sim_anomaly = sim_anomaly.iloc[:no_mut_pos,:].reset_index()
-    result_pos_df["Obs_anomaly"] = get_anomaly_score(result_pos_df["Mut_in_vol"], len(mut_gene_df), vol_missense_mut_prob[result_pos_df["Pos"]-1])
+    result_pos_df["Obs_anomaly"] = get_anomaly_score(result_pos_df["Mut_in_vol"], 
+                                                     len(mut_gene_df), 
+                                                     vol_missense_mut_prob[result_pos_df["Pos"]-1])
+    if np.isinf(result_pos_df.Obs_anomaly).any():
+        logger.debug(f"Detected inf observed score in gene {gene} ({uniprot_id}-F{af_f}): Recomputing with higher precision..")
+        result_pos_df = recompute_inf_score(result_pos_df, len(mut_gene_df), vol_missense_mut_prob[result_pos_df["Pos"]-1])
+        
     mut_in_res = count.reset_index().rename(columns = {"Pos" : "Mut_in_res", "index" : "Pos"})      
     result_pos_df = mut_in_res.merge(result_pos_df, on = "Pos", how = "outer")                          
     result_pos_df = result_pos_df.sort_values("Obs_anomaly", ascending=False).reset_index(drop=True)
-    if np.isinf(result_pos_df["Obs_anomaly"].values).any():
-        logger.warning(f"Detected infinity observed anomaly in gene {gene} ({uniprot_id}-F{af_f}): Replacing with 1..")
-        result_pos_df.replace(np.inf, 1, inplace=True) # TO DO: ideally, we would like to avoid getting inf (e.g., IDH1 in TCGA_WXS_LGGNOS)   
 
 
     ## Compute p-val and assign hits
