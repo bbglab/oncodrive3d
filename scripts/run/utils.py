@@ -145,9 +145,7 @@ def parse_vep_output(df,
     # TO DO: check for mut ID instead of tumor sample (IF VEP OUTPUT AS INPUT)
 
     df.rename(columns={"SYMBOL": "Hugo_Symbol",
-                       "Consequence": "Variant_Classification",
-                       "#Uploaded_variation": "Tumor_Sample_Barcode",
-                       "#UploadedVariation": "Tumor_Sample_Barcode"}, inplace=True)
+                       "Consequence": "Variant_Classification"}, inplace=True)
             
     # Adapt HUGO_Symbol in seq_df to input file
     if seq_df is not None and use_input_symbols:
@@ -164,8 +162,9 @@ def parse_vep_output(df,
     # Get HGVSp
     if "HGVSp_Short" not in df.columns and "Amino_acids" in df.columns and "Protein_position" in df.columns:
         df["HGVSp_Short"] = df.apply(get_hgvsp_mut, axis=1)
-        
-    df["Tumor_Sample_Barcode"] = df['Tumor_Sample_Barcode'].apply(reduce_sample_id)
+    
+    if "Tumor_Sample_Barcode" in df.columns:
+        df["Tumor_Sample_Barcode"] = df['Tumor_Sample_Barcode'].apply(reduce_sample_id)
         
     return df, seq_df
 
@@ -229,8 +228,6 @@ def read_input(input_path):
     """
 
     cols_to_read = ["Variant_Classification",
-                    "#Uploaded_variation", 
-                    "#UploadedVariation",
                     "Tumor_Sample_Barcode",
                     "Feature", 
                     "Transcript_ID",
@@ -329,10 +326,10 @@ def get_samples_info(mut_gene_df, cmap):
 
     # Get the ratio of unique samples with mut in the vol of each mutated res
     uniq_pos_barcodes = [len(pos_barcodes[[pos in np.where(cmap[i-1])[0]+1 for 
-                                           pos in pos_barcodes.Pos]].Barcode.explode().unique()) for i in pos_barcodes.Pos]
+                                        pos in pos_barcodes.Pos]].Barcode.explode().unique()) for i in pos_barcodes.Pos]
     pos_barcodes["Tot_samples"] = tot_samples        
     pos_barcodes["Samples_in_vol"] = uniq_pos_barcodes
-    #pos_barcodes["Ratio_samples_in_vol"] = np.array(uniq_pos_barcodes) / tot_samples       
+    #pos_barcodes["Ratio_samples_in_vol"] = np.array(uniq_pos_barcodes) / tot_samples     
     
     return pos_barcodes
 
@@ -403,13 +400,15 @@ def add_info(mut_gene_df, result_pos_df, cmap, pae=None):
     to the residues-level output of the tool.
     """
 
-    # Get sample info
-    samples_info = get_samples_info(mut_gene_df, cmap)
+    # Add sample info
+    if "Tumor_Sample_Barcode" in mut_gene_df.columns:
+        samples_info = get_samples_info(mut_gene_df, cmap)
+        result_pos_df = result_pos_df.merge(samples_info.drop(columns=["Barcode"]), on="Pos", how="outer")
+    else:
+        result_pos_df["Tot_samples"] = np.nan
+        result_pos_df["Samples_in_vol"] = np.nan
 
-    # Add samples in vol
-    result_pos_df = result_pos_df.merge(samples_info.drop(columns=["Barcode"]), on="Pos", how="outer")
-    
-    # Get per-community ratio of mutated samples
+    # Get per-community info
     if result_pos_df["Cluster"].isna().all():
         result_pos_df["Samples_in_cl_vol"] = np.nan
         result_pos_df["Mut_in_cl_vol"] = np.nan
@@ -419,13 +418,15 @@ def add_info(mut_gene_df, result_pos_df, cmap, pae=None):
         community_pos = result_pos_df.groupby("Cluster").apply(lambda x: x.Pos.values)
         community_mut = community_pos.apply(lambda x: sum([pos in get_unique_pos_in_contact(x, cmap) for 
                                                            pos in mut_gene_df.Pos]))
-        community_samples = community_pos.apply(lambda x: 
-                                        len(mut_gene_df[[pos in get_unique_pos_in_contact(x, cmap) for 
-                                                         pos in mut_gene_df.Pos]].Tumor_Sample_Barcode.unique()))
         community_plddt = community_pos.apply(lambda x: mut_gene_df.Confidence[[pos in get_unique_pos_in_contact(x, cmap) 
                                                                              for pos in mut_gene_df.Pos]].mean())
-
         community_pos_count = community_pos.apply(lambda x: len(x))
+        if "Tumor_Sample_Barcode" in mut_gene_df.columns:
+            community_samples = community_pos.apply(lambda x: 
+                                            len(mut_gene_df[[pos in get_unique_pos_in_contact(x, cmap) for 
+                                                            pos in mut_gene_df.Pos]].Tumor_Sample_Barcode.unique()))
+        else:
+            community_samples = np.nan
         community_samples = pd.DataFrame({"Samples_in_cl_vol" : community_samples, 
                                           "Mut_in_cl_vol" : community_mut,
                                           "Res_in_cl" : community_pos_count,
@@ -441,12 +442,6 @@ def add_info(mut_gene_df, result_pos_df, cmap, pae=None):
         result_pos_df["PAE_vol"] = np.nan
         
     # AF confidence
-    for pos in result_pos_df.Pos:                                                                              ############### DEBUG
-        try:
-            mut_gene_df.Confidence[mut_gene_df["Pos"] == pos].values[0]
-        except:
-            logger.critical(f"FAIL pos: {pos}")
-            print(mut_gene_df[mut_gene_df["Pos"] == pos])        ############### DEBUG
     result_pos_df["pLDDT_res"] = result_pos_df.apply(lambda x: mut_gene_df.Confidence[mut_gene_df["Pos"] == x.Pos].values[0], axis=1)
     result_pos_df["pLDDT_vol"] = result_pos_df.apply(lambda x: weighted_avg_plddt_vol(x["Pos"], mut_gene_df, cmap), axis=1)
     result_pos_df["pLDDT_cl_vol"] = result_pos_df.pop("pLDDT_cl_vol")
