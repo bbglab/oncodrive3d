@@ -121,8 +121,6 @@ def oncodrive3D():
               help="Version of the MANE Select release from NCBI")
 @click.option("-d", "--distance_threshold", type=click.INT, default=10,
               help="Distance threshold (Å) to define contact between amino acids")
-@click.option("-u", "--uniprot_to_hugo", type=click.Path(exists=True), 
-              help="Optional path to custom dict including Uniprot to HUGO IDs mapping")
 @click.option("-c", "--cores", type=click.IntRange(min=1, max=len(os.sched_getaffinity(0)), clamp=False), default=len(os.sched_getaffinity(0)),
               help="Number of cores to use in the computation")
 @click.option("-a", "--af_version", type=click.IntRange(min=1, max=4, clamp=False), default=4,
@@ -136,7 +134,6 @@ def build_datasets(output_dir,
                    organism,
                    mane,
                    distance_threshold,
-                   uniprot_to_hugo,
                    cores, 
                    af_version,
                    mane_version,
@@ -150,7 +147,6 @@ def build_datasets(output_dir,
     logger.info(f"Organism: {organism}")
     logger.info(f"MANE Select: {mane}")
     logger.info(f"Distance threshold: {distance_threshold}Å")
-    logger.info(f"Custom IDs mapping: {uniprot_to_hugo}")
     logger.info(f"CPU cores: {cores}")
     logger.info(f"AlphaFold version: {af_version}")
     logger.info(f"MANE version: {mane_version}")
@@ -162,7 +158,6 @@ def build_datasets(output_dir,
           organism,
           mane,
           distance_threshold,
-          uniprot_to_hugo,
           cores,
           af_version,
           mane_version)

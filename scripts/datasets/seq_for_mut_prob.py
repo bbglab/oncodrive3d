@@ -20,6 +20,8 @@ import os
 import re
 import time
 
+import subprocess
+import shlex
 import ast
 import daiquiri
 import numpy as np
@@ -30,7 +32,6 @@ import sys
 from tqdm import tqdm
 from bgreference import hg38, mm39
 from Bio.Seq import Seq
-from urllib.request import urlretrieve
 
 
 from scripts import __logger_name__
@@ -38,8 +39,6 @@ from scripts.datasets.utils import (download_single_file,
                                     get_af_id_from_pdb,
                                     get_pdb_path_list_from_dir,
                                     get_seq_from_pdb, 
-                                    get_seq_similarity,
-                                    translate_dna, 
                                     uniprot_to_hugo, 
                                     uniprot_to_hugo_pressed)
 
@@ -82,133 +81,6 @@ def initialize_seq_df(input_path, uniprot_to_gene_dict):
                            }).sort_values(["Gene", "F"])
 
     return seq_df
-
-
-# def initialize_seq_df(path_to_pdb, uniprot_to_gene_dict):
-#     """
-#     Parse any PDB structure from a given directory and create 
-#     a dataframe including HUGO symbol, Uniprot-ID, AF fragment,
-#     and protein sequence.
-#     """
-    
-#     # Get all PDB path in directory whose IDs can be mapped to HUGO symbols
-#     list_prot_path = get_pdb_path_list_from_dir(path_to_pdb)
-#     list_prot_path = [path for path in list_prot_path if get_af_id_from_pdb(path).split("-F")[0] in uniprot_to_gene_dict.keys()]
-#     pdb_not_mapped = set([get_af_id_from_pdb(path).split("-F")[0] 
-#                           for path in list_prot_path if get_af_id_from_pdb(path).split("-F")[0] not in uniprot_to_gene_dict.keys()])
-#     if len(pdb_not_mapped) > 0:                                 
-#         logger.warning(f"{len(pdb_not_mapped)} Uniprot-ID not found in the Uniprot-HUGO mapping dictionary.")
-
-#     # Get Uniprot ID, HUGO, F and protein sequence of any PDB in dir
-#     gene_lst = []
-#     uni_id_lst = []
-#     f_lst = []
-#     seq_lst = []
-
-#     for path_structure in tqdm(list_prot_path, total=len(list_prot_path), desc="Generating sequence df"):
-#         uniprot_id, f = get_af_id_from_pdb(path_structure).split("-F")
-#         gene = uniprot_to_gene_dict[uniprot_id]
-#         seq = "".join(list(get_seq_from_pdb(path_structure)))
-#         gene_lst.append(gene)
-#         uni_id_lst.append(uniprot_id)
-#         f_lst.append(f)
-#         seq_lst.append(seq)
-
-#     seq_df = pd.DataFrame({"Gene" : gene_lst, 
-#                            "Uniprot_ID" : uni_id_lst, 
-#                            "F" : f_lst, 
-#                            "Seq" : seq_lst
-#                            }).sort_values(["Gene", "F"])
-
-#     return seq_df
-    
-
-# import shutil  ##  TO DELETE
-
-# def initialize_seq_df_from_mane(path_to_datasets):
-#     """
-#     Parse any PDB structure from a given directory and create a 
-#     dataframe including HUGO symbol, HGNC_ID, RefSeq_prot, MANE 
-#     missing status, Uniprot-ID, AF fragment, and protein sequence.
-#     Include only Uniprot IDs overlapping with MANE trascripts.
-#     Mane missing status of 1 indicates that there might not be a perfect 
-#     match between the Uniprot ID and the corresponding MANE transcript.
-#     """
-
-#     # Select structures
-#     path_to_pdb = os.path.join(path_to_datasets, "pdb_structures")
-#     uniprot_ids = os.listdir(path_to_pdb)
-#     uniprot_ids = [uni_id.split("-")[1] for uni_id in list(set(uniprot_ids)) if ".pdb" in uni_id]
-
-#     # Load MANE metadata
-#     mane_summary_path = os.path.join(path_to_datasets, "mane_summary.txt.gz")
-#     if not os.path.exists(mane_summary_path):
-#         url_mane_summary = "https://ftp.ncbi.nlm.nih.gov/refseq/MANE/MANE_human/release_1.0/MANE.GRCh38.v1.0.summary.txt.gz"
-#         _ = urlretrieve(url_mane_summary, f"{path_to_datasets}/mane_summary.txt.gz")
-#     mane_to_af_path = os.path.join(path_to_datasets, "mane_refseq_prot_to_alphafold.csv")
-#     mane_missing_path = os.path.join(path_to_datasets, "mane_missing.csv")
-#     for path in [mane_to_af_path, mane_missing_path]:
-#         if not os.path.exists(path):
-#             logger.error(f"MANE metadata file {path} not found. Exiting..")
-#     mane_to_af = pd.read_csv(mane_to_af_path)
-#     mane_missing = pd.read_csv(mane_missing_path)
-#     mane_summary = pd.read_csv(mane_summary_path, compression='gzip', sep="\t")
-
-#     # Parse
-#     mane_to_af = mane_to_af.rename(columns={"refseq_prot" : "RefSeq_prot",
-#                                             "uniprot_accession" : "Uniprot_ID"})
-#     mane_to_af["Mane_missing"] = 0
-#     mane_to_af_missing = mane_missing.rename(columns={"refseq_prot" : "RefSeq_prot", 
-#                                                       "uniprot_accession(s)" : "Uniprot_ID"})
-#     mane_to_af_missing["Mane_missing"] = 1
-#     mane_summary = mane_summary.rename(columns={"symbol" : "Gene"})
-#     mane_to_af = pd.concat((mane_to_af[["RefSeq_prot", "Uniprot_ID", "Mane_missing"]], 
-#                             mane_to_af_missing[["RefSeq_prot", "Uniprot_ID", "Mane_missing"]])).dropna(subset="Uniprot_ID")
-#     id_mapping = mane_to_af[["RefSeq_prot", "Uniprot_ID", "Mane_missing"]].merge(
-#         mane_summary[["RefSeq_prot", "Gene", "HGNC_ID"]], on="RefSeq_prot", how="inner")
-#     id_mapping["Uniprot_ID"] = id_mapping.apply(lambda x: 
-#                                                 select_uni_id(x.Uniprot_ID.split(";"), uniprot_ids) if len(x.Uniprot_ID.split(";")) > 1 
-#                                                 else x.Uniprot_ID, axis=1)
-
-#     # Select only available Uniprot IDs matching MANE
-#     id_mapping = id_mapping.dropna(subset=["Uniprot_ID", "Gene"])
-#     id_mapping = id_mapping[id_mapping.apply(lambda x: x.Uniprot_ID in uniprot_ids, axis=1)]
-
-#     # Get metadata 
-#     uni_id_lst = []
-#     f_lst = []
-#     gene_lst = []
-#     hgnc_lst = []
-#     refseq_lst = []
-#     mane_missing_lst = []
-#     seq_lst = []
-
-#     list_prot_path = get_pdb_path_list_from_dir(path_to_pdb)
-#     for path_structure in tqdm(list_prot_path, total=len(list_prot_path), desc="Generating sequence df"):
-#         uniprot_id, f = get_af_id_from_pdb(path_structure).split("-F")
-        
-#         if uniprot_id in id_mapping.Uniprot_ID.unique() and uniprot_id not in uni_id_lst:
-#             row = id_mapping[id_mapping["Uniprot_ID"] == uniprot_id].values[0]
-#             refseq, _, mane_missing, hugo_id, hgnc_id = row
-#             seq = "".join(list(get_seq_from_pdb(path_structure)))
-#             uni_id_lst.append(uniprot_id)
-#             f_lst.append(f)
-#             gene_lst.append(hugo_id)
-#             hgnc_lst.append(hgnc_id)
-#             refseq_lst.append(refseq)
-#             mane_missing_lst.append(mane_missing)
-#             seq_lst.append(seq)
-
-#     seq_df = pd.DataFrame({"Uniprot_ID" : uni_id_lst, 
-#                            "F" : f_lst, 
-#                            "Gene" : gene_lst, 
-#                            "HGNC_ID" : hgnc_lst, 
-#                            "Refseq_prot" : refseq_lst,
-#                            "Mane_missing" : mane_missing_lst,
-#                            "Seq" : seq_lst
-#                            }).sort_values(["Gene", "F"])
-    
-#     return seq_df
 
 
 #==============================================
@@ -341,9 +213,20 @@ def _uniprot_request_coord(lst_uniprot_ids):
     for dictio in json.loads(r.text):
 
         yield dictio
+        
+        
+def get_sorted_transcript_lst(dictio, canonical_ids):
+    """
+    Sort a list of tuple (index, transcript ID) placing the 
+    Ensembl canonical transcript as first element, if present.
+    """
+    
+    lst_tuple_ix_id = [(i, coord_dict["ensemblTranscriptId"]) for (i, coord_dict) in enumerate(dictio)]
+    
+    return sorted(lst_tuple_ix_id, key=lambda x: x[1] in canonical_ids, reverse=True)
 
 
-def get_batch_exons_coord(batch_ids):
+def get_batch_exons_coord(batch_ids, ens_canonical_transcripts_lst):
     """
     Parse the json obtained from the Coordinates service extracting 
     exons coordinates and protein info.
@@ -365,11 +248,11 @@ def get_batch_exons_coord(batch_ids):
         uni_id = dic["accession"]
         seq = dic["sequence"]
         
-        # Iterate throug the transcripts
-        for i in range(len(dic["gnCoordinate"])):
+        # Iterate throug the transcripts (starting from Ensembl canonical one if present)
+        sorted_transcript_lst = get_sorted_transcript_lst(dic["gnCoordinate"], ens_canonical_transcripts_lst)
+        for i, ens_transcr_id in sorted_transcript_lst:
 
             ens_gene_id = dic["gnCoordinate"][i]["ensemblGeneId"]
-            ens_transcr_id = dic["gnCoordinate"][i]["ensemblTranscriptId"]
             dic_loc = dic["gnCoordinate"][i]["genomicLocation"]
             exons = dic_loc["exon"]
             chromosome = dic_loc["chromosome"]
@@ -419,7 +302,7 @@ def get_batch_exons_coord(batch_ids):
                          "Exons_coord" : lst_ranges})
 
 
-def get_exons_coord(ids, batch_size=100):
+def get_exons_coord(ids, ens_canonical_transcripts_lst, batch_size=100):
     """
     Use the Coordinates service from Proteins API of EMBL-EBI to get 
     exons coordinate and proteins info of all provided Uniprot IDs.
@@ -433,7 +316,7 @@ def get_exons_coord(ids, batch_size=100):
 
     for batch_ids in tqdm(batches_ids, total=len(batches_ids), desc="Adding exons coordinate"):
         
-        batch_df = get_batch_exons_coord(batch_ids)
+        batch_df = get_batch_exons_coord(batch_ids, ens_canonical_transcripts_lst)
         
         # Identify unmapped IDs and add them as NaN rows
         unmapped_ids = list(set(batch_ids).difference(set(batch_df.Uniprot_ID.unique())))
@@ -536,108 +419,10 @@ def add_ref_dna_and_context(seq_df, genome_fun=hg38):
     
     return seq_df
 
-
-#======
-# Utils
-#======
-
-# def asssess_similarity(seq_df, on="all"):
-#     """
-#     Assess similarity between protein sequences and translated 
-#     DNA sequences by reference coordinates or/and backtranslation.
-#     """
-    
-#     logger.debug("Assessing similarity..")
-    
-#     # Ref seq and backtranseq backtranslation
-#     if on == "all":
-#         seq_df["Seq_similarity"] = seq_df.apply(lambda x: get_seq_similarity(x.Seq, translate_dna(x.Seq_dna)), axis=1) 
-#         avg_sim = np.mean(seq_df["Seq_similarity"].dropna())
-#         seq_ref = seq_df[seq_df["Reference_info"] == 1]
-#         seq_ref = seq_ref.drop_duplicates('Uniprot_ID')
-#         seq_backtr = seq_df[seq_df["Reference_info"] == 0]
-#         seq_backtr = seq_backtr.drop_duplicates('Uniprot_ID')
-#         avg_sim_ref = np.mean(seq_ref["Seq_similarity"].dropna())
-#         avg_sim_backtr = np.mean(seq_backtr["Seq_similarity"].dropna())
-#         if len(seq_ref) > 0: 
-#             logger.debug(f"Average similarity ref coord backtranslation: {avg_sim_ref:.2f} for {len(seq_ref)} sequences.")      
-#         else:
-#             logger.debug("Ref coord backtranslated sequences not available.")
-#         if len(seq_backtr) > 0: 
-#             logger.debug(f"Average similarity backtranseq backtranslation: {avg_sim_backtr:.2f} for {len(seq_backtr)} sequences.") 
-#         else:
-#             logger.debug("Backtranseq backtranslated sequences not available.")
-#         if avg_sim < 1:                       
-#             logger.warning(f"Mismatch between protein and translated DNA. Overall average similatity: {avg_sim:.2f}.")
-#             logger.warning("3D-clustering analysis using mutational profile and/or mutability can be severely affected.")
-#         else:
-#             logger.debug("Final similarity check: PASS")
-        
-#         return seq_df
-         
-#     # Ref seq backtranslation only
-#     else:
-#         seq_df["Seq_similarity"] = seq_df.apply(lambda x: get_seq_similarity(x.Seq, translate_dna(x.Seq_dna)), axis=1)
-#         avg_sim = np.mean(seq_df["Seq_similarity"].dropna())
-#         if avg_sim < 1:
-#             tot_mismatch = sum(seq_df['Seq_similarity'].dropna() < 1)
-#             tot_seq = len(seq_df['Seq_similarity'].dropna())
-#             mismatch_ratio = tot_mismatch / tot_seq
-#             logger.warning(f"Mismatch between proteins and translated DNA by reference coordinates on {tot_mismatch} of {tot_seq}.")
-#             logger.warning(f"Protein and translated DNA mean similarity < 1: {avg_sim:.2f}")
-#             if mismatch_ratio > 0.4:
-#                 logger.warning(f"Mismatch ratio > 0.4: {mismatch_ratio:.2f}. Dropping all {tot_mismatch} ref DNA sequnces..") 
-#                 seq_df["Reference_info"] = 0
-#             else:
-#                 logger.warning(f"Dropping {tot_mismatch} mismatching ref DNA sequnces..") 
-#                 seq_df.loc[seq_df['Seq_similarity'] < 1, "Reference_info"] = 0
-#         else:
-#             logger.debug("Ref seq similarity check: PASS")
-                
-#         return seq_df
-                
-
-# def drop_gene_duplicates(df):
-#     """
-#     Issue: multiple Uniprot IDs might map to the same HUGO symbol.
-#     Drop Uniprot ID of gene duplicates by prioritizing the following order:
-#     - Uniprot ID whose sequence has been obtained using reference info
-#     - Uniprot ID having perfect match with MANE transcripts
-#     """
-
-#     df = df.copy()
-#     df_ref_1 = df[df['Reference_info'] == 1]
-#     df_ref_0 = df[df['Reference_info'] == 0]
-    
-#     # Prioritize rows where MANE not NaN for genes with Reference_info (or just keep first one)
-#     df_ref_1 = df_ref_1.sort_values(by='Refseq_prot', ascending=False).drop_duplicates(subset='Gene')
-    
-#     # Same as step 1 but for genes without Reference_info
-#     df_ref_0 = df_ref_0.sort_values(by='Refseq_prot', ascending=False).drop_duplicates(subset='Gene')
-#     df_ref_0 = df_ref_0.drop_duplicates(subset='Gene', keep='first')
-    
-#     # Concat and prioritize rows with Reference_info (or just keep first one)
-#     result_df = pd.concat([df_ref_1, df_ref_0]).sort_values(["Gene", "Reference_info"], ascending=False)
-#     result_df = result_df.drop_duplicates(subset='Gene', keep='first').sort_values(["Gene"]) 
-#     result_df = result_df.reset_index(drop=True)
-    
-#     # Check if there are still duplicates
-#     n_duplicates = sum(result_df["Gene"].value_counts() > 1)
-#     if n_duplicates > 0:
-#         logger.warning(f"Found {n_duplicates} duplicates gene entries: Mapping HUGO Symbol to protein info might be affected.")
-#     else:
-#         logger.debug("Duplicates gene entries correctly removed!")
-
-#     return result_df.reset_index(drop=True)
-
                 
 #=========
 # WRAPPERS
 #=========
-
-# TODO: test if with the added "if gene not in" is avoiding duplicates Hugo Symbol with different Uni IDs
-#       - In general test if there are multiple rows with same gene name in the final seq_df
-#       - It seems that backtranseq is used for Uniprot ID connected to genes that were already processed with ref DNA: must avoid it
 
 def add_extra_genes_to_seq_df(seq_df, uniprot_to_gene_dict):
     """
@@ -669,104 +454,15 @@ def add_extra_genes_to_seq_df(seq_df, uniprot_to_gene_dict):
     seq_df = pd.concat((seq_df, seq_df_extra_genes))
     seq_df = seq_df.dropna(subset=["Gene"])
     seq_df = seq_df[seq_df.apply(lambda x: len(x["Gene"].split()), axis =1) == 1].reset_index(drop=True)
-    # seq_df.Uniprot_ID = seq_df.Uniprot_ID.str.replace(";", "")
-    # seq_df.Gene = seq_df.Gene.str.replace(";", "")
     seq_df = seq_df.drop_duplicates().reset_index(drop=True)
     
     return seq_df
 
 
-# def get_seq_df(datasets_dir, 
-#                output_seq_df, 
-#                uniprot_to_gene_dict = None, 
-#                organism = "Homo sapiens",
-#                mane=False):
-#     """
-#     Generate a dataframe including IDs mapping information (Gene and Uniprot_ID),
-#     AlphaFold 2 fragment number (F); the protein (Seq) and DNA sequence (DNA_seq) 
-#     obtained by EMBL backtranseq, as well as the genomic coordinate of the exons 
-#     (Chr and Exons_coord), which are used to compute the per-residue probability 
-#     of missense mutation. Also, for a subset of genes, it include the DNA sequence 
-#     of the reference genome (Seq_dna_ref) and its per-site trinucleotide context
-#     taing into account flanking regions at splicing sites (Tri_context).
-#     """
-
-#     # if mane == False:
-#     #     # Load Uniprot ID to HUGO mapping
-#     #     pdb_dir = os.path.join(datasets_dir, "pdb_structures")
-#     #     uniprot_ids = os.listdir(pdb_dir)
-#     #     uniprot_ids = [uni_id.split("-")[1] for uni_id in list(set(uniprot_ids)) if ".pdb" in uni_id]
-#     #     if uniprot_to_gene_dict is not None and uniprot_to_gene_dict != "None":
-#     #         uniprot_to_gene_dict = json.load(open(uniprot_to_gene_dict)) 
-#     #     else:
-#     #         logger.debug("Retrieving Uniprot_ID to Hugo symbol mapping information..")
-#     #         uniprot_to_gene_dict = uniprot_to_hugo(uniprot_ids)  
-    
-#     # Load Uniprot ID to HUGO mapping
-#     pdb_dir = os.path.join(datasets_dir, "pdb_structures")                                                                  ###### -X
-#     uniprot_ids = os.listdir(pdb_dir)                                                                                       ###### -X
-#     uniprot_ids = [uni_id.split("-")[1] for uni_id in list(set(uniprot_ids)) if ".pdb" in uni_id]                           ###### -X
-#     logger.debug("Retrieving Uniprot_ID to Hugo symbol mapping information..")                                              ###### -X
-#     uniprot_to_gene_dict = uniprot_to_hugo(uniprot_ids)                                                                     ###### -X
-
-#     # # Create a dataframe with protein sequences
-#     # logger.debug("Generating sequence df..")
-#     # if mane == False:  
-#     #     seq_df = initialize_seq_df(pdb_dir, uniprot_to_gene_dict)
-#     #     seq_df["Refseq_prot"] = np.nan
-#     # else:
-#     #     seq_df = initialize_seq_df_from_mane(datasets_dir) 
-#     logger.debug("Generating sequence df..")                                                                                ###### -X
-#     seq_df = initialize_seq_df(pdb_dir, uniprot_to_gene_dict)                                                              ###### -X
-    
-#     # Add coordinates for mutability integration (entries in Proteins API)
-#     logger.debug("Retrieving exons coordinate..")
-#     coord_df = get_exons_coord(seq_df["Uniprot_ID"].unique())
-#     seq_df = seq_df.merge(coord_df, on=["Seq", "Uniprot_ID"], how="left").reset_index(drop=True)
-    
-#     # Add ref DNA seq and its per-site trinucleotide context (entries in Proteins API)
-#     logger.debug("Retrieving exons DNA sequence from reference genome..")
-#     if organism == "Homo sapiens":
-#         genome_fun = hg38
-#     elif organism == "Mus musculus":
-#         genome_fun = mm39
-#     else:
-#         raise RuntimeError(f"Failed to recognize '{organism}' as organism. Currently accepted ones are 'Homo sapiens' and 'Mus musculus'. Exiting..")
-#     seq_df = add_ref_dna_and_context(seq_df, genome_fun)
-    
-#     # # Check if ref DNA sequences match protein sequences
-#     # seq_df = asssess_similarity(seq_df, on="ref")
-    
-#     # Add DNA seq for genes with available MANE-associated structure
-#     # TO DO: load mane mapping, retrieve transcript ID, use Ensembl sequence API to get sequence of DNA
-    
-#     # Add DNA seq for any other genes 
-#     logger.debug("Performing backtranseq backtranslation for genes without available ref DNA..")
-#     seq_df_backtranseq = seq_df[seq_df["Reference_info"] == 0].reset_index(drop=True)    
-#     seq_df_backtranseq = batch_backtranseq(seq_df_backtranseq, 500, organism=organism)  
-    
-#     # Get trinucleotide context for (entries not in Proteins API)
-#     seq_df_backtranseq["Tri_context"] = seq_df_backtranseq["Seq_dna"].apply(
-#         lambda x: ",".join(per_site_trinucleotide_context(x, no_flanks=True)))
-#     seq_df = pd.concat((seq_df[seq_df["Reference_info"] == 1], seq_df_backtranseq)
-#                        ).sort_values("Uniprot_ID").reset_index(drop=True)
-    
-#     # # Add multiple genes mapping to the same Uniprot_ID
-#     # if mane == False:
-#     #     seq_df = add_extra_genes_to_seq_df(seq_df, uniprot_to_gene_dict)
-    
-#     # # # Assess overal similarity
-#     # # seq_df = asssess_similarity(seq_df, on="all")
-        
-#     # # Drop duplicates
-#     # seq_df = drop_gene_duplicates(seq_df)
-        
-#     # Save
-#     seq_df.to_csv(output_seq_df, index=False, sep="\t")                    
-#     logger.debug(f"Sequences dataframe saved in: {output_seq_df}")
-
-
-def get_mane_summary(path_to_file, v=1.3, max_attempts=15):
+def download_mane_summary(path_to_file, v=1.3, max_attempts=15):
+    """
+    Download the summary.txt of the MANE release from NCBI.
+    """
     
     mane_summary_url = f"https://ftp.ncbi.nlm.nih.gov/refseq/MANE/MANE_human/release_{v}/MANE.GRCh38.v{v}.summary.txt.gz"
     attempts = 0
@@ -793,14 +489,17 @@ def select_uni_id(ids_tuple, all_ids):
     return np.nan
 
     
-def get_mane_to_af_mapping(datasets_dir, include_not_af=False, mane_version=1.0):
+def get_mane_to_af_mapping(datasets_dir, downloaded_uniprot_ids, include_not_af=False, mane_version=1.0):
+    """
+    Get a dataframe to map genes, MANE transcript IDs, and protein structures.
+    """
 
     mane_to_af = pd.read_csv(os.path.join(datasets_dir, "mane_refseq_prot_to_alphafold.csv"))
     mane_to_af = mane_to_af.rename(columns={"refseq_prot" : "Refseq_prot",
                                             "uniprot_accession" : "Uniprot_ID"}).drop(columns=["alphafold"])
     path_mane_summary = os.path.join(datasets_dir, "mane_summary.txt.gz")
     if not os.path.exists(path_mane_summary):
-        get_mane_summary(path_mane_summary, mane_version)
+        download_mane_summary(path_mane_summary, mane_version)
     mane = pd.read_csv(path_mane_summary, compression='gzip', sep="\t").dropna(subset=["symbol", "HGNC_ID"])
     mane = mane.rename(columns={"symbol" : "Gene",
                                 "RefSeq_prot" : "Refseq_prot",
@@ -808,7 +507,6 @@ def get_mane_to_af_mapping(datasets_dir, include_not_af=False, mane_version=1.0)
                                 "Ensembl_nuc" : "Ens_Transcr_ID",
                                 "GRCh38_chr" : "Chr",
                                 "chr_strand" : "Reverse_strand"})
-    #mane = mane[["Gene", "HGNC_ID", "Refseq_prot", "Ens_Gene_ID", "Ens_Transcr_ID", "Chr", "Reverse_strand"]]
     mane = mane[["Gene", "Refseq_prot", "Ens_Gene_ID", "Ens_Transcr_ID", "Chr", "Reverse_strand"]]
     mane_mapping = mane_to_af.merge(mane, how="left", on="Refseq_prot").dropna()
     mane_mapping.Reverse_strand = mane_mapping.Reverse_strand.map({"+" : 0, "-" : 1})
@@ -817,7 +515,7 @@ def get_mane_to_af_mapping(datasets_dir, include_not_af=False, mane_version=1.0)
 
     # Select first Uniprot ID if multiple ones are present
     mane_mapping["Uniprot_ID"] = mane_mapping.apply(lambda x: 
-                                            select_uni_id(x.Uniprot_ID.split(";"), uniprot_ids) if len(x.Uniprot_ID.split(";")) > 1 
+                                            select_uni_id(x.Uniprot_ID.split(";"), downloaded_uniprot_ids) if len(x.Uniprot_ID.split(";")) > 1 
                                             else x.Uniprot_ID, axis=1)
     mane_mapping = mane_mapping.reset_index(drop=True)
     
@@ -828,7 +526,60 @@ def get_mane_to_af_mapping(datasets_dir, include_not_af=False, mane_version=1.0)
         
     else:
         return mane_mapping
+    
 
+def download_biomart_metadata(path_to_file):
+    """
+    Query biomart to get the list of transcript corresponding to the downloaded 
+    structures (a few structures are missing) and other information.
+    """
+    
+    # command = f"""
+    # wget -O {path_to_file} 'http://www.ensembl.org/biomart/martservice?query=<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE Query><Query virtualSchemaName="default" formatter="TSV" header="0" uniqueRows="0" count="" datasetConfigVersion="0.6"><Dataset name="hsapiens_gene_ensembl" interface="default"><Attribute name="ensembl_gene_id"/><Attribute name="ensembl_transcript_id"/><Attribute name="transcript_is_canonical"/><Attribute name="external_gene_name"/><Attribute name="external_gene_source"/><Attribute name="hgnc_id"/><Attribute name="uniprot_gn_id"/><Attribute name="uniprotswissprot"/></Dataset></Query>'
+    # """
+
+    command = f"""
+    wget -O {path_to_file} 'http://www.ensembl.org/biomart/martservice?query=<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE Query><Query virtualSchemaName="default" formatter="TSV" header="0" uniqueRows="0" count="" datasetConfigVersion="0.6"><Dataset name="hsapiens_gene_ensembl" interface="default"><Attribute name="ensembl_gene_id"/><Attribute name="ensembl_transcript_id"/><Attribute name="transcript_is_canonical"/><Attribute name="external_gene_name"/><Attribute name="external_gene_source"/><Attribute name="hgnc_id"/><Attribute name="uniprot_gn_id"/><Attribute name="uniprotswissprot"/><Attribute name="external_synonym"/></Dataset></Query>'
+    """
+
+    subprocess.run(shlex.split(command))
+    
+    
+def get_biomart_metadata(datasets_dir, uniprot_ids):
+    """
+    Download a dataframe including ensembl canonical transcript IDs, 
+    HGNC IDs, Uniprot IDs, and other useful information.
+    """
+
+    download_biomart_metadata(os.path.join(datasets_dir, "biomart_metadata.tsv"))
+
+    # Parse
+    biomart_df = pd.read_csv(os.path.join(datasets_dir, "biomart_metadata.tsv"), sep="\t", header=None)
+    logger.critical(f"Len cols {len(biomart_df.columns)}")
+    biomart_df.columns= ["Ens_Gene_ID", "Ens_Transcr_ID", "Ens_Canonical", "Gene", "Gene_source", "HGNC_ID", "Uniprot_ID", "UniprotKB_ID", "Gene_synonym"]
+    biomart_df = biomart_df.dropna(subset=["Uniprot_ID", "UniprotKB_ID"], how='all')
+    biomart_df = biomart_df[biomart_df["Gene_source"] == "HGNC Symbol"].drop(columns=["Gene_source"])
+    biomart_df.reset_index(inplace=True, drop=True)
+    
+    # Filter
+    uniprot_ids = pd.Series(uniprot_ids)
+    uniprot_kb_ids = uniprot_ids[(uniprot_ids.isin(biomart_df.UniprotKB_ID))]
+    uniprot_notkb_ids = uniprot_ids[~(uniprot_ids.isin(biomart_df.UniprotKB_ID)) & (uniprot_ids.isin(biomart_df.Uniprot_ID))]
+    biomart_uniprotkb = biomart_df[biomart_df.UniprotKB_ID.isin(uniprot_kb_ids)].drop(
+        columns=["Uniprot_ID"]).rename(columns={"UniprotKB_ID" : "Uniprot_ID"}).drop_duplicates()
+    biomart_uniprot = biomart_df[biomart_df.Uniprot_ID.isin(uniprot_notkb_ids)].drop(columns=["UniprotKB_ID"]).drop_duplicates()
+    biomart_df = pd.concat((biomart_uniprotkb, biomart_uniprot)).reset_index(drop=True)
+    
+    # Output
+    biomart_df.to_csv(os.path.join(datasets_dir, "biomart_metadata.tsv"), sep="\t", index=False)
+    ens_canonical_transcripts = biomart_df.Ens_Transcr_ID[biomart_df["Ens_Canonical"] == 1].unique()
+    gene_ids = biomart_df[["Gene", "HGNC_ID"]].drop_duplicates()
+    gene_ids_syn = biomart_df[["Gene_synonym", "HGNC_ID"]].drop_duplicates().rename(columns={"Gene_synonym" : "Gene"})
+    gene_ids_df = pd.concat((gene_ids, gene_ids_syn)).sort_values("HGNC_ID").reset_index(drop=True)
+    gene_ids_df = gene_ids_df[["Uniprot_ID", "Ens_Transcr_ID", "HGNC_ID"]].drop_duplicates()
+
+    return gene_ids_df, ens_canonical_transcripts
+    
 
 def get_ref_dna_from_ensembl(transcript_id):
     """
@@ -920,7 +671,14 @@ def drop_gene_duplicates(df):
     return df
     
 
-def process_seq_df(seq_df, datasets_dir, organism, uniprot_to_gene_dict, num_cores=1, rm_weird_chr=False, mane_version=1.3):
+def process_seq_df(seq_df, 
+                   datasets_dir, 
+                   organism, 
+                   uniprot_to_gene_dict, 
+                   ens_canonical_transcripts_lst, 
+                   num_cores=1, 
+                   rm_weird_chr=False, 
+                   mane_version=1.3):
     """
     Retrieve DNA sequence and tri-nucleotide context 
     for each structure in the initialized dataframe 
@@ -938,7 +696,7 @@ def process_seq_df(seq_df, datasets_dir, organism, uniprot_to_gene_dict, num_cor
     
     # Add coordinates for mutability integration (entries in Proteins API)
     logger.debug(f"Retrieving CDS DNA seq from reference genome (Proteins API): {len(seq_df['Uniprot_ID'].unique())} structures..")
-    coord_df = get_exons_coord(seq_df["Uniprot_ID"].unique())
+    coord_df = get_exons_coord(seq_df["Uniprot_ID"].unique(), ens_canonical_transcripts_lst)
     seq_df = seq_df.merge(coord_df, on=["Seq", "Uniprot_ID"], how="left").reset_index(drop=True)
     
     # Add ref DNA seq and its per-site trinucleotide context (entries in Proteins API)
@@ -958,7 +716,9 @@ def process_seq_df(seq_df, datasets_dir, organism, uniprot_to_gene_dict, num_cor
     
     # Retrieve transcripts from MANE metadata
     if organism == "Homo sapiens":                                                 
-        mane_mapping = get_mane_to_af_mapping(datasets_dir, mane_version=mane_version)
+        mane_mapping = get_mane_to_af_mapping(datasets_dir, 
+                                              seq_df["Uniprot_ID"].unique(), 
+                                              mane_version=mane_version)
         seq_df_notr = seq_df_notr.drop(columns=["Ens_Gene_ID", "Ens_Transcr_ID", "Chr", "Reverse_strand"])
         seq_df_notr = seq_df_notr.merge(mane_mapping.drop(columns=["Gene", "Refseq_prot"]), on="Uniprot_ID", how="left").dropna(subset="Gene")
 
@@ -1012,7 +772,12 @@ def process_seq_df(seq_df, datasets_dir, organism, uniprot_to_gene_dict, num_cor
     return seq_df
 
 
-def process_seq_df_mane(seq_df, datasets_dir, uniprot_to_gene_dict, num_cores=1, mane_version=1.3):
+def process_seq_df_mane(seq_df, 
+                        datasets_dir, 
+                        uniprot_to_gene_dict, 
+                        ens_canonical_transcripts_lst,
+                        num_cores=1, 
+                        mane_version=1.3):
     """
     Retrieve DNA sequence and tri-nucleotide context 
     for each structure in the initialized dataframe
@@ -1024,7 +789,10 @@ def process_seq_df_mane(seq_df, datasets_dir, uniprot_to_gene_dict, num_cores=1,
        -1 : Not available transcripts, seq DNA retrieved from Backtranseq API
     """
     
-    mane_mapping, mane_mapping_not_af = get_mane_to_af_mapping(datasets_dir, include_not_af=True, mane_version=mane_version)
+    mane_mapping, mane_mapping_not_af = get_mane_to_af_mapping(datasets_dir, 
+                                                               seq_df["Uniprot_ID"].unique(), 
+                                                               include_not_af=True, 
+                                                               mane_version=mane_version)
     seq_df_mane = seq_df[seq_df.Uniprot_ID.isin(mane_mapping.Uniprot_ID)].reset_index(drop=True)
     seq_df_nomane = seq_df[~seq_df.Uniprot_ID.isin(mane_mapping.Uniprot_ID)].reset_index(drop=True)
     
@@ -1052,7 +820,7 @@ def process_seq_df_mane(seq_df, datasets_dir, uniprot_to_gene_dict, num_cores=1,
     
     # Retrieve seq from coordinates
     logger.debug(f"Retrieving CDS DNA seq from reference genome (Proteins API): {len(seq_df_nomane['Uniprot_ID'].unique())} structures..")
-    coord_df = get_exons_coord(seq_df_nomane["Uniprot_ID"].unique())
+    coord_df = get_exons_coord(seq_df_nomane["Uniprot_ID"].unique(), ens_canonical_transcripts_lst)
     seq_df_nomane = seq_df_nomane.merge(coord_df, on=["Seq", "Uniprot_ID"], how="left").reset_index(drop=True)
     seq_df_nomane = add_ref_dna_and_context(seq_df_nomane, hg38)                                                     
     seq_df_nomane_tr = seq_df_nomane[seq_df_nomane["Reference_info"] == 1]
@@ -1069,7 +837,6 @@ def process_seq_df_mane(seq_df, datasets_dir, uniprot_to_gene_dict, num_cores=1,
     
     # Prepare final output  
     seq_df = pd.concat((seq_df_not_uniprot, seq_df_nomane_tr)).reset_index(drop=True)
-    seq_df.to_csv(datasets_dir+"/seq_df.debug_dupl.csv", index=False, sep="\t")                               ##### FOR DEBUGGING: TO DEL
     seq_df = drop_gene_duplicates(seq_df)                                
     report_df = seq_df.Reference_info.value_counts().reset_index()
     report_df = report_df.rename(columns={"index" : "Source"})
@@ -1085,7 +852,6 @@ def process_seq_df_mane(seq_df, datasets_dir, uniprot_to_gene_dict, num_cores=1,
 
 def get_seq_df(datasets_dir, 
                output_seq_df, 
-               uniprot_to_gene_dict = None, 
                organism = "Homo sapiens",
                mane=False,
                num_cores=1,
@@ -1119,7 +885,10 @@ def get_seq_df(datasets_dir,
     if all(pd.isna(k) for k in uniprot_to_gene_dict.keys()):
         logger.warning(f"Failed to retrieve Uniprot ID to HUGO symbol mapping directly from UniprotKB.")
         logger.warning(f"Retrying using Unipressed API client (only first HUGO symbol entry will be mapped)..")
-        uniprot_to_gene_dict = uniprot_to_hugo(uniprot_ids)   
+        uniprot_to_gene_dict = uniprot_to_hugo_pressed(uniprot_ids)   
+        
+    # Get biomart metadata and canonical transcript IDs    
+    gene_ids_df, ens_canonical_transcripts_lst = get_biomart_metadata(datasets_dir, uniprot_ids)
     
     # Create a dataframe with protein sequences
     logger.debug("Initializing sequence df..")                                                                            
@@ -1129,6 +898,7 @@ def get_seq_df(datasets_dir,
        seq_df = process_seq_df_mane(seq_df, 
                                     datasets_dir, 
                                     uniprot_to_gene_dict, 
+                                    ens_canonical_transcripts_lst,
                                     num_cores, 
                                     mane_version=mane_version)
     else:
@@ -1136,11 +906,18 @@ def get_seq_df(datasets_dir,
                                 datasets_dir, 
                                 organism, 
                                 uniprot_to_gene_dict, 
+                                ens_canonical_transcripts_lst,
                                 num_cores, 
                                 rm_weird_chr, 
                                 mane_version=mane_version)
     
-    # Save
+    # Add HGNC ID and save
+    seq_df = seq_df.merge(gene_ids_df, on=["Uniprot_ID", "Ens_Transcr_ID"], how="left")
+    seq_df_cols = ['Gene', 'HGNC_ID', 'Ens_Gene_ID', 
+                   'Ens_Transcr_ID', 'Uniprot_ID', 'F', 
+                   'Seq', 'Chr', 'Reverse_strand', 'Exons_coord', 
+                   'Seq_dna', 'Tri_context','Reference_info']
+    seq_df = seq_df[[col for col in seq_df_cols if col in seq_df.columns]]
     seq_df.to_csv(output_seq_df, index=False, sep="\t")                    
     logger.debug(f"Sequences dataframe saved in: {output_seq_df}")
     
