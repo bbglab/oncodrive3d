@@ -6,7 +6,6 @@ import pandas as pd
 import subprocess
 import io
 import gzip
-import gc
 import sys
 
 from scripts import __logger_name__
@@ -117,19 +116,7 @@ def filter_transcripts(df, seq_df):
     else:
         logger.critical("Failed to filter input by O3D transcripts. Please provide as input the output of VEP with canonical and transcripts information: Exiting..")
         sys.exit(1)
-    
 
-def reduce_sample_id(identifier):
-    """
-    Extract the middle section of the tumour sample identifier. 
-    """
-    
-    parts = identifier.split('_')
-    if len(parts) > 2:
-        return parts[2]
-    else:
-        return identifier
-    
 
 def parse_vep_output(df,
                      seq_df=None, 
@@ -162,9 +149,6 @@ def parse_vep_output(df,
     # Get HGVSp
     if "HGVSp_Short" not in df.columns and "Amino_acids" in df.columns and "Protein_position" in df.columns:
         df["HGVSp_Short"] = df.apply(get_hgvsp_mut, axis=1)
-    
-    if "Tumor_Sample_Barcode" in df.columns:
-        df["Tumor_Sample_Barcode"] = df['Tumor_Sample_Barcode'].apply(reduce_sample_id)
         
     return df, seq_df
 
