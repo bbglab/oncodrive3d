@@ -24,9 +24,9 @@ def get_species(species):
     Simply change species name to accepted format.
     """
     
-    if species == "human" or species.capitalize() == "Homo sapiens":
+    if species.capitalize() == "Human" or species.capitalize() == "Homo sapiens":
         species = "Homo sapiens"
-    elif species == "mouse" or species.capitalize() == "Mus musculus": 
+    elif species.capitalize() == "Mouse" or species.capitalize() == "Mus musculus": 
         species = "Mus musculus"
     else:
         raise RuntimeError(f"Failed to recognize '{species}' as species. Currently accepted ones are 'Homo sapiens' and 'Mus musculus'. Exiting...")
