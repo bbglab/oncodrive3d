@@ -8,7 +8,6 @@ import gzip
 import os
 
 import daiquiri
-import sys
 import pandas as pd
 from Bio.Data.IUPACData import protein_letters_3to1
 from Bio.PDB.PDBParser import PDBParser

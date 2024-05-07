@@ -64,8 +64,8 @@ process O3D_run {
     tuple val(cohort), path(inputs)
 
     output:
-    tuple val(cohort), path("**genes.csv"), path("**pos.csv"), path("**mutations.processed.tsv") ,path("**seq_df.processed.tsv"), emit : o3d_result
-    path("**.log")                                                                                                              , emit : log
+    tuple val(cohort), path("**genes.csv"), path("**pos.csv"), path("**mutations.processed.tsv"), path("**seq_df.processed.tsv"), path("**miss_prob.processed.json"), emit : o3d_result
+    path("**.log")                                                                                                                                                  , emit : log
 
     script:
     """

@@ -448,13 +448,17 @@ def run(input_maf_path,
         output_path_pos = os.path.join(output_dir, f"{cohort}.3d_clustering_pos.csv")
         output_path_genes = os.path.join(output_dir, f"{cohort}.3d_clustering_genes.csv")
         
-        # Save processed seq_df and input mutations
+        # Save processed seq_df and input files
         seq_df_output = os.path.join(output_dir, f"{cohort}.seq_df.processed.tsv")
         input_mut_output = os.path.join(output_dir, f"{cohort}.mutations.processed.tsv")
+        input_prob_output = os.path.join(output_dir, f"{cohort}.miss_prob.processed.json")
         logger.info(f"Saving {seq_df_output}")
-        logger.info(f"Saving {input_mut_output}")
         seq_df_all[metadata_cols + metadata_mapping_cols].to_csv(seq_df_output, sep="\t", index=False)
+        logger.info(f"Saving {input_mut_output}")
         data.to_csv(input_mut_output, sep="\t", index=False)
+        logger.info(f"Saving {input_prob_output}")
+        with open(input_prob_output, "w") as json_file:
+            json.dump(miss_prob_dict, json_file)
         
         # Add extra metadata
         result_gene = result_gene.merge(seq_df_all[metadata_cols], on=["Gene", "Uniprot_ID"], how="left")
