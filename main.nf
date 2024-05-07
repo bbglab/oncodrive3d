@@ -2,10 +2,22 @@
 // nextflow run main.nf --indir /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/ --cohort_pattern TCGA* --data_dir /workspace/nobackup/scratch/oncodrive3d/datasets
 // nextflow run main.nf --indir /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/ --outdir /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output --data_dir /workspace/nobackup/scratch/oncodrive3d/datasets -profile conda
 // nextflow run main.nf --indir /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/ --outdir /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/new_no_mane --data_dir /workspace/nobackup/scratch/oncodrive3d/datasets_last_real -profile conda --cohort_pattern PCAWG_WGS_ESO_ADENOCA --vep_input
-// nextflow run main.nf --indir /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/ --outdir /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/new_mane --data_dir /workspace/nobackup/scratch/oncodrive3d/datasets_mane_last_real -profile conda --vep_input true --mane true --verbose true
 
-// Run no-MANE old input
-// Run MANE new input -> add vep input 
+// LAST HUMAN RAW nextflow run main.nf --indir /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/ --outdir /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer_202404/o3d_output/human_raw --data_dir /workspace/nobackup/scratch/oncodrive3d/datasets_240506 -profile conda --vep_input true --verbose true
+// LAST MANE RAW nextflow run main.nf --indir /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/ --outdir /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer_202404/o3d_output/human_mane_raw --data_dir /workspace/nobackup/scratch/oncodrive3d/datasets_mane_240506 -profile conda --vep_input true --verbose true --mane true
+// LAST HUMAN nextflow run main.nf --indir /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/ --outdir /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer_202404/o3d_output/human --data_dir /workspace/nobackup/scratch/oncodrive3d/datasets_240506 -profile conda --verbose true
+// LAST MANE nextflow run main.nf --indir /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/ --outdir /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer_202404/o3d_output/human_mane --data_dir /workspace/nobackup/scratch/oncodrive3d/datasets_mane_240506 -profile conda --verbose true --mane true
+
+// Example single run cancer tissue
+// oncodrive3D run -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/vep/CBIOP_WXS_ANGS_UNTREAT_2020.vep.tsv.gz -p /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/mut_profile/CBIOP_WXS_ANGS_UNTREAT_2020.sig.json -d /workspace/nobackup/scratch/oncodrive3d/datasets_240506 -C CBIOP_WXS_ANGS_UNTREAT_2020 -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer_202404/o3d_output/human_raw/run_2024-05-07.CBIOP_WXS_ANGS_UNTREAT_2020 -s 26 -c 10 -v --o3d_transcripts --use_input_symbols
+
+
+// Example single run normal tissue
+// oncodrive3D run -i /workspace/datasets/transfer/ferriol_stefano/2024-04_data/single_sample/P19_0044_BDO_01.mutations.tsv -m /workspace/datasets/transfer/ferriol_stefano/2024-04_data/single_sample/oncodrive3d.mutability.conf -d /workspace/nobackup/scratch/oncodrive3d/datasets_240424 -C P19_0044_BDO_01 -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/2024/P19_0044_BDO_01 -s 26 -c 20 -v
+// oncodrive3D plot --output_tsv --non_significant -r $cohort -g $genes_tsv -p $pos_tsv -i ${inputs[0]} -m ${inputs[1]} -o $outdir/$cohort -d ${params.data_dir} -a ${params.annotations_dir} ${params.verbose ? '-v' : ''} 
+
+// LAST PROCESSED oncodrive3D run -i /workspace/datasets/transfer/ferriol_stefano/2024-04_data/all_samples.mutations.tsv -m /workspace/datasets/transfer/ferriol_stefano/2024-04_data/oncodrive3d.mutability.conf -d /workspace/nobackup/scratch/oncodrive3d/datasets_240424 -C all_samples -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/2024/all_samples_temp -s 26 -c 20 -v
+// LAST RAW oncodrive3D run -i /workspace/datasets/transfer/ferriol_stefano/2024-04_data/all_samples.mutations.raw_vep.tsv -m /workspace/datasets/transfer/ferriol_stefano/2024-04_data/oncodrive3d.mutability.conf -d /workspace/nobackup/scratch/oncodrive3d/datasets_240424 -C all_samples_raw -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/2024/all_samples_raw -s 26 -c 20 -v --o3d_transcripts --use_input_symbols
 
 input_files = params.vep_input ?
     "${params.indir}/{vep,mut_profile}/${params.cohort_pattern}{.vep.tsv.gz,.sig.json}" :
@@ -52,8 +64,8 @@ process O3D_run {
     tuple val(cohort), path(inputs)
 
     output:
-    tuple val(cohort), path("**genes.tsv"), path("**pos.tsv") , emit : o3d_result
-    path("**.log")                                            , emit : log
+    tuple val(cohort), path("**genes.csv"), path("**pos.csv"), path("**mutations.processed.tsv") ,path("**seq_df.processed.tsv"), emit : o3d_result
+    path("**.log")                                                                                                              , emit : log
 
     script:
     """

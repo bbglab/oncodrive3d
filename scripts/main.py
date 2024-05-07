@@ -307,7 +307,7 @@ def run(input_maf_path,
             result_np_gene_lst.append(result_gene)
 
         # Seq df for metadata info
-        metadata_cols = [col for col in ["HGNC_ID", "Ens_Gene_ID", "Ens_Transcr_ID", "Refseq_prot", "Uniprot_ID"] if col in seq_df.columns]
+        metadata_cols = [col for col in ["Gene", "HGNC_ID", "Ens_Gene_ID", "Ens_Transcr_ID", "Refseq_prot", "Uniprot_ID"] if col in seq_df.columns]
         metadata_mapping_cols = [col for col in ["Seq", "Chr", "Reverse_strand", "Exons_coord", "Seq_dna", "Tri_context", "Reference_info"] if col in seq_df.columns]
         seq_df_all = seq_df[seq_df["Gene"].isin(genes.index)].copy()
 
@@ -449,8 +449,12 @@ def run(input_maf_path,
         output_path_genes = os.path.join(output_dir, f"{cohort}.3d_clustering_genes.csv")
         
         # Save processed seq_df and input mutations
-        seq_df_all[metadata_cols + metadata_mapping_cols].to_csv(os.path.join(output_dir, f"{cohort}.seq_df.processed.tsv"), sep="\t", index=False)
-        data.to_csv(os.path.join(output_dir, f"{cohort}.mutations.processed.tsv"), sep="\t", index=False)
+        seq_df_output = os.path.join(output_dir, f"{cohort}.seq_df.processed.tsv")
+        input_mut_output = os.path.join(output_dir, f"{cohort}.mutations.processed.tsv")
+        logger.info(f"Saving {seq_df_output}")
+        logger.info(f"Saving {input_mut_output}")
+        seq_df_all[metadata_cols + metadata_mapping_cols].to_csv(seq_df_output, sep="\t", index=False)
+        data.to_csv(input_mut_output, sep="\t", index=False)
         
         # Add extra metadata
         result_gene = result_gene.merge(seq_df_all[metadata_cols], on=["Gene", "Uniprot_ID"], how="left")
