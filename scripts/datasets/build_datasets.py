@@ -39,7 +39,6 @@ def build(output_datasets,
           organism,
           mane,
           distance_threshold,
-          uniprot_to_hugo,
           num_cores,
           af_version,
           mane_version):
@@ -78,7 +77,6 @@ def build(output_datasets,
     logger.info("Generating dataframe for genes and proteins sequences...")
     seq_df = get_seq_df(datasets_dir=output_datasets,
                         output_seq_df=os.path.join(output_datasets, "seq_for_mut_prob.tsv"),
-                        uniprot_to_gene_dict=uniprot_to_hugo,
                         organism=species,
                         mane=mane,
                         num_cores=num_cores,
@@ -126,7 +124,6 @@ if __name__ == "__main__":
         organism="Homo sapiens",
         mane=True,
         distance_threshold=10,
-        uniprot_to_hugo=None,
         num_cores=8,
         af_version=4,
         mane_version=1.3)

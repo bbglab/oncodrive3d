@@ -571,14 +571,16 @@ def get_biomart_metadata(datasets_dir, uniprot_ids):
     biomart_df = pd.concat((biomart_uniprotkb, biomart_uniprot)).reset_index(drop=True)
     
     # Output
+    # (ATM this is only used to get Ensembl canonical transcript
+    #  but, in the future, it could be used to add extra info such as 
+    #  HGNC, and any other features we want from biomart)
     biomart_df.to_csv(os.path.join(datasets_dir, "biomart_metadata.tsv"), sep="\t", index=False)
     ens_canonical_transcripts = biomart_df.Ens_Transcr_ID[biomart_df["Ens_Canonical"] == 1].unique()
-    gene_ids = biomart_df[["Gene", "HGNC_ID"]].drop_duplicates()
-    gene_ids_syn = biomart_df[["Gene_synonym", "HGNC_ID"]].drop_duplicates().rename(columns={"Gene_synonym" : "Gene"})
-    gene_ids_df = pd.concat((gene_ids, gene_ids_syn)).sort_values("HGNC_ID").reset_index(drop=True)
-    gene_ids_df = gene_ids_df[["Uniprot_ID", "Ens_Transcr_ID", "HGNC_ID"]].drop_duplicates()
+    # gene_ids = biomart_df[["Gene", "HGNC_ID"]]
+    # gene_ids_syn = biomart_df[["Gene_synonym", "HGNC_ID"]].rename(columns={"Gene_synonym" : "Gene"})
+    # gene_ids = pd.concat((gene_ids, gene_ids_syn)).sort_values("HGNC_ID").reset_index(drop=True).drop_duplicates()
 
-    return gene_ids_df, ens_canonical_transcripts
+    return ens_canonical_transcripts
     
 
 def get_ref_dna_from_ensembl(transcript_id):
@@ -888,7 +890,7 @@ def get_seq_df(datasets_dir,
         uniprot_to_gene_dict = uniprot_to_hugo_pressed(uniprot_ids)   
         
     # Get biomart metadata and canonical transcript IDs    
-    gene_ids_df, ens_canonical_transcripts_lst = get_biomart_metadata(datasets_dir, uniprot_ids)
+    ens_canonical_transcripts_lst = get_biomart_metadata(datasets_dir, uniprot_ids)
     
     # Create a dataframe with protein sequences
     logger.debug("Initializing sequence df..")                                                                            
@@ -911,8 +913,8 @@ def get_seq_df(datasets_dir,
                                 rm_weird_chr, 
                                 mane_version=mane_version)
     
-    # Add HGNC ID and save
-    seq_df = seq_df.merge(gene_ids_df, on=["Uniprot_ID", "Ens_Transcr_ID"], how="left")
+    # Save
+    # seq_df = seq_df.merge(gene_ids_df, on=["Uniprot_ID", "Ens_Transcr_ID"], how="left")
     seq_df_cols = ['Gene', 'HGNC_ID', 'Ens_Gene_ID', 
                    'Ens_Transcr_ID', 'Uniprot_ID', 'F', 
                    'Seq', 'Chr', 'Reverse_strand', 'Exons_coord', 
