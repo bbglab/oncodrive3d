@@ -307,9 +307,9 @@ def run(input_maf_path,
             result_np_gene_lst.append(result_gene)
 
         # Seq df for metadata info
-        metadata_cols = ["Uniprot_ID", "Gene", "Refseq_prot", "HGNC_ID", "Ens_Gene_ID", "Ens_Transcr_ID"]
-        seq_cols = [col for col in metadata_cols if col in seq_df.columns]
-        seq_df_all = seq_df[seq_cols].copy()
+        metadata_cols = [col for col in ["HGNC_ID", "Ens_Gene_ID", "Ens_Transcr_ID", "Refseq_prot", "Uniprot_ID"] if col in seq_df.columns]
+        metadata_mapping_cols = [col for col in ["Seq", "Chr", "Reverse_strand", "Exons_coord", "Seq_dna", "Tri_context", "Reference_info"] if col in seq_df.columns]
+        seq_df_all = seq_df[seq_df["Gene"].isin(genes.index)].copy()
 
         # Get genes with corresponding Uniprot-ID mapping        
         gene_to_uniprot_dict = {gene : uni_id for gene, uni_id in seq_df[["Gene", "Uniprot_ID"]].drop_duplicates().values}
@@ -448,9 +448,13 @@ def run(input_maf_path,
         output_path_pos = os.path.join(output_dir, f"{cohort}.3d_clustering_pos.csv")
         output_path_genes = os.path.join(output_dir, f"{cohort}.3d_clustering_genes.csv")
         
-        # Add extra metadata
-        result_gene = result_gene.merge(seq_df_all, on=["Gene", "Uniprot_ID"], how="left")
+        # Save processed seq_df and input mutations
+        seq_df_all[metadata_cols + metadata_mapping_cols].to_csv(os.path.join(output_dir, f"{cohort}.seq_df.processed.tsv"), sep="\t", index=False)
+        data.to_csv(os.path.join(output_dir, f"{cohort}.mutations.processed.tsv"), sep="\t", index=False)
         
+        # Add extra metadata
+        result_gene = result_gene.merge(seq_df_all[metadata_cols], on=["Gene", "Uniprot_ID"], how="left")
+
         if only_processed:
             result_gene = result_gene[result_gene["Status"] == "Processed"]
 
