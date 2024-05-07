@@ -69,11 +69,36 @@ def startup_message(version, initializing_text):
     logger.info("")
 
 
-# =========
-#  Clean
-# =========
+# ===================
+#  Clean and organize
+# ===================
 
-def rm_dir(dir_path):             # TO DO: Probably, if the directory is not empty, it should be added ignore_error
+
+def copy_dir(source_dir, destination_dir):
+    """
+    Ccopy the entire directory.
+    """
+
+    logger.debug("Copying directory..")
+    logger.debug(f"From {source_dir}")
+    logger.debug(f"To {destination_dir}")
+    
+    if os.path.exists(source_dir):
+        if os.path.isdir(source_dir):
+            
+            try:
+                shutil.copytree(source_dir, destination_dir)
+                logger.debug("Directory copied successfully!")
+            except Exception as e:
+                print(f"An error occurred ({e}): Skipping")
+                
+        else:
+            logger.warning("Error while copying directory (source path is not a directory): Skipping")
+    else:
+        logger.warning("Error while copying directory (source path does not exist): Skipping")
+        
+
+def rm_dir(dir_path):             # TO DO: Probably, if the directory is not empty, it should ask for confirmation
     """
     Remove directory.
     """
