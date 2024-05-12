@@ -42,6 +42,7 @@ oncodrive3D run -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input
 - New vep output as input
 oncodrive3D run -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/vep/PCAWG_WGS_ESO_ADENOCA.vep.tsv.gz -p /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/mut_profile/PCAWG_WGS_ESO_ADENOCA.sig.json -d /workspace/nobackup/scratch/oncodrive3d/datasets_last_real -C PCAWG_WGS_ESO_ADENOCA -o /workspace/projects/clustering_3d/dev_testing/result/o3d/PCAWG_WGS_ESO_ADENOCA_new_vep -s 128 -c 10 --o3d_transcripts
 oncodrive3D run -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/vep/TCGA_WXS_BLCA.vep.tsv.gz -p /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/mut_profile/TCGA_WXS_BLCA.sig.json -d /workspace/nobackup/scratch/oncodrive3d/datasets_last_real -C TCGA_WXS_BLCA -o /workspace/projects/clustering_3d/dev_testing/result/o3d/TCGA_WXS_BLCA_new -s 128 -c 10 --o3d_transcripts --use_input_symbols -v
+oncodrive3D run -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/vep/CBIOP_WXS_ACY_2019.vep.tsv.gz -p /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/mut_profile/CBIOP_WXS_ACY_2019.sig.json -d /workspace/nobackup/scratch/oncodrive3d/datasets_240506 -C CBIOP_WXS_ACY_2019 -o /workspace/projects/clustering_3d/dev_testing/result/o3d/test_240612 -s 26 -c 10 -v --o3d_transcripts --use_input_symbols -v
 
 # New vep output as input MANE
 oncodrive3D run -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/vep/PCAWG_WGS_ESO_ADENOCA.vep.tsv.gz -p /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/mut_profile/PCAWG_WGS_ESO_ADENOCA.sig.json -d /workspace/nobackup/scratch/oncodrive3d/datasets_mane_last_real -C PCAWG_WGS_ESO_ADENOCA -o /workspace/projects/clustering_3d/dev_testing/result/o3d/PCAWG_WGS_ESO_ADENOCA_new_mane_vep -s 128 -c 10 --o3d_transcripts --use_input_symbols -v --mane
@@ -87,8 +88,8 @@ from scripts.run.miss_mut_prob import get_miss_mut_prob_dict, mut_rate_vec_to_di
 from scripts.run.pvalues import get_final_gene_result
 from scripts.run.utils import get_gene_entry, add_nan_clust_cols, parse_maf_input, sort_cols, empty_result_pos
 from scripts.plotting.build_annotations import get_annotations
-from scripts.plotting.plot import generate_plot
-from scripts.plotting.utils import init_annotations
+from scripts.plotting.plot import generate_plots, generate_comparative_plots
+from scripts.plotting.utils import init_plot_pars, init_comp_plot_pars, parse_lst_tracks
 from scripts.run.mutability import init_mutabilities_module
 
 logger = daiquiri.getLogger(__logger_name__)
@@ -271,18 +272,24 @@ def run(input_maf_path,
     logger.info("")
 
 
-    ## Load input and df of DNA sequences
+    # Load
+    #=====
 
     seq_df = pd.read_csv(seq_df_path, sep="\t")
+    seq_df.to_csv("seq_00.tsv", index=False, sep="\t")
     data, seq_df = parse_maf_input(input_maf_path, 
                                    seq_df, 
                                    use_o3d_transcripts=o3d_transcripts,
                                    use_input_symbols=use_input_symbols, 
                                    mane=mane)
+    seq_df.to_csv("seq_01.tsv", index=False, sep="\t")
+    data.to_csv("data_01.tsv", index=False, sep="\t")
     
     if len(data) > 0:
 
-        ## Run
+
+        # Run
+        #====
 
         # Get genes with enough mut
         result_np_gene_lst = []
@@ -307,7 +314,7 @@ def run(input_maf_path,
             result_np_gene_lst.append(result_gene)
 
         # Seq df for metadata info
-        metadata_cols = [col for col in ["Gene", "HGNC_ID", "Ens_Gene_ID", "Ens_Transcr_ID", "Refseq_prot", "Uniprot_ID"] if col in seq_df.columns]
+        metadata_cols = [col for col in ["Gene", "HGNC_ID", "Ens_Gene_ID", "Ens_Transcr_ID", "Refseq_prot", "Uniprot_ID", "F"] if col in seq_df.columns]
         metadata_mapping_cols = [col for col in ["Seq", "Chr", "Reverse_strand", "Exons_coord", "Seq_dna", "Tri_context", "Reference_info"] if col in seq_df.columns]
         seq_df_all = seq_df[seq_df["Gene"].isin(genes.index)].copy()
 
@@ -366,7 +373,9 @@ def run(input_maf_path,
             data = data[~start_mut_ix]
             logger.warning(f"Detected {start_mut} start-loss mutations in {len(genes_start_mut)} genes {genes_start_mut}: Filtering mutations..")
 
-        ## Missense mut prob
+
+        # Missense mut prob
+        #==================
         
         # Using mutabilities if provided
         if mutability_config_path is not None:
@@ -408,7 +417,10 @@ def run(input_maf_path,
             logger.warning("Mutation profile not provided: Uniform distribution will be used for scoring and simulations.")
             miss_prob_dict = None
 
+
         # Run 3D-clustering
+        #==================
+        
         if len(result_np_gene_lst):
             result_np_gene = pd.concat(result_np_gene_lst)
             result_np_gene["Uniprot_ID"] = [gene_to_uniprot_dict[gene] if gene in gene_to_uniprot_dict.keys() else np.nan for gene in result_np_gene["Gene"].values]
@@ -438,7 +450,10 @@ def run(input_maf_path,
             result_gene = result_np_gene
             result_pos = None
 
-        ## Save
+
+        # Save
+        #=====
+        
         if not os.path.exists(output_dir):
             os.makedirs(os.path.join(output_dir))
             logger.warning(f"Directory '{output_dir}' does not exists: Creating..")
@@ -514,7 +529,7 @@ def run(input_maf_path,
 # TODO: maybe use as input the path to datasets, then retrieve the structure from there.
 
 @oncodrive3D.command(context_settings=dict(help_option_names=['-h', '--help']),
-               help="Get annotations - Required (once) only to plot annotations.")
+               help="Build annotations - Required (once) only to plot annotations.")
 @click.option("-d", "--data_dir", help="Path to datasets", type=str, required=True)
 @click.option("-o", "--output_dir", help="Path to dir where to store annotations", type=str, default="annotations")
 @click.option("-g", "--ddg_dir", help="Path to custom ddG predictions", type=str)
@@ -565,137 +580,265 @@ def build_annotations(data_dir,
 # =============================================================================
 
 # Example:
-# oncodrive3D plot --annotations all --output_tsv --non_significant -r kidney_231204 -g /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/kidney_231204/kidney_231204.3d_clustering_genes.csv -p /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/kidney_231204/kidney_231204.3d_clustering_pos.csv -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/kidney_231204 -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/kidney_pilot/all_mutations.all_samples.tsv -d /workspace/projects/clustering_3d/clustering_3d/datasets -a /workspace/projects/clustering_3d/o3d_analysys/datasets/annotations -j /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/kidney_pilot/mutability_kidney.json
-# oncodrive3D plot --annotations all --output_tsv --non_significant -r bladder_231204 -g /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/bladder_231204/bladder_231204.3d_clustering_genes.csv -p /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/bladder_231204/bladder_231204.3d_clustering_pos.csv -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/bladder_231204 -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/bladder_pilot/all_mutations.all_samples.tsv -d /workspace/projects/clustering_3d/clustering_3d/datasets -a /workspace/projects/clustering_3d/o3d_analysys/datasets/annotations -j /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/bladder_pilot/mutability_bladder.json
-# oncodrive3D plot --output_tsv --non_significant -r TCGA_WXS_COADREAD -g /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/results/TCGA_WXS_COADREAD.3d_clustering_genes.csv -p /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/results/TCGA_WXS_COADREAD.3d_clustering_pos.csv -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/maf/TCGA_WXS_COADREAD.in.maf -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/plots -m /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/mut_profile/TCGA_WXS_COADREAD.mutrate.json -d /workspace/projects/clustering_3d/clustering_3d/datasets -a /workspace/projects/clustering_3d/o3d_analysys/datasets/annotations
-# oncodrive3D plot --output_tsv --non_significant -r TCGA_WXS_BLCA -g /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/results/TCGA_WXS_BLCA.3d_clustering_genes.csv -p /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/results/TCGA_WXS_BLCA.3d_clustering_pos.csv -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/maf/TCGA_WXS_BLCA.in.maf -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/plots -m /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/mut_profile/TCGA_WXS_BLCA.mutrate.json -d /workspace/projects/clustering_3d/clustering_3d/datasets -a /workspace/projects/clustering_3d/o3d_analysys/datasets/annotations
+# oncodrive3D plot -i /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/2024/ -d /workspace/nobackup/scratch/oncodrive3d/datasets_240506/ -a /workspace/nobackup/scratch/oncodrive3d/annotations_240506/ -o /workspace/projects/clustering_3d/dev_testing/result/plots -c all_samples_raw --title "Bladder normal tissue" --non_significant --output_tsv -v --summary_alpha 0.3
 
+# TO DO
+# - Add a check for lst hratios that match with lst tracks and annotations
+# - Add a check for the names of tracks and annotations
 
 @oncodrive3D.command(context_settings=dict(help_option_names=['-h', '--help']),
                help="Generate plots for a quick interpretation of the 3D-clustering analysis.")
-@click.option("-g", "--gene_result_path", help="Path to Oncodrive3D gene-level result", type=str, required=True)
-@click.option("-p", "--pos_result_path", help="Path to Oncodrive3D position-level result", type=str, required=True)
-@click.option("-i", "--input_maf", help="Path to MAF input file", type=str, required=True)
-@click.option("-m", "--mut_profile_path", help="Path to mutation profile", type=str)
-@click.option("-j", "--mutability_config_path", help="Path to mutability configuration file", type=str)
-@click.option("-G", "--gene_result_path_2", help="Path to 2° Oncodrive3D gene-level result for comparative plots", type=str)
-@click.option("-P", "--pos_result_path_2", help="Path to 2° Oncodrive3D position-level result", type=str)
-@click.option("-I", "--input_maf_2", help="Path to 2° MAF input file", type=str)
-@click.option("-M", "--mut_profile_path_2", help="Path to 2° mutation profile", type=str)
-@click.option("-J", "--mutability_config_path_2", help="Path to 2° mutability configuration file", type=str)
-@click.option("-d", "--data_dir", help="Path to datasets directory", type=str, required=True)
-@click.option("-a", "--annotations_dir", help="Path annotations directory", type=str, required=True)
-@click.option("-o", "--output_dir", help="Path to output directory where to save plots", type=str, required=True)
-@click.option("-r", "--cohort", help="Cohort or run name which will be used as plots filename", type=str, required=True)
-@click.option("-L", "--annotations", help="List of annotations [all, none, nonmiss_count, pae, disorder, pacc, ddg, clusters, sse, pfam] to be included in the plots (e.g., --annotations pae,disorder,ddg)", 
-              type=str, default="all")
-@click.option("-n", "--n_genes", help="Top number of genes to be included in the plots", type=int, default=30)
-@click.option("-l", "--genes", help="List of genes to be analysed in the report (e.g., --genes TP53,KRAS,PIK3CA)", type=str)
-@click.option("-s", "--non_significant", help="Also include non-significant genes", is_flag=True)
-@click.option("-C", "--comparative_plots", help="Compare the results between two runs of Oncodrive3D", is_flag=True)
-@click.option("-O", "--output_tsv", help="Output tsv files including Oncodrive3D result enriched with annotations", is_flag=True)
-@click.option("-f", "--output_all_pos", help="Include all position (including non-mutated ones) in the Oncodrive3D enriched result", is_flag=True)
-@click.option("-x", "--figsize_x", help="Figure size x-axis for gene plots", type=float, default=24)
-@click.option("-y", "--figsize_y", help="Figure size y-axis for gene plots", type=float, default=12)
+@click.option("-g", "--gene_result_path", type=click.Path(exists=True), required=True,
+              help="Path to genes-level O3D result")
+@click.option("-p", "--pos_result_path", type=click.Path(exists=True), required=True,
+              help="Path to positions-level O3D result")
+@click.option("-i", "--maf_path", type=click.Path(exists=True), required=True,
+              help="Path to input mutations file")
+@click.option("-m", "--miss_prob_path", type=click.Path(exists=True), required=True,
+              help="Path to missense mutations probability dictionary")
+@click.option("-s", "--seq_df_path", type=click.Path(exists=True), required=True,
+              help="Path to dataframe of sequences")
+@click.option("-d", "--datasets_dir", type=click.Path(exists=True), required=True,
+              help="Path to datasets directory")
+@click.option("-a", "--annotations_dir", type=click.Path(exists=True), required=True, 
+              help="Path to annotations directory")
+@click.option("-o", "--output_dir", required=True,
+              help="Path to output directory where to save plots")
+@click.option("-c", "--cohort", 
+              help="Cohort name", type=str, required=True)
+@click.option("--title",                                                                              ## Might be redundant
+              help="Plot title", type=str)
+@click.option("--maf_for_nonmiss_path", type=click.Path(exists=True), 
+              help="Path to input mutations file including non-missense mutations")
+@click.option("--lst_summary_tracks", type=str,
+              help="List of tracks to be included in the summary plot", 
+              default="score,miss_count,res_count,res_ratio,clusters")
+@click.option("--lst_summary_hratios", type=str,
+              help="List of float to define horizontal ratio of each track of the summary plot") 
+@click.option("--lst_gene_tracks", type=str,
+              help="List of tracks to be included in the gene plots",
+              default="miss_count,miss_prob,score,clusters,ddg,disorder,pacc,ptm,site,sse,pfam,prosite,membrane,motif")
+@click.option("--lst_gene_hratios", type=str,
+              help="List of floats to define horizontal ratio of each track of the gene plot") 
+@click.option("--summary_fsize_x", help="Figure size x-axis for summary plots (to be dynamically increased)", type=float, default=0.7)
+@click.option("--summary_fsize_y", help="Figure size y-axis for summary plots", type=int, default=8)
+@click.option("--gene_fsize_x", help="Figure size x-axis for gene plots", type=int, default=24)
+@click.option("--gene_fsize_y", help="Figure size y-axis for gene plots", type=int, default=12)
+@click.option("--summary_alpha", help="Alpha value for score track in summary plot", type=float, default=0.7)
+@click.option("--dist_thr", help="Threshold of ratios to avoid clashing feature names (e.g., domains and motifs)", type=float, default=0.1)
+@click.option("--genes", help="List of genes to be analysed in the report (e.g., --genes TP53,KRAS,PIK3CA)", type=str)
+@click.option("--n_genes", help="Top number of genes to be included in the plots", type=int, default=30)
+@click.option("--output_tsv", help="Output tsv files including Oncodrive3D result enriched with annotations", is_flag=True)
+@click.option("--output_all_pos", help="Include all position (including non-mutated ones) in the Oncodrive3D enriched result", is_flag=True)
 @click.option("-v", "--verbose", help="Verbose", is_flag=True)
 @setup_logging_decorator
 def plot(gene_result_path,
          pos_result_path,
-         input_maf,
-         mut_profile_path,
-         mutability_config_path,
-         gene_result_path_2,
-         pos_result_path_2,
-         input_maf_2,
-         mut_profile_path_2,
-         mutability_config_path_2,
-         data_dir,
+         maf_path,
+         miss_prob_path,
+         seq_df_path,
+         datasets_dir,
          annotations_dir,
          output_dir,
          cohort,
-         annotations,
-         n_genes,
+         title,
+         maf_for_nonmiss_path,
+         lst_summary_tracks,
+         lst_summary_hratios,
+         lst_gene_tracks,
+         lst_gene_hratios,
+         summary_fsize_x,
+         summary_fsize_y,
+         gene_fsize_x,
+         gene_fsize_y,
+         summary_alpha,
+         dist_thr, 
          genes,
-         non_significant,
-         comparative_plots,
+         n_genes,
          output_tsv,
          output_all_pos,
-         figsize_x,
-         figsize_y,
          verbose):
-    """"Generate plots for a quick interpretation of the 3D-clustering analysis."""
+    """"Generate summary and individual gene plots for a quick interpretation of the 3D-clustering analysis."""
 
     startup_message(__version__, "Starting plot generation..")
-
-    logger.info(f"Gene-level Oncodrive3D result: {gene_result_path}")
-    logger.info(f"Position-level Oncodrive3D result: {pos_result_path}")
-    logger.info(f"MAF: {input_maf}")
-    logger.info(f"Mut profile: {mut_profile_path}")
-    logger.info(f"Mutability configuration file: {mutability_config_path}")
-    logger.info(f"Datasets directory: {data_dir}")
-    logger.info(f"Annotations directory: {annotations_dir}")
-    logger.info(f"Outpur directory: {output_dir}")
-    logger.info(f"Run or cohort name: {cohort}")
-    logger.info(f"Annotations to plot: {annotations}")
-    logger.info(f"Number of top genes: {n_genes}")
-    logger.info(f"List of genes: {genes}")
-    logger.info(f"Include non-significant genes: {bool(non_significant)}")
-    logger.info(f"Output tsv file: {bool(verbose)}")
-    logger.info(f"Include non-mutated positions in tsv file: {bool(verbose)}")
+    logger.info(f"O3D genes-result: {gene_result_path}")
+    logger.info(f"O3D positions-result: {pos_result_path}")
+    logger.info(f"O3D input mutations: {maf_path}")
+    logger.info(f"O3D missense mut prob: {miss_prob_path}")
+    logger.info(f"O3D missense seq df: {seq_df_path}")
+    logger.info(f"O3D datasets: {datasets_dir}")
+    logger.info(f"O3D annotations: {annotations_dir}")
+    logger.info(f"Output: {output_dir}")
+    logger.info(f"Cohort: {cohort}")
+    logger.info(f"Title: {title}")
+    logger.info(f"Input mutations including non-missense: {maf_for_nonmiss_path}")
+    logger.info(f"Custom summary plot tracks: {lst_summary_tracks}")
+    logger.info(f"Custom summary plot h-ratios: {lst_summary_hratios}")
+    logger.info(f"Custom gene plots tracks: {lst_gene_tracks}")
+    logger.info(f"Custom gene plots h-ratios: {lst_gene_hratios}")
+    logger.info(f"Summary plot fsize_x (to be dynamically increased): {summary_fsize_x}")
+    logger.info(f"Summary plot fsize_y: {summary_fsize_y}")
+    logger.info(f"Gene plots fsize_x: {gene_fsize_x}")
+    logger.info(f"Gene plots fsize_y: {gene_fsize_y}")
+    logger.info(f"Summary plot score alpha: {summary_alpha}")
+    logger.info(f"Threshold for clashing feat: {dist_thr}")
+    logger.info(f"Subset of genes: {genes}")
+    logger.info(f"Max number of genes to plot: {n_genes}")
+    logger.info(f"Output tsv file: {bool(output_tsv)}")
+    logger.info(f"Include non-mutated positions in tsv file: {bool(output_all_pos)}")
     logger.info(f"Verbose: {bool(verbose)}")
     logger.info(f'Log path: {os.path.join(output_dir, "log")}')
     logger.info("")
 
-    ## Parameters
+    lst_summary_tracks = parse_lst_tracks(lst_summary_tracks, plot_type="summary")
+    lst_gene_tracks = parse_lst_tracks(lst_gene_tracks, plot_type="gene")
+    plot_pars = init_plot_pars(summary_fsize_x=summary_fsize_x,
+                               summary_fsize_y=summary_fsize_y,
+                               gene_fsize_x=gene_fsize_x, 
+                               gene_fsize_y=gene_fsize_y, 
+                               dist_thr=dist_thr,
+                               summary_alpha=summary_alpha,
+                               lst_summary_tracks=lst_summary_tracks,
+                               lst_summary_hratios=lst_summary_hratios,
+                               lst_gene_annot=lst_gene_tracks, 
+                               lst_gene_hratios=lst_gene_hratios)
 
-    # Annotations
-    plot_annot = init_annotations(annotations)
+    generate_plots(gene_result_path=gene_result_path,
+                  pos_result_path=pos_result_path,
+                  maf_path=maf_path,
+                  miss_prob_path=miss_prob_path,
+                  seq_df_path=seq_df_path,
+                  cohort=cohort,
+                  datasets_dir=datasets_dir,
+                  annotations_dir=annotations_dir,
+                  output_dir=output_dir,
+                  plot_pars=plot_pars,
+                  maf_path_for_nonmiss=maf_for_nonmiss_path,
+                  n_genes=n_genes,
+                  lst_genes=genes,
+                  save_plot=True,
+                  show_plot=False,
+                  save_tsv=output_tsv,
+                  include_all_pos=output_all_pos,
+                  title=title)
 
-    # Cnsq color
-    color_cnsq = {"splicing" : "C2",
-                  "missense" : "C5",
-                  "synonymous" : "C9",
-                  "coding_sequence_variant" : "C1",
-                  "nonsense" : "C6",
-                  "intron_variant" : "C7",
-                  "indel" : "C8",
-                  "protein_altering_variant" : "C3"}
 
-    # Plot parameters                                            # TODO: add some of them as args
-    plot_pars = {}
-    plot_pars["figsize"] = figsize_x, figsize_y
-    plot_pars["h_ratios"] = [0.17, 0.17, 0.17, 0.1, 0.1, 0.1, 0.1, 0.04, 0.07, 0.04, 0.04, 0.07, 0.04, 0.04, 0.04, 0.04]
-    plot_pars["s_lw"] = 0.2
-    plot_pars["sse_fill_width"] = 0.43
-    plot_pars["dist_thr"] = 0.05
-    plot_pars["color_cnsq"] = color_cnsq
-    # plot_pars["dict_transcripts"] = {"PTEN" : "ENST00000688308"}  # For now this is used to get a specific transcript for pfam domains
 
-    ## Plot
+# =============================================================================
+#                              COMPARATIVE PLOTS
+# =============================================================================
 
-    generate_plot(gene_result_path,
-                  pos_result_path,
-                  input_maf,
-                  mut_profile_path,
-                  mutability_config_path,
-                  gene_result_path_2,
-                  pos_result_path_2,
-                  input_maf_2,
-                  mut_profile_path_2,
-                  mutability_config_path_2,
-                  data_dir,
-                  annotations_dir,
-                  output_dir,
-                  cohort,
-                  plot_annot,
-                  plot_pars,
-                  n_genes,
-                  non_significant,
-                  genes,
-                  comparative_plots,
-                  output_tsv,
-                  output_all_pos)
+# Example:
+# oncodrive3D comparative-plot -i /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/2024/ -c all_samples_raw -I /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer_202404/o3d_output/human_raw/run_2024-05-07_17-46-44 -C TCGA_WXS_BRCA -d /workspace/nobackup/scratch/oncodrive3d/datasets_240506/ -a /workspace/nobackup/scratch/oncodrive3d/annotations_240506/ -o /workspace/projects/clustering_3d/dev_testing/result/plots -v
 
+# TO DO:
+# - Test plots with non-missense mutations
+# - Enable not morrirs for non-missensem mutations
+
+@oncodrive3D.command(context_settings=dict(help_option_names=['-h', '--help']),
+               help="Generate plots to compare two runs of 3D-clustering analysis.")
+@click.option("-i", "--o3d_result_dir_1", type=click.Path(exists=True), required=True,
+              help="Path to result A directory (including gene- and pos-level result for run A)")
+@click.option("-I", "--o3d_result_dir_2", type=click.Path(exists=True), required=True,
+              help="Path to result B directory (including gene- and pos-level result for run B)")
+@click.option("-c", "--cohort_1", 
+              help="Cohort A name (it should match the basename of the files in o3d_result_dir)", type=str, required=True)
+@click.option("-C", "--cohort_2", 
+              help="Cohort B name (it should match the basename of the files in o3d_result_dir)", type=str, required=True)
+@click.option("-d", "--datasets_dir", type=click.Path(exists=True), required=True,
+              help="Path to datasets directory")
+@click.option("-a", "--annotations_dir", type=click.Path(exists=True), required=True, 
+              help="Path to annotations directory")
+@click.option("-o", "--output_dir", required=True,
+              help="Path to output directory where to save plots")
+@click.option("--maf_path_nonmiss_1", type=click.Path(exists=True), 
+              help="Path to input mutations file A including non-missense mutations")
+@click.option("--maf_path_nonmiss_2", type=click.Path(exists=True), 
+              help="Path to input mutations file B including non-missense mutations")
+@click.option("--lst_tracks", type=str,
+              help="List of tracks to be included in the plots", 
+              default="miss_count,miss_prob,score,clusters,ddg,disorder,pacc,ptm,site,sse,pfam,prosite,membrane,motif")
+@click.option("--lst_hratios", type=str,
+              help="List of float to define horizontal ratio of each track of the plot") 
+@click.option("--fsize_x", help="Figure size x-axis", type=float, default=24)
+@click.option("--fsize_y", help="Figure size y-axis", type=float, default=12)
+@click.option("--dist_thr", help="Threshold of ratios to avoid clashing feature names (e.g., domains and motifs)", type=float, default=0.1)
+@click.option("--genes", help="List of genes to be analysed in the report (e.g., --genes TP53,KRAS,PIK3CA)", type=str)
+@click.option("--n_genes", help="Top number of genes to be included in the plots", type=int, default=30)
+@click.option("--count_mirror", help="Missense mutation count track as mirror image", is_flag=True)
+@click.option("--prob_mirror", help="Missense mutation prob track as mirror image", is_flag=True)
+@click.option("--score_mirror", help="Clustering score track as mirror image", is_flag=True)
+@click.option("-v", "--verbose", help="Verbose", is_flag=True)
+@setup_logging_decorator
+def comparative_plot(o3d_result_dir_1,
+                     cohort_1,
+                     o3d_result_dir_2,
+                     cohort_2,
+                     datasets_dir, 
+                     annotations_dir,
+                     output_dir,
+                     maf_path_nonmiss_1,
+                     maf_path_nonmiss_2,
+                     lst_tracks,
+                     lst_hratios,
+                     fsize_x,
+                     fsize_y,
+                     dist_thr,
+                     count_mirror,
+                     prob_mirror,
+                     score_mirror,
+                     genes,
+                     n_genes,
+                     verbose):
+    """"Generate genes comparative plots to comprare two runs of 3D-clustering analysis."""
+
+    startup_message(__version__, "Starting plot generation..")
+    logger.info(f"Oncodrive3D result A: {o3d_result_dir_1}")
+    logger.info(f"Cohort B: {cohort_1}")
+    logger.info(f"Oncodrive3D result B: {o3d_result_dir_2}")
+    logger.info(f"Cohort B: {cohort_2}")
+    logger.info(f"Oncodrive3D datasets: {datasets_dir}")
+    logger.info(f"Oncodrive3D annotations: {annotations_dir}")
+    logger.info(f"Output: {output_dir}")
+    logger.info(f"Input mutations including non-missense A: {maf_path_nonmiss_1}")
+    logger.info(f"Input mutations including non-missense B: {maf_path_nonmiss_2}")
+    logger.info(f"Custom gene plots tracks: {lst_tracks}")
+    logger.info(f"Custom gene plots h-ratios: {lst_hratios}")
+    logger.info(f"Summary plot fsize_x: {fsize_x}")
+    logger.info(f"Summary plot fsize_y: {fsize_y}")
+    logger.info(f"Threshold for clashing feat: {dist_thr}")
+    logger.info(f"Missense mut as mirror image: {bool(count_mirror)}")
+    logger.info(f"Missense mut prob as mirror image: {bool(prob_mirror)}")
+    logger.info(f"Score as mirror image: {bool(score_mirror)}")
+    logger.info(f"Verbose: {bool(verbose)}")
+    logger.info(f"Subset of genes: {genes}")
+    logger.info(f"Max number of genes to plot: {n_genes}")
+    logger.info(f"Verbose: {bool(verbose)}")
+    logger.info(f'Log path: {os.path.join(output_dir, "log")}')
+    logger.info("")
+    
+    lst_tracks = parse_lst_tracks(lst_tracks, plot_type="gene")
+    plot_pars = init_comp_plot_pars(fsize_x=fsize_x,
+                                    fsize_y=fsize_y,
+                                    dist_thr=dist_thr,
+                                    lst_tracks=lst_tracks,
+                                    lst_hratios=lst_hratios,
+                                    count_mirror=count_mirror, 
+                                    score_mirror=score_mirror,
+                                    prob_mirror=prob_mirror)
+
+    generate_comparative_plots(o3d_result_dir_1=o3d_result_dir_1,
+                               cohort_1=cohort_1,
+                               o3d_result_dir_2=o3d_result_dir_2,
+                               cohort_2=cohort_2,
+                               datasets_dir=datasets_dir, 
+                               annotations_dir=annotations_dir,
+                               output_dir=output_dir,
+                               plot_pars=plot_pars,
+                               maf_path_nonmiss_1=maf_path_nonmiss_1,
+                               maf_path_nonmiss_2=maf_path_nonmiss_2,
+                               n_genes=n_genes, 
+                               lst_genes=genes)
 
 if __name__ == "__main__":
     oncodrive3D()

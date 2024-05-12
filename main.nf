@@ -8,13 +8,16 @@
 // LAST HUMAN nextflow run main.nf --indir /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/ --outdir /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer_202404/o3d_output/human --data_dir /workspace/nobackup/scratch/oncodrive3d/datasets_240506 -profile conda --verbose true
 // LAST MANE nextflow run main.nf --indir /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/ --outdir /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer_202404/o3d_output/human_mane --data_dir /workspace/nobackup/scratch/oncodrive3d/datasets_mane_240506 -profile conda --verbose true --mane true
 
+// Example with plot
+// LAST HUMAN RAW nextflow run main.nf --indir /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/ --outdir /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer_202404/o3d_output/human_raw --data_dir /workspace/nobackup/scratch/oncodrive3d/datasets_240506 -profile conda --vep_input true --verbose true --plot true
+
 // Example single run cancer tissue
 // oncodrive3D run -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/vep/CBIOP_WXS_ANGS_UNTREAT_2020.vep.tsv.gz -p /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/mut_profile/CBIOP_WXS_ANGS_UNTREAT_2020.sig.json -d /workspace/nobackup/scratch/oncodrive3d/datasets_240506 -C CBIOP_WXS_ANGS_UNTREAT_2020 -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer_202404/o3d_output/human_raw/run_2024-05-07.CBIOP_WXS_ANGS_UNTREAT_2020 -s 26 -c 10 -v --o3d_transcripts --use_input_symbols
-
+// oncodrive3D plot -g /workspace/projects/clustering_3d/dev_testing/result/o3d/test_240612/CBIOP_WXS_ACY_2019.3d_clustering_genes.csv -p /workspace/projects/clustering_3d/dev_testing/result/o3d/test_240612/CBIOP_WXS_ACY_2019.3d_clustering_pos.csv -i /workspace/projects/clustering_3d/dev_testing/result/o3d/test_240612/CBIOP_WXS_ACY_2019.mutations.processed.tsv -m /workspace/projects/clustering_3d/dev_testing/result/o3d/test_240612/CBIOP_WXS_ACY_2019.miss_prob.processed.json -d /workspace/nobackup/scratch/oncodrive3d/datasets_240506 -a /workspace/nobackup/scratch/oncodrive3d/annotations_240506 -o CBIOP_WXS_ACY_2019 -c CBIOP_WXS_ACY_2019 --title CBIOP_WXS_ACY_2019 --output_tsv -v
 
 // Example single run normal tissue
 // oncodrive3D run -i /workspace/datasets/transfer/ferriol_stefano/2024-04_data/single_sample/P19_0044_BDO_01.mutations.tsv -m /workspace/datasets/transfer/ferriol_stefano/2024-04_data/single_sample/oncodrive3d.mutability.conf -d /workspace/nobackup/scratch/oncodrive3d/datasets_240424 -C P19_0044_BDO_01 -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/2024/P19_0044_BDO_01 -s 26 -c 20 -v
-// oncodrive3D plot --output_tsv --non_significant -r $cohort -g $genes_tsv -p $pos_tsv -i ${inputs[0]} -m ${inputs[1]} -o $outdir/$cohort -d ${params.data_dir} -a ${params.annotations_dir} ${params.verbose ? '-v' : ''} 
+// oncodrive3D plot --output_tsv -r $cohort -g $genes_tsv -p $pos_tsv -i ${inputs[0]} -m ${inputs[1]} -o $outdir/$cohort -d ${params.data_dir} -a ${params.annotations_dir} ${params.verbose ? '-v' : ''} 
 
 // LAST PROCESSED oncodrive3D run -i /workspace/datasets/transfer/ferriol_stefano/2024-04_data/all_samples.mutations.tsv -m /workspace/datasets/transfer/ferriol_stefano/2024-04_data/oncodrive3d.mutability.conf -d /workspace/nobackup/scratch/oncodrive3d/datasets_240424 -C all_samples -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/2024/all_samples_temp -s 26 -c 20 -v
 // LAST RAW oncodrive3D run -i /workspace/datasets/transfer/ferriol_stefano/2024-04_data/all_samples.mutations.raw_vep.tsv -m /workspace/datasets/transfer/ferriol_stefano/2024-04_data/oncodrive3d.mutability.conf -d /workspace/nobackup/scratch/oncodrive3d/datasets_240424 -C all_samples_raw -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/2024/all_samples_raw -s 26 -c 20 -v --o3d_transcripts --use_input_symbols
@@ -64,7 +67,7 @@ process O3D_run {
     tuple val(cohort), path(inputs)
 
     output:
-    tuple val(cohort), path("**genes.csv"), path("**pos.csv"), path("**mutations.processed.tsv"), path("**seq_df.processed.tsv"), path("**miss_prob.processed.json"), emit : o3d_result
+    tuple val(cohort), path("**genes.csv"), path("**pos.csv"), path("**mutations.processed.tsv"), path("**miss_prob.processed.json"), path("**seq_df.processed.tsv"), emit : o3d_result
     path("**.log")                                                                                                                                                  , emit : log
 
     script:
@@ -85,14 +88,14 @@ process O3D_plot {
     maxForks params.max_running
 
     input:
-    tuple val(cohort), path(inputs), path(genes_tsv), path(pos_tsv)
+    tuple val(cohort), path(inputs), path(genes_csv), path(pos_csv), path(mutations_csv), path(miss_prob_json), path(seq_df_tsv)
 
     output:
     val(cohort)
 
     script:
     """
-    oncodrive3D plot --output_tsv --non_significant -r $cohort -g $genes_tsv -p $pos_tsv -i ${inputs[0]} -m ${inputs[1]} -o $outdir/$cohort -d ${params.data_dir} -a ${params.annotations_dir} ${params.verbose ? '-v' : ''} 
+    oncodrive3D plot -g $genes_csv -p $pos_csv -i $mutations_csv -m $miss_prob_json -s $seq_df_tsv -d ${params.data_dir} -a ${params.annotations_dir} -o $outdir/$cohort -c $cohort --title $cohort --output_tsv ${params.verbose ? '-v' : ''}
     """
 }
 

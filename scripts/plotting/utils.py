@@ -4,8 +4,10 @@ import os
 import daiquiri
 import subprocess
 import click
-from scipy import interpolate
+import sys
 import numpy as np
+import pandas as pd
+import json
 
 from scripts import __logger_name__
 
@@ -13,10 +15,6 @@ logger = daiquiri.getLogger(__logger_name__ + ".annotations.utils")
 
 logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
 
-
-
-# Utils
-# =====
 
 
 def get_species(species):
@@ -202,49 +200,198 @@ def get_broad_consequence(list_of_annotations):
     return list_of_broad_annotations
 
 
-def init_annotations(annotations):
+def init_plot_pars(summary_fsize_x=0.7,    # It will be moltiplied for the number of genes
+                   summary_fsize_y=8,
+                   gene_fsize_x=24, 
+                   gene_fsize_y=12, 
+                   s_lw=0.2, 
+                   sse_fill_width=0.43, 
+                   dist_thr=0.1, 
+                   summary_alpha=0.3,
+                   lst_summary_tracks=None,
+                   lst_summary_hratios=None,
+                   lst_gene_annot=None, 
+                   lst_gene_hratios=None):
     """
-    Save string of annotations provided as argument as dictionary of bolean.
+    Initialize plotting parameters.
     """
     
-    plot_annot = {}
-    plot_annot["nonmiss_count"] = False
-    plot_annot["pae"] = False
-    plot_annot["disorder"] = False
-    plot_annot["pacc"] = False
-    plot_annot["ddg"] = False
-    plot_annot["ptm"] = False
-    plot_annot["site"] = False
-    plot_annot["clusters"] = False
-    plot_annot["sse"] = False
-    plot_annot["pfam"] = False   
-    plot_annot["prosite"] = False  
-    plot_annot["membrane"] = False
-    plot_annot["motif"] = False
+    plot_pars = {}
+
+    plot_pars["summary_figsize"] = summary_fsize_x, summary_fsize_y
+    plot_pars["figsize"] = gene_fsize_x, gene_fsize_y
+    plot_pars["s_lw"] = s_lw
+    plot_pars["sse_fill_width"] = sse_fill_width
+    plot_pars["dist_thr"] = dist_thr
+    plot_pars["summary_alpha"] = summary_alpha
+
     
-    if isinstance(annotations, str):
-        lst_annotations = [annot.lower() for annot in annotations.replace(" ", "").split(",")]
-        if "all" in lst_annotations:
-            for annot in plot_annot.keys():
-                plot_annot[annot] = True
-        elif "none" in lst_annotations:
-            for annot in plot_annot.keys():
-                plot_annot[annot] = False
-        else:
-            for annot in lst_annotations:
-                if annot in plot_annot:
-                    plot_annot[annot] = True
-                else:
-                    print(f"{annot} is not recognized as valid annotation.")  
-        lst_annotations = [k for k,v in plot_annot.items() if v == True]
-        if len(lst_annotations) > 0:
-            logger.info(f"The following annotations will be included: {lst_annotations}")
-        else:
-            logger.info("No annotations will be included.")
+    # Summary-plot
+    #=============
+    
+    # Default values
+    plot_pars["summary_h_ratios"] = {"score"         : 0.3,
+                                     "miss_count"    : 0.2,
+                                     "res_count"     : 0.2,
+                                     "res_ratio"     : 0.2,
+                                     "clusters"      : 0.2}
+    
+    # Custom values
+    if not lst_summary_tracks:
+        lst_summary_tracks = plot_pars["summary_h_ratios"].keys()
+    if lst_summary_hratios:
+        plot_pars["summary_h_ratios"] = {lst_summary_tracks[i] : h_ratio for i, h_ratio in enumerate(lst_summary_hratios)}
     else:
-        logger.info("No extra annotations will be included in the plots.")
+        plot_pars["summary_h_ratios"] = {annot : plot_pars["summary_h_ratios"][annot] for annot in lst_summary_tracks}
+    plot_pars["summary_h_ratios"] = {k:v/sum(plot_pars["summary_h_ratios"].values()) for k,v in plot_pars["summary_h_ratios"].items()}
+        
     
-    return plot_annot
+    # Gene-plots
+    #===========
+    
+    # Default values
+    plot_pars["h_ratios"] = {"nonmiss_count" : 0.13,
+                             "miss_count"    : 0.13,
+                             "miss_prob"     : 0.13,
+                             "score"         : 0.13,
+                             "pae"           : 0.1,
+                             "disorder"      : 0.1,
+                             "pacc"          : 0.1,
+                             "ddg"           : 0.1,
+                             "ptm"           : 0.022,
+                             "site"          : 0.022,
+                             "clusters"      : 0.04,
+                             "sse"           : 0.065,
+                             "pfam"          : 0.04,
+                             "prosite"       : 0.04,
+                             "membrane"      : 0.04,
+                             "motif"         : 0.04}
+    
+    plot_pars["color_cnsq"] = {"splicing" : "C2",
+                               "missense" : "C5",
+                               "synonymous" : "C9",
+                               "coding_sequence_variant" : "C1",
+                               "nonsense" : "C6",
+                               "intron_variant" : "C7",
+                               "indel" : "C8",
+                               "protein_altering_variant" : "C3"}
+
+    # Custom values
+    if not lst_gene_annot:
+        lst_gene_annot = plot_pars["h_ratios"].keys()
+    if lst_gene_hratios:
+        plot_pars["h_ratios"] = {lst_gene_annot[i] : h_ratio for i, h_ratio in enumerate(lst_gene_hratios)}
+    else:
+        plot_pars["h_ratios"] = {annot : plot_pars["h_ratios"][annot] for annot in lst_gene_annot}
+    
+    return plot_pars
+
+
+def init_comp_plot_pars(fsize_x=24, 
+                        fsize_y=12, 
+                        s_lw=0.2, 
+                        sse_fill_width=0.43, 
+                        dist_thr=0.1, 
+                        lst_tracks=None,
+                        lst_hratios=None,
+                        count_mirror=False, 
+                        score_mirror=False,
+                        prob_mirror=False):
+    """
+    Initialize plotting parameters.
+    """
+    
+    plot_pars = {}
+ 
+    plot_pars["figsize"] = fsize_x, fsize_y
+    plot_pars["s_lw"] = s_lw
+    plot_pars["sse_fill_width"] = sse_fill_width
+    plot_pars["dist_thr"] = dist_thr
+    plot_pars["count_mirror"] = count_mirror
+    plot_pars["score_mirror"] = score_mirror
+    plot_pars["prob_mirror"] = prob_mirror
+        
+    # Default values
+    plot_pars["h_ratios"] = {"nonmiss_count" : 0.13,
+                             "miss_count"    : 0.13,
+                             "miss_prob"     : 0.13,
+                             "score"         : 0.13,
+                             "clusters"      : 0.04,
+                             "pae"           : 0.1,
+                             "disorder"      : 0.1,
+                             "pacc"          : 0.1,
+                             "ddg"           : 0.1,
+                             "ptm"           : 0.022,
+                             "site"          : 0.022,
+                             "sse"           : 0.065,
+                             "pfam"          : 0.04,
+                             "prosite"       : 0.04,
+                             "membrane"      : 0.04,
+                             "motif"         : 0.04}
+    
+    plot_pars["color_cnsq"] = {"splicing" : "C2",
+                               "missense" : "C5",
+                               "synonymous" : "C9",
+                               "coding_sequence_variant" : "C1",
+                               "nonsense" : "C6",
+                               "intron_variant" : "C7",
+                               "indel" : "C8",
+                               "protein_altering_variant" : "C3"}
+
+    # Custom values
+    if not lst_tracks:
+        lst_tracks = list(plot_pars["h_ratios"].keys())
+    
+    if not count_mirror and "nonmiss_count" in lst_tracks:    
+        ix = lst_tracks.index("nonmiss_count")
+        lst_tracks.insert(ix+1, "nonmiss_count_2")
+        plot_pars["h_ratios"]["nonmiss_count_2"] = plot_pars["h_ratios"]["nonmiss_count"] 
+        
+    if not count_mirror and "miss_count" in lst_tracks:    
+        ix = lst_tracks.index("miss_count")
+        lst_tracks.insert(ix+1, "miss_count_2")
+        plot_pars["h_ratios"]["miss_count_2"] = plot_pars["h_ratios"]["miss_count"]
+        
+    if not score_mirror and "score" in lst_tracks:    
+        ix = lst_tracks.index("score")
+        lst_tracks.insert(ix+1, "score_2")
+        plot_pars["h_ratios"]["score_2"] = plot_pars["h_ratios"]["score"]
+        
+    if "clusters" in lst_tracks:
+        ix = lst_tracks.index("clusters")
+        lst_tracks.insert(ix+1, "clusters_2")
+        plot_pars["h_ratios"]["clusters_2"] = plot_pars["h_ratios"]["clusters"]
+        
+    if "ddg" in lst_tracks:
+        ix = lst_tracks.index("ddg")
+        lst_tracks.insert(ix+1, "ddg_2")
+        plot_pars["h_ratios"]["ddg_2"] = plot_pars["h_ratios"]["ddg"]
+
+    if lst_hratios:
+        plot_pars["h_ratios"] = {lst_tracks[i] : h_ratio for i, h_ratio in enumerate(lst_hratios)}
+    else:
+        plot_pars["h_ratios"] = {annot : plot_pars["h_ratios"][annot] for annot in lst_tracks}   
+        
+    plot_pars["h_ratios"] = {k:v/sum(plot_pars["h_ratios"].values()) for k,v in plot_pars["h_ratios"].items()}
+    
+    return plot_pars
+
+
+def load_o3d_result(o3d_result_path, cohort):
+    """
+    Load all files generated by 3D clustering analysis of Oncodrive3D.
+    """
+    
+    gene_result_path = f"{o3d_result_path}/{cohort}/{cohort}.3d_clustering_genes.csv"
+    pos_result_path = f"{o3d_result_path}/{cohort}/{cohort}.3d_clustering_pos.csv"
+    maf_path = f"{o3d_result_path}/{cohort}/{cohort}.mutations.processed.tsv"
+    miss_prob_dict_path = f"{o3d_result_path}/{cohort}/{cohort}.miss_prob.processed.json"
+    gene_result = pd.read_csv(gene_result_path)
+    pos_result = pd.read_csv(pos_result_path)
+    maf = pd.read_csv(maf_path, sep="\t")
+    miss_prob_dict = json.load(open(miss_prob_dict_path))  
+    
+    return gene_result, pos_result, maf, miss_prob_dict
 
 
 def subset_genes_and_ids(genes, 
@@ -270,7 +417,7 @@ def subset_genes_and_ids(genes,
     return seq_df, disorder, pdb_tool, uniprot_feat
 
 
-def filter_o3d_result(gene_result, pos_result, n_genes, lst_genes, non_significant):
+def filter_o3d_result(gene_result, pos_result, n_genes=None, lst_genes=None):
     """
     Subset gene-level and position-level Oncodrive3D result.
     """
@@ -278,14 +425,13 @@ def filter_o3d_result(gene_result, pos_result, n_genes, lst_genes, non_significa
     if isinstance(lst_genes, str):
         lst_genes = lst_genes.replace(" ", "")
         lst_genes = lst_genes.split(",")
-        gene_result = gene_result[[gene in lst_genes for gene in gene_result["Gene"].values]]    
-    if non_significant == False:
-        gene_result = gene_result[gene_result["C_gene"] == 1]
+        gene_result = gene_result[gene_result["Gene"].isin(lst_genes)]    
     gene_result = gene_result[gene_result["Status"] == "Processed"]
-    gene_result = gene_result[:n_genes]                                     
+    if n_genes:
+        gene_result = gene_result[:n_genes]                                     
     uni_ids = gene_result.Uniprot_ID.values
     genes = gene_result.Gene.values   
-    pos_result = pos_result[[gene in genes for gene in pos_result["Gene"].values]]   
+    pos_result = pos_result[pos_result["Gene"].isin(genes)]   
     
     return gene_result, pos_result, genes, uni_ids
 
@@ -313,33 +459,6 @@ def get_enriched_result(pos_result_gene,
         how="left", on=["Uniprot_ID"])
 
     return pos_result_gene
-
-
-def interpolate_x_y(x, y):
-    """
-    Interpolate x, y to get a completely filled plot without gaps.
-    """
-
-    step = (0.01 * len(x)) / 393    # Step coefficient tuned on TP53
-
-    # Do nothing if the step is larger than the original ones (positions)
-    if step >= 1:
-        
-        return x, y
-
-    # Interpolate between positions and values
-    else:
-        x = x.copy()
-        y = y.copy()
-        x = np.array(x)
-        y = np.array(y)
-        
-        # Densify data for filled color plot
-        f = interpolate.interp1d(x, y)
-        x = np.arange(x[0], x[-1], 0.01)
-        y = f(x)
-    
-        return x, y 
     
     
 def save_annotated_pos_result(pos_result, 
@@ -386,7 +505,11 @@ def save_annotated_pos_result(pos_result,
     annot_pos_result["Mut_in_res"] = annot_pos_result["Mut_in_res"].fillna(0)
     for gene in annot_pos_result.Gene.unique():
         mut_in_gene = annot_pos_result.loc[annot_pos_result["Gene"] == gene, "Mut_in_gene"].dropna().unique()[0]
-        tot_samples = annot_pos_result.loc[annot_pos_result["Gene"] == gene, "Tot_samples"].dropna().unique()[0]
+        tot_samples = annot_pos_result.loc[annot_pos_result["Gene"] == gene, "Tot_samples"].dropna().unique()
+        if tot_samples: 
+            tot_samples = tot_samples[0]
+        else:
+            tot_samples = np.nan
         annot_pos_result.loc[annot_pos_result["Gene"] == gene, "Mut_in_gene"] = mut_in_gene
         annot_pos_result.loc[annot_pos_result["Gene"] == gene, "Tot_samples"] = tot_samples
 
@@ -395,3 +518,48 @@ def save_annotated_pos_result(pos_result,
     pfam_processed.to_csv(output_pfam, sep="\t", index=False)
     logger.info(f"Saved annotated position-level result to {output_pos_result}")
     logger.info(f"Saved Pfam annotations to {output_pfam}")
+    
+    
+def parse_lst_tracks(lst, plot_type):
+    """
+    Parse the list of tracks from click arg.
+    """
+    
+    summary_tracks = ["score",
+                      "miss_count",
+                      "res_count",
+                      "res_ratio",
+                      "clusters"]
+    
+    gene_tracks = ["nonmiss_count",
+                  "miss_count",
+                  "miss_prob",
+                  "score",
+                  "pae",
+                  "disorder",
+                  "pacc",
+                  "ddg",
+                  "ptm",
+                  "site",
+                  "clusters",
+                  "sse",
+                  "pfam",
+                  "prosite",
+                  "membrane",
+                  "motif"]
+
+    if plot_type == "summary":
+        available_tracks = summary_tracks
+    elif plot_type == "gene":
+        available_tracks = gene_tracks
+    lst = lst.split(",")
+    
+    is_valid = np.array([track not in available_tracks for track in lst])
+    if is_valid.any():
+        invalid_tracks = list(np.array(lst)[np.where(is_valid)])
+        logger.error(f"One or more track names for {plot_type} plot are not accepted: {invalid_tracks}")
+        logger.error(f"Available track names are: {available_tracks}")
+        logger.error(f"Exiting..")
+        sys.exit(1)
+        
+    return lst
