@@ -99,7 +99,10 @@ def summary_plot(gene_result,
     
     # Plot
     fsize_x, fsize_y = plot_pars["summary_figsize"]
-    fsize_x = fsize_x * len(gene_result)
+    if len(gene_result) < 6:
+        fsize_x = 3
+    else:
+        fsize_x = fsize_x * len(gene_result)
     fig, axes = plt.subplots(len(h_ratios), 1, 
                              figsize=(fsize_x, fsize_y), 
                              sharex=True, 
@@ -115,10 +118,7 @@ def summary_plot(gene_result,
         sns.stripplot(x='Gene', y='Ratio_obs_sim', data=pos_result, hue="C" ,jitter=True, size=6, alpha=plot_pars["summary_alpha"], order=gene_result.Gene.values, 
                       palette=sns.color_palette("tab10", n_colors=2), hue_order=hue_order, ax=axes[ax])
         axes[ax].set_ylabel('Clustering\nscore\n(obs/sim)', fontsize=12)
-        if len(gene_result) < 5:
-            axes[ax].legend(fontsize=10, loc="upper right", bbox_to_anchor=(3.1, 1.5))
-        else:
-            axes[ax].legend(fontsize=10, loc="upper right")
+        axes[ax].legend(fontsize=9.5, loc="upper right")
         axes[ax].set_xlabel(None)
     
     if "miss_count" in tracks:
@@ -128,10 +128,7 @@ def summary_plot(gene_result,
         sns.barplot(x='Gene', y='Count', data=count_mut_gene_df[count_mut_gene_df["C"] != "Mutations not in clusters"], 
                     order=gene_result.Gene, ax=axes[ax], hue="C", palette=custom_palette, hue_order=hue_order, ec="black", lw=0.5)
         axes[ax].set_ylabel('Missense\nmut count', fontsize=12)
-        if len(gene_result) < 5:
-            axes[ax].legend(fontsize=10, loc="upper right", bbox_to_anchor=(3.1, 2))
-        else:
-            axes[ax].legend(fontsize=10, loc="upper right")
+        axes[ax].legend(fontsize=9.5, loc="upper right")
         axes[ax].set_xlabel(None)
     
     if "res_count" in tracks:
@@ -140,10 +137,7 @@ def summary_plot(gene_result,
         sns.barplot(x='Gene', y='Count', data=count_pos_df[count_pos_df["C"] != "Residues not in cluster"], order=gene_result.Gene, hue="C", ax=axes[ax],
                     palette=custom_palette, hue_order=hue_order, ec="black", lw=0.5)
         axes[ax].set_ylabel('Residues\ncount', fontsize=12)
-        if len(gene_result) < 5:
-            axes[ax].legend(fontsize=10, loc="upper right", bbox_to_anchor=(3.1, 2.5))
-        else:
-            axes[ax].legend(fontsize=10, loc="upper right")
+        axes[ax].legend(fontsize=9.5, loc="upper right")
         axes[ax].set_xlabel(None)
     
     if "res_ratio" in tracks:
@@ -232,6 +226,11 @@ def get_gene_arg(pos_result_gene, plot_pars, uni_feat_gene, maf_nonmiss=None):
         
     track = "maf_nonmiss_2"
     if track in h_ratios and not maf_nonmiss:
+        del h_ratios[track]
+        logger.debug(f"{track} not available and will not be included..")
+        
+    track = "ddg"
+    if track in h_ratios and pos_result_gene["DDG"].isna().all():
         del h_ratios[track]
         logger.debug(f"{track} not available and will not be included..")
     

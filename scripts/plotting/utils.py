@@ -200,7 +200,7 @@ def get_broad_consequence(list_of_annotations):
     return list_of_broad_annotations
 
 
-def init_plot_pars(summary_fsize_x=0.7,    # It will be moltiplied for the number of genes
+def init_plot_pars(summary_fsize_x=0.4,    # It will be moltiplied for the number of genes
                    summary_fsize_y=8,
                    gene_fsize_x=24, 
                    gene_fsize_y=12, 

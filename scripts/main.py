@@ -620,7 +620,7 @@ def build_annotations(data_dir,
               default="miss_count,miss_prob,score,clusters,ddg,disorder,pacc,ptm,site,sse,pfam,prosite,membrane,motif")
 @click.option("--lst_gene_hratios", type=str,
               help="List of floats to define horizontal ratio of each track of the gene plot") 
-@click.option("--summary_fsize_x", help="Figure size x-axis for summary plots (to be dynamically increased)", type=float, default=0.7)
+@click.option("--summary_fsize_x", help="Figure size x-axis for summary plots (to be dynamically increased)", type=float, default=0.5)
 @click.option("--summary_fsize_y", help="Figure size y-axis for summary plots", type=int, default=8)
 @click.option("--gene_fsize_x", help="Figure size x-axis for gene plots", type=int, default=24)
 @click.option("--gene_fsize_y", help="Figure size y-axis for gene plots", type=int, default=12)
