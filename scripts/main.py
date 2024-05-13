@@ -276,14 +276,11 @@ def run(input_maf_path,
     #=====
 
     seq_df = pd.read_csv(seq_df_path, sep="\t")
-    seq_df.to_csv("seq_00.tsv", index=False, sep="\t")
     data, seq_df = parse_maf_input(input_maf_path, 
                                    seq_df, 
                                    use_o3d_transcripts=o3d_transcripts,
                                    use_input_symbols=use_input_symbols, 
                                    mane=mane)
-    seq_df.to_csv("seq_01.tsv", index=False, sep="\t")
-    data.to_csv("data_01.tsv", index=False, sep="\t")
     
     if len(data) > 0:
 

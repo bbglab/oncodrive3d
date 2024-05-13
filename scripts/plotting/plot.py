@@ -1298,7 +1298,7 @@ def comparative_plots(shared_genes,
                                             where=(pos_result_gene_shared['C'] == "A") | (pos_result_gene_shared['C'] == "B") | (pos_result_gene_shared['C'] == "AB"), 
                                             color='skyblue', alpha=0.4, label='Position in cluster', zorder=0, lw=2)
                     axes[ax].hlines(0, xmin=0, xmax=gene_len, color="gray", lw=0.7, zorder=1)
-                    axes[ax].plot(range(1, len(prob_vec_1)+1), prob_vec_1, label="Cohort A", zorder=2, color="C2", lw=1)                       
+                    axes[ax].plot(range(1, len(prob_vec_1)+1), score_vec_1, label="Cohort A", zorder=2, color="C2", lw=1)                       
                     axes[ax].plot(range(1, len(prob_vec_2)+1), -np.array(score_vec_2), label="Cohort B", zorder=2, color="tomato", lw=1)  
                     
                     axes[ax].set_ylabel('Clustering\nscore\n(obs/sim)', fontsize=13.5, rotation=0, va='center')
@@ -1908,7 +1908,7 @@ def generate_comparative_plots(o3d_result_dir_1,
     # Get shared genes and Uniprot IDs
     shared_genes = [gene for gene in genes_1 if gene in genes_2]
     shared_uni_ids = [uid for uid in uni_ids_1 if uid in uni_ids_2]
-    
+
     if len(shared_genes) > 0:   
         
         # Subset dfs by selected genes and IDs
