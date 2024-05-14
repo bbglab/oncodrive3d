@@ -124,7 +124,7 @@ def oncodrive3D():
               help="Distance threshold (Å) to define contact between amino acids")
 @click.option("-c", "--cores", type=click.IntRange(min=1, max=len(os.sched_getaffinity(0)), clamp=False), default=len(os.sched_getaffinity(0)),
               help="Number of cores to use in the computation")
-@click.option("-a", "--af_version", type=click.IntRange(min=1, max=4, clamp=False), default=4,
+@click.option("--af_version", type=click.IntRange(min=1, max=4, clamp=False), default=4,
               help="Version of AlphaFold 2 predictions")
 @click.option("-y", "--yes", 
               help="No interaction", is_flag=True)
@@ -203,11 +203,11 @@ def build_datasets(output_dir,
               help="Include only processed genes in the output")
 @click.option("--thr_mapping_issue", type=float, default=0.1,
               help="Threshold to filter out genes by the ratio of mutations with mapping issue (out of structure, WT AA mismatch, zero prob to mutate)")
-@click.option("-T", "--o3d_transcripts", is_flag=True,
+@click.option("--o3d_transcripts", is_flag=True,
               help="Filter mutations by keeping transcripts included in Oncodrive3D built sequence dataframe. Only if input file (--i) is a raw VEP output")
-@click.option("-T", "--use_input_symbols", is_flag=True,
+@click.option("--use_input_symbols", is_flag=True,
               help="Update HUGO symbols in Oncodrive3D built datasets by using input file entries. Only if input file (--i) is a raw VEP output")
-@click.option("-M", "--mane", is_flag=True,
+@click.option("--mane", is_flag=True,
               help="If multiple structures are associated to the same HUGO symbol in the input file, use the MANE ones.")
 @setup_logging_decorator
 def run(input_maf_path,
@@ -608,12 +608,12 @@ def build_annotations(data_dir,
 @click.option("--maf_for_nonmiss_path", type=click.Path(exists=True), 
               help="Path to input mutations file including non-missense mutations")
 @click.option("--lst_summary_tracks", type=str,
-              help="List of tracks to be included in the summary plot", 
+              help="List of tracks to be included in the summary plot (e.g., score,miss_count,clusters)", 
               default="score,miss_count,res_count,res_ratio,clusters")
 @click.option("--lst_summary_hratios", type=str,
               help="List of float to define horizontal ratio of each track of the summary plot") 
 @click.option("--lst_gene_tracks", type=str,
-              help="List of tracks to be included in the gene plots",
+              help="List of tracks to be included in the gene plots (e.g., miss_count,miss_prob,score)",
               default="miss_count,miss_prob,score,clusters,ddg,disorder,pacc,ptm,site,sse,pfam,prosite,membrane,motif")
 @click.option("--lst_gene_hratios", type=str,
               help="List of floats to define horizontal ratio of each track of the gene plot") 
@@ -751,7 +751,7 @@ def plot(gene_result_path,
 @click.option("--maf_path_nonmiss_1", type=click.Path(exists=True), 
               help="Path to input mutations file A including non-missense mutations")
 @click.option("--maf_path_nonmiss_2", type=click.Path(exists=True), 
-              help="Path to input mutations file B including non-missense mutations")
+              help="Path to input mutations file B including non-missense mutations (e.g., miss_count,miss_prob,score)")
 @click.option("--lst_tracks", type=str,
               help="List of tracks to be included in the plots", 
               default="miss_count,miss_prob,score,clusters,ddg,disorder,pacc,ptm,site,sse,pfam,prosite,membrane,motif")
