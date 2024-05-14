@@ -39,8 +39,7 @@ from scripts.datasets.utils import (download_single_file,
                                     get_af_id_from_pdb,
                                     get_pdb_path_list_from_dir,
                                     get_seq_from_pdb, 
-                                    uniprot_to_hugo, 
-                                    uniprot_to_hugo_pressed)
+                                    uniprot_to_hugo)
 
 logger = daiquiri.getLogger(__logger_name__ + ".build.seq_for_mut_prob")
 
