@@ -56,14 +56,14 @@ def get_summary_counts(gene_result, pos_result, seq_df):
     if len(pos_result_not) > 0: 
         pos_result_not = pos_result_not.groupby("Gene").apply(len)
         pos_result_not = pos_result_not.reset_index().rename(columns={0 : "Count"})
-        pos_result_not["C"] = "Residues not in cluster"
+        pos_result_not["C"] = "Residues not in clusters"
     else:
         pos_result_not = pd.DataFrame(columns=["Gene", "Count", "C"])
     pos_result_hit = pos_result[pos_result["C"] == 1]
     if len(pos_result_hit) > 0:   
         pos_result_hit = pos_result_hit.groupby("Gene").apply(len)
         pos_result_hit = pos_result_hit.reset_index().rename(columns={0 : "Count"})
-        pos_result_hit["C"] = "Residues in cluster"
+        pos_result_hit["C"] = "Residues in clusters"
     else:
         pos_result_hit = pd.DataFrame(columns=["Gene", "Count", "C"])
 
@@ -133,8 +133,8 @@ def summary_plot(gene_result,
     
     if "res_count" in tracks:
         ax = tracks.index("res_count")
-        hue_order = ['Protein length', 'Residues in cluster']
-        sns.barplot(x='Gene', y='Count', data=count_pos_df[count_pos_df["C"] != "Residues not in cluster"], order=gene_result.Gene, hue="C", ax=axes[ax],
+        hue_order = ['Protein length', 'Residues in clusters']
+        sns.barplot(x='Gene', y='Count', data=count_pos_df[count_pos_df["C"] != "Residues not in clusters"], order=gene_result.Gene, hue="C", ax=axes[ax],
                     palette=custom_palette, hue_order=hue_order, ec="black", lw=0.5)
         axes[ax].set_ylabel('Residues\ncount', fontsize=12)
         axes[ax].legend(fontsize=9.5, loc="upper right")
@@ -143,7 +143,7 @@ def summary_plot(gene_result,
     if "res_ratio" in tracks:
         ax = tracks.index("res_ratio")
         size_df = count_pos_df[count_pos_df["C"] == "Protein length"].rename(columns={"Count" : "Length"}).drop(columns="C")
-        count_pos_df = count_pos_df[count_pos_df["C"] == "Residues in cluster"].drop(columns="C").merge(size_df, on="Gene")
+        count_pos_df = count_pos_df[count_pos_df["C"] == "Residues in clusters"].drop(columns="C").merge(size_df, on="Gene")
         count_pos_df["Ratio"] = np.round(count_pos_df["Count"] / count_pos_df["Length"], 3)
         sns.barplot(x='Gene', y='Ratio', data=count_pos_df, order=gene_result.Gene, ax=axes[ax], color=sns.color_palette("pastel")[0], ec="black", lw=0.5)
         axes[ax].set_ylabel('Ratio of\nresidues\nin clusters', fontsize=12)
