@@ -883,11 +883,11 @@ def get_seq_df(datasets_dir,
     uniprot_ids = [uni_id.split("-")[1] for uni_id in list(set(uniprot_ids)) if ".pdb" in uni_id]                      
     logger.debug("Retrieving Uniprot ID to HUGO symbol mapping information..")                                         
     uniprot_to_gene_dict = uniprot_to_hugo(uniprot_ids)       
-    # Workaround if the direct request to UniprotKB stops working (it has happened temporarily)
-    if all(pd.isna(k) for k in uniprot_to_gene_dict.keys()):
-        logger.warning(f"Failed to retrieve Uniprot ID to HUGO symbol mapping directly from UniprotKB.")
-        logger.warning(f"Retrying using Unipressed API client (only first HUGO symbol entry will be mapped)..")
-        uniprot_to_gene_dict = uniprot_to_hugo_pressed(uniprot_ids)   
+    # # Workaround if the direct request to UniprotKB stops working (it has happened temporarily)
+    # if all(pd.isna(k) for k in uniprot_to_gene_dict.keys()):
+    #     logger.warning(f"Failed to retrieve Uniprot ID to HUGO symbol mapping directly from UniprotKB.")
+    #     logger.warning(f"Retrying using Unipressed API client (only first HUGO symbol entry will be mapped)..")
+    #     uniprot_to_gene_dict = uniprot_to_hugo_pressed(uniprot_ids)   
         
     # Get biomart metadata and canonical transcript IDs    
     ens_canonical_transcripts_lst = get_biomart_metadata(datasets_dir, uniprot_ids)

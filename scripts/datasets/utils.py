@@ -11,7 +11,7 @@ import os
 import time
 import tarfile
 from difflib import SequenceMatcher
-from unipressed import IdMappingClient
+# from unipressed import IdMappingClient
 import sys
 
 import daiquiri
@@ -343,54 +343,54 @@ def uniprot_to_hugo(uniprot_ids, hugo_as_keys=False, batch_size=5000):
     return dictio
 
 
-def uniprot_to_hugo_pressed(uniprot_ids, hugo_as_keys=False, batch_size=5000, max_attempts=15):
-    """
-    Given a list of Uniprot IDs (any species.), return a 
-    dictionary of Uniprot IDs to Hugo symbols or vice versa.
-    """
+# def uniprot_to_hugo_pressed(uniprot_ids, hugo_as_keys=False, batch_size=5000, max_attempts=15):
+#     """
+#     Given a list of Uniprot IDs (any species.), return a 
+#     dictionary of Uniprot IDs to Hugo symbols or vice versa.
+#     """
     
-    # Split uniprot IDs into chunks
-    uniprot_ids_lst = split_lst_into_chunks(uniprot_ids, batch_size)
+#     # Split uniprot IDs into chunks
+#     uniprot_ids_lst = split_lst_into_chunks(uniprot_ids, batch_size)
     
-    # Get a dataframe including all IDs mapping info
-    result_lst = []
+#     # Get a dataframe including all IDs mapping info
+#     result_lst = []
     
-    for i, ids in enumerate(uniprot_ids_lst):
-        logger.debug(f"Batch {i+1}/{len(uniprot_ids_lst)} ({len(ids)} IDs)..")
-        status = "INIT"
+#     for i, ids in enumerate(uniprot_ids_lst):
+#         logger.debug(f"Batch {i+1}/{len(uniprot_ids_lst)} ({len(ids)} IDs)..")
+#         status = "INIT"
         
-        n = 0
-        while status != "FINISHED":
-            try:
-                request = IdMappingClient.submit(source="UniProtKB_AC-ID", 
-                                                 dest="Gene_Name", 
-                                                 ids={uni_id for uni_id in ids})
-                j = 0
-                while status != "FINISHED":
-                    time.sleep(15)
-                    status = request.get_status()
-                    if status == "FINISHED":
-                        result_lst.append(list(request.each_result()))
-                    else:
-                        logger.debug(f"Waiting for UniprotKB to process the job..")
-                        j += 1
-                        if j == max_attempts:
-                            logger.debug(f"Failed to obtain Uniprot ID to Hugo Symbol mapping: Retrying..")
-                            sys.exit() 
-            except Exception as e:
-                n += 1
-                if n == max_attempts:
-                    logger.error(f"Failed to obtain Uniprot ID to Hugo Symbol mapping and reached maximum attempts: Exiting..")
-                    sys.exit() 
-                else:
-                    status = "ERROR"
-                    logger.debug(f"Error while obtaining Uniprot ID to Hugo Symbol mapping {e}: Retrying..")
+#         n = 0
+#         while status != "FINISHED":
+#             try:
+#                 request = IdMappingClient.submit(source="UniProtKB_AC-ID", 
+#                                                  dest="Gene_Name", 
+#                                                  ids={uni_id for uni_id in ids})
+#                 j = 0
+#                 while status != "FINISHED":
+#                     time.sleep(15)
+#                     status = request.get_status()
+#                     if status == "FINISHED":
+#                         result_lst.append(list(request.each_result()))
+#                     else:
+#                         logger.debug(f"Waiting for UniprotKB to process the job..")
+#                         j += 1
+#                         if j == max_attempts:
+#                             logger.debug(f"Failed to obtain Uniprot ID to Hugo Symbol mapping: Retrying..")
+#                             sys.exit() 
+#             except Exception as e:
+#                 n += 1
+#                 if n == max_attempts:
+#                     logger.error(f"Failed to obtain Uniprot ID to Hugo Symbol mapping and reached maximum attempts: Exiting..")
+#                     sys.exit() 
+#                 else:
+#                     status = "ERROR"
+#                     logger.debug(f"Error while obtaining Uniprot ID to Hugo Symbol mapping {e}: Retrying..")
 
-    result_lst = [entry for batch in result_lst for entry in batch]
-    result_dict = {r["from"] : (r["to"].split()[0] if len(r["to"].split()) > 1 else r["to"]) for r in result_lst}
+#     result_lst = [entry for batch in result_lst for entry in batch]
+#     result_dict = {r["from"] : (r["to"].split()[0] if len(r["to"].split()) > 1 else r["to"]) for r in result_lst}
     
-    # Convert to a dictionary of Hugo symbols to Uniprot IDs
-    if hugo_as_keys:
-        result_dict = convert_dict_hugo_to_uniprot(result_dict)
+#     # Convert to a dictionary of Hugo symbols to Uniprot IDs
+#     if hugo_as_keys:
+#         result_dict = convert_dict_hugo_to_uniprot(result_dict)
             
-    return result_dict
+#     return result_dict
