@@ -1,3 +1,4 @@
 __logger_name__ = 'oncodrive3d'
-__version__ = "2023.12.14" ## Enabled run for duplex sequencing (mutability) plotting modules (build annotations and plots v1)
+__version__ = "2.0" ## Enabled transcript fitting, solved mapping issues, plots v2 and comparative plots
+
 
