@@ -69,12 +69,21 @@ process O3D_run {
     tuple val(cohort), path(inputs)
 
     output:
-    tuple val(cohort), path("**genes.csv"), path("**pos.csv"), path("**mutations.processed.tsv"), path("**miss_prob.processed.json"), path("**seq_df.processed.tsv"), emit : o3d_result
-    path("**.log")                                                                                                                                                  , emit : log
+    tuple val(cohort), path("**genes.csv"), path("**pos.csv"), path("**mutations.processed.tsv"), path("**miss_prob.processed.json"), path("**seq_df.processed.tsv")  , emit: o3d_result
+    path("**.log")                                                                                                                                                    , emit: log
 
     script:
     """
-    oncodrive3D run -i ${inputs[0]} -p ${inputs[1]} -d ${params.data_dir} -C ${cohort} -o ${cohort} -s ${params.seed} -c ${params.cores} ${params.verbose ? '-v' : ''} ${params.vep_input ? '--o3d_transcripts --use_input_symbols' : ''} ${params.mane ? '--mane' : ''}
+    oncodrive3D run -i ${inputs[0]} \\
+                    -p ${inputs[1]} \\
+                    -d ${params.data_dir} \\
+                    -C ${cohort} \\
+                    -o ${cohort} \\
+                    -s ${params.seed} \\
+                    -c ${params.cores} \\
+                    ${params.verbose ? '-v' : ''} \\
+                    ${params.vep_input ? '--o3d_transcripts --use_input_symbols' : ''} \\
+                    ${params.mane ? '--mane' : ''}
     """
 }
 
