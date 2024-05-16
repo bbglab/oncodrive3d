@@ -627,6 +627,7 @@ def build_annotations(data_dir,
 @click.option("--n_genes", help="Top number of genes to be included in the plots", type=int, default=30)
 @click.option("--output_tsv", help="Output tsv files including Oncodrive3D result enriched with annotations", is_flag=True)
 @click.option("--output_all_pos", help="Include all position (including non-mutated ones) in the Oncodrive3D enriched result", is_flag=True)
+@click.option("--c_ext", help="Include in clustered residues all positions with mutations contributing to a significant volume", is_flag=True)
 @click.option("-v", "--verbose", help="Verbose", is_flag=True)
 @setup_logging_decorator
 def plot(gene_result_path,
@@ -654,6 +655,7 @@ def plot(gene_result_path,
          n_genes,
          output_tsv,
          output_all_pos,
+         c_ext,
          verbose):
     """"Generate summary and individual gene plots for a quick interpretation of the 3D-clustering analysis."""
 
@@ -683,6 +685,7 @@ def plot(gene_result_path,
     logger.info(f"Max number of genes to plot: {n_genes}")
     logger.info(f"Output tsv file: {bool(output_tsv)}")
     logger.info(f"Include non-mutated positions in tsv file: {bool(output_all_pos)}")
+    logger.info(f"Include resqued clustered residues: {bool(c_ext)}")
     logger.info(f"Verbose: {bool(verbose)}")
     logger.info(f'Log path: {os.path.join(output_dir, "log")}')
     logger.info("")
@@ -717,6 +720,7 @@ def plot(gene_result_path,
                   show_plot=False,
                   save_tsv=output_tsv,
                   include_all_pos=output_all_pos,
+                  c_ext=c_ext,
                   title=title)
 
 

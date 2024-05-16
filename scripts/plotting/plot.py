@@ -365,7 +365,7 @@ def avg_per_pos_ddg(pos_result_gene, ddg_prot, maf_gene):
     return ddg_vec
 
 
-def parse_pos_result_for_genes_plot(pos_result_gene):
+def parse_pos_result_for_genes_plot(pos_result_gene, c_ext=True):
     """
     Get mut count and score divided by Oncodriv3D 
     result: significant, not significant, significant extended
@@ -375,8 +375,9 @@ def parse_pos_result_for_genes_plot(pos_result_gene):
     
     pos_result_gene = pos_result_gene.copy()
     pos_result_gene = pos_result_gene[["Pos", "Mut_in_res", "Mut_in_vol", "Ratio_obs_sim", "C", "C_ext", "pval", "Cluster", "PAE_vol"]]
-    pos_result_gene["C"] = pos_result_gene.apply(
-        lambda x: 1 if (x["C"] == 1) & (x["C_ext"] == 0) else 2 if (x["C"] == 1) & (x["C_ext"] == 1) else 0, axis=1)
+    if not c_ext:  
+        pos_result_gene["C"] = pos_result_gene.apply(
+            lambda x: 1 if (x["C"] == 1) & (x["C_ext"] == 0) else 2 if (x["C"] == 1) & (x["C_ext"] == 1) else 0, axis=1)
     max_mut = np.max(pos_result_gene["Mut_in_res"].values)
     
     return pos_result_gene, max_mut
@@ -475,8 +476,8 @@ def genes_plots(gene_result,
                 plot_pars,
                 save_plot=True,
                 show_plot=False,
-                output_tsv=False,
-                title=None):   
+                title=None,
+                c_ext=True):   
     """
     Generate a diagnostic plot for each gene showing Oncodrive3D 
     results and annotated features.
@@ -504,7 +505,7 @@ def genes_plots(gene_result,
             pos_result_gene = pos_result_gene[["Pos", "Mut_in_res", "Mut_in_vol", 
                                                "Ratio_obs_sim", "C", "C_ext", 
                                                "pval", "Cluster", "PAE_vol"]]
-            pos_result_gene, max_mut = parse_pos_result_for_genes_plot(pos_result_gene)
+            pos_result_gene, max_mut = parse_pos_result_for_genes_plot(pos_result_gene, c_ext=c_ext)
             
             # Counts
             mut_count, mut_count_nonmiss = get_count_for_genes_plot(maf_gene, 
@@ -978,7 +979,7 @@ def genes_plots(gene_result,
             axes[len(axes)-1].set_xlabel(None)
             
             # Save
-            # ----
+            # ====
             if title:
                 fig.suptitle(f'{title}\n{gene} - {uni_id}', fontsize=16)
             else:
@@ -1005,13 +1006,8 @@ def genes_plots(gene_result,
             annotated_result_lst.append(pos_result_gene)
             uni_feat_result_lst.append(uni_feat_gene)
 
-    # Save as tsv
-    if output_tsv:
-        pos_result_annotated = pd.concat(annotated_result_lst)
-        feat_processed = pd.concat(uni_feat_result_lst)   
-    else:
-        pos_result_annotated = None
-        feat_processed = None
+    pos_result_annotated = pd.concat(annotated_result_lst)
+    feat_processed = pd.concat(uni_feat_result_lst)   
         
     return pos_result_annotated, feat_processed
 
@@ -1757,6 +1753,7 @@ def generate_plots(gene_result_path,
                   show_plot=False,
                   save_tsv=True,
                   include_all_pos=False,
+                  c_ext=True,
                   title=None):
     
     # Load data tracks
@@ -1839,7 +1836,7 @@ def generate_plots(gene_result_path,
                                                                 plot_pars,
                                                                 save_plot=save_plot,
                                                                 show_plot=show_plot,
-                                                                output_tsv=save_tsv,
+                                                                c_ext=c_ext,
                                                                 title=title)
         
         # Save annotations
