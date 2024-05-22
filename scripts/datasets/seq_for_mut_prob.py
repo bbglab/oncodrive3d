@@ -766,7 +766,7 @@ def process_seq_df(seq_df,
     seq_df = pd.concat((seq_df_tr, seq_df_not_uniprot)).reset_index(drop=True)
     logger_report = ", ".join([f"{v}: {c}" for (v, c) in zip(seq_df.Reference_info.value_counts().index, 
                                                               seq_df.Reference_info.value_counts().values)])
-    logger.debug(f"Built of sequence dataframe completed. Retrieved {len(seq_df)} structures ({logger_report})")               
+    logger.info(f"Built of sequence dataframe completed. Retrieved {len(seq_df)} structures ({logger_report})")               
     seq_df = add_extra_genes_to_seq_df(seq_df, uniprot_to_gene_dict)         
     seq_df = drop_gene_duplicates(seq_df)
     
