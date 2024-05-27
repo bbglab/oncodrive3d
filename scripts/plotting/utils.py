@@ -204,6 +204,12 @@ def init_plot_pars(summary_fsize_x=0.4,    # It will be moltiplied for the numbe
                    summary_fsize_y=8,
                    gene_fsize_x=24, 
                    gene_fsize_y=12, 
+                   volcano_fsize_x=15,
+                   volcano_fsize_y=10,
+                   volcano_subplots_fsize_x=15,
+                   volcano_subplots_fsize_y=10,
+                   log_odds_fsize_x=20,
+                   log_odds_fsize_y=5.5,
                    s_lw=0.2, 
                    sse_fill_width=0.43, 
                    dist_thr=0.1, 
@@ -211,11 +217,12 @@ def init_plot_pars(summary_fsize_x=0.4,    # It will be moltiplied for the numbe
                    lst_summary_tracks=None,
                    lst_summary_hratios=None,
                    lst_gene_annot=None, 
-                   lst_gene_hratios=None):
+                   lst_gene_hratios=None,
+                   volcano_top_n=15):
     """
     Initialize plotting parameters.
     """
-    
+        
     plot_pars = {}
 
     plot_pars["summary_figsize"] = summary_fsize_x, summary_fsize_y
@@ -227,7 +234,7 @@ def init_plot_pars(summary_fsize_x=0.4,    # It will be moltiplied for the numbe
 
     
     # Summary-plot
-    #=============
+    # ============
     
     # Default values
     plot_pars["summary_h_ratios"] = {"score"         : 0.3,
@@ -247,7 +254,7 @@ def init_plot_pars(summary_fsize_x=0.4,    # It will be moltiplied for the numbe
         
     
     # Gene-plots
-    #===========
+    # ==========
     
     # Default values
     plot_pars["h_ratios"] = {"nonmiss_count" : 0.13,
@@ -283,6 +290,18 @@ def init_plot_pars(summary_fsize_x=0.4,    # It will be moltiplied for the numbe
         plot_pars["h_ratios"] = {lst_gene_annot[i] : h_ratio for i, h_ratio in enumerate(lst_gene_hratios)}
     else:
         plot_pars["h_ratios"] = {annot : plot_pars["h_ratios"][annot] for annot in lst_gene_annot}
+        
+    
+    # Associations-plots
+    # ==================
+    
+    plot_pars["volcano_fsize_x"] = volcano_fsize_x
+    plot_pars["volcano_fsize_y"] =volcano_fsize_y
+    plot_pars["volcano_subplots_fsize_x"] = volcano_subplots_fsize_x
+    plot_pars["volcano_subplots_fsize_y"] = volcano_subplots_fsize_y
+    plot_pars["log_odds_fsize_x"] = log_odds_fsize_x
+    plot_pars["log_odds_fsize_y"] = log_odds_fsize_y
+    plot_pars["volcano_top_n"] = volcano_top_n
     
     return plot_pars
 
@@ -476,7 +495,7 @@ def save_annotated_pos_result(pos_result,
         annot_pos_result = annot_pos_result[annot_pos_result["Mut_in_res"] != 0].reset_index(drop=True)
         
     # Merge with 'original' one to retrieve dropped cols
-    output_pos_result = os.path.join(output_dir, f"{run_name}.3d_clustering_pos.annotated.tsv")
+    output_pos_result = os.path.join(output_dir, f"{run_name}.3d_clustering_pos.annotated.csv")
     output_pfam = os.path.join(output_dir, f"{run_name}.pfam.tsv")
     annot_pos_result = pos_result.drop(columns=["F", "pLDDT_res"]).merge(
         annot_pos_result[["Gene", 
@@ -514,7 +533,7 @@ def save_annotated_pos_result(pos_result,
         annot_pos_result.loc[annot_pos_result["Gene"] == gene, "Tot_samples"] = tot_samples
 
     # Save
-    annot_pos_result.to_csv(output_pos_result, sep="\t", index=False)
+    annot_pos_result.to_csv(output_pos_result, index=False)
     pfam_processed.to_csv(output_pfam, sep="\t", index=False)
     logger.info(f"Saved annotated position-level result to {output_pos_result}")
     logger.info(f"Saved Pfam annotations to {output_pfam}")

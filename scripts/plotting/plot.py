@@ -259,7 +259,7 @@ def get_gene_arg(pos_result_gene, plot_pars, uni_feat_gene, maf_nonmiss=None):
 
     track = "pfam"
     if track in h_ratios:
-        if len(uni_feat_gene[(uni_feat_gene["Type"] == "DOMAIN") & (uni_feat_gene["Evidence"] == "pfam")]) == 0:
+        if len(uni_feat_gene[(uni_feat_gene["Type"] == "DOMAIN") & (uni_feat_gene["Evidence"] == "pfam")]) == 1:
             del h_ratios[track]
             near_pfam = False
             logger.debug(f"{track} not available and will not be included..")
@@ -1731,30 +1731,444 @@ def comparative_plots(shared_genes,
         
         else:
             logger.warning("Nothing to plot!")  
+            
+            
+            
+# Associations plots
+# ==================
+
+from sklearn.preprocessing import StandardScaler
+import statsmodels.api as sm
+import warnings
+from statsmodels.tools.sm_exceptions import ConvergenceWarning
+from adjustText import adjust_text
+
+
+def expand_uniprot_feat_rows(df):
+    """
+    Convert Uniprot features df from ranges of positions to individual positions.
+    """
+    
+    expanded_list = []
+    for _, row in df.iterrows():
+        begin, end = int(row['Begin']), int(row['End'])
+        expanded_data = [{'Uniprot_ID': row['Uniprot_ID'], 'Type': row['Type'], 'Pos': pos, 'Description': row['Description']} 
+                         for pos in range(begin, end + 1)]
+        expanded_list.extend(expanded_data)
+    expanded_df = pd.DataFrame(expanded_list)
+    
+    return expanded_df
+
+    
+def get_dummy(df, pos, annot):
+
+    return int(annot in df[df["Pos"] == pos].Type.values)
+
+
+def get_dummies_annot(df, col):
+
+    pos = pd.Series(df.Pos.unique(), name="Pos")
+    lst_results = [pos]
+    for annot in df[col].unique():
+        series = pd.Series(df.Pos.unique()).apply(lambda x: get_dummy(df, pos=x, annot=annot))
+        series.name = annot.capitalize()
+        lst_results.append(series)
+
+    return pd.concat(lst_results, axis=1)
+
+
+def get_uni_feat_for_odds(uni_id, uni_feat_df):
+    """
+    Preprocess Uniprot features df for logistic regression.
+    """
+
+    uni_feat_df = uni_feat_df.copy()
+    uni_feat_df = uni_feat_df[uni_feat_df["Uniprot_ID"] == uni_id]
+    uni_feat_df = get_dummies_annot(uni_feat_df, col="Type")
+    uni_feat_df.insert(0, "Uniprot_ID", uni_id)
+
+    return uni_feat_df
+    
+
+def uni_log_reg(df, labels):
+    """
+    Univariate logistic regression analysis.
+    """
+
+    df = df.copy()
+    results = {}
+    
+    df = df.drop(columns=[col for col in df.columns if df[col].nunique() == 1])
+    columns = df.columns
+
+    scaler = StandardScaler()
+    df = scaler.fit_transform(df) 
+    
+    for i, col in enumerate(columns):
+        
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore', ConvergenceWarning)
+            X = sm.add_constant(df[:, i])
+            model = sm.Logit(labels, X)
+            result = model.fit(disp=0) 
+
+        p_value = result.pvalues[1] 
+        coeff = result.params[1]
+        std_err = result.bse[1]
+        results[col] = {'p_value': p_value, 'log_odds': coeff, 'std_err': std_err}
+
+    return pd.DataFrame(results)
+
+
+def uni_log_reg_all_genes(df_annotated, uni_feat_df):
+    """
+    Univariate logistic regression analysis of all genes.
+    """
+
+    results_lst = []
+    
+    for uni_id in df_annotated.Uniprot_ID.unique():
+    
+        # Process each gene individually
+        uni_feat_df_gene = get_uni_feat_for_odds(uni_id=uni_id, uni_feat_df=uni_feat_df)
+        
+        df_gene = df_annotated[df_annotated["Uniprot_ID"] == uni_id].reset_index(drop=True)
+        gene = df_gene.Gene.unique()[0]
+        
+        df_gene = df_gene.merge(uni_feat_df_gene, on=["Uniprot_ID", "Pos"], how="left").fillna(0)
+        target_cols = df_gene.drop(columns=["Pos", "C", "Uniprot_ID", "Gene"]).columns.values
+    
+        y_data = df_gene["C"]
+        X_data = df_gene[target_cols]
+    
+        if y_data.nunique() > 1:
+            results_gene = uni_log_reg(X_data, y_data)
+            results_gene["Gene"] = gene
+            results_gene["Uniprot_ID"] = uni_id
+            
+        else:
+            results_gene = pd.DataFrame(np.nan, index=["p_value", "log_odds", "std_err"], columns=target_cols)
+            results_gene["Gene"] = gene
+            results_gene["Uniprot_ID"] = uni_id
+            
+        results_lst.append(results_gene)
+
+    return pd.concat(results_lst)
+
+
+def rename_columns(df):
+    """
+    Simply rename columns after dummy transformation.
+    """
+    
+    new_columns = {}
+    for column in df.columns:
+        for prefix in ["SSE", "TYPE"]:
+            if column.startswith(f'{prefix}_'):
+                new_column = column.replace(f'{prefix}_', '').capitalize()
+                new_columns[column] = new_column
+                
+    return df.rename(columns=new_columns)
+
+
+def volcano_plot(logreg_results, 
+                 fsize=(10, 6), 
+                 expand_text_xy=(3, 2), 
+                 text_fontsize=10,
+                 top_n=15,
+                 top_by_gene=False,
+                 gene_text=False,
+                 save_plot=True,
+                 show_plot=False,
+                 output_dir=None,
+                 cohort="o3d_run"):
+    """
+    Volcano plot all genes.
+    """
+
+    genes = logreg_results[~logreg_results.drop(columns=["Gene", "Uniprot_ID"]).isna().all(axis=1)].Gene.unique()
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=DeprecationWarning)
+        cmap = plt.cm.get_cmap('tab20', len(genes))
+    lgray_rgb = 0.7803921568627451, 0.7803921568627451, 0.7803921568627451, 1.0
+
+    all_gene_results = []
+    plt.figure(figsize=fsize)
+
+    for i, gene in enumerate(genes):
+        gene_results = logreg_results[logreg_results["Gene"] == gene].drop(columns=["Gene", "Uniprot_ID"]).dropna(axis=1)
+        gene_logodds = gene_results.loc["log_odds", :]
+        gene_pvals = gene_results.loc["p_value", :]
+        gene_logpvals = -np.log10(gene_pvals)
+    
+        # Volcano plot
+        significant_mask = gene_pvals < 0.01
+        non_significant_mask = ~significant_mask
+        plt.scatter(gene_logodds[non_significant_mask], gene_logpvals[non_significant_mask], zorder=1, color='lightgray', alpha=0.7)
+        plt.scatter(gene_logodds[significant_mask], gene_logpvals[significant_mask], zorder=2, label=gene, 
+                    color="black" if cmap(i) == lgray_rgb else cmap(i), alpha=0.7)
+    
+        # Append results for annotation
+        gene_data = pd.DataFrame({
+            'Gene': gene,
+            'Log_odds': gene_logodds.values,
+            'Pval': gene_pvals.values,
+            'Log_pval': gene_logpvals.values,
+            'Feature': gene_logodds.index})
+        all_gene_results.append(gene_data)
+    
+    # Annotated top significant n points
+    all_gene_results = pd.concat(all_gene_results)
+    if top_by_gene:
+        top_significant_points = all_gene_results[all_gene_results["Pval"] < 0.01].groupby("Gene").apply(lambda x: x.nsmallest(2, 'Pval')).reset_index(drop=True)
+    else:
+        top_significant_points = all_gene_results.nsmallest(top_n, 'Pval')
+    
+    annotations = []
+    for _, row in top_significant_points.iterrows():
+        if gene_text:
+            text = f"{row['Gene']}-{row['Feature']}"
+        else:
+            text = row['Feature']
+        annotations.append(plt.text(row['Log_odds'], row['Log_pval'], text, ha='center', va='center', fontsize=text_fontsize, color='black'))
+    adjust_text(annotations, expand=expand_text_xy, # expand text bounding boxes by 1.2 fold in x direction and 2 fold in y direction
+                arrowprops=dict(arrowstyle='->', color='gray'), lw=0.5)
+    
+    plt.xlabel('Log odds', fontsize=12)
+    plt.ylabel('-log10(p-value)', fontsize=12) 
+    plt.axhline(y=-np.log10(0.01), color='lightgrey', linestyle='--', zorder=0)
+    plt.axvline(x=0, color='lightgrey', linestyle='--', zorder=0)
+    plt.legend()
+    plt.suptitle(f"{cohort} - Residues' cluster status and annotations associations", y=0.93)    
+
+    if save_plot and output_dir:
+        filename = f"{cohort}.volcano_plot.png"
+        output_path = os.path.join(output_dir, filename)
+        plt.savefig(output_path, dpi=300, bbox_inches='tight')
+        print(f"Saved {output_path}")
+    if show_plot: 
+        plt.show()
+    plt.close()
+
+
+def volcano_plot_each_gene(logreg_results,
+                           fsize=(15, 10),
+                           expand_text_xy=(3, 2),
+                           text_fontsize=10,
+                           top_n=5,
+                           ncols=5,
+                           all_significant=True,
+                           save_plot=True,
+                           show_plot=False,
+                           output_dir=None,
+                           cohort="o3d_run"):
+    """
+    Volcano plot of individual genes.
+    """
+            
+    genes = logreg_results[~logreg_results.drop(columns=["Gene", "Uniprot_ID"]).isna().all(axis=1)].Gene.unique()
+    num_genes = len(genes)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=DeprecationWarning)
+        cmap = plt.cm.get_cmap('tab20', num_genes)
+    lgray_rgb = 0.7803921568627451, 0.7803921568627451, 0.7803921568627451, 1.0
+    
+    all_gene_results = []
+    
+    fig, axes = plt.subplots(nrows=int(np.ceil(num_genes / ncols)), ncols=ncols, figsize=fsize, constrained_layout=True)
+    axes = axes.flatten()
+    
+    for i, ax in enumerate(axes):
+        
+        if i < len(genes):
+            gene = genes[i]
+            gene_results = logreg_results[logreg_results["Gene"] == gene].drop(columns=["Gene", "Uniprot_ID"]).dropna(axis=1)
+            gene_logodds = gene_results.loc["log_odds", :]
+            gene_pvals = gene_results.loc["p_value", :]
+            gene_logpvals = -np.log10(gene_pvals)
+        
+            # Volcano plot
+            significant_mask = gene_pvals < 0.01
+            non_significant_mask = ~significant_mask
+            ax.scatter(gene_logodds[non_significant_mask], gene_logpvals[non_significant_mask], zorder=1, color='lightgray', alpha=0.7)
+            ax.scatter(gene_logodds[significant_mask], gene_logpvals[significant_mask], zorder=2, 
+                        color="black" if cmap(i) == lgray_rgb else cmap(i), alpha=0.7)
+        
+            # Annotated top significant n points
+            gene_data = pd.DataFrame({
+                'Gene': gene,
+                'Log_odds': gene_logodds.values,
+                'Pval': gene_pvals.values,
+                'Log_pval': gene_logpvals.values,
+                'Feature': gene_logodds.index})
+            all_gene_results.append(gene_data)
+        
+            if all_significant:
+                top_significant_points = gene_data[gene_data["Pval"] < 0.01]
+            else:
+                top_significant_points = gene_data.nsmallest(top_n, 'Pval')
+            annotations = []
+            for _, row in top_significant_points.iterrows():
+                annotations.append(ax.text(row['Log_odds'], row['Log_pval'], row['Feature'], ha='center', va='center', fontsize=text_fontsize, color='black'))
+            adjust_text(annotations, expand=expand_text_xy, 
+                        arrowprops=dict(arrowstyle='->', color='gray'), lw=0.5, ax=ax)
+        
+            ax.set_xlabel(None)
+            ax.set_ylabel(None)
+            ax.set_title(gene)
+            ax.axhline(y=-np.log10(0.01), color='lightgrey', linestyle='--', zorder=0)
+            ax.axvline(x=0, color='lightgrey', linestyle='--', zorder=0)
+        else:
+            ax.remove()
+    
+    fig.supxlabel('Log odds')
+    fig.supylabel('-log10(p-value)')
+    plt.suptitle(f"{cohort} - Residues' cluster status and annotations associations", y=1.03)    
+
+    if save_plot and output_dir:
+        filename = f"{cohort}.volcano_plot_gene.png"
+        output_path = os.path.join(output_dir, filename)
+        plt.savefig(output_path, dpi=300, bbox_inches='tight')
+        print(f"Saved {output_path}")
+    if show_plot: 
+        plt.show()
+    plt.close()
+    
+
+def log_odds_plot(logreg_results, 
+                  fsize=(20,5.5),
+                  save_plot=True,
+                  show_plot=False,
+                  output_dir=None,
+                  cohort="o3d_run"):
+    """
+    Log odds plot.
+    """
+
+    genes = logreg_results[~logreg_results.drop(columns=["Gene", "Uniprot_ID"]).isna().all(axis=1)].Gene.unique()
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=DeprecationWarning)
+        cmap = plt.cm.get_cmap('tab20', len(genes))
+    lgray_rgb = 0.7803921568627451, 0.7803921568627451, 0.7803921568627451, 1.0
+    
+    fig, axes = plt.subplots(1, len(genes), 
+                             figsize=fsize, 
+                             sharey=True, 
+                             gridspec_kw={'hspace': 0.1})
+
+    for i, gene in enumerate(genes):
+        gene_results = logreg_results[logreg_results["Gene"] == gene].drop(columns=["Gene", "Uniprot_ID"])
+        gene_logodds = gene_results.loc["log_odds", :]
+        gene_pvals = gene_results.loc["p_value", :]
+        gene_stderr = gene_results.loc["std_err", :]
+    
+        # Get 95% confidence interval
+        z = 1.96
+        lower_ci = np.array(gene_logodds) - z * np.array(gene_stderr)
+        upper_ci = np.array(gene_logodds) + z * np.array(gene_stderr)
+        
+        # Calculate error bars
+        lower_error = np.array(gene_logodds) - lower_ci
+        upper_error = upper_ci - np.array(gene_logodds)
+        error = [lower_error, upper_error]
+        
+        # Plot
+        significant_mask = gene_pvals < 0.01
+        non_significant_mask = ~significant_mask
+        
+        axes[i].errorbar(gene_logodds, gene_logodds.index.values, yerr=None, xerr=error, fmt='o', capsize=5, capthick=1, markersize=5)
+        axes[i].errorbar(gene_logodds[non_significant_mask], gene_logodds.index.values[non_significant_mask], yerr=None, 
+                         xerr=[err[non_significant_mask] for err in error], fmt='o', capsize=5, capthick=1, markersize=5, color='lightgray')
+        axes[i].errorbar(gene_logodds[significant_mask], gene_logodds.index.values[significant_mask], yerr=None, 
+                         xerr=[err[significant_mask] for err in error], fmt='o', capsize=5, capthick=1, markersize=5, 
+                         color="black" if cmap(i) == lgray_rgb else cmap(i))
+        axes[i].axvline(x=0, color='lightgrey', linestyle='--', zorder=0, lw=1)
+        axes[i].set_xlim(gene_logodds.min()-1.5, gene_logodds.max()+1.5)
+        axes[i].set_xlabel(f"\n\n{gene}", fontsize=12, rotation=0, va='center')
+        axes[i].xaxis.set_label_coords(0.5, 1.08)
+        
+    fig.supxlabel('Log odds')
+    plt.suptitle(f"{cohort} - Residues' cluster status and annotations associations", y=1)    
+    plt.subplots_adjust(top=0.9) 
+
+    if save_plot and output_dir:
+        filename = f"{cohort}.logodds_plot.png"
+        output_path = os.path.join(output_dir, filename)
+        plt.savefig(output_path, dpi=300, bbox_inches='tight')
+        print(f"Saved {output_path}")
+    if show_plot: 
+        plt.show()
+    plt.close()
+    
+    
+def associations_plots(pos_result_annotated, 
+                       uni_feat_processed, 
+                       output_dir,
+                       plot_pars,
+                       cohort="o3d_run"):
+    """
+    Generate volcano plots and log odds plot to look for associations 
+    between cluster status and annotated features.
+    """
+    
+    # Prepare data
+    df_annotated = pos_result_annotated[pos_result_annotated["Mut_in_res"] > 0]
+    cols_drop = "Mut_in_res", "Mut_in_vol", "Ratio_obs_sim", "C_ext", "pval", "Cluster", "Res", "F", "Ens_Gene_ID", "Ens_Transcr_ID"
+    df_annotated = df_annotated.drop(columns=[col for col in cols_drop if col in df_annotated.columns])
+    sse_dummies = pd.get_dummies(df_annotated['SSE'], prefix='SSE')
+    df_annotated = pd.concat((df_annotated.drop(columns="SSE"), sse_dummies), axis=1)
+    df_annotated = df_annotated.rename(columns={"pLDDT_res" : "pLDDT", "PAE_vol" : "PAE"})
+
+    # Add Uniprot features
+    uni_feat_processed = uni_feat_processed[uni_feat_processed["Type"] != "REGION"].reset_index(drop=True)
+    uni_feat_processed_expanded = expand_uniprot_feat_rows(uni_feat_processed)
+
+    # Perform univariate log reg
+    logreg_results = uni_log_reg_all_genes(df_annotated, uni_feat_processed_expanded)
+    logreg_results = rename_columns(logreg_results)
+
+    # Plots
+    output_dir_associations_plots = os.path.join(output_dir, f"{cohort}.associations_plots")
+    logger.info(f"Generating associations plots in {output_dir_associations_plots}")
+    create_plot_dir(output_dir_associations_plots)
+    log_odds_plot(logreg_results, 
+                  output_dir=output_dir_associations_plots, 
+                  cohort=cohort,
+                  fsize=(plot_pars["log_odds_fsize_x"], plot_pars["log_odds_fsize_y"]))
+    volcano_plot(logreg_results, 
+                 top_n=plot_pars["volcano_top_n"], 
+                 output_dir=output_dir_associations_plots, 
+                 cohort=cohort,
+                 fsize=(plot_pars["volcano_fsize_x"], plot_pars["volcano_fsize_y"]))
+    volcano_plot_each_gene(logreg_results, 
+                           output_dir=output_dir_associations_plots, 
+                           cohort=cohort,
+                           fsize=(plot_pars["volcano_subplots_fsize_x"], plot_pars["volcano_subplots_fsize_x"]))
 
 
 # PLOT WRAPPER
 # ============
 
 def generate_plots(gene_result_path,
-                  pos_result_path,
-                  maf_path,
-                  miss_prob_path,
-                  seq_df_path,
-                  cohort,
-                  datasets_dir, 
-                  annotations_dir,
-                  output_dir,
-                  plot_pars,
-                  maf_path_for_nonmiss=None,
-                  n_genes=30, 
-                  lst_genes=None,
-                  save_plot=True,
-                  show_plot=False,
-                  save_tsv=True,
-                  include_all_pos=False,
-                  c_ext=True,
-                  title=None):
+                   pos_result_path,
+                   maf_path,
+                   miss_prob_path,
+                   seq_df_path,
+                   cohort,
+                   datasets_dir, 
+                   annotations_dir,
+                   output_dir,
+                   plot_pars,
+                   maf_path_for_nonmiss=None,
+                   n_genes=30, 
+                   lst_genes=None,
+                   save_plot=True,
+                   show_plot=False,
+                   save_csv=True,
+                   include_all_pos=False,
+                   c_ext=True,
+                   title=None,
+                   plot_associations=True):
     
     # Load data tracks
     # ================
@@ -1839,8 +2253,16 @@ def generate_plots(gene_result_path,
                                                                 c_ext=c_ext,
                                                                 title=title)
         
+        # Associations plots        
+        if plot_associations:        
+            associations_plots(pos_result_annotated, 
+                               uni_feat_processed, 
+                               output_dir,
+                               plot_pars,
+                               cohort)
+        
         # Save annotations
-        if save_tsv and pos_result_annotated is not None:
+        if save_csv and pos_result_annotated is not None:
             logger.info(f"Saving annotated Oncodrive3D result in {output_dir}")
             save_annotated_pos_result(pos_result, 
                                       pos_result_annotated, 
