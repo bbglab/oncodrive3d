@@ -271,7 +271,7 @@ def clustering_3d(gene,
         logger.debug(f"Detected inf observed score in gene {gene} ({uniprot_id}-F{af_f}): Recomputing with higher precision..")
         result_pos_df = recompute_inf_score(result_pos_df, len(mut_gene_df), vol_missense_mut_prob[result_pos_df["Pos"]-1])
         
-    mut_in_res = count.reset_index().rename(columns = {"Pos" : "Mut_in_res", "index" : "Pos"})      
+    mut_in_res = count.reset_index().rename(columns = {"count" : "Mut_in_res"})
     result_pos_df = mut_in_res.merge(result_pos_df, on = "Pos", how = "outer")                          
     result_pos_df = result_pos_df.sort_values("Obs_anomaly", ascending=False).reset_index(drop=True)
 
