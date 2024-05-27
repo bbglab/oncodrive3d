@@ -599,7 +599,7 @@ def build_annotations(data_dir,
               help="Path to datasets directory")
 @click.option("-a", "--annotations_dir", type=click.Path(exists=True), required=True, 
               help="Path to annotations directory")
-@click.option("-o", "--output_dir", required=True,
+@click.option("-o", "--output_dir", default="./",
               help="Path to output directory where to save plots")
 @click.option("-c", "--cohort", 
               help="Cohort name", type=str, required=True)
@@ -625,9 +625,15 @@ def build_annotations(data_dir,
 @click.option("--dist_thr", help="Threshold of ratios to avoid clashing feature names (e.g., domains and motifs)", type=float, default=0.1)
 @click.option("--genes", help="List of genes to be analysed in the report (e.g., --genes TP53,KRAS,PIK3CA)", type=str)
 @click.option("--n_genes", help="Top number of genes to be included in the plots", type=int, default=30)
-@click.option("--output_tsv", help="Output tsv files including Oncodrive3D result enriched with annotations", is_flag=True)
+@click.option("--volcano_top_n", help="Top associations to annotated in volcano plot", type=int, default=15)
+@click.option("--volcano_fsize_x", help="Figure size x-axis for volcano plot", type=int, default=10)
+@click.option("--volcano_fsize_y", help="Figure size y-axis for volcano plot", type=int, default=6)
+@click.option("--volcano_subplots_fsize_x", help="Figure size x-axis for volcano subplots", type=int, default=15)
+@click.option("--volcano_subplots_fsize_y", help="Figure size y-axis for volcano subplots", type=int, default=10)
+@click.option("--log_odds_fsize_x", help="Figure size x-axis for log odds plot", type=int, default=20)
+@click.option("--log_odds_fsize_y", help="Figure size y-axis for log odds plot", type=int, default=5.5)
+@click.option("--output_csv", help="Output csv file including annotated Oncodrive3D result", is_flag=True)
 @click.option("--output_all_pos", help="Include all position (including non-mutated ones) in the Oncodrive3D enriched result", is_flag=True)
-@click.option("--c_ext", help="Include in clustered residues all positions with mutations contributing to a significant volume", is_flag=True)
 @click.option("-v", "--verbose", help="Verbose", is_flag=True)
 @setup_logging_decorator
 def plot(gene_result_path,
@@ -653,9 +659,15 @@ def plot(gene_result_path,
          dist_thr, 
          genes,
          n_genes,
-         output_tsv,
+         volcano_top_n,
+         volcano_fsize_x,
+         volcano_fsize_y,
+         volcano_subplots_fsize_x,
+         volcano_subplots_fsize_y,
+         log_odds_fsize_x,
+         log_odds_fsize_y,
+         output_csv,
          output_all_pos,
-         c_ext,
          verbose):
     """"Generate summary and individual gene plots for a quick interpretation of the 3D-clustering analysis."""
 
@@ -679,13 +691,19 @@ def plot(gene_result_path,
     logger.info(f"Summary plot fsize_y: {summary_fsize_y}")
     logger.info(f"Gene plots fsize_x: {gene_fsize_x}")
     logger.info(f"Gene plots fsize_y: {gene_fsize_y}")
+    logger.info(f"Volcano plot fsize_x: {volcano_fsize_x}")
+    logger.info(f"Volcano plot fsize_y: {volcano_fsize_y}")
+    logger.info(f"Volcano subplot fsize_x: {volcano_subplots_fsize_x}")
+    logger.info(f"Volcano subplot fsize_y: {volcano_subplots_fsize_y}")
+    logger.info(f"Log odds plot fsize_x: {log_odds_fsize_x}")
+    logger.info(f"Log odds plot fsize_y: {log_odds_fsize_y}")
     logger.info(f"Summary plot score alpha: {summary_alpha}")
     logger.info(f"Threshold for clashing feat: {dist_thr}")
     logger.info(f"Subset of genes: {genes}")
     logger.info(f"Max number of genes to plot: {n_genes}")
-    logger.info(f"Output tsv file: {bool(output_tsv)}")
-    logger.info(f"Include non-mutated positions in tsv file: {bool(output_all_pos)}")
-    logger.info(f"Include resqued clustered residues: {bool(c_ext)}")
+    logger.info(f"Volcano plot top associations to annotate: {volcano_top_n}")
+    logger.info(f"Output csv file: {bool(output_csv)}")
+    logger.info(f"Include non-mutated positions in csv file: {bool(output_all_pos)}")
     logger.info(f"Verbose: {bool(verbose)}")
     logger.info(f'Log path: {os.path.join(output_dir, "log")}')
     logger.info("")
@@ -696,12 +714,19 @@ def plot(gene_result_path,
                                summary_fsize_y=summary_fsize_y,
                                gene_fsize_x=gene_fsize_x, 
                                gene_fsize_y=gene_fsize_y, 
+                               volcano_fsize_x=volcano_fsize_x,
+                               volcano_fsize_y=volcano_fsize_y,
+                               volcano_subplots_fsize_x=volcano_subplots_fsize_x,
+                               volcano_subplots_fsize_y=volcano_subplots_fsize_y,
+                               log_odds_fsize_x=log_odds_fsize_x,
+                               log_odds_fsize_y=log_odds_fsize_y,
                                dist_thr=dist_thr,
                                summary_alpha=summary_alpha,
                                lst_summary_tracks=lst_summary_tracks,
                                lst_summary_hratios=lst_summary_hratios,
                                lst_gene_annot=lst_gene_tracks, 
-                               lst_gene_hratios=lst_gene_hratios)
+                               lst_gene_hratios=lst_gene_hratios,
+                               volcano_top_n=volcano_top_n)
 
     generate_plots(gene_result_path=gene_result_path,
                   pos_result_path=pos_result_path,
@@ -718,9 +743,8 @@ def plot(gene_result_path,
                   lst_genes=genes,
                   save_plot=True,
                   show_plot=False,
-                  save_tsv=output_tsv,
+                  save_csv=output_csv,
                   include_all_pos=output_all_pos,
-                  c_ext=c_ext,
                   title=title)
 
 
