@@ -209,7 +209,7 @@ def init_plot_pars(summary_fsize_x=0.4,    # It will be moltiplied for the numbe
                    volcano_subplots_fsize_x=15,
                    volcano_subplots_fsize_y=10,
                    log_odds_fsize_x=20,
-                   log_odds_fsize_y=5.5,
+                   log_odds_fsize_y=4,
                    s_lw=0.2, 
                    sse_fill_width=0.43, 
                    dist_thr=0.1, 
@@ -240,7 +240,7 @@ def init_plot_pars(summary_fsize_x=0.4,    # It will be moltiplied for the numbe
     plot_pars["summary_h_ratios"] = {"score"         : 0.3,
                                      "miss_count"    : 0.2,
                                      "res_count"     : 0.2,
-                                     "res_ratio"     : 0.2,
+                                     "res_clust_mut" : 0.2,
                                      "clusters"      : 0.2}
     
     # Custom values
@@ -547,7 +547,7 @@ def parse_lst_tracks(lst, plot_type):
     summary_tracks = ["score",
                       "miss_count",
                       "res_count",
-                      "res_ratio",
+                      "res_clust_mut",
                       "clusters"]
     
     gene_tracks = ["nonmiss_count",

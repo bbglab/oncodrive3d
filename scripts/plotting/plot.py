@@ -25,9 +25,8 @@ logging.getLogger('matplotlib.font_manager').setLevel(logging.WARNING)
 
 def create_plot_dir(directory_path):
     
-    # Check if the directory already exists
     if not os.path.exists(directory_path):
-        # If not, create the directory
+        
         os.makedirs(directory_path)
         logger.debug(f"Directory '{directory_path}' created successfully.")
     else:
@@ -140,13 +139,14 @@ def summary_plot(gene_result,
         axes[ax].legend(fontsize=9.5, loc="upper right")
         axes[ax].set_xlabel(None)
     
-    if "res_ratio" in tracks:
-        ax = tracks.index("res_ratio")
-        size_df = count_pos_df[count_pos_df["C"] == "Protein length"].rename(columns={"Count" : "Length"}).drop(columns="C")
-        count_pos_df = count_pos_df[count_pos_df["C"] == "Residues in clusters"].drop(columns="C").merge(size_df, on="Gene")
-        count_pos_df["Ratio"] = np.round(count_pos_df["Count"] / count_pos_df["Length"], 3)
-        sns.barplot(x='Gene', y='Ratio', data=count_pos_df, order=gene_result.Gene, ax=axes[ax], color=sns.color_palette("pastel")[0], ec="black", lw=0.5)
-        axes[ax].set_ylabel('Ratio of\nresidues\nin clusters', fontsize=12)
+    if "res_clust_mut" in tracks:
+        ax = tracks.index("res_clust_mut")
+        count_mut_clusters = count_mut_gene_df[count_mut_gene_df["C"] == "Mutations in clusters"].drop(columns="C").rename(columns={"Count" : "Mut_count"})
+        count_res_clusters = count_pos_df[count_pos_df["C"] == "Residues in clusters"].drop(columns="C").rename(columns={"Count" : "Res_count"})
+        count_mut_res_clusters = count_mut_clusters.merge(count_res_clusters, on="Gene")
+        count_mut_res_clusters["Per_res_mut"] = np.round(count_mut_res_clusters["Mut_count"] / count_mut_res_clusters["Res_count"], 2)
+        sns.barplot(x='Gene', y='Per_res_mut', data=count_mut_res_clusters, order=gene_result.Gene, ax=axes[ax], color=sns.color_palette("pastel")[0], ec="black", lw=0.5)
+        axes[ax].set_ylabel('Per-residue\nmut\nin clusters', fontsize=12)
         axes[ax].set_xlabel(None)
     
     if "clusters" in tracks:
@@ -222,28 +222,23 @@ def get_gene_arg(pos_result_gene, plot_pars, uni_feat_gene, maf_nonmiss=None):
     track = "maf_nonmiss"
     if track in h_ratios and not maf_nonmiss:
         del h_ratios[track]
-        logger.debug(f"{track} not available and will not be included..")
         
     track = "maf_nonmiss_2"
     if track in h_ratios and not maf_nonmiss:
         del h_ratios[track]
-        logger.debug(f"{track} not available and will not be included..")
         
     track = "ddg"
     if track in h_ratios and pos_result_gene["DDG"].isna().all():
         del h_ratios[track]
-        logger.debug(f"{track} not available and will not be included..")
     
     track = "pae"
     if track in h_ratios and np.isnan(pos_result_gene["PAE_vol"]).all():
         del h_ratios[track]
-        logger.debug(f"{track} not available and will not be included..")
         
     track = "ptm" 
     if track in h_ratios:
         if len(uni_feat_gene[uni_feat_gene["Type"] == "PTM"]) == 0:
             del h_ratios[track]
-            logger.debug(f"{track} not available and will not be included..")
         else:
             stracks = len(uni_feat_gene[uni_feat_gene["Type"] == "PTM"].Description.unique())
             h_ratios[track] = h_ratios[track] * stracks
@@ -252,7 +247,6 @@ def get_gene_arg(pos_result_gene, plot_pars, uni_feat_gene, maf_nonmiss=None):
     if track in h_ratios:
         if len(uni_feat_gene[uni_feat_gene["Type"] == "SITE"]) == 0:
             del h_ratios[track]
-            logger.debug(f"{track} not available and will not be included..")
         else:
             stracks = len(uni_feat_gene[uni_feat_gene["Type"] == "SITE"].Description.unique())
             h_ratios[track] = h_ratios[track] * stracks
@@ -262,7 +256,6 @@ def get_gene_arg(pos_result_gene, plot_pars, uni_feat_gene, maf_nonmiss=None):
         if len(uni_feat_gene[(uni_feat_gene["Type"] == "DOMAIN") & (uni_feat_gene["Evidence"] == "pfam")]) == 1:
             del h_ratios[track]
             near_pfam = False
-            logger.debug(f"{track} not available and will not be included..")
         else:
             near_pfam = check_near_feat(uni_feat_gene, feat=track, dist_thr=plot_pars["dist_thr"])
             if near_pfam:
@@ -273,7 +266,6 @@ def get_gene_arg(pos_result_gene, plot_pars, uni_feat_gene, maf_nonmiss=None):
         if len(uni_feat_gene[(uni_feat_gene["Type"] == "DOMAIN") & (uni_feat_gene["Evidence"] != "Pfam")]) == 0:
             del h_ratios[track]
             near_prosite = False
-            logger.debug(f"{track} not available and will not be included..")
         else:
             near_prosite = check_near_feat(uni_feat_gene, feat="domain", dist_thr=plot_pars["dist_thr"])
             if near_prosite:
@@ -283,7 +275,6 @@ def get_gene_arg(pos_result_gene, plot_pars, uni_feat_gene, maf_nonmiss=None):
     if track in h_ratios:
         if len(uni_feat_gene[uni_feat_gene["Type"] == "MEMBRANE"]) == 0:
             del h_ratios[track]
-            logger.debug(f"{track} not available and will not be included..")
         else:
             stracks = len(uni_feat_gene[uni_feat_gene["Type"] == "MEMBRANE"].Description.unique())
             h_ratios[track] = h_ratios[track] * stracks
@@ -293,7 +284,6 @@ def get_gene_arg(pos_result_gene, plot_pars, uni_feat_gene, maf_nonmiss=None):
         if len(uni_feat_gene[uni_feat_gene["Type"] == "MOTIF"]) == 0:
             del h_ratios[track]
             near_motif = False
-            logger.debug(f"{track} not available and will not be included..")
         else:
             near_motif = check_near_feat(uni_feat_gene, feat="motif", dist_thr=0.1)
             if near_motif:
@@ -389,11 +379,11 @@ def get_count_for_genes_plot(maf, maf_nonmiss, gene, non_missense_count=False):
     """
     
     mut_count = maf.value_counts("Pos").reset_index()
-    mut_count = mut_count.rename(columns={0 : "Count"})
+    mut_count = mut_count.rename(columns={"count" : "Count"})
     if non_missense_count:
         maf_nonmiss_gene = maf_nonmiss[maf_nonmiss["Gene"] == gene]
         mut_count_nonmiss = maf_nonmiss_gene.groupby("Consequence").value_counts("Pos").reset_index()
-        mut_count_nonmiss = mut_count_nonmiss.rename(columns={0 : "Count"})
+        mut_count_nonmiss = mut_count_nonmiss.rename(columns={"count" : "Count"})
         # If there is more than one position affected, take the first one
         ix_more_than_one_pos = mut_count_nonmiss.apply(lambda x: len(x["Pos"].split("-")), axis=1) > 1
         mut_count_nonmiss.loc[ix_more_than_one_pos, "Pos"] = mut_count_nonmiss.loc[ix_more_than_one_pos].apply(lambda x: x["Pos"].split("-")[0], axis=1)
@@ -611,7 +601,7 @@ def genes_plots(gene_result,
                 axes[ax].fill_between(pos_result_gene['Pos'], 0, max_value, where=(pos_result_gene['C'] == 1), 
                                 color='skyblue', alpha=0.3, label='Position in cluster', zorder=0, lw=2)
                 
-                axes[ax].hlines(0, xmin=0, xmax=gene_len, color="gray", lw=0.6, zorder=1)
+                # axes[ax].hlines(0, xmin=0, xmax=gene_len, color="gray", lw=0.6, zorder=1)
                 axes[ax].plot(range(1, len(prob_vec)+1), prob_vec, zorder=3, color="C2", lw=1)                                        
                 axes[ax].set_ylabel('Missense\nmut prob', fontsize=13.5, rotation=0, va='center')
                 axes[ax].yaxis.set_label_coords(-0.06, 0.5)
@@ -625,7 +615,7 @@ def genes_plots(gene_result,
                 axes[ax].fill_between(pos_result_gene['Pos'], 0, max_value, where=(pos_result_gene['C'] == 1), 
                                 color='skyblue', alpha=0.3, label='Position in cluster', zorder=0)
                 
-                axes[ax].hlines(0, xmin=0, xmax=gene_len, color="gray", lw=0.7, zorder=1)
+                # axes[ax].hlines(0, xmin=0, xmax=gene_len, color="gray", lw=0.7, zorder=1)
                 axes[ax].plot(range(1, len(score_vec)+1), score_vec, zorder=2, color="C2", lw=1)                       
                 
                 # handles, labels = axes[ax].get_legend_handles_labels()
@@ -1800,21 +1790,48 @@ def uni_log_reg(df, labels):
     
     df = df.drop(columns=[col for col in df.columns if df[col].nunique() == 1])
     columns = df.columns
+    
+    # Keep tracks of NA in ddG before standardizing
+    if "ΔΔG" in columns:
+        ddg_ix = ~df["ΔΔG"].isna().values
+    df = df.fillna(0)
 
     scaler = StandardScaler()
     df = scaler.fit_transform(df) 
     
     for i, col in enumerate(columns):
         
+        # Drop NA only in since it is the only annotation that depends on mutations
+        if col == "ΔΔG":
+            X_col = df[ddg_ix, i]
+            y_col = labels[ddg_ix]
+        else:
+            X_col = df[:, i]
+            y_col = labels
+        
         with warnings.catch_warnings():
             warnings.simplefilter('ignore', ConvergenceWarning)
-            X = sm.add_constant(df[:, i])
-            model = sm.Logit(labels, X)
-            result = model.fit(disp=0) 
+            X = sm.add_constant(X_col)
+            model = sm.Logit(y_col, X)
+    
+            try:
+                result = model.fit(disp=0) 
+                p_value = result.pvalues[1] 
+                coeff = result.params[1]
+                std_err = result.bse[1]
+                
+            except np.linalg.LinAlgError as e:
+                logger.debug("Logistic regression singular matrix: Skipping..")
+                p_value = np.nan
+                coeff = np.nan
+                std_err = np.nan
+                
+            except sm.tools.sm_exceptions.PerfectSeparationError as e:
+                logger.debug("Logistic regression perfect separation: Skipping..")
+                p_value = np.nan
+                coeff = np.nan
+                std_err = np.nan
 
-        p_value = result.pvalues[1] 
-        coeff = result.params[1]
-        std_err = result.bse[1]
         results[col] = {'p_value': p_value, 'log_odds': coeff, 'std_err': std_err}
 
     return pd.DataFrame(results)
@@ -1835,12 +1852,13 @@ def uni_log_reg_all_genes(df_annotated, uni_feat_df):
         df_gene = df_annotated[df_annotated["Uniprot_ID"] == uni_id].reset_index(drop=True)
         gene = df_gene.Gene.unique()[0]
         
-        df_gene = df_gene.merge(uni_feat_df_gene, on=["Uniprot_ID", "Pos"], how="left").fillna(0)
+        df_gene = df_gene.merge(uni_feat_df_gene, on=["Uniprot_ID", "Pos"], how="left")
         target_cols = df_gene.drop(columns=["Pos", "C", "Uniprot_ID", "Gene"]).columns.values
     
         y_data = df_gene["C"]
         X_data = df_gene[target_cols]
     
+        y_data = y_data.fillna(0)
         if y_data.nunique() > 1:
             results_gene = uni_log_reg(X_data, y_data)
             results_gene["Gene"] = gene
@@ -1920,9 +1938,9 @@ def volcano_plot(logreg_results,
     # Annotated top significant n points
     all_gene_results = pd.concat(all_gene_results)
     if top_by_gene:
-        top_significant_points = all_gene_results[all_gene_results["Pval"] < 0.01].groupby("Gene").apply(lambda x: x.nsmallest(2, 'Pval')).reset_index(drop=True)
+        top_significant_points = all_gene_results[all_gene_results["Pval"] < 0.01].groupby("Gene").apply(lambda x: x.nsmallest(top_n, 'Pval')).reset_index(drop=True)
     else:
-        top_significant_points = all_gene_results.nsmallest(top_n, 'Pval')
+        top_significant_points = all_gene_results[all_gene_results["Pval"] < 0.01].nsmallest(top_n, 'Pval')
     
     annotations = []
     for _, row in top_significant_points.iterrows():
@@ -1945,7 +1963,7 @@ def volcano_plot(logreg_results,
         filename = f"{cohort}.volcano_plot.png"
         output_path = os.path.join(output_dir, filename)
         plt.savefig(output_path, dpi=300, bbox_inches='tight')
-        print(f"Saved {output_path}")
+        logger.debug(f"Saved {output_path}")
     if show_plot: 
         plt.show()
     plt.close()
@@ -1977,6 +1995,7 @@ def volcano_plot_each_gene(logreg_results,
     
     fig, axes = plt.subplots(nrows=int(np.ceil(num_genes / ncols)), ncols=ncols, figsize=fsize, constrained_layout=True)
     axes = axes.flatten()
+    axes = np.atleast_1d(axes) # Ensure that the axes is always a subscriptable array
     
     for i, ax in enumerate(axes):
         
@@ -2029,14 +2048,14 @@ def volcano_plot_each_gene(logreg_results,
         filename = f"{cohort}.volcano_plot_gene.png"
         output_path = os.path.join(output_dir, filename)
         plt.savefig(output_path, dpi=300, bbox_inches='tight')
-        print(f"Saved {output_path}")
+        logger.debug(f"Saved {output_path}")
     if show_plot: 
         plt.show()
     plt.close()
     
 
 def log_odds_plot(logreg_results, 
-                  fsize=(20,5.5),
+                  fsize=(20,4),
                   save_plot=True,
                   show_plot=False,
                   output_dir=None,
@@ -2055,6 +2074,7 @@ def log_odds_plot(logreg_results,
                              figsize=fsize, 
                              sharey=True, 
                              gridspec_kw={'hspace': 0.1})
+    axes = np.atleast_1d(axes) # Ensure that the axes is always a subscriptable array
 
     for i, gene in enumerate(genes):
         gene_results = logreg_results[logreg_results["Gene"] == gene].drop(columns=["Gene", "Uniprot_ID"])
@@ -2085,17 +2105,17 @@ def log_odds_plot(logreg_results,
         axes[i].axvline(x=0, color='lightgrey', linestyle='--', zorder=0, lw=1)
         axes[i].set_xlim(gene_logodds.min()-1.5, gene_logodds.max()+1.5)
         axes[i].set_xlabel(f"\n\n{gene}", fontsize=12, rotation=0, va='center')
-        axes[i].xaxis.set_label_coords(0.5, 1.08)
+        axes[i].xaxis.set_label_coords(0.5, 1.11)
         
-    fig.supxlabel('Log odds')
+    fig.supxlabel('Log odds', y=-0.015)
     plt.suptitle(f"{cohort} - Residues' cluster status and annotations associations", y=1)    
-    plt.subplots_adjust(top=0.9) 
+    plt.subplots_adjust(top=0.868) 
 
     if save_plot and output_dir:
         filename = f"{cohort}.logodds_plot.png"
         output_path = os.path.join(output_dir, filename)
         plt.savefig(output_path, dpi=300, bbox_inches='tight')
-        print(f"Saved {output_path}")
+        logger.debug(f"Saved {output_path}")
     if show_plot: 
         plt.show()
     plt.close()
@@ -2113,11 +2133,11 @@ def associations_plots(pos_result_annotated,
     
     # Prepare data
     df_annotated = pos_result_annotated[pos_result_annotated["Mut_in_res"] > 0]
-    cols_drop = "Mut_in_res", "Mut_in_vol", "Ratio_obs_sim", "C_ext", "pval", "Cluster", "Res", "F", "Ens_Gene_ID", "Ens_Transcr_ID"
+    cols_drop = "Mut_in_res", "Mut_in_vol", "Ratio_obs_sim", "C_ext", "pval", "Cluster", "Res", "F", "Ens_Gene_ID", "Ens_Transcr_ID", "PAE_vol"
     df_annotated = df_annotated.drop(columns=[col for col in cols_drop if col in df_annotated.columns])
     sse_dummies = pd.get_dummies(df_annotated['SSE'], prefix='SSE')
     df_annotated = pd.concat((df_annotated.drop(columns="SSE"), sse_dummies), axis=1)
-    df_annotated = df_annotated.rename(columns={"pLDDT_res" : "pLDDT", "PAE_vol" : "PAE"})
+    df_annotated = df_annotated.rename(columns={"pLDDT_res" : "pLDDT", "PAE_vol" : "PAE", "DDG" : "ΔΔG"})
 
     # Add Uniprot features
     uni_feat_processed = uni_feat_processed[uni_feat_processed["Type"] != "REGION"].reset_index(drop=True)
@@ -2128,22 +2148,77 @@ def associations_plots(pos_result_annotated,
     logreg_results = rename_columns(logreg_results)
 
     # Plots
-    output_dir_associations_plots = os.path.join(output_dir, f"{cohort}.associations_plots")
-    logger.info(f"Generating associations plots in {output_dir_associations_plots}")
-    create_plot_dir(output_dir_associations_plots)
-    log_odds_plot(logreg_results, 
-                  output_dir=output_dir_associations_plots, 
-                  cohort=cohort,
-                  fsize=(plot_pars["log_odds_fsize_x"], plot_pars["log_odds_fsize_y"]))
-    volcano_plot(logreg_results, 
-                 top_n=plot_pars["volcano_top_n"], 
-                 output_dir=output_dir_associations_plots, 
-                 cohort=cohort,
-                 fsize=(plot_pars["volcano_fsize_x"], plot_pars["volcano_fsize_y"]))
-    volcano_plot_each_gene(logreg_results, 
-                           output_dir=output_dir_associations_plots, 
-                           cohort=cohort,
-                           fsize=(plot_pars["volcano_subplots_fsize_x"], plot_pars["volcano_subplots_fsize_x"]))
+    genes = logreg_results[~logreg_results.drop(columns=["Gene", "Uniprot_ID"]).isna().all(axis=1)].Gene.unique()
+    if len(genes) > 0:
+        output_dir_associations_plots = os.path.join(output_dir, f"{cohort}.associations_plots")
+        logger.info(f"Generating associations plots in {output_dir_associations_plots}")
+        create_plot_dir(output_dir_associations_plots)
+        log_odds_plot(logreg_results, 
+                      output_dir=output_dir_associations_plots, 
+                      cohort=cohort,
+                      fsize=(plot_pars["log_odds_fsize_x"], plot_pars["log_odds_fsize_y"]))
+        volcano_plot(logreg_results, 
+                     top_n=plot_pars["volcano_top_n"], 
+                     output_dir=output_dir_associations_plots, 
+                     cohort=cohort,
+                     fsize=(plot_pars["volcano_fsize_x"], plot_pars["volcano_fsize_y"]))
+        volcano_plot_each_gene(logreg_results, 
+                               output_dir=output_dir_associations_plots, 
+                               cohort=cohort,
+                               fsize=(plot_pars["volcano_subplots_fsize_x"], plot_pars["volcano_subplots_fsize_x"]))
+    else:
+        logger.debug("There aren't any relationship to plot: Skipping associations plots..")
+        
+        
+def associations_plots_2(pos_result_annotated, 
+                        uni_feat_processed, 
+                        output_dir,
+                        plot_pars,
+                        miss_prob_dict,
+                        cohort="o3d_run"):
+    """
+    Generate volcano plots and log odds plot to look for associations 
+    between cluster status and annotated features.
+    """
+    
+    # Prepare data
+    pos_result_annotated["Miss_prob"] = pos_result_annotated.apply(lambda x: (miss_prob_dict[f"{x.Uniprot_ID}-F{x.F}"][x.Pos-1]), axis=1)
+    df_annotated = pos_result_annotated[pos_result_annotated["Miss_prob"] > 0]
+    cols_drop = "Mut_in_res", "Mut_in_vol", "Ratio_obs_sim", "C_ext", "pval", "Cluster", "Res", "F", "Ens_Gene_ID", "Ens_Transcr_ID", "PAE_vol"
+    df_annotated = df_annotated.drop(columns=[col for col in cols_drop if col in df_annotated.columns])
+    sse_dummies = pd.get_dummies(df_annotated['SSE'], prefix='SSE')
+    df_annotated = pd.concat((df_annotated.drop(columns="SSE"), sse_dummies), axis=1)
+    df_annotated = df_annotated.rename(columns={"pLDDT_res" : "pLDDT", "PAE_vol" : "PAE", "DDG" : "ΔΔG"})
+
+    # Add Uniprot features
+    uni_feat_processed = uni_feat_processed[uni_feat_processed["Type"] != "REGION"].reset_index(drop=True)
+    uni_feat_processed_expanded = expand_uniprot_feat_rows(uni_feat_processed)
+
+    # Perform univariate log reg
+    logreg_results = uni_log_reg_all_genes(df_annotated, uni_feat_processed_expanded)
+    logreg_results = rename_columns(logreg_results)
+
+    # Plots
+    genes = logreg_results[~logreg_results.drop(columns=["Gene", "Uniprot_ID"]).isna().all(axis=1)].Gene.unique()
+    if len(genes) > 0:
+        output_dir_associations_plots = os.path.join(output_dir, f"{cohort}.associations_plots_2")
+        logger.info(f"Generating associations plots in {output_dir_associations_plots}")
+        create_plot_dir(output_dir_associations_plots)
+        log_odds_plot(logreg_results, 
+                      output_dir=output_dir_associations_plots, 
+                      cohort=cohort,
+                      fsize=(plot_pars["log_odds_fsize_x"], plot_pars["log_odds_fsize_y"]))
+        volcano_plot(logreg_results, 
+                     top_n=plot_pars["volcano_top_n"], 
+                     output_dir=output_dir_associations_plots, 
+                     cohort=cohort,
+                     fsize=(plot_pars["volcano_fsize_x"], plot_pars["volcano_fsize_y"]))
+        volcano_plot_each_gene(logreg_results, 
+                               output_dir=output_dir_associations_plots, 
+                               cohort=cohort,
+                               fsize=(plot_pars["volcano_subplots_fsize_x"], plot_pars["volcano_subplots_fsize_x"]))
+    else:
+        logger.debug("There aren't any relationship to plot: Skipping associations plots..")
 
 
 # PLOT WRAPPER
@@ -2256,6 +2331,11 @@ def generate_plots(gene_result_path,
         # Associations plots        
         if plot_associations:        
             associations_plots(pos_result_annotated, 
+                               uni_feat_processed, 
+                               output_dir,
+                               plot_pars,
+                               cohort)
+            associations_plots_2(pos_result_annotated, 
                                uni_feat_processed, 
                                output_dir,
                                plot_pars,

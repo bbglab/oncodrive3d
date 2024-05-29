@@ -609,7 +609,7 @@ def build_annotations(data_dir,
               help="Path to input mutations file including non-missense mutations")
 @click.option("--lst_summary_tracks", type=str,
               help="List of tracks to be included in the summary plot (e.g., score,miss_count,clusters)", 
-              default="score,miss_count,res_count,res_ratio,clusters")
+              default="score,miss_count,res_count,res_clust_mut,clusters")
 @click.option("--lst_summary_hratios", type=str,
               help="List of float to define horizontal ratio of each track of the summary plot") 
 @click.option("--lst_gene_tracks", type=str,
@@ -626,12 +626,12 @@ def build_annotations(data_dir,
 @click.option("--genes", help="List of genes to be analysed in the report (e.g., --genes TP53,KRAS,PIK3CA)", type=str)
 @click.option("--n_genes", help="Top number of genes to be included in the plots", type=int, default=30)
 @click.option("--volcano_top_n", help="Top associations to annotated in volcano plot", type=int, default=15)
-@click.option("--volcano_fsize_x", help="Figure size x-axis for volcano plot", type=int, default=10)
-@click.option("--volcano_fsize_y", help="Figure size y-axis for volcano plot", type=int, default=6)
-@click.option("--volcano_subplots_fsize_x", help="Figure size x-axis for volcano subplots", type=int, default=15)
-@click.option("--volcano_subplots_fsize_y", help="Figure size y-axis for volcano subplots", type=int, default=10)
-@click.option("--log_odds_fsize_x", help="Figure size x-axis for log odds plot", type=int, default=20)
-@click.option("--log_odds_fsize_y", help="Figure size y-axis for log odds plot", type=int, default=5.5)
+@click.option("--volcano_fsize_x", help="Figure size x-axis for volcano plot", type=float, default=10)
+@click.option("--volcano_fsize_y", help="Figure size y-axis for volcano plot", type=float, default=6)
+@click.option("--volcano_subplots_fsize_x", help="Figure size x-axis for volcano subplots", type=float, default=15)
+@click.option("--volcano_subplots_fsize_y", help="Figure size y-axis for volcano subplots", type=float, default=10)
+@click.option("--log_odds_fsize_x", help="Figure size x-axis for log odds plot", type=float, default=20)
+@click.option("--log_odds_fsize_y", help="Figure size y-axis for log odds plot", type=float, default=4)
 @click.option("--output_csv", help="Output csv file including annotated Oncodrive3D result", is_flag=True)
 @click.option("--output_all_pos", help="Include all position (including non-mutated ones) in the Oncodrive3D enriched result", is_flag=True)
 @click.option("-v", "--verbose", help="Verbose", is_flag=True)
