@@ -9,6 +9,7 @@ import os
 import json
 import colorcet as cc
 import warnings
+from matplotlib.axes._axes import Axes
 from scripts.plotting.utils import get_broad_consequence, save_annotated_pos_result
 from scripts.plotting.utils import get_enriched_result, filter_o3d_result, subset_genes_and_ids, load_o3d_result
 
@@ -1209,6 +1210,9 @@ def comparative_plots(shared_genes,
                     ymargin = max(max(mut_res_pos_2), max(mut_res_pos_1)) * 0.1
                     axes[ax].set_ylim(-max(mut_res_pos_2)-ymargin, max(mut_res_pos_1)+ymargin)
 
+                    tick_labels = [f'{abs(label):.4g}' for label in axes[ax].get_yticks()]
+                    axes[ax].set_yticklabels(tick_labels)
+
             else:
                 if "miss_count" in annotations and "miss_count_2" in annotations:
                        
@@ -1299,6 +1303,9 @@ def comparative_plots(shared_genes,
                     
                     axes[ax].set_ylabel('Clustering\nscore\n(obs/sim)', fontsize=13.5, rotation=0, va='center')
                     axes[ax].yaxis.set_label_coords(-0.06, 0.5)
+                    
+                    tick_labels = [f'{abs(label):.4g}' for label in axes[ax].get_yticks()]
+                    axes[ax].set_yticklabels(tick_labels)
 
             else:
                 if "score" in annotations and "score_2" in annotations:
@@ -1810,7 +1817,6 @@ def uni_log_reg(df, labels):
     df = scaler.fit_transform(df) 
     
     for i, col in enumerate(columns):
-        print(col)
         
         # Drop NA only in since it is the only annotation that depends on mutations
         if col == "ΔΔG":
@@ -1873,10 +1879,9 @@ def uni_log_reg_all_genes(df_annotated, uni_feat_df):
     
         y_data = df_gene["C"]
         X_data = df_gene[target_cols]
-    
         y_data = y_data.fillna(0)
+        
         if y_data.nunique() > 1:
-            print("\n> ", gene)
             results_gene = uni_log_reg(X_data, y_data)
             results_gene["Gene"] = gene
             results_gene["Uniprot_ID"] = uni_id
@@ -1987,7 +1992,7 @@ def volcano_plot(logreg_results,
 
 
 def volcano_plot_each_gene(logreg_results,
-                           fsize=(15, 10),
+                           fsize=(3.2, 3),
                            expand_text_xy=(3, 2),
                            text_fontsize=10,
                            top_n=5,
@@ -2010,9 +2015,24 @@ def volcano_plot_each_gene(logreg_results,
     
     all_gene_results = []
     
-    fig, axes = plt.subplots(nrows=int(np.ceil(num_genes / ncols)), ncols=ncols, figsize=fsize, constrained_layout=True)
-    axes = axes.flatten()
-    axes = np.atleast_1d(axes) # Ensure that the axes is always a subscriptable array
+    # Figsize
+    if num_genes <= 5:
+        ncols = num_genes 
+    elif num_genes <= 10:
+        ncols = int(np.ceil(num_genes / 2))
+    else:
+        ncols = 5
+    nrows = int(np.ceil(num_genes / ncols))
+    
+    fsize_x, fsize_y = fsize
+    fsize_x = fsize_x * ncols
+    fsize_y = fsize_y * nrows
+    
+    fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=(fsize_x, fsize_y), constrained_layout=True)
+    # Ensure that the axes is always a 1D subscriptable array
+    if not isinstance(axes, Axes):
+        axes = axes.flatten()
+    axes = np.atleast_1d(axes)
     
     for i, ax in enumerate(axes):
         
@@ -2059,7 +2079,7 @@ def volcano_plot_each_gene(logreg_results,
     
     fig.supxlabel('Log odds')
     fig.supylabel('-log10(p-value)')
-    plt.suptitle(f"{cohort} - Residues' cluster status and annotations associations", y=1.03)    
+    plt.suptitle(f"{cohort} - Residues' cluster status and annotations associations")
 
     if save_plot and output_dir:
         filename = f"{cohort}.volcano_plot_gene.png"
@@ -2072,7 +2092,7 @@ def volcano_plot_each_gene(logreg_results,
     
 
 def log_odds_plot(logreg_results, 
-                  fsize=(20,4),
+                  fsize=(1.7,3.6),
                   save_plot=True,
                   show_plot=False,
                   output_dir=None,
@@ -2082,51 +2102,77 @@ def log_odds_plot(logreg_results,
     """
 
     genes = logreg_results[~logreg_results.drop(columns=["Gene", "Uniprot_ID"]).isna().all(axis=1)].Gene.unique()
+    num_genes = len(genes)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", category=DeprecationWarning)
-        cmap = plt.cm.get_cmap('tab20', len(genes))
+        cmap = plt.cm.get_cmap('tab20', num_genes)
     lgray_rgb = 0.7803921568627451, 0.7803921568627451, 0.7803921568627451, 1.0
     
-    fig, axes = plt.subplots(1, len(genes), 
-                             figsize=fsize, 
-                             sharey=True, 
-                             gridspec_kw={'hspace': 0.1})
-    axes = np.atleast_1d(axes) # Ensure that the axes is always a subscriptable array
-
-    for i, gene in enumerate(genes):
-        gene_results = logreg_results[logreg_results["Gene"] == gene].drop(columns=["Gene", "Uniprot_ID"])
-        gene_logodds = gene_results.loc["log_odds", :]
-        gene_pvals = gene_results.loc["p_value", :]
-        gene_stderr = gene_results.loc["std_err", :]
+    # Figsize
+    if num_genes > 10:
+        nrows = 2 
+    else:
+        nrows = 1
     
-        # Get 95% confidence interval
-        z = 1.96
-        lower_ci = np.array(gene_logodds) - z * np.array(gene_stderr)
-        upper_ci = np.array(gene_logodds) + z * np.array(gene_stderr)
+    ncols = int(np.ceil(num_genes / nrows))
+    fsize_x, fsize_y = fsize
+    fsize_x = fsize_x * ncols
+    fsize_y = fsize_y * nrows
+    
+    fig, axes = plt.subplots(nrows, ncols, 
+                             figsize=(fsize_x, fsize_y), 
+                             sharey=True, 
+                             gridspec_kw={'hspace': 0.1*nrows})
+    
+    # Ensure that the axes is always a 1D subscriptable array
+    if not isinstance(axes, Axes):
+        axes = axes.flatten()
+    axes = np.atleast_1d(axes)
+
+    for i, ax in enumerate(axes):
         
-        # Calculate error bars
-        lower_error = np.array(gene_logodds) - lower_ci
-        upper_error = upper_ci - np.array(gene_logodds)
-        error = [lower_error, upper_error]
+        if i < len(genes):
+            gene = genes[i]
+            gene_results = logreg_results[logreg_results["Gene"] == gene].drop(columns=["Gene", "Uniprot_ID"])
+            gene_logodds = gene_results.loc["log_odds", :]
+            gene_pvals = gene_results.loc["p_value", :]
+            gene_stderr = gene_results.loc["std_err", :]
         
-        # Plot
-        significant_mask = gene_pvals < 0.01
-        non_significant_mask = ~significant_mask
+            # Get 95% confidence interval
+            z = 1.96
+            lower_ci = np.array(gene_logodds) - z * np.array(gene_stderr)
+            upper_ci = np.array(gene_logodds) + z * np.array(gene_stderr)
+            
+            # Calculate error bars
+            lower_error = np.array(gene_logodds) - lower_ci
+            upper_error = upper_ci - np.array(gene_logodds)
+            error = [lower_error, upper_error]
+            
+            # Plot
+            significant_mask = gene_pvals < 0.01
+            non_significant_mask = ~significant_mask
+            
+            ax.errorbar(gene_logodds, gene_logodds.index.values, yerr=None, xerr=error, fmt='o', capsize=5, capthick=1, markersize=5)
+            ax.errorbar(gene_logodds[non_significant_mask], gene_logodds.index.values[non_significant_mask], yerr=None, 
+                            xerr=[err[non_significant_mask] for err in error], fmt='o', capsize=5, capthick=1, markersize=5, color='lightgray')
+            ax.errorbar(gene_logodds[significant_mask], gene_logodds.index.values[significant_mask], yerr=None, 
+                            xerr=[err[significant_mask] for err in error], fmt='o', capsize=5, capthick=1, markersize=5, 
+                            color="black" if cmap(i) == lgray_rgb else cmap(i))
+            ax.axvline(x=0, color='lightgrey', linestyle='--', zorder=0, lw=1)
+            ax.set_xlim(gene_logodds.min()-1.5, gene_logodds.max()+1.5)
+            ax.set_xlabel(f"\n\n{gene}", fontsize=12, rotation=0, va='center')
+            ax.xaxis.set_label_coords(0.5, 1.11)
+        else:
+            ax.remove()
         
-        axes[i].errorbar(gene_logodds, gene_logodds.index.values, yerr=None, xerr=error, fmt='o', capsize=5, capthick=1, markersize=5)
-        axes[i].errorbar(gene_logodds[non_significant_mask], gene_logodds.index.values[non_significant_mask], yerr=None, 
-                         xerr=[err[non_significant_mask] for err in error], fmt='o', capsize=5, capthick=1, markersize=5, color='lightgray')
-        axes[i].errorbar(gene_logodds[significant_mask], gene_logodds.index.values[significant_mask], yerr=None, 
-                         xerr=[err[significant_mask] for err in error], fmt='o', capsize=5, capthick=1, markersize=5, 
-                         color="black" if cmap(i) == lgray_rgb else cmap(i))
-        axes[i].axvline(x=0, color='lightgrey', linestyle='--', zorder=0, lw=1)
-        axes[i].set_xlim(gene_logodds.min()-1.5, gene_logodds.max()+1.5)
-        axes[i].set_xlabel(f"\n\n{gene}", fontsize=12, rotation=0, va='center')
-        axes[i].xaxis.set_label_coords(0.5, 1.11)
-        
-    fig.supxlabel('Log odds', y=-0.015)
-    plt.suptitle(f"{cohort} - Residues' cluster status and annotations associations", y=1)    
-    plt.subplots_adjust(top=0.868) 
+    plt.suptitle(f"{cohort} - Residues' cluster status and annotations associations", y=1)
+    if nrows == 1:
+        fig.supxlabel('Log odds', y=-0.015)
+        plt.subplots_adjust(top=0.868)
+    else:
+        fig.supxlabel('Log odds', y=0.037)
+        plt.subplots_adjust(top=0.925)
+
 
     if save_plot and output_dir:
         filename = f"{cohort}.logodds_plot.png"
@@ -2182,7 +2228,7 @@ def associations_plots(pos_result_annotated,
         volcano_plot_each_gene(logreg_results, 
                                output_dir=output_dir_associations_plots, 
                                cohort=cohort,
-                               fsize=(plot_pars["volcano_subplots_fsize_x"], plot_pars["volcano_subplots_fsize_x"]))
+                               fsize=(plot_pars["volcano_subplots_fsize_x"], plot_pars["volcano_subplots_fsize_y"]))
     else:
         logger.debug("There aren't any relationship to plot: Skipping associations plots..")
         
@@ -2233,7 +2279,7 @@ def associations_plots_2(pos_result_annotated,
         volcano_plot_each_gene(logreg_results, 
                                output_dir=output_dir_associations_plots, 
                                cohort=cohort,
-                               fsize=(plot_pars["volcano_subplots_fsize_x"], plot_pars["volcano_subplots_fsize_x"]))
+                               fsize=(plot_pars["volcano_subplots_fsize_x"], plot_pars["volcano_subplots_fsize_y"]))
     else:
         logger.debug("There aren't any relationship to plot: Skipping associations plots..")
 
