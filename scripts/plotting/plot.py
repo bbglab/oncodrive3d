@@ -444,11 +444,21 @@ def get_id_annotations(uni_id, pos_result_gene, maf_gene, annotations_dir, disor
         pos_result_gene["DDG"] = ddg_vec
     else:
         pos_result_gene["DDG"] = np.nan
+        logger.debug(f"Stability change of {uni_id} not found. Path {ddg_path} doesn't exist: Skipping..")
 
     # Avoid duplicates (Uniprot IDs mapping to the different gene names)
     uni_feat_gene = uni_feat_gene.drop(columns=["Gene", "Ens_Transcr_ID", "Ens_Gene_ID"]).drop_duplicates()
     
     return pos_result_gene, disorder_gene, pdb_tool_gene, uni_feat_gene
+
+
+def get_site_pos(site_df):
+
+    positions = []
+    for begin, end in zip(site_df['Begin'], site_df['End']):
+        positions.extend(np.arange(begin, end + 1))
+    
+    return np.array(positions)
 
 
 def genes_plots(gene_result, 
@@ -764,9 +774,9 @@ def genes_plots(gene_result,
                 
                 for n, name in enumerate(site_names):
                     c = sns.color_palette("tab10")[n]
-                    site = site_gene[site_gene["Description"] == name]
-                    site_pos = site.Begin.values
-                    axes[ax].scatter(site_pos, np.repeat(n*sb_width, len(site_pos)), label=name, alpha=0.7, color=c) #label=name
+                    site_df = site_gene[site_gene["Description"] == name]
+                    site_pos = get_site_pos(site_df)
+                    axes[ax].scatter(site_pos, np.repeat(n*sb_width, len(site_pos)), label=name, alpha=0.7, color=c)
                     axes[ax].hlines(y=n*sb_width, xmin=0, xmax=gene_len, linewidth=1, color='lightgray', alpha=0.7, zorder=0)
                 
                 axes[ax].set_ylim(min_value, max_value)
@@ -1800,11 +1810,15 @@ def uni_log_reg(df, labels):
     df = scaler.fit_transform(df) 
     
     for i, col in enumerate(columns):
+        print(col)
         
         # Drop NA only in since it is the only annotation that depends on mutations
         if col == "ΔΔG":
             X_col = df[ddg_ix, i]
             y_col = labels[ddg_ix]
+            if y_col.nunique() < 2:
+                results[col] = {'p_value': np.nan, 'log_odds': np.nan, 'std_err': np.nan}
+                continue
         else:
             X_col = df[:, i]
             y_col = labels
@@ -1822,12 +1836,14 @@ def uni_log_reg(df, labels):
                 
             except np.linalg.LinAlgError as e:
                 logger.debug("Logistic regression singular matrix: Skipping..")
+                logger.debug(e)
                 p_value = np.nan
                 coeff = np.nan
                 std_err = np.nan
                 
             except sm.tools.sm_exceptions.PerfectSeparationError as e:
                 logger.debug("Logistic regression perfect separation: Skipping..")
+                logger.debug(e)
                 p_value = np.nan
                 coeff = np.nan
                 std_err = np.nan
@@ -1860,6 +1876,7 @@ def uni_log_reg_all_genes(df_annotated, uni_feat_df):
     
         y_data = y_data.fillna(0)
         if y_data.nunique() > 1:
+            print("\n> ", gene)
             results_gene = uni_log_reg(X_data, y_data)
             results_gene["Gene"] = gene
             results_gene["Uniprot_ID"] = uni_id
@@ -2184,7 +2201,7 @@ def associations_plots_2(pos_result_annotated,
     # Prepare data
     pos_result_annotated["Miss_prob"] = pos_result_annotated.apply(lambda x: (miss_prob_dict[f"{x.Uniprot_ID}-F{x.F}"][x.Pos-1]), axis=1)
     df_annotated = pos_result_annotated[pos_result_annotated["Miss_prob"] > 0]
-    cols_drop = "Mut_in_res", "Mut_in_vol", "Ratio_obs_sim", "C_ext", "pval", "Cluster", "Res", "F", "Ens_Gene_ID", "Ens_Transcr_ID", "PAE_vol"
+    cols_drop = "Mut_in_res", "Mut_in_vol", "Ratio_obs_sim", "C_ext", "pval", "Cluster", "Res", "F", "Ens_Gene_ID", "Ens_Transcr_ID", "PAE_vol", "Miss_prob"
     df_annotated = df_annotated.drop(columns=[col for col in cols_drop if col in df_annotated.columns])
     sse_dummies = pd.get_dummies(df_annotated['SSE'], prefix='SSE')
     df_annotated = pd.concat((df_annotated.drop(columns="SSE"), sse_dummies), axis=1)
@@ -2339,6 +2356,7 @@ def generate_plots(gene_result_path,
                                uni_feat_processed, 
                                output_dir,
                                plot_pars,
+                               miss_prob_dict,
                                cohort)
         
         # Save annotations
