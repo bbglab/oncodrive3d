@@ -106,7 +106,17 @@ process O3D_plot {
 
     script:
     """
-    oncodrive3D plot -g $genes_csv -p $pos_csv -i $mutations_csv -m $miss_prob_json -s $seq_df_tsv -d ${params.data_dir} -a ${params.annotations_dir} -o $outdir/$cohort -c $cohort --title $cohort --output_tsv --c_ext ${params.verbose ? '-v' : ''}
+    oncodrive3D plot -g $genes_csv \\
+                     -p $pos_csv \\
+                     -i $mutations_csv \\
+                     -m $miss_prob_json \\
+                     -s $seq_df_tsv \\
+                     -d ${params.data_dir} \\
+                     -a ${params.annotations_dir} \\
+                     -o $outdir/$cohort \\
+                     -c $cohort \\
+                     --title $cohort \\
+                     --output_csv ${params.verbose ? '-v' : ''}
     """
 }
 
