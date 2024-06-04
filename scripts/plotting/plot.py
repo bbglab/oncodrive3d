@@ -10,7 +10,7 @@ import json
 import colorcet as cc
 import warnings
 from matplotlib.axes._axes import Axes
-from scripts.plotting.utils import get_broad_consequence, save_annotated_pos_result
+from scripts.plotting.utils import get_broad_consequence, save_annotated_result
 from scripts.plotting.utils import get_enriched_result, filter_o3d_result, subset_genes_and_ids, load_o3d_result
 
 from scripts import __logger_name__
@@ -114,8 +114,8 @@ def summary_plot(gene_result,
         pos_result = pos_result.copy()
         pos_result["C"] = pos_result.C.map({1 : "Volume in clusters", 0 : "Volume not in clusters"})
         hue_order = ['Volume in clusters', 'Volume not in clusters']
-        sns.boxplot(x='Gene', y='Ratio_obs_sim', data=pos_result, order=gene_result.Gene, color=sns.color_palette("pastel")[7], showfliers=False, ax=axes[ax])
-        sns.stripplot(x='Gene', y='Ratio_obs_sim', data=pos_result, hue="C" ,jitter=True, size=6, alpha=plot_pars["summary_alpha"], order=gene_result.Gene.values, 
+        sns.boxplot(x='Gene', y='Score_obs_sim', data=pos_result, order=gene_result.Gene, color=sns.color_palette("pastel")[7], showfliers=False, ax=axes[ax])
+        sns.stripplot(x='Gene', y='Score_obs_sim', data=pos_result, hue="C" ,jitter=True, size=6, alpha=plot_pars["summary_alpha"], order=gene_result.Gene.values, 
                       palette=sns.color_palette("tab10", n_colors=2), hue_order=hue_order, ax=axes[ax])
         axes[ax].set_ylabel('Clustering\nscore\n(obs/sim)', fontsize=12)
         axes[ax].legend(fontsize=9.5, loc="upper right")
@@ -365,7 +365,7 @@ def parse_pos_result_for_genes_plot(pos_result_gene, c_ext=True):
     """
     
     pos_result_gene = pos_result_gene.copy()
-    pos_result_gene = pos_result_gene[["Pos", "Mut_in_res", "Mut_in_vol", "Ratio_obs_sim", "C", "C_ext", "pval", "Cluster", "PAE_vol"]]
+    pos_result_gene = pos_result_gene[["Pos", "Mut_in_res", "Mut_in_vol", "Score_obs_sim", "C", "C_ext", "pval", "Cluster", "PAE_vol"]]
     if not c_ext:  
         pos_result_gene["C"] = pos_result_gene.apply(
             lambda x: 1 if (x["C"] == 1) & (x["C_ext"] == 0) else 2 if (x["C"] == 1) & (x["C_ext"] == 1) else 0, axis=1)
@@ -411,10 +411,10 @@ def get_score_for_genes_plot(pos_result_gene, mut_count, prob_vec):
         if pos in mut_count.Pos.values:
             if pos not in pos_result_gene.Pos.values:
                 logger.error("Position in MAF not found in position-level O3D result: Check that MAF and O3D result are matching!")
-            score = pos_result_gene.loc[pos_result_gene["Pos"] == pos, "Ratio_obs_sim"].values[0]
+            score = pos_result_gene.loc[pos_result_gene["Pos"] == pos, "Score_obs_sim"].values[0]
         else:
             score = 0
-            row_gene = pd.DataFrame({'Pos': [pos], 'Mut_in_res': [0], 'Ratio_obs_sim': [np.nan], 'C': [np.nan]})
+            row_gene = pd.DataFrame({'Pos': [pos], 'Mut_in_res': [0], 'Score_obs_sim': [np.nan], 'C': [np.nan]})
             pos_result_gene = pd.concat([pos_result_gene, row_gene])
 
         score_vec.append(score)
@@ -504,7 +504,7 @@ def genes_plots(gene_result,
         if len(pos_result_gene) > 0:
 
             pos_result_gene = pos_result_gene[["Pos", "Mut_in_res", "Mut_in_vol", 
-                                               "Ratio_obs_sim", "C", "C_ext", 
+                                               "Score_obs_sim", "C", "C_ext", 
                                                "pval", "Cluster", "PAE_vol"]]
             pos_result_gene, max_mut = parse_pos_result_for_genes_plot(pos_result_gene, c_ext=c_ext)
             
@@ -1061,10 +1061,10 @@ def comparative_plots(shared_genes,
 
         if len(pos_result_gene_1) > 0 and len(pos_result_gene_2) > 0:
             pos_result_gene_1 = pos_result_gene_1[["Pos", "Mut_in_res", "Mut_in_vol", 
-                                                  "Ratio_obs_sim", "C", "C_ext", 
+                                                  "Score_obs_sim", "C", "C_ext", 
                                                   "pval", "Cluster", "PAE_vol"]]
             pos_result_gene_2 = pos_result_gene_2[["Pos", "Mut_in_res", "Mut_in_vol", 
-                                                   "Ratio_obs_sim", "C", "C_ext", 
+                                                   "Score_obs_sim", "C", "C_ext", 
                                                    "pval", "Cluster", "PAE_vol"]]
             pos_result_gene_1, max_mut_1 = parse_pos_result_for_genes_plot(pos_result_gene_1)
             pos_result_gene_2, max_mut_2 = parse_pos_result_for_genes_plot(pos_result_gene_2)
@@ -1200,8 +1200,9 @@ def comparative_plots(shared_genes,
                     axes[ax].scatter(mut_pos_2, -mut_res_pos_2, color="tomato", zorder=4, alpha=0.6,          # B
                                     lw=plot_pars["s_lw"], ec="black", s=60, label='Cohort B')    
         
-                    legend = axes[ax].legend(fontsize=11.5, ncol=2, framealpha=0.75, bbox_to_anchor=(0.95, 1.95), 
-                                            borderaxespad=0., loc='upper right')
+
+                    legend = axes[ax].legend(fontsize=11.5, ncol=2, framealpha=0.75, bbox_to_anchor=(0.95, 2.3), 
+                                             borderaxespad=0., loc='upper right')
                     legend.set_title("Global legend")
                     legend.get_title().set_fontsize(12)
                     
@@ -1865,6 +1866,7 @@ def uni_log_reg_all_genes(df_annotated, uni_feat_df):
     """
 
     results_lst = []
+    df_gene_lst = []
     
     for uni_id in df_annotated.Uniprot_ID.unique():
     
@@ -1891,9 +1893,13 @@ def uni_log_reg_all_genes(df_annotated, uni_feat_df):
             results_gene["Gene"] = gene
             results_gene["Uniprot_ID"] = uni_id
             
+        df_gene_lst.append(df_gene)
         results_lst.append(results_gene)
 
-    return pd.concat(results_lst)
+    uni_log_result = pd.concat(results_lst)
+    df_genes = pd.concat(df_gene_lst)
+    
+    return uni_log_result, df_genes
 
 
 def rename_columns(df):
@@ -2020,8 +2026,10 @@ def volcano_plot_each_gene(logreg_results,
         ncols = num_genes 
     elif num_genes <= 10:
         ncols = int(np.ceil(num_genes / 2))
-    else:
+    elif num_genes <= 20:
         ncols = 5
+    else:
+        ncols = 6
     nrows = int(np.ceil(num_genes / ncols))
     
     fsize_x, fsize_y = fsize
@@ -2183,11 +2191,12 @@ def log_odds_plot(logreg_results,
         plt.show()
     plt.close()
     
-    
-def associations_plots(pos_result_annotated, 
+        
+def associations_plots(df_annotated, 
                        uni_feat_processed, 
                        output_dir,
                        plot_pars,
+                       miss_prob_dict,
                        cohort="o3d_run"):
     """
     Generate volcano plots and log odds plot to look for associations 
@@ -2195,8 +2204,10 @@ def associations_plots(pos_result_annotated,
     """
     
     # Prepare data
-    df_annotated = pos_result_annotated[pos_result_annotated["Mut_in_res"] > 0]
-    cols_drop = "Mut_in_res", "Mut_in_vol", "Ratio_obs_sim", "C_ext", "pval", "Cluster", "Res", "F", "Ens_Gene_ID", "Ens_Transcr_ID", "PAE_vol"
+    df_annotated = df_annotated.copy()
+    df_annotated["Miss_prob"] = df_annotated.apply(lambda x: (miss_prob_dict[f"{x.Uniprot_ID}-F{x.F}"][x.Pos-1]), axis=1)
+    df_annotated = df_annotated[df_annotated["Miss_prob"] > 0]
+    cols_drop = "Mut_in_res", "Mut_in_vol", "Score_obs_sim", "C_ext", "pval", "Cluster", "Res", "F", "Ens_Gene_ID", "Ens_Transcr_ID", "PAE_vol", "Miss_prob"
     df_annotated = df_annotated.drop(columns=[col for col in cols_drop if col in df_annotated.columns])
     sse_dummies = pd.get_dummies(df_annotated['SSE'], prefix='SSE')
     df_annotated = pd.concat((df_annotated.drop(columns="SSE"), sse_dummies), axis=1)
@@ -2207,58 +2218,7 @@ def associations_plots(pos_result_annotated,
     uni_feat_processed_expanded = expand_uniprot_feat_rows(uni_feat_processed)
 
     # Perform univariate log reg
-    logreg_results = uni_log_reg_all_genes(df_annotated, uni_feat_processed_expanded)
-    logreg_results = rename_columns(logreg_results)
-
-    # Plots
-    genes = logreg_results[~logreg_results.drop(columns=["Gene", "Uniprot_ID"]).isna().all(axis=1)].Gene.unique()
-    if len(genes) > 0:
-        output_dir_associations_plots = os.path.join(output_dir, f"{cohort}.associations_plots")
-        logger.info(f"Generating associations plots in {output_dir_associations_plots}")
-        create_plot_dir(output_dir_associations_plots)
-        log_odds_plot(logreg_results, 
-                      output_dir=output_dir_associations_plots, 
-                      cohort=cohort,
-                      fsize=(plot_pars["log_odds_fsize_x"], plot_pars["log_odds_fsize_y"]))
-        volcano_plot(logreg_results, 
-                     top_n=plot_pars["volcano_top_n"], 
-                     output_dir=output_dir_associations_plots, 
-                     cohort=cohort,
-                     fsize=(plot_pars["volcano_fsize_x"], plot_pars["volcano_fsize_y"]))
-        volcano_plot_each_gene(logreg_results, 
-                               output_dir=output_dir_associations_plots, 
-                               cohort=cohort,
-                               fsize=(plot_pars["volcano_subplots_fsize_x"], plot_pars["volcano_subplots_fsize_y"]))
-    else:
-        logger.debug("There aren't any relationship to plot: Skipping associations plots..")
-        
-        
-def associations_plots_2(pos_result_annotated, 
-                        uni_feat_processed, 
-                        output_dir,
-                        plot_pars,
-                        miss_prob_dict,
-                        cohort="o3d_run"):
-    """
-    Generate volcano plots and log odds plot to look for associations 
-    between cluster status and annotated features.
-    """
-    
-    # Prepare data
-    pos_result_annotated["Miss_prob"] = pos_result_annotated.apply(lambda x: (miss_prob_dict[f"{x.Uniprot_ID}-F{x.F}"][x.Pos-1]), axis=1)
-    df_annotated = pos_result_annotated[pos_result_annotated["Miss_prob"] > 0]
-    cols_drop = "Mut_in_res", "Mut_in_vol", "Ratio_obs_sim", "C_ext", "pval", "Cluster", "Res", "F", "Ens_Gene_ID", "Ens_Transcr_ID", "PAE_vol", "Miss_prob"
-    df_annotated = df_annotated.drop(columns=[col for col in cols_drop if col in df_annotated.columns])
-    sse_dummies = pd.get_dummies(df_annotated['SSE'], prefix='SSE')
-    df_annotated = pd.concat((df_annotated.drop(columns="SSE"), sse_dummies), axis=1)
-    df_annotated = df_annotated.rename(columns={"pLDDT_res" : "pLDDT", "PAE_vol" : "PAE", "DDG" : "ΔΔG"})
-
-    # Add Uniprot features
-    uni_feat_processed = uni_feat_processed[uni_feat_processed["Type"] != "REGION"].reset_index(drop=True)
-    uni_feat_processed_expanded = expand_uniprot_feat_rows(uni_feat_processed)
-
-    # Perform univariate log reg
-    logreg_results = uni_log_reg_all_genes(df_annotated, uni_feat_processed_expanded)
+    logreg_results, df_annotated_uni_feat = uni_log_reg_all_genes(df_annotated, uni_feat_processed_expanded)
     logreg_results = rename_columns(logreg_results)
 
     # Plots
@@ -2282,6 +2242,11 @@ def associations_plots_2(pos_result_annotated,
                                fsize=(plot_pars["volcano_subplots_fsize_x"], plot_pars["volcano_subplots_fsize_y"]))
     else:
         logger.debug("There aren't any relationship to plot: Skipping associations plots..")
+    
+    uni_feat_cols = ["Uniprot_ID", "Pos", "Domain", "Ptm", "Membrane", "Motif", "Site"]
+    df_annotated_uni_feat = df_annotated_uni_feat[[col for col in uni_feat_cols if col in df_annotated_uni_feat.columns]]
+    
+    return df_annotated_uni_feat
 
 
 # PLOT WRAPPER
@@ -2391,29 +2356,27 @@ def generate_plots(gene_result_path,
                                                                 c_ext=c_ext,
                                                                 title=title)
         
-        # Associations plots        
-        if plot_associations:        
-            associations_plots(pos_result_annotated, 
-                               uni_feat_processed, 
-                               output_dir,
-                               plot_pars,
-                               cohort)
-            associations_plots_2(pos_result_annotated, 
-                               uni_feat_processed, 
-                               output_dir,
-                               plot_pars,
-                               miss_prob_dict,
-                               cohort)
+        # Associations plots     
+        if plot_associations and len(pos_result_annotated) > 0:        
+            pos_result_annotated_uni_feat = associations_plots(pos_result_annotated, 
+                                                               uni_feat_processed, 
+                                                               output_dir,
+                                                               plot_pars,
+                                                               miss_prob_dict,
+                                                               cohort)
+            pos_result_annotated = pos_result_annotated.merge(
+                pos_result_annotated_uni_feat.fillna(0), how="left", on=["Uniprot_ID", "Pos"])
+            
         
         # Save annotations
         if save_csv and pos_result_annotated is not None:
             logger.info(f"Saving annotated Oncodrive3D result in {output_dir}")
-            save_annotated_pos_result(pos_result, 
-                                      pos_result_annotated, 
-                                      uni_feat_processed, 
-                                      output_dir, 
-                                      cohort, 
-                                      include_all_pos)
+            save_annotated_result(pos_result, 
+                                  pos_result_annotated, 
+                                  uni_feat_processed, 
+                                  output_dir, 
+                                  cohort, 
+                                  include_all_pos)
             
         logger.info("Plotting completed!")
     

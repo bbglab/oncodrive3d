@@ -464,63 +464,71 @@ def get_enriched_result(pos_result_gene,
     """
 
     pos_result_gene = pos_result_gene.copy()
+
     # DDG
     pos_result_gene.loc[pos_result_gene["Mut_in_res"] == 0, "DDG"] = np.nan
+
     # Disorder
     pos_result_gene = pos_result_gene.merge(disorder_gene, how="left", on=["Pos"])
     pos_result_gene = pos_result_gene.rename(columns={"Confidence" : "pLDDT_res"})
+
     # PDB_Tool
     pos_result_gene = pos_result_gene.rename(columns={"AF_F" : "F"}).merge(
-            pdb_tool_gene, on=["Res", "Uniprot_ID", "Pos", "F"])
+            pdb_tool_gene.drop(columns="F"), on=["Res", "Uniprot_ID", "Pos"], how="left")
+
     # Transcript and gene IDs
     pos_result_gene = pos_result_gene.merge(
         seq_df[["Gene", "Uniprot_ID", "Ens_Gene_ID", "Ens_Transcr_ID"]], 
         how="left", on=["Uniprot_ID"])
 
     return pos_result_gene
+
+
+def reorganize_df_to_save(pos_result_df):
+    
+    pos_result_df = pos_result_df.rename(columns={"Res" : "WT_res"})
+    cols = ['Gene', 'Ens_Gene_ID', 'Ens_Transcr_ID', 'Uniprot_ID', 'F', 'Pos', "WT_res",
+            'Mut_in_gene', 'Mut_in_res', 'Mut_in_vol',
+            'Score', 'Score_obs_sim', 'pval', 'C', 'C_ext', 'Cluster', 'Rank',
+            'Tot_samples', 'Samples_in_vol', 'Samples_in_cl_vol', 'Mut_in_cl_vol', 'Res_in_cl', 
+            'PAE_vol', 'pLDDT_res', 'pLDDT_vol', 'pLDDT_cl_vol', 
+            'Cancer', 'Cohort', 
+            'SSE', 'pACC', 'DDG', "Domain", "Ptm", "Membrane", "Site"]
+    
+    return pos_result_df[[col for col in cols if col in pos_result_df.columns]]
     
     
-def save_annotated_pos_result(pos_result, 
-                               annot_pos_result, 
-                               pfam_processed, 
-                               output_dir, 
-                               run_name, 
-                               output_all_pos=False):
+def save_annotated_result(pos_result, 
+                          annot_pos_result, 
+                          uni_feat_processed, 
+                          output_dir, 
+                          run_name, 
+                          output_all_pos=False):
     """
     Save the annotated pos-level result.
     """
     
     # Do not include non-mutated positions (default)
     if output_all_pos == False:
-        annot_pos_result = annot_pos_result[annot_pos_result["Mut_in_res"] != 0].reset_index(drop=True)
-        
+        annot_pos_result = annot_pos_result[annot_pos_result["Mut_in_res"] > 0].reset_index(drop=True)
+    
     # Merge with 'original' one to retrieve dropped cols
     output_pos_result = os.path.join(output_dir, f"{run_name}.3d_clustering_pos.annotated.csv")
-    output_pfam = os.path.join(output_dir, f"{run_name}.pfam.tsv")
+    output_uniprot_feat = os.path.join(output_dir, f"{run_name}.uniprot_feat.tsv")
+    cols = ["Gene", "Uniprot_ID", "F", "Ens_Gene_ID", "Ens_Transcr_ID", 
+            "Pos", "Res", "pLDDT_res", "SSE", "pACC", "DDG",
+            "Domain", "Ptm", "Membrane", "Site"]
     annot_pos_result = pos_result.drop(columns=["F", "pLDDT_res"]).merge(
-        annot_pos_result[["Gene", 
-                          "Uniprot_ID",
-                          "F", 
-                          "Ens_Gene_ID", 
-                          "Ens_Transcr_ID", 
-                          "Pos",
-                          "Res", 
-                          "pLDDT_res", 
-                          "SSE", 
-                          "pACC", 
-                          "DDG"]],
+        annot_pos_result[[col for col in cols if col in annot_pos_result.columns]],
         how="right", on=["Gene", "Uniprot_ID", "Pos"])
     annot_pos_result = annot_pos_result.sort_values(["Gene", "Pos"])
     
     # Fill the NA of the non-mutated positions in features
-    if annot_pos_result["Cancer"].isnull().all():
-        annot_pos_result["Cancer"] = np.nan
-    else:
-        annot_pos_result["Cancer"] = annot_pos_result["Cancer"].dropna().unique()[0]
-    if annot_pos_result["Cohort"].isnull().all():
-        annot_pos_result["Cohort"] = np.nan
-    else:
-        annot_pos_result["Cohort"] = annot_pos_result["Cohort"].dropna().unique()[0]
+    for col in ["Cancer", "Cohort"]:
+        if annot_pos_result[col].isnull().all():
+            annot_pos_result[col] = np.nan
+        else:
+            annot_pos_result[col] = annot_pos_result[col].dropna().unique()[0]
     annot_pos_result["Mut_in_res"] = annot_pos_result["Mut_in_res"].fillna(0)
     for gene in annot_pos_result.Gene.unique():
         mut_in_gene = annot_pos_result.loc[annot_pos_result["Gene"] == gene, "Mut_in_gene"].dropna().unique()[0]
@@ -533,10 +541,11 @@ def save_annotated_pos_result(pos_result,
         annot_pos_result.loc[annot_pos_result["Gene"] == gene, "Tot_samples"] = tot_samples
 
     # Save
+    annot_pos_result = reorganize_df_to_save(annot_pos_result)
     annot_pos_result.to_csv(output_pos_result, index=False)
-    pfam_processed.to_csv(output_pfam, sep="\t", index=False)
     logger.info(f"Saved annotated position-level result to {output_pos_result}")
-    logger.info(f"Saved Pfam annotations to {output_pfam}")
+    uni_feat_processed.to_csv(output_uniprot_feat, sep="\t", index=False)
+    logger.info(f"Saved Uniprot features annotations to {output_uniprot_feat}")
     
     
 def parse_lst_tracks(lst, plot_type):
