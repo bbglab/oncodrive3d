@@ -264,16 +264,16 @@ def clustering_3d(gene,
     # Get ranked observed score (loglik+_LFC) 
     no_mut_pos = len(result_pos_df)
     sim_anomaly = sim_anomaly.iloc[:no_mut_pos,:].reset_index()
-    result_pos_df["Obs_anomaly"] = get_anomaly_score(result_pos_df["Mut_in_vol"], 
+    result_pos_df["Score"] = get_anomaly_score(result_pos_df["Mut_in_vol"], 
                                                      len(mut_gene_df), 
                                                      vol_missense_mut_prob[result_pos_df["Pos"]-1])
-    if np.isinf(result_pos_df.Obs_anomaly).any():
+    if np.isinf(result_pos_df.Score).any():
         logger.debug(f"Detected inf observed score in gene {gene} ({uniprot_id}-F{af_f}): Recomputing with higher precision..")
         result_pos_df = recompute_inf_score(result_pos_df, len(mut_gene_df), vol_missense_mut_prob[result_pos_df["Pos"]-1])
         
     mut_in_res = count.reset_index().rename(columns = {"count" : "Mut_in_res"})
     result_pos_df = mut_in_res.merge(result_pos_df, on = "Pos", how = "outer")                          
-    result_pos_df = result_pos_df.sort_values("Obs_anomaly", ascending=False).reset_index(drop=True)
+    result_pos_df = result_pos_df.sort_values("Score", ascending=False).reset_index(drop=True)
 
 
     ## Compute p-val and assign hits
@@ -284,10 +284,10 @@ def clustering_3d(gene,
 
     # Ratio observed and simulated anomaly scores 
     # (used to break the tie in p-values gene sorting)
-    result_pos_df["Ratio_obs_sim"] = sim_anomaly.apply(lambda x: result_pos_df["Obs_anomaly"].values[int(x["index"])] / np.mean(x[1:]), axis=1) 
+    result_pos_df["Score_obs_sim"] = sim_anomaly.apply(lambda x: result_pos_df["Score"].values[int(x["index"])] / np.mean(x[1:]), axis=1) 
 
     # Empirical p-val
-    result_pos_df["pval"] = sim_anomaly.apply(lambda x: sum(x[1:] >= result_pos_df["Obs_anomaly"].values[int(x["index"])]) / len(x[1:]), axis=1)
+    result_pos_df["pval"] = sim_anomaly.apply(lambda x: sum(x[1:] >= result_pos_df["Score"].values[int(x["index"])]) / len(x[1:]), axis=1)
 
     # Assign hits
     result_pos_df["C"] = [int(i) for i in result_pos_df["pval"] < alpha]              

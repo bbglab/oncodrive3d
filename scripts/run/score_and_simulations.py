@@ -88,15 +88,15 @@ def recompute_inf_score(result_pos_df, gene_mut, vol_missense_mut_prob):
     is so small that is approximated to 0.
     """
     
-    inf_ix = np.isinf(result_pos_df.Obs_anomaly)
+    inf_ix = np.isinf(result_pos_df.Score)
     if sum(inf_ix) > 0:
         for ix, k, n, p in zip(np.where(inf_ix)[0], 
                                 result_pos_df.Mut_in_vol[inf_ix], 
                                 np.repeat(gene_mut, sum(inf_ix)), 
                                 vol_missense_mut_prob[inf_ix]):
             
-            if np.isinf(result_pos_df.iloc[ix].Obs_anomaly):
-                result_pos_df.loc[ix, "Obs_anomaly"] = get_dcm_anomaly_score(k, n, p)
+            if np.isinf(result_pos_df.iloc[ix].Score):
+                result_pos_df.loc[ix, "Score"] = get_dcm_anomaly_score(k, n, p)
             else:
                 logger.warning("Trying to overwrite a non-inf score: Skipping..")
                 
