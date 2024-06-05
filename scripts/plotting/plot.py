@@ -1937,7 +1937,8 @@ def volcano_plot(logreg_results,
         warnings.simplefilter("ignore", category=DeprecationWarning)
         cmap = plt.cm.get_cmap('tab20', len(genes))
     lgray_rgb = 0.7803921568627451, 0.7803921568627451, 0.7803921568627451, 1.0
-
+    used_colors = []
+    
     all_gene_results = []
     plt.figure(figsize=fsize)
 
@@ -1950,9 +1951,11 @@ def volcano_plot(logreg_results,
         # Volcano plot
         significant_mask = gene_pvals < 0.01
         non_significant_mask = ~significant_mask
-        plt.scatter(gene_logodds[non_significant_mask], gene_logpvals[non_significant_mask], zorder=1, color='lightgray', alpha=0.7)
+        marker = '*' if cmap(i) in used_colors else 'o'
+        used_colors.append(cmap(i))
+        plt.scatter(gene_logodds[non_significant_mask], gene_logpvals[non_significant_mask], zorder=1, color='lightgray', alpha=0.7, marker=marker)
         plt.scatter(gene_logodds[significant_mask], gene_logpvals[significant_mask], zorder=2, label=gene, 
-                    color="black" if cmap(i) == lgray_rgb else cmap(i), alpha=0.7)
+                    color="black" if cmap(i) == lgray_rgb else cmap(i), alpha=0.7, marker=marker)
     
         # Append results for annotation
         gene_data = pd.DataFrame({
