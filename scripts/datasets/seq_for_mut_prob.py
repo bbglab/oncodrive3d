@@ -554,7 +554,6 @@ def get_biomart_metadata(datasets_dir, uniprot_ids):
 
     # Parse
     biomart_df = pd.read_csv(os.path.join(datasets_dir, "biomart_metadata.tsv"), sep="\t", header=None)
-    logger.critical(f"Len cols {len(biomart_df.columns)}")
     biomart_df.columns= ["Ens_Gene_ID", "Ens_Transcr_ID", "Ens_Canonical", "Gene", "Gene_source", "HGNC_ID", "Uniprot_ID", "UniprotKB_ID", "Gene_synonym"]
     biomart_df = biomart_df.dropna(subset=["Uniprot_ID", "UniprotKB_ID"], how='all')
     biomart_df = biomart_df[biomart_df["Gene_source"] == "HGNC Symbol"].drop(columns=["Gene_source"])
@@ -724,7 +723,7 @@ def process_seq_df(seq_df,
         seq_df_notr = seq_df_notr.merge(mane_mapping.drop(columns=["Gene", "Refseq_prot"]), on="Uniprot_ID", how="left").dropna(subset="Gene")
 
         # Assign reference label to transcripts retrieved from MANE
-        seq_df_natr = seq_df_notr[seq_df_notr.Ens_Transcr_ID.isna()]
+        #seq_df_natr = seq_df_notr[seq_df_notr.Ens_Transcr_ID.isna()]
         seq_df_manetr = seq_df_notr.copy()
         seq_df_manetr = seq_df_manetr.dropna(subset="Ens_Transcr_ID")
         seq_df_manetr["Reference_info"] = 0

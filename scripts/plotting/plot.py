@@ -302,7 +302,7 @@ def filter_non_processed_mut(maf, pos_result):
                                                 # TO DO: In this way, I am not getting rid of the mismatches ones.. I should think about something else for these ones
     len_maf = len(maf)
     maf = maf[maf.apply(lambda x: f"{x.Gene}_{x.Pos}", axis=1).isin(pos_result.apply(lambda x: f"{x.Gene}_{x.Pos}", axis=1))]
-    logger.debug(f"Filtered out {len_maf - len(maf)} ({(len_maf - len(maf))/len_maf*100:.2f}%) mutations out of {len_maf} from input file!")
+    logger.debug(f"Filtered out {len_maf - len(maf)} ({(len_maf - len(maf))/len_maf*100:.2f}%) mutations out of {len_maf} not processed during 3D-clustering analysis!")
 
     return maf
 

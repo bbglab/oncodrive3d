@@ -209,6 +209,8 @@ def build_datasets(output_dir,
               help="Update HUGO symbols in Oncodrive3D built datasets by using input file entries. Only if input file (--i) is a raw VEP output")
 @click.option("--mane", is_flag=True,
               help="If multiple structures are associated to the same HUGO symbol in the input file, use the MANE ones.")
+@click.option("--sample_info", is_flag=True,
+              help="Include sample information in position-level result (currently unavailable).")                  # TODO: enable sample info in output
 @setup_logging_decorator
 def run(input_maf_path,
         mut_profile_path,
@@ -228,7 +230,8 @@ def run(input_maf_path,
         thr_mapping_issue,
         o3d_transcripts,
         use_input_symbols,
-        mane):
+        mane,
+        sample_info):
     """Run Oncodrive3D."""
 
     ## Initialize
@@ -260,14 +263,15 @@ def run(input_maf_path,
     logger.info(f"Probability threshold for CMAPs: {cmap_prob_thr}")
     logger.info(f"Cohort: {cohort}")
     logger.info(f"Cancer type: {cancer_type}")
-    logger.info(f"Disable fragments: {bool(no_fragments)}")
-    logger.info(f"Output only processed genes: {bool(only_processed)}")
+    logger.info(f"Disable fragments: {no_fragments}")
+    logger.info(f"Output only processed genes: {only_processed}")
     logger.info(f"Ratio threshold mutations with mapping issue: {thr_mapping_issue}")
     logger.info(f"Seed: {seed}")
     logger.info(f"Filter input by Oncodrive3D transcripts (only if VEP output is used as input): {o3d_transcripts}")
     logger.info(f"Use HUGO symbols of input file (only if VEP output is used as input): {use_input_symbols}")
     logger.info(f"Prioritize MANE transcripts when using input HUGO symbols: {mane}")
-    logger.info(f"Verbose: {bool(verbose)}")
+    logger.info(f"Include sample informations in output: {sample_info}")
+    logger.info(f"Verbose: {verbose}")
     logger.info(f'Log path: {os.path.join(output_dir, "log")}')
     logger.info("")
 
@@ -483,9 +487,13 @@ def run(input_maf_path,
             logger.warning("Did not processed any genes!")
             result_gene = add_nan_clust_cols(result_gene)
             result_gene = sort_cols(result_gene)
+            if not sample_info:
+                result_gene.drop(columns=[col for col in ['Tot_samples', 
+                                                          'Samples_in_top_vol', 
+                                                          'Samples_in_top_cl_vol'] if col in result_gene.columns], inplace=True)   
             if no_fragments:
                 result_gene = result_gene.drop(columns=[col for col in ["F", "Mut_in_top_F", "Top_F"] if col in result_gene.columns])
-            empty_result_pos().to_csv(output_path_pos, index=False)
+            empty_result_pos(sample_info).to_csv(output_path_pos, index=False)
             result_gene.to_csv(output_path_genes, index=False)
 
             logger.info(f"Saving (empty) {output_path_pos}")
@@ -495,14 +503,21 @@ def run(input_maf_path,
             # Save res-level result
             result_pos["Cancer"] = cancer_type
             result_pos["Cohort"] = cohort
+            if not sample_info:
+                result_pos.drop(columns=[col for col in ['Tot_samples', 
+                                                         'Samples_in_vol', 
+                                                         'Samples_in_cl_vol'] if col in result_gene.columns], inplace=True) 
             result_pos.to_csv(output_path_pos, index=False)
 
             # Get gene global pval, qval, and clustering annotations and save gene-level result
             result_gene = get_final_gene_result(result_pos, result_gene, alpha)
-            result_gene = result_gene
             result_gene = sort_cols(result_gene) 
+            if not sample_info:
+                result_gene.drop(columns=[col for col in ['Tot_samples', 
+                                                          'Samples_in_top_vol', 
+                                                          'Samples_in_top_cl_vol'] if col in result_gene.columns], inplace=True)   
             if no_fragments:
-                result_gene = result_gene.drop(columns=[col for col in ["F", "Mut_in_top_F", "Top_F"] if col in result_gene.columns])
+                result_gene.drop(columns=[col for col in ["F", "Mut_in_top_F", "Top_F"] if col in result_gene.columns], inplace=True)
             with np.printoptions(linewidth=10000):
                 result_gene.to_csv(output_path_genes, index=False)
 

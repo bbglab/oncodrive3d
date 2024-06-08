@@ -436,7 +436,7 @@ def add_info(mut_gene_df, result_pos_df, cmap, pae=None):
     return result_pos_df
 
 
-def add_nan_clust_cols(result_gene):
+def add_nan_clust_cols(result_gene, sample_info=False):
     """
     Add columns showing clustering results with only NA for 
     genes that are not tested (not enough mutations, etc).
@@ -511,7 +511,7 @@ def sort_cols(result_gene):
     return result_gene[[col for col in cols if col in result_gene.columns]]
 
 
-def empty_result_pos():
+def empty_result_pos(sample_info=False):
     """
     Get an empty position-level result of the clustering method.
     """
@@ -542,4 +542,10 @@ def empty_result_pos():
             'Cancer', 
             'Cohort']
     
-    return pd.DataFrame(columns=cols)
+    df = pd.DataFrame(columns=cols)
+    if not sample_info:
+        df = df.drop(columns=['Tot_samples', 
+                              'Samples_in_vol', 
+                              'Samples_in_cl_vol'])
+    
+    return df
