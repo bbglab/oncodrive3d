@@ -1987,7 +1987,7 @@ def volcano_plot(logreg_results,
     plt.ylabel('-log10(p-value)', fontsize=12) 
     plt.axhline(y=-np.log10(0.01), color='lightgrey', linestyle='--', zorder=0)
     plt.axvline(x=0, color='lightgrey', linestyle='--', zorder=0)
-    plt.legend()
+    plt.legend(ncol=1 if len(genes) < 20 else 2)
     plt.suptitle(f"{cohort} - Residues' cluster status and annotations associations", y=0.93)    
 
     if save_plot and output_dir:
