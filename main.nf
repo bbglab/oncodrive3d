@@ -33,22 +33,23 @@ log.info """\
 
     O n c o d r i v e - 3 D 
     =======================
-    Input dir        : ${params.indir}
-    Input files      : ${input_files}                     
-    Cohort pattern   : ${params.cohort_pattern}
-    Outdir           : ${outdir}
-    Datasets         : ${params.data_dir}
-    Annotations      : ${params.annotations_dir}
-    CPU cores        : ${params.cores}
-    Memory           : ${params.memory}
-    Max running      : ${params.max_running}
-    Use VEP as input : ${params.vep_input}
-    MANE             : ${params.mane}
-    Generate plots   : ${params.plot}
-    Seed             : ${params.seed}
-    Verbose          : ${params.verbose}
-    Container        : ${params.container}
-    Profile          : ${workflow.profile}
+    Input dir          : ${params.indir}
+    Input files        : ${input_files}                     
+    Cohort pattern     : ${params.cohort_pattern}
+    Outdir             : ${outdir}
+    Datasets           : ${params.data_dir}
+    Annotations        : ${params.annotations_dir}
+    CPU cores          : ${params.cores}
+    Memory             : ${params.memory}
+    Max running        : ${params.max_running}
+    Use VEP as input   : ${params.vep_input}
+    MANE               : ${params.mane}
+    Generate plots     : ${params.plot}
+    Seed               : ${params.seed}
+    Verbose            : ${params.verbose}
+    Container          : ${params.container}
+    Container ChimeraX : ${params.container_chimerax}
+    Profile            : ${workflow.profile}
 
     """
     .stripIndent()
@@ -121,6 +122,36 @@ process O3D_plot {
 }
 
 
+process O3D_chimera_plot {
+    tag "ChimeraX plot $cohort"
+    //label 'process_low'
+    debug true
+
+    container params.container_chimerax               
+    cpus 4
+    memory "10G"
+    maxForks params.max_running
+
+    input:
+    tuple val(cohort), path(inputs), path(genes_csv), path(pos_csv), path(mutations_csv), path(miss_prob_json), path(seq_df_tsv)
+
+    output:
+    val(cohort)
+
+    script:
+    """
+    python3 /o3d_chimera_plot.py \
+        -o $outdir/$cohort \\
+        -g $genes_csv \\
+        -p $pos_csv \\
+        -d ${params.data_dir} \\
+        -s $seq_df_tsv \\
+        -c $cohort \\
+        --fragmented_proteins
+    """
+}
+
+
 workflow {
     Channel
         .fromFilePairs(input_files, checkIfExists: true)
@@ -146,6 +177,9 @@ workflow {
             .join(run_ch.o3d_result)
             .set { plot_ch }
         O3D_plot(plot_ch)
+        if (params.chimera_plot) { 
+            O3D_chimera_plot(plot_ch)
+        }
     }
 }
 
