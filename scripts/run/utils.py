@@ -306,7 +306,7 @@ def get_samples_info(mut_gene_df, cmap):
     # Get total samples and # mutated samples of each mutated res
     tot_samples = len(mut_gene_df["Tumor_Sample_Barcode"].unique())
     pos_barcodes = mut_gene_df.groupby("Pos").apply(lambda x: x["Tumor_Sample_Barcode"].unique())
-    pos_barcodes = pos_barcodes.reset_index().rename(columns={0 : "Barcode"})
+    pos_barcodes = pos_barcodes.reset_index(drop=True).rename(columns={0 : "Barcode"})
 
     # Get the ratio of unique samples with mut in the vol of each mutated res
     uniq_pos_barcodes = [len(pos_barcodes[[pos in np.where(cmap[i-1])[0]+1 for 
@@ -385,6 +385,7 @@ def add_info(mut_gene_df, result_pos_df, cmap, pae=None):
     """
 
     # Add sample info
+    print("\n> Init add_info\n", result_pos_df, "\n")
     if "Tumor_Sample_Barcode" in mut_gene_df.columns:
         samples_info = get_samples_info(mut_gene_df, cmap)
         result_pos_df = result_pos_df.merge(samples_info.drop(columns=["Barcode"]), on="Pos", how="outer")
@@ -426,7 +427,8 @@ def add_info(mut_gene_df, result_pos_df, cmap, pae=None):
         result_pos_df["PAE_vol"] = np.nan
         
     # AF confidence
-    result_pos_df["pLDDT_res"] = result_pos_df.apply(lambda x: mut_gene_df.Confidence[mut_gene_df["Pos"] == x.Pos].values[0], axis=1)
+    result_pos_df["pLDDT_res"] = result_pos_df.apply(lambda x: mut_gene_df.Confidence[mut_gene_df["Pos"] == x.Pos].values[0] 
+                                                     if len(mut_gene_df.Confidence[mut_gene_df["Pos"] == x.Pos].values > 0) else np.nan, axis=1)
     result_pos_df["pLDDT_vol"] = result_pos_df.apply(lambda x: weighted_avg_plddt_vol(x["Pos"], mut_gene_df, cmap), axis=1)
     result_pos_df["pLDDT_cl_vol"] = result_pos_df.pop("pLDDT_cl_vol")
 
