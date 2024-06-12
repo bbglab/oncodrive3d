@@ -30,7 +30,7 @@ import pandas as pd
 import requests
 import sys
 from tqdm import tqdm
-from bgreference import hg38, mm39
+from bgreference import hg38, mm10#mm39
 from Bio.Seq import Seq
 
 
@@ -703,7 +703,7 @@ def process_seq_df(seq_df,
     if organism == "Homo sapiens":
         genome_fun = hg38
     elif organism == "Mus musculus":
-        genome_fun = mm39
+        genome_fun = mm10#mm39
     else:
         raise RuntimeError(f"Failed to recognize '{organism}' as organism. Currently accepted ones are 'Homo sapiens' and 'Mus musculus'. Exiting..")
     seq_df = add_ref_dna_and_context(seq_df, genome_fun)
@@ -815,13 +815,13 @@ def process_seq_df_mane(seq_df,
 
 
     # Seq df not MANE
-    seq_df_nomane = add_extra_genes_to_seq_df(seq_df_nomane, uniprot_to_gene_dict)
-    seq_df_nomane = seq_df_nomane[seq_df_nomane.Gene.isin(mane_mapping_not_af.Gene)]
+    seq_df_nomane = add_extra_genes_to_seq_df(seq_df_nomane, uniprot_to_gene_dict)         # Filter out genes with NA
+    seq_df_nomane = seq_df_nomane[seq_df_nomane.Gene.isin(mane_mapping_not_af.Gene)]       # Filter out genes that are not in MANE list
     
     # Retrieve seq from coordinates
     logger.debug(f"Retrieving CDS DNA seq from reference genome (Proteins API): {len(seq_df_nomane['Uniprot_ID'].unique())} structures..")
     coord_df = get_exons_coord(seq_df_nomane["Uniprot_ID"].unique(), ens_canonical_transcripts_lst)
-    seq_df_nomane = seq_df_nomane.merge(coord_df, on=["Seq", "Uniprot_ID"], how="left").reset_index(drop=True)
+    seq_df_nomane = seq_df_nomane.merge(coord_df, on=["Seq", "Uniprot_ID"], how="left").reset_index(drop=True)  # Discard entries whose Seq obtained by Proteins API don't exactly match the one in structure
     seq_df_nomane = add_ref_dna_and_context(seq_df_nomane, hg38)                                                     
     seq_df_nomane_tr = seq_df_nomane[seq_df_nomane["Reference_info"] == 1]
     seq_df_nomane_notr = seq_df_nomane[seq_df_nomane["Reference_info"] == -1]
