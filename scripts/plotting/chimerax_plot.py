@@ -1,14 +1,15 @@
 """
 Use ChimeraX to generate 3D structures colored by metrics
 
-singularity exec o3d_chimerax.sif python3 /o3d_chimera_plot.py \
+singularity exec ~/Repositories/containers/chimerax/o3d_chimerax.sif python3 /o3d_chimerax_plot.py \
     -o /home/spellegrini/PhD/Projects/Oncodrive3D/normal_tissue/bladder \
         -g /home/spellegrini/PhD/Projects/Oncodrive3D/normal_tissue/bladder/BLCA_NORMAL.3d_clustering_genes.csv \
             -p /home/spellegrini/PhD/Projects/Oncodrive3D/normal_tissue/bladder/BLCA_NORMAL.3d_clustering_pos.csv \
                 -d /home/spellegrini/PhD/Projects/Oncodrive3D/normal_tissue/bladder \
                     -s /home/spellegrini/PhD/Projects/Oncodrive3D/normal_tissue/bladder/BLCA_NORMAL.seq_df.processed.tsv \
                         -c BLCA_NORMAL \
-                            --fragmented_proteins
+                            --fragmented_proteins \
+                                --transparent_bg
 """
 
 import pandas as pd   
@@ -94,20 +95,21 @@ def get_key_logscore(intervals):
 
 
 def get_chimerax_command(chimera_bin, 
-                            pdb_path, 
-                            chimera_output_path, 
-                            attr_file_path, 
-                            attribute, 
-                            intervals, 
-                            gene, 
-                            uni_id,
-                            labels,
-                            i,
-                            f,
-                            cohort="",
-                            clusters=None,
-                            pixelsize=0.1,
-                            palette="YlOrRd-5"):
+                        pdb_path, 
+                        chimera_output_path, 
+                        attr_file_path, 
+                        attribute, 
+                        intervals, 
+                        gene, 
+                        uni_id,
+                        labels,
+                        i,
+                        f,
+                        cohort="",
+                        clusters=None,
+                        pixelsize=0.1,
+                        palette="YlOrRd-5",
+                        transparent_bg=False):
     
     chimerax_command = (
         f"{chimera_bin} --nogui --offscreen --cmd "
@@ -120,7 +122,7 @@ def get_chimerax_command(chimera_bin,
         "show cartoons;"
         f"key {palette} :{intervals[0]} :{intervals[1]}  :{intervals[2]} :{intervals[3]} :{intervals[4]} pos 0.35,0.03 fontSize 4 size 0.3,0.02;"
         f"2dlabels create label text '{labels[attribute]}' size 6 color darkred xpos 0.365 ypos 0.065;"
-        f"2dlabels create title text '{gene} - {uni_id}-F{f} ' size 6 color darkred xpos 0.385 ypos 0.93;"
+        f"2dlabels create title text '{gene} - {uni_id}-F{f} ' size 6 color darkred xpos 0.375 ypos 0.93;"
         "lighting soft;"
         "graphics silhouettes true width 1.3;"
         "zoom;"
@@ -136,22 +138,23 @@ def get_chimerax_command(chimera_bin,
             f"color byattribute {attribute} palette {get_key_logscore(intervals)}; "
             "hide atoms;"
             "show cartoons;"
-            
             f"key {get_key_logscore(intervals)} :{intervals[0]} :{intervals[1]} :{intervals[2]} :{intervals[3]} :{intervals[4]} pos 0.35,0.03 fontSize 4 size 0.3,0.02;"
             f"2dlabels create label text '{labels[attribute]}' size 6 color darkred xpos 0.365 ypos 0.065;"
-            f"2dlabels create title text '{gene} - {uni_id}-F{f} ' size 6 color darkred xpos 0.385 ypos 0.93;"
+            f"2dlabels create title text '{gene} - {uni_id}-F{f} ' size 6 color darkred xpos 0.375 ypos 0.93;"
             "lighting soft;"
             "graphics silhouettes true width 1.3;"
             "zoom;"
         )
     
+    transparent_bg = " transparentBackground  true" if transparent_bg else ""
+    
     if clusters is not None:
         if len(clusters) > 0:
             for pos in clusters:
                 chimerax_command += f"marker #10 position :{pos} color #dacae961 radius 5.919;"
-            chimerax_command += f"save {chimera_output_path}/{cohort}_{i}_{gene}_{attribute}_clusters.png pixelSize {pixelsize} supersample 3;exit\""
+            chimerax_command += f"save {chimera_output_path}/{cohort}_{i}_{gene}_{attribute}_clusters.png pixelSize {pixelsize} supersample 3{transparent_bg};exit\""
     else:
-        chimerax_command += f"save {chimera_output_path}/{cohort}_{i}_{gene}_{attribute}.png pixelSize {pixelsize} supersample 3;exit\""
+        chimerax_command += f"save {chimera_output_path}/{cohort}_{i}_{gene}_{attribute}.png pixelSize {pixelsize} supersample 3{transparent_bg};exit\""
     
     return chimerax_command
             
@@ -174,6 +177,7 @@ def get_chimerax_command(chimera_bin,
 @click.option("--cluster_ext", help="Include extended clusters", is_flag=True)
 @click.option("--fragmented_proteins", help="Include fragmented proteins", is_flag=True)
 @click.option("--palette", help="Color palette", type=str, default="YlOrRd-5")
+@click.option("--transparent_bg", help="Set background as transparent", type=str, is_flag=True)
 def main(output_dir,
          gene_result_path,
          pos_result_path,
@@ -183,7 +187,8 @@ def main(output_dir,
          pixel_size,
          cluster_ext,
          fragmented_proteins,
-         palette):
+         palette,
+         transparent_bg):
 
     chimera_out_path = f"{output_dir}/chimerax"
     chimera_attr_path = f"{chimera_out_path}/attributes"
@@ -222,8 +227,8 @@ def main(output_dir,
         
         labels = {"mutres" : "Mutations in residue ", 
                 "mutvol" : "Mutations in volume ",
-                "score" :  "  Clustering score ",
-                "logscore" :  "log(Clustering score) "}
+                "score" : "   Clustering score ",
+                "logscore" : "log(Clustering score) "}
         cols = {"mutres" : "Mut_in_res", 
                 "mutvol" : "Mut_in_vol",
                 "score" : "Score_obs_sim",
@@ -260,7 +265,8 @@ def main(output_dir,
                                                         f,
                                                         cohort,
                                                         pixelsize=pixel_size,
-                                                        palette=palette)
+                                                        palette=palette,
+                                                        transparent_bg=transparent_bg)
                 subprocess.run(chimerax_command, shell=True)
                 
                 if attribute == "score" or attribute == "logscore":
@@ -278,7 +284,8 @@ def main(output_dir,
                                                             cohort,
                                                             clusters=clusters,
                                                             pixelsize=pixel_size,
-                                                            palette=palette)
+                                                            palette=palette,
+                                                            transparent_bg=transparent_bg)
                 subprocess.run(chimerax_command, shell=True)
         else:
             print(f"PDB path missing: {pdb_path}")

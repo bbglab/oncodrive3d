@@ -1,5 +1,4 @@
 import pandas as pd
-
 import daiquiri
 import logging
 import numpy as np
@@ -9,6 +8,10 @@ import os
 import json
 import colorcet as cc
 import warnings
+from sklearn.preprocessing import StandardScaler
+import statsmodels.api as sm
+from statsmodels.tools.sm_exceptions import ConvergenceWarning
+from adjustText import adjust_text
 from matplotlib.axes._axes import Axes
 from scripts.plotting.utils import get_broad_consequence, save_annotated_result
 from scripts.plotting.utils import get_enriched_result, filter_o3d_result, subset_genes_and_ids, load_o3d_result
@@ -1744,13 +1747,6 @@ def comparative_plots(shared_genes,
             
 # Associations plots
 # ==================
-
-from sklearn.preprocessing import StandardScaler
-import statsmodels.api as sm
-import warnings
-from statsmodels.tools.sm_exceptions import ConvergenceWarning
-from adjustText import adjust_text
-
 
 def expand_uniprot_feat_rows(df):
     """
