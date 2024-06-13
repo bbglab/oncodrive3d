@@ -691,7 +691,7 @@ def plot(gene_result_path,
     logger.info(f"O3D positions-result: {pos_result_path}")
     logger.info(f"O3D input mutations: {maf_path}")
     logger.info(f"O3D missense mut prob: {miss_prob_path}")
-    logger.info(f"O3D missense seq df: {seq_df_path}")
+    logger.info(f"O3D sequences df: {seq_df_path}")
     logger.info(f"O3D datasets: {datasets_dir}")
     logger.info(f"O3D annotations: {annotations_dir}")
     logger.info(f"Output: {output_dir}")
