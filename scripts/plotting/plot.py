@@ -383,11 +383,11 @@ def get_count_for_genes_plot(maf, maf_nonmiss, gene, non_missense_count=False):
     """
     
     mut_count = maf.value_counts("Pos").reset_index()
-    mut_count = mut_count.rename(columns={"count" : "Count"})
+    mut_count = mut_count.rename(columns={0 : "Count"})
     if non_missense_count:
         maf_nonmiss_gene = maf_nonmiss[maf_nonmiss["Gene"] == gene]
         mut_count_nonmiss = maf_nonmiss_gene.groupby("Consequence").value_counts("Pos").reset_index()
-        mut_count_nonmiss = mut_count_nonmiss.rename(columns={"count" : "Count"})
+        mut_count_nonmiss = mut_count_nonmiss.rename(columns={0 : "Count"})
         # If there is more than one position affected, take the first one
         ix_more_than_one_pos = mut_count_nonmiss.apply(lambda x: len(x["Pos"].split("-")), axis=1) > 1
         mut_count_nonmiss.loc[ix_more_than_one_pos, "Pos"] = mut_count_nonmiss.loc[ix_more_than_one_pos].apply(lambda x: x["Pos"].split("-")[0], axis=1)

@@ -385,7 +385,6 @@ def add_info(mut_gene_df, result_pos_df, cmap, pae=None):
     """
 
     # Add sample info
-    print("\n> Init add_info\n", result_pos_df, "\n")
     if "Tumor_Sample_Barcode" in mut_gene_df.columns:
         samples_info = get_samples_info(mut_gene_df, cmap)
         result_pos_df = result_pos_df.merge(samples_info.drop(columns=["Barcode"]), on="Pos", how="outer")
