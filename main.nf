@@ -140,7 +140,7 @@ process O3D_chimera_plot {
 
     script:
     """
-    python3 /o3d_chimera_plot.py \
+    python3 /o3d_chimerax_plot.py \
         -o $outdir/$cohort \\
         -g $genes_csv \\
         -p $pos_csv \\
