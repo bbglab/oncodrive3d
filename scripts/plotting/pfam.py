@@ -6,7 +6,7 @@ import pandas as pd
 import subprocess
 
 from scripts import __logger_name__
-logger = daiquiri.getLogger(__logger_name__ + ".annotations.pfam")
+logger = daiquiri.getLogger(__logger_name__ + ".plotting.pfam")
 
 logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
 

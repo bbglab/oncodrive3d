@@ -11,7 +11,7 @@ import json
 
 from scripts import __logger_name__
 
-logger = daiquiri.getLogger(__logger_name__ + ".annotations.utils")
+logger = daiquiri.getLogger(__logger_name__ + ".plotting.utils")
 
 logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
 

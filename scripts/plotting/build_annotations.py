@@ -13,7 +13,7 @@ from scripts.plotting.pdb_tool import run_pdb_tool, parse_pdb_tool
 from scripts.plotting.pfam import get_pfam
 from scripts.plotting.uniprot_feat import get_uniprot_feat
 
-logger = daiquiri.getLogger(__logger_name__ + ".annotations.build")
+logger = daiquiri.getLogger(__logger_name__ + ".plotting.build")
 
 logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
 

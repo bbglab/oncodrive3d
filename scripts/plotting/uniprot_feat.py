@@ -9,7 +9,7 @@ import pandas as pd
 from tqdm import tqdm
 from scripts import __logger_name__
 
-logger = daiquiri.getLogger(__logger_name__ + ".annotations.uniprot_feat")
+logger = daiquiri.getLogger(__logger_name__ + ".plotting.uniprot_feat")
 
 
 def get_evidence(feat):

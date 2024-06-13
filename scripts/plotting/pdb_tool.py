@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 from scripts import __logger_name__
 
-logger = daiquiri.getLogger(__logger_name__ + ".annotations.pdb_tool")
+logger = daiquiri.getLogger(__logger_name__ + ".plotting.pdb_tool")
 
 logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
 

@@ -14,7 +14,7 @@ from scripts import __logger_name__
 from scripts.datasets.utils import download_single_file, extract_zip_file
 from scripts.globals import rm_dir
 
-logger = daiquiri.getLogger(__logger_name__ + ".annotations.stability_change")
+logger = daiquiri.getLogger(__logger_name__ + ".plotting.stability_change")
 
 logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
 

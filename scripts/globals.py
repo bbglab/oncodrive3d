@@ -2,7 +2,6 @@ import os
 import logging
 import daiquiri
 import click
-import subprocess
 import shutil
 from datetime import datetime
 

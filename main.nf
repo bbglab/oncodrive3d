@@ -44,7 +44,8 @@ log.info """\
     Max running        : ${params.max_running}
     Use VEP as input   : ${params.vep_input}
     MANE               : ${params.mane}
-    Generate plots     : ${params.plot}
+    Plots              : ${params.plot}
+    ChimeraX plots     : ${params.chimerax_plot}
     Seed               : ${params.seed}
     Verbose            : ${params.verbose}
     Container          : ${params.container}
@@ -104,6 +105,7 @@ process O3D_plot {
 
     output:
     val(cohort)
+    // path("**.log")   
 
     script:
     """
@@ -122,9 +124,11 @@ process O3D_plot {
 }
 
 
-process O3D_chimera_plot {
+process O3D_chimerax_plot {
     tag "ChimeraX plot $cohort"
     //label 'process_low'
+    clusterOptions '--nodelist=bbgn022'
+    process.queue = 'bigmem'
     debug true
 
     container params.container_chimerax               
@@ -137,10 +141,11 @@ process O3D_chimera_plot {
 
     output:
     val(cohort)
+    // path("**.log")   
 
     script:
     """
-    python3 /o3d_chimerax_plot.py \
+    python3 /o3d_chimerax_plot.py \\
         -o $outdir/$cohort \\
         -g $genes_csv \\
         -p $pos_csv \\
@@ -150,6 +155,12 @@ process O3D_chimera_plot {
         --fragmented_proteins
     """
 }
+
+    // export LD_LIBRARY_PATH=/usr/lib:/usr/local/lib:/lib:/usr/lib/ucsf-chimerax/lib:\$LD_LIBRARY_PATH
+    // export QT_QPA_PLATFORM=offscreen:\$QT_QPA_PLATFORM
+
+    // python3 -c "import sys; print(sys.path)"
+    // python3 -c "import numpy; import pandas as pd; print(numpy.__version__, pd.__version__)"
 
 
 workflow {
@@ -172,15 +183,16 @@ workflow {
     O3D_run(file_pairs_ch)
         .set { run_ch }
 
+    file_pairs_ch
+        .join(run_ch.o3d_result)
+        .set { plot_ch }
     if (params.plot) { 
-        file_pairs_ch
-            .join(run_ch.o3d_result)
-            .set { plot_ch }
         O3D_plot(plot_ch)
-        if (params.chimera_plot) { 
-            O3D_chimera_plot(plot_ch)
         }
+    if (params.chimerax_plot) { 
+        O3D_chimerax_plot(plot_ch)
     }
+
 }
 
 

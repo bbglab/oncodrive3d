@@ -18,18 +18,22 @@ import os
 import subprocess
 import math
 import click
+import logging
+import daiquiri
 
-CHIMERA_BIN = "/usr/bin/chimerax"
-    
+from scripts import __logger_name__
+logger = daiquiri.getLogger(__logger_name__ + ".plotting.chimerax_plot")
+
+
 def create_attribute_file(path_to_file, 
-                                  df, 
-                                  attribute_col,
-                                  pos_col="Pos",
-                                  attribute_name="local_attribute",
-                                  gene="Gene_name", 
-                                  protein="Protein_name"):
+                        df, 
+                        attribute_col,
+                        pos_col="Pos",
+                        attribute_name="local_attribute",
+                        gene="Gene_name", 
+                        protein="Protein_name"):
 
-    print(f"Saving {path_to_file}")
+    logger.info(f"Saving {path_to_file}")
     with open(path_to_file, 'w') as f:
         f.write("#\n")
         f.write(f"#  Mutations in volume for {protein} ({gene})\n")
@@ -62,30 +66,17 @@ def is_float_an_integer(value):
     return False
 
 
-def get_intervals(attribute_vector, attribute, n=5):
+def get_intervals(attribute_vector, attribute):
     
-    max_value = int(attribute_vector.max())
-    intervals = [i*int(max_value / 4) for i in range(5)]
-    intervals[0] = round_to_first_nonzero(attribute_vector.min()) if attribute == "score" else 1
-    intervals[4] = max_value
-
+    max_value = attribute_vector.max()
+    min_value = attribute_vector.min()
+    min_value = 0 if attribute == "score" else 1
+    intervals = np.linspace(min_value, max_value, 5)
+    intervals = np.round(intervals, 2) if attribute == "score" else np.round(intervals)
     if attribute == "logscore":
-        min_value = np.round(np.min(attribute_vector), 1)
-        max_value = np.round(np.max(attribute_vector), 1)
-        min_value = round(min_value) if is_float_an_integer(min_value) else min_value
-        max_value = round(max_value) if is_float_an_integer(max_value) else max_value   
-        
-        if max_value <= 0:
-            pos_val = 0
-        else:
-            pos_val = round(max_value / 2)
-            
-        if min_value >= 0:
-            neg_val = 0
-        else:
-            neg_val = round(min_value / 2)
-        
-        intervals = [min_value, neg_val, 0, pos_val, max_value]
+        pos_values = np.linspace(0, max_value, 3)
+        intervals = np.round([-max_value, -pos_values[1], 0, pos_values[1], max_value], 2)
+    intervals = [round(n) if is_float_an_integer(n) else n for n in intervals]
         
     return intervals
 
@@ -94,7 +85,7 @@ def get_key_logscore(intervals):
     return f"{intervals[0]},#0571B0:{intervals[1]},#92C5DE:{intervals[2]},white:{intervals[3]},#F4A582:{intervals[4]},#CA0020"
 
 
-def get_chimerax_command(chimera_bin, 
+def get_chimerax_command(chimerax_bin, 
                         pdb_path, 
                         chimera_output_path, 
                         attr_file_path, 
@@ -112,7 +103,7 @@ def get_chimerax_command(chimera_bin,
                         transparent_bg=False):
     
     chimerax_command = (
-        f"{chimera_bin} --nogui --offscreen --cmd "
+        f"{chimerax_bin} --nogui --offscreen --silent --cmd "
         f"\"open {pdb_path}; "
         "set bgColor white; "
         "color lightgray; "
@@ -121,8 +112,8 @@ def get_chimerax_command(chimera_bin,
         "hide atoms;"
         "show cartoons;"
         f"key {palette} :{intervals[0]} :{intervals[1]}  :{intervals[2]} :{intervals[3]} :{intervals[4]} pos 0.35,0.03 fontSize 4 size 0.3,0.02;"
-        f"2dlabels create label text '{labels[attribute]}' size 6 color darkred xpos 0.365 ypos 0.065;"
-        f"2dlabels create title text '{gene} - {uni_id}-F{f} ' size 6 color darkred xpos 0.375 ypos 0.93;"
+        f"2dlabels create label text '{labels[attribute]}' size 6 color darkred xpos 0.35 ypos 0.065;"
+        f"2dlabels create title text '{gene} - {uni_id}-F{f} ' size 6 color darkred xpos 0.35 ypos 0.93;"
         "lighting soft;"
         "graphics silhouettes true width 1.3;"
         "zoom;"
@@ -130,7 +121,7 @@ def get_chimerax_command(chimera_bin,
     
     if attribute == "logscore":
         chimerax_command = (
-            f"{chimera_bin} --nogui --offscreen --cmd "
+            f"{chimerax_bin} --nogui --offscreen --silent --cmd "
             f"\"open {pdb_path}; "
             "set bgColor white; "
             "color lightgray; "
@@ -139,8 +130,8 @@ def get_chimerax_command(chimera_bin,
             "hide atoms;"
             "show cartoons;"
             f"key {get_key_logscore(intervals)} :{intervals[0]} :{intervals[1]} :{intervals[2]} :{intervals[3]} :{intervals[4]} pos 0.35,0.03 fontSize 4 size 0.3,0.02;"
-            f"2dlabels create label text '{labels[attribute]}' size 6 color darkred xpos 0.365 ypos 0.065;"
-            f"2dlabels create title text '{gene} - {uni_id}-F{f} ' size 6 color darkred xpos 0.375 ypos 0.93;"
+            f"2dlabels create label text '{labels[attribute]}' size 6 color darkred xpos 0.35 ypos 0.065;"
+            f"2dlabels create title text '{gene} - {uni_id}-F{f} ' size 6 color darkred xpos 0.35 ypos 0.93;"
             "lighting soft;"
             "graphics silhouettes true width 1.3;"
             "zoom;"
@@ -158,37 +149,19 @@ def get_chimerax_command(chimera_bin,
     
     return chimerax_command
             
-
-@click.command(context_settings=dict(help_option_names=['-h', '--help']),
-               help="Generate 3D plots using CHimeraX.")
-@click.option("-o", "--output_dir", 
-              help="Directory where to save the plots", type=str, required=True)
-@click.option("-g", "--gene_result_path", 
-              help="Path to genes-level O3D result", type=click.Path(exists=True), required=True)
-@click.option("-p", "--pos_result_path", 
-              help="Path to positions-level O3D result", type=click.Path(exists=True), required=True)
-@click.option("-d", "--datasets_dir", 
-              help="Path to datasets", type=click.Path(exists=True), required=True)
-@click.option("-s", "--seq_df_path", 
-              help="Path to sequences dataframe", type=click.Path(exists=True), required=True)
-@click.option("-c", "--cohort", 
-              help="Cohort name", default="")
-@click.option("--pixel_size", help="Pixel size (smaller value is larger number of pixels)", type=float, default=0.1)
-@click.option("--cluster_ext", help="Include extended clusters", is_flag=True)
-@click.option("--fragmented_proteins", help="Include fragmented proteins", is_flag=True)
-@click.option("--palette", help="Color palette", type=str, default="YlOrRd-5")
-@click.option("--transparent_bg", help="Set background as transparent", type=str, is_flag=True)
-def main(output_dir,
-         gene_result_path,
-         pos_result_path,
-         datasets_dir,
-         seq_df_path,
-         cohort,
-         pixel_size,
-         cluster_ext,
-         fragmented_proteins,
-         palette,
-         transparent_bg):
+            
+def generate_chimerax_plot(output_dir,
+                            gene_result_path,
+                            pos_result_path,
+                            datasets_dir,
+                            seq_df_path,
+                            cohort,
+                            pixel_size,
+                            cluster_ext,
+                            fragmented_proteins,
+                            palette,
+                            transparent_bg,
+                            chimerax_bin):
 
     chimera_out_path = f"{output_dir}/chimerax"
     chimera_attr_path = f"{chimera_out_path}/attributes"
@@ -207,70 +180,53 @@ def main(output_dir,
 
     # Do this for each gene you want to plot (maybe top 30 or significant ones)
     genes = result_genes[result_genes["C_gene"] == 1].Gene.unique()
-    for i, gene in enumerate(genes):
-        print("\n> Processing", gene)
-        
-        # Attribute files
-        print("Generating attribute files..")
-        result_gene = result[result["Gene"] == gene]
-        if cluster_ext:
-            clusters = result_gene[result_gene.C == 1].Pos.values
-        else:
-            clusters = result_gene[(result_gene.C == 1) & (result_gene.C_ext == 0)].Pos.values            
-        len_gene = len(seq_df[seq_df["Gene"] == gene].Seq.values[0])
-        result_gene = pd.DataFrame({"Pos" : range(1, len_gene+1)}).merge(
-            result_gene[["Pos", "Mut_in_res", "Mut_in_vol", "Score_obs_sim", "Logscore_obs_sim"]], on="Pos", how="left")
+    if len(genes) > 0:
+        for i, gene in enumerate(genes):
+            logger.info(f"Processing {gene}")
+            
+            # Attribute files
+            logger.info("Generating attribute files..")
+            result_gene = result[result["Gene"] == gene]
+            if cluster_ext:
+                clusters = result_gene[result_gene.C == 1].Pos.values
+            else:
+                clusters = result_gene[(result_gene.C == 1) & (result_gene.C_ext == 0)].Pos.values            
+            len_gene = len(seq_df[seq_df["Gene"] == gene].Seq.values[0])
+            result_gene = pd.DataFrame({"Pos" : range(1, len_gene+1)}).merge(
+                result_gene[["Pos", "Mut_in_res", "Mut_in_vol", "Score_obs_sim", "Logscore_obs_sim"]], on="Pos", how="left")
 
-        print("Generating 3D images..")
-        uni_id, f = seq_df[seq_df["Gene"] == gene][["Uniprot_ID", "F"]].values[0]
-        pdb_path = f"{datasets_dir}/pdb_structures/AF-{uni_id}-F{f}-model_v4.pdb"
-        
-        labels = {"mutres" : "Mutations in residue ", 
-                "mutvol" : "Mutations in volume ",
-                "score" : "   Clustering score ",
-                "logscore" : "log(Clustering score) "}
-        cols = {"mutres" : "Mut_in_res", 
-                "mutvol" : "Mut_in_vol",
-                "score" : "Score_obs_sim",
-                "logscore" : "Logscore_obs_sim"}                                            
-        
-        if fragmented_proteins == False:
-            if f != 1:
-                print(f"Skipping {gene} ({uni_id}-F{f})..")
-                continue
+            logger.info("Generating 3D images..")
+            uni_id, f = seq_df[seq_df["Gene"] == gene][["Uniprot_ID", "F"]].values[0]
+            pdb_path = f"{datasets_dir}/pdb_structures/AF-{uni_id}-F{f}-model_v4.pdb"
             
-        if os.path.exists(pdb_path):
+            labels = {"mutres" : "Mutations in residue ", 
+                    "mutvol" : "Mutations in volume ",
+                    "score" : "   Clustering score ",
+                    "logscore" : "log(Clustering score) "}
+            cols = {"mutres" : "Mut_in_res", 
+                    "mutvol" : "Mut_in_vol",
+                    "score" : "Score_obs_sim",
+                    "logscore" : "Logscore_obs_sim"}                                            
             
-            for attribute in ["mutres", "mutvol", "score", "logscore"]:
+            if fragmented_proteins == False:
+                if f != 1:
+                    logger.info(f"Skipping {gene} ({uni_id}-F{f})..")
+                    continue
                 
-                attr_file_path = f"{chimera_attr_path}/{gene}_{attribute}.defattr"
-                create_attribute_file(path_to_file=attr_file_path,
-                                    df=result_gene.dropna(),
-                                    attribute_col=cols[attribute],
-                                    attribute_name=attribute)
+            if os.path.exists(pdb_path):
                 
-                attribute_vector = result_gene[cols[attribute]]
-                intervals = get_intervals(attribute_vector, attribute)
-                
-                chimerax_command = get_chimerax_command(CHIMERA_BIN, 
-                                                        pdb_path, 
-                                                        chimera_plots_path, 
-                                                        attr_file_path, 
-                                                        attribute, 
-                                                        intervals, 
-                                                        gene,
-                                                        uni_id,
-                                                        labels,
-                                                        i,
-                                                        f,
-                                                        cohort,
-                                                        pixelsize=pixel_size,
-                                                        palette=palette,
-                                                        transparent_bg=transparent_bg)
-                subprocess.run(chimerax_command, shell=True)
-                
-                if attribute == "score" or attribute == "logscore":
-                    chimerax_command = get_chimerax_command(CHIMERA_BIN, 
+                for attribute in ["mutres", "mutvol", "score", "logscore"]:
+                    
+                    attr_file_path = f"{chimera_attr_path}/{gene}_{attribute}.defattr"
+                    create_attribute_file(path_to_file=attr_file_path,
+                                        df=result_gene.dropna(),
+                                        attribute_col=cols[attribute],
+                                        attribute_name=attribute)
+                    
+                    attribute_vector = result_gene[cols[attribute]]
+                    intervals = get_intervals(attribute_vector, attribute)
+ 
+                    chimerax_command = get_chimerax_command(chimerax_bin, 
                                                             pdb_path, 
                                                             chimera_plots_path, 
                                                             attr_file_path, 
@@ -282,14 +238,32 @@ def main(output_dir,
                                                             i,
                                                             f,
                                                             cohort,
-                                                            clusters=clusters,
                                                             pixelsize=pixel_size,
                                                             palette=palette,
                                                             transparent_bg=transparent_bg)
-                subprocess.run(chimerax_command, shell=True)
-        else:
-            print(f"PDB path missing: {pdb_path}")
-            
-            
-if __name__ == "__main__":
-    main()
+                    subprocess.run(chimerax_command, shell=True)
+                    logger.debug(chimerax_command)
+                    
+                    if attribute == "score" or attribute == "logscore":
+                        chimerax_command = get_chimerax_command(chimerax_bin, 
+                                                                pdb_path, 
+                                                                chimera_plots_path, 
+                                                                attr_file_path, 
+                                                                attribute, 
+                                                                intervals, 
+                                                                gene,
+                                                                uni_id,
+                                                                labels,
+                                                                i,
+                                                                f,
+                                                                cohort,
+                                                                clusters=clusters,
+                                                                pixelsize=pixel_size,
+                                                                palette=palette,
+                                                                transparent_bg=transparent_bg)
+                    subprocess.run(chimerax_command, shell=True)
+                    logger.debug(chimerax_command)
+            else:
+                logger.info(f"PDB path missing: {pdb_path}")
+    else:
+        logger.info("Nothing to plot!")

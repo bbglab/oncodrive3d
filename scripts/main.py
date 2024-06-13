@@ -89,6 +89,7 @@ from scripts.run.pvalues import get_final_gene_result
 from scripts.run.utils import get_gene_entry, add_nan_clust_cols, parse_maf_input, sort_cols, empty_result_pos
 from scripts.plotting.build_annotations import get_annotations
 from scripts.plotting.plot import generate_plots, generate_comparative_plots
+from scripts.plotting.chimerax_plot import generate_chimerax_plot
 from scripts.plotting.utils import init_plot_pars, init_comp_plot_pars, parse_lst_tracks
 from scripts.run.mutability import init_mutabilities_module
 
@@ -879,6 +880,77 @@ def comparative_plot(o3d_result_dir_1,
                                maf_path_nonmiss_2=maf_path_nonmiss_2,
                                n_genes=n_genes, 
                                lst_genes=genes)
+
+
+# =============================================================================
+#                              CHIMERAX PLOTS
+# =============================================================================
+
+# Example:
+@oncodrive3D.command(context_settings=dict(help_option_names=['-h', '--help']),
+               help="Generate 3D plots using CHimeraX.")
+@click.option("-o", "--output_dir", 
+              help="Directory where to save the plots", type=str, required=True)
+@click.option("-g", "--gene_result_path", 
+              help="Path to genes-level O3D result", type=click.Path(exists=True), required=True)
+@click.option("-p", "--pos_result_path", 
+              help="Path to positions-level O3D result", type=click.Path(exists=True), required=True)
+@click.option("-d", "--datasets_dir", 
+              help="Path to datasets", type=click.Path(exists=True), required=True)
+@click.option("-s", "--seq_df_path", 
+              help="Path to sequences dataframe", type=click.Path(exists=True), required=True)
+@click.option("-c", "--cohort", 
+              help="Cohort name", default="")
+@click.option("--pixel_size", help="Pixel size (smaller value is larger number of pixels)", type=float, default=0.08)
+@click.option("--cluster_ext", help="Include extended clusters", is_flag=True)
+@click.option("--fragmented_proteins", help="Include fragmented proteins", is_flag=True)
+@click.option("--palette", help="Color palette", type=str, default="YlOrRd-5")
+@click.option("--transparent_bg", help="Set background as transparent", type=str, is_flag=True)
+@click.option("--chimerax_bin", help="Path to chimerax installation", type=str, default="/usr/bin/chimerax")
+@click.option("-v", "--verbose", help="Verbose", is_flag=True)
+@setup_logging_decorator
+def chimerax_plot(output_dir,
+                  gene_result_path,
+                  pos_result_path,
+                  datasets_dir,
+                  seq_df_path,
+                  cohort,
+                  pixel_size,
+                  cluster_ext,
+                  fragmented_proteins,
+                  palette,
+                  transparent_bg,
+                  chimerax_bin,
+                  verbose):
+    """"Generate images of structures annotated with clustering metrics."""
+
+    startup_message(__version__, "Starting plot generation..")
+    logger.info(f"Output dir: {output_dir}")
+    logger.info(f"Gene result path: {gene_result_path}")
+    logger.info(f"Position result path: {pos_result_path}")
+    logger.info(f"Datasets dir: {datasets_dir}")
+    logger.info(f"Sequence dataframe path: {seq_df_path}")
+    logger.info(f"Cohort: {cohort}")
+    logger.info(f"Pixel size: {pixel_size}")
+    logger.info(f"Cluster extended: {cluster_ext}")
+    logger.info(f"Fragmented proteins: {fragmented_proteins}")
+    logger.info(f"Palette: {palette}")
+    logger.info(f"Transparent background: {transparent_bg}")
+    logger.info(f"Verbose: {bool(verbose)}")
+    logger.info(f'Log path: {os.path.join(output_dir, "log")}')
+
+    generate_chimerax_plot(output_dir,
+                        gene_result_path,
+                        pos_result_path,
+                        datasets_dir,
+                        seq_df_path,
+                        cohort,
+                        pixel_size,
+                        cluster_ext,
+                        fragmented_proteins,
+                        palette,
+                        transparent_bg,
+                        chimerax_bin)
 
 if __name__ == "__main__":
     oncodrive3D()
