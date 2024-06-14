@@ -59,8 +59,9 @@ process O3D_run {
     tag "O3D $cohort"
     // label 'process_high'
     debug true
-
-    //errorStrategy 'ignore'        
+    queue 'normal,bigmem'
+    errorStrategy 'retry'
+    maxRetries 2   
     container params.container               
     cpus params.cores
     memory params.memory
@@ -94,7 +95,9 @@ process O3D_plot {
     tag "Plot $cohort"
     //label 'process_low'
     debug true
-
+    queue 'normal,bigmem'
+    errorStrategy 'retry'
+    maxRetries 2   
     container params.container               
     cpus 4
     memory "10G"
@@ -127,10 +130,12 @@ process O3D_plot {
 process O3D_chimerax_plot {
     tag "ChimeraX plot $cohort"
     //label 'process_low'
-    clusterOptions '--nodelist=bbgn022'
-    process.queue = 'bigmem'
+    // clusterOptions '--nodelist=bbgn022'
+    //process.queue = 'bigmem'
     debug true
-
+    queue 'bigmem'
+    errorStrategy 'retry'
+    maxRetries 2   
     container params.container_chimerax               
     cpus 4
     memory "10G"
@@ -145,22 +150,18 @@ process O3D_chimerax_plot {
 
     script:
     """
-    python3 /o3d_chimerax_plot.py \\
-        -o $outdir/$cohort \\
-        -g $genes_csv \\
-        -p $pos_csv \\
-        -d ${params.data_dir} \\
-        -s $seq_df_tsv \\
-        -c $cohort \\
-        --fragmented_proteins
+    oncodrive3D chimerax-plot -o $outdir/$cohort \\
+                              -g $genes_csv \\
+                              -p $pos_csv \\
+                              -d ${params.data_dir} \\
+                              -s $seq_df_tsv \\
+                              -c $cohort \\
+                              --fragmented_proteins \\
+                              --transparent_bg \\
+                              ${params.verbose ? '-v' : ''}
     """
 }
 
-    // export LD_LIBRARY_PATH=/usr/lib:/usr/local/lib:/lib:/usr/lib/ucsf-chimerax/lib:\$LD_LIBRARY_PATH
-    // export QT_QPA_PLATFORM=offscreen:\$QT_QPA_PLATFORM
-
-    // python3 -c "import sys; print(sys.path)"
-    // python3 -c "import numpy; import pandas as pd; print(numpy.__version__, pd.__version__)"
 
 
 workflow {
