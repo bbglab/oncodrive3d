@@ -456,10 +456,7 @@ def run(input_maf_path,
         # Save
         #=====
         
-        if not os.path.exists(output_dir):
-            os.makedirs(os.path.join(output_dir))
-            logger.warning(f"Directory '{output_dir}' does not exists: Creating..")
-
+        os.makedirs(output_dir, exist_ok=True)
         result_gene["Cancer"] = cancer_type
         result_gene["Cohort"] = cohort
         output_path_pos = os.path.join(output_dir, f"{cohort}.3d_clustering_pos.csv")
@@ -938,6 +935,7 @@ def chimerax_plot(output_dir,
     logger.info(f"Transparent background: {transparent_bg}")
     logger.info(f"Verbose: {bool(verbose)}")
     logger.info(f'Log path: {os.path.join(output_dir, "log")}')
+    logger.info("")
 
     generate_chimerax_plot(output_dir,
                         gene_result_path,

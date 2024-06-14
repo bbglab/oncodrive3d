@@ -27,16 +27,6 @@ logging.getLogger('matplotlib.font_manager').setLevel(logging.WARNING)
 # Summary plots
 # =============
 
-def create_plot_dir(directory_path):
-    
-    if not os.path.exists(directory_path):
-        
-        os.makedirs(directory_path)
-        logger.debug(f"Directory '{directory_path}' created successfully.")
-    else:
-        logger.debug(f"Directory '{directory_path}' already exists.")
-        
-
 def get_summary_counts(gene_result, pos_result, seq_df):
     """
     Get dataframes including the counts required to generate the summary plots.
@@ -2225,7 +2215,7 @@ def associations_plots(df_annotated,
     if len(genes) > 0:
         output_dir_associations_plots = os.path.join(output_dir, f"{cohort}.associations_plots_2")
         logger.info(f"Generating associations plots in {output_dir_associations_plots}")
-        create_plot_dir(output_dir_associations_plots)
+        os.makedirs(output_dir_associations_plots, exist_ok=True)
         log_odds_plot(logreg_results, 
                       output_dir=output_dir_associations_plots, 
                       cohort=cohort,
@@ -2314,7 +2304,7 @@ def generate_plots(gene_result_path,
                                                                         uniprot_feat)
 
         # Summary plot
-        create_plot_dir(output_dir)
+        os.makedirs(output_dir, exist_ok=True)
         logger.info(f"Generating summary plot in {output_dir}")
         count_mut_gene_df, count_pos_df, cluster_df = get_summary_counts(gene_result, pos_result, seq_df)
         summary_plot(gene_result, 
@@ -2335,7 +2325,7 @@ def generate_plots(gene_result_path,
         else:
             maf_nonmiss = None
         output_dir_genes_plots = os.path.join(output_dir, f"{cohort}.genes_plots")
-        create_plot_dir(output_dir_genes_plots)
+        os.makedirs(output_dir_genes_plots, exist_ok=True)
         logger.info(f"Generating genes plots in {output_dir_genes_plots}")
         pos_result_annotated, uni_feat_processed = genes_plots(gene_result, 
                                                                 pos_result, 
@@ -2453,7 +2443,8 @@ def generate_comparative_plots(o3d_result_dir_1,
             maf_nonmiss_1 = None
             maf_nonmiss_2 = None
         output_dir = os.path.join(output_dir, f"{cohort_1}.{cohort_2}.comparative_plots")
-        create_plot_dir(output_dir)
+        os.makedirs(output_dir, exist_ok=True)
+        
         logger.info(f"Generating comparative plots in {output_dir}")
         comparative_plots(shared_genes,
                         pos_result_1, 

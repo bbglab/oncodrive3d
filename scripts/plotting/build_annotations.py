@@ -44,9 +44,7 @@ def get_annotations(data_dir,
     logger.info(f"Obtaining stability change..")
     if species == "Homo sapiens" or species == "Mus musculus":
         ddg_output = os.path.join(output_dir, "stability_change")
-        if not os.path.isdir(ddg_output):
-            os.makedirs(ddg_output)
-            logger.debug(f'mkdir {ddg_output}')
+        os.makedirs(ddg_output, exist_ok=True)
         if ddg_dir is not None:
             # Copy ddG from path
             temp_ddg_path = os.path.join(output_dir, "stability_change_temp")
