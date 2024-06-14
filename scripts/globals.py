@@ -26,7 +26,7 @@ def setup_logging_decorator(func):
         log_dir = os.path.join(click.get_current_context().params['output_dir'], 'log')
         command_name = click.get_current_context().command.name
 
-        if command_name in ['run', 'plot', 'chimerax_plot']:
+        if command_name in ['run', 'plot', 'chimerax_plot', 'chimerax-plot']:
             cohort = click.get_current_context().params["cohort"]
             fname = f'{command_name}_{cohort if cohort != "None" else ""}_{DATE}.log'
         else: 
@@ -89,7 +89,7 @@ def copy_dir(source_dir, destination_dir):
                 shutil.copytree(source_dir, destination_dir)
                 logger.debug("Directory copied successfully!")
             except Exception as e:
-                print(f"An error occurred ({e}): Skipping")
+                logger.warning(f"An error occurred ({e}): Skipping")
                 
         else:
             logger.warning("Error while copying directory (source path is not a directory): Skipping")

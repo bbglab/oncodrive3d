@@ -96,8 +96,8 @@ process O3D_plot {
     //label 'process_low'
     debug true
     queue 'normal,bigmem'
-    errorStrategy 'retry'
-    maxRetries 2   
+    // errorStrategy 'retry'
+    // maxRetries 2   
     container params.container               
     cpus 4
     memory "10G"
@@ -130,12 +130,10 @@ process O3D_plot {
 process O3D_chimerax_plot {
     tag "ChimeraX plot $cohort"
     //label 'process_low'
-    // clusterOptions '--nodelist=bbgn022'
-    //process.queue = 'bigmem'
     debug true
     queue 'bigmem'
-    errorStrategy 'retry'
-    maxRetries 2   
+    // errorStrategy 'retry'
+    // maxRetries 2   
     container params.container_chimerax               
     cpus 4
     memory "10G"
