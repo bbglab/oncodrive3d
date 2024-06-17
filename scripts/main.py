@@ -445,7 +445,8 @@ def run(input_maf_path,
                                                                cmap_prob_thr=cmap_prob_thr,
                                                                seed=seed,
                                                                pae_path=pae_path,
-                                                               thr_mapping_issue=thr_mapping_issue)
+                                                               thr_mapping_issue=thr_mapping_issue,
+                                                               sample_info=sample_info)
             if result_np_gene_lst:
                 result_gene = pd.concat((result_gene, result_np_gene))
         else:
@@ -508,7 +509,7 @@ def run(input_maf_path,
             result_pos.to_csv(output_path_pos, index=False)
 
             # Get gene global pval, qval, and clustering annotations and save gene-level result
-            result_gene = get_final_gene_result(result_pos, result_gene, alpha)
+            result_gene = get_final_gene_result(result_pos, result_gene, alpha, sample_info)
             result_gene = sort_cols(result_gene) 
             if not sample_info:
                 result_gene.drop(columns=[col for col in ['Tot_samples', 

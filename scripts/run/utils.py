@@ -306,7 +306,7 @@ def get_samples_info(mut_gene_df, cmap):
     # Get total samples and # mutated samples of each mutated res
     tot_samples = len(mut_gene_df["Tumor_Sample_Barcode"].unique())
     pos_barcodes = mut_gene_df.groupby("Pos").apply(lambda x: x["Tumor_Sample_Barcode"].unique())
-    pos_barcodes = pos_barcodes.reset_index(drop=True).rename(columns={0 : "Barcode"})
+    pos_barcodes = pos_barcodes.reset_index().rename(columns={0 : "Barcode"})
 
     # Get the ratio of unique samples with mut in the vol of each mutated res
     uniq_pos_barcodes = [len(pos_barcodes[[pos in np.where(cmap[i-1])[0]+1 for 
@@ -377,7 +377,7 @@ def get_unique_pos_in_contact(lst_pos, cmap):
     return np.unique(np.concatenate([np.where(cmap[pos-1])[0]+1 for pos in lst_pos]))
 
 
-def add_info(mut_gene_df, result_pos_df, cmap, pae=None):
+def add_info(mut_gene_df, result_pos_df, cmap, pae=None, sample_info=False):
     """
     Add information about the ratio of unique samples in the volume of 
     each mutated residues and in each detected community (meta-cluster) 
@@ -385,16 +385,18 @@ def add_info(mut_gene_df, result_pos_df, cmap, pae=None):
     """
 
     # Add sample info
-    if "Tumor_Sample_Barcode" in mut_gene_df.columns:
-        samples_info = get_samples_info(mut_gene_df, cmap)
-        result_pos_df = result_pos_df.merge(samples_info.drop(columns=["Barcode"]), on="Pos", how="outer")
-    else:
-        result_pos_df["Tot_samples"] = np.nan
-        result_pos_df["Samples_in_vol"] = np.nan
+    if sample_info:
+        if "Tumor_Sample_Barcode" in mut_gene_df.columns:
+            samples_info = get_samples_info(mut_gene_df, cmap)
+            result_pos_df = result_pos_df.merge(samples_info.drop(columns=["Barcode"]), on="Pos", how="outer")
+        else:
+            result_pos_df["Tot_samples"] = np.nan
+            result_pos_df["Samples_in_vol"] = np.nan
 
     # Get per-community info
     if result_pos_df["Cluster"].isna().all():
-        result_pos_df["Samples_in_cl_vol"] = np.nan
+        if sample_info:
+            result_pos_df["Samples_in_cl_vol"] = np.nan
         result_pos_df["Mut_in_cl_vol"] = np.nan
         result_pos_df["Res_in_cl"] = np.nan
         result_pos_df["pLDDT_cl_vol"] = np.nan
@@ -405,19 +407,22 @@ def add_info(mut_gene_df, result_pos_df, cmap, pae=None):
         community_plddt = community_pos.apply(lambda x: mut_gene_df.Confidence[[pos in get_unique_pos_in_contact(x, cmap) 
                                                                              for pos in mut_gene_df.Pos]].mean())
         community_pos_count = community_pos.apply(lambda x: len(x))
-        if "Tumor_Sample_Barcode" in mut_gene_df.columns:
-            community_samples = community_pos.apply(lambda x: 
-                                            len(mut_gene_df[[pos in get_unique_pos_in_contact(x, cmap) for 
-                                                            pos in mut_gene_df.Pos]].Tumor_Sample_Barcode.unique()))
-        else:
-            community_samples = np.nan
-        community_samples = pd.DataFrame({"Samples_in_cl_vol" : community_samples, 
-                                          "Mut_in_cl_vol" : community_mut,
-                                          "Res_in_cl" : community_pos_count,
-                                          "pLDDT_cl_vol" : community_plddt})
+        
+        community_info = pd.DataFrame({"Mut_in_cl_vol" : community_mut,
+                                       "Res_in_cl" : community_pos_count,
+                                       "pLDDT_cl_vol" : community_plddt})
+        
+        if sample_info:
+            if "Tumor_Sample_Barcode" in mut_gene_df.columns:
+                community_samples = community_pos.apply(lambda x: 
+                                                len(mut_gene_df[[pos in get_unique_pos_in_contact(x, cmap) for 
+                                                                pos in mut_gene_df.Pos]].Tumor_Sample_Barcode.unique()))
+            else:
+                community_samples = np.nan
+            community_info["Samples_in_cl_vol"] = community_samples
         
         # Add to residues-level result
-        result_pos_df = result_pos_df.merge(community_samples, on="Cluster", how="outer")
+        result_pos_df = result_pos_df.merge(community_info, on="Cluster", how="outer")
         
     # AF PAE
     if pae is not None:
@@ -455,13 +460,15 @@ def add_nan_clust_cols(result_gene, sample_info=False):
                'Clust_mut', 
                'Mut_in_top_vol', 
                "Mut_in_top_cl_vol",
-               'Tot_samples', 
-               'Samples_in_top_vol', 
-               'Samples_in_top_cl_vol', 
                "PAE_top_vol", 
                "pLDDT_top_vol", 
                "pLDDT_top_cl_vol", 
                'F']
+    
+    if sample_info:
+        columns.extend(['Tot_samples', 
+                        'Samples_in_top_vol', 
+                        'Samples_in_top_cl_vol'])
     
     for col in columns:
         result_gene[col] = np.nan

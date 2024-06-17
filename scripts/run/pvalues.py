@@ -14,7 +14,7 @@ def fdr(p_vals, alpha=0.05):
     return multipletests(p_vals, alpha=alpha, method='fdr_bh', is_sorted=True)[1]   
 
 
-def get_final_gene_result(result_pos, result_gene, alpha_gene=0.05):
+def get_final_gene_result(result_pos, result_gene, alpha_gene=0.05, sample_info=False):
     """
     Output the final dataframe including gene global pval, s
     significant positions, clusters, processing status, etc.
@@ -40,9 +40,10 @@ def get_final_gene_result(result_pos, result_gene, alpha_gene=0.05):
     
     # Sample info and largest density among hits
     # > NB: samples info for fragments will be displayed as they are individual proteins <
-    gene_pvals["Tot_samples"] = result_pos.groupby("Gene").apply(lambda x: x["Tot_samples"].unique()[0]).values
-    gene_pvals["Samples_in_top_vol"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].Samples_in_vol)).values
-    gene_pvals["Samples_in_top_cl_vol"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].Samples_in_cl_vol)).values
+    if sample_info:
+        gene_pvals["Tot_samples"] = result_pos.groupby("Gene").apply(lambda x: x["Tot_samples"].unique()[0]).values
+        gene_pvals["Samples_in_top_vol"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].Samples_in_vol)).values
+        gene_pvals["Samples_in_top_cl_vol"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].Samples_in_cl_vol)).values
     gene_pvals["Mut_in_top_cl_vol"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].Mut_in_cl_vol)).values
     gene_pvals["Score_obs_sim_top_vol"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].Score_obs_sim)).values
     gene_pvals["Mut_in_top_vol"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].Mut_in_vol)).values

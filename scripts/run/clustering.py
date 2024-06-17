@@ -86,7 +86,8 @@ def clustering_3d(gene,
                   cmap_prob_thr=0.5,
                   seed=None,
                   pae_path=None,
-                  thr_mapping_issue=0.1):
+                  thr_mapping_issue=0.1,
+                  sample_info=False):
     """
     Compute local density of missense mutations for a sphere of 10A around          
     each amino acid position of the selected gene product. It performed a 
@@ -330,7 +331,7 @@ def clustering_3d(gene,
     result_pos_df.insert(1, "Uniprot_ID", uniprot_id)
     result_pos_df.insert(2, "F", af_f)
     result_pos_df.insert(4, "Mut_in_gene", len(mut_gene_df))    
-    result_pos_df = add_info(mut_gene_df, result_pos_df, cmap, pae)
+    result_pos_df = add_info(mut_gene_df, result_pos_df, cmap, pae, sample_info)
     result_gene_df["Clust_res"] = len(pos_hits)
     result_gene_df["Clust_mut"] = clustered_mut
     result_gene_df["Status"] = "Processed"
@@ -350,7 +351,8 @@ def clustering_3d_mp(genes,
                      cmap_prob_thr=0.5,
                      seed=None,
                      pae_path=None,
-                     thr_mapping_issue=0.1):
+                     thr_mapping_issue=0.1,
+                     sample_info=False):
     """
     Run the 3D-clustering algorithm in parallel on multiple genes.
     """
@@ -382,7 +384,8 @@ def clustering_3d_mp(genes,
                                                 cmap_prob_thr=cmap_prob_thr,
                                                 seed=seed,
                                                 pae_path=pae_path,
-                                                thr_mapping_issue=thr_mapping_issue)
+                                                thr_mapping_issue=thr_mapping_issue,
+                                                sample_info=sample_info)
         result_gene_lst.append(result_gene)
         if pos_result is not None:
             result_pos_lst.append(pos_result)
@@ -410,7 +413,8 @@ def clustering_3d_mp_wrapper(genes,
                              cmap_prob_thr=0.5,
                              seed=None,
                              pae_path=None,
-                             thr_mapping_issue=0.1):
+                             thr_mapping_issue=0.1,
+                             sample_info=False):
     """
     Wrapper function to run the 3D-clustering algorithm in parallel on multiple genes.
     """
@@ -436,7 +440,8 @@ def clustering_3d_mp_wrapper(genes,
                                                    cmap_prob_thr, 
                                                    seed, 
                                                    pae_path,
-                                                   thr_mapping_issue) 
+                                                   thr_mapping_issue,
+                                                   sample_info) 
                                                   for n_process, chunk in enumerate(chunks)])
         
     # Parse output
