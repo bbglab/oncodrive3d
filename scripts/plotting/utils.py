@@ -532,13 +532,14 @@ def save_annotated_result(pos_result,
     annot_pos_result["Mut_in_res"] = annot_pos_result["Mut_in_res"].fillna(0)
     for gene in annot_pos_result.Gene.unique():
         mut_in_gene = annot_pos_result.loc[annot_pos_result["Gene"] == gene, "Mut_in_gene"].dropna().unique()[0]
-        tot_samples = annot_pos_result.loc[annot_pos_result["Gene"] == gene, "Tot_samples"].dropna().unique()
-        if tot_samples: 
-            tot_samples = tot_samples[0]
-        else:
-            tot_samples = np.nan
         annot_pos_result.loc[annot_pos_result["Gene"] == gene, "Mut_in_gene"] = mut_in_gene
-        annot_pos_result.loc[annot_pos_result["Gene"] == gene, "Tot_samples"] = tot_samples
+        if "Tot_samples" in annot_pos_result.columns:
+            tot_samples = annot_pos_result.loc[annot_pos_result["Gene"] == gene, "Tot_samples"].dropna().unique()
+            if tot_samples: 
+                tot_samples = tot_samples[0]
+            else:
+                tot_samples = np.nan
+            annot_pos_result.loc[annot_pos_result["Gene"] == gene, "Tot_samples"] = tot_samples
 
     # Save
     annot_pos_result = reorganize_df_to_save(annot_pos_result)
