@@ -24,6 +24,9 @@
 // LAST RAW oncodrive3D run -i /workspace/datasets/transfer/ferriol_stefano/2024-04_data/new_batch/all_samples.mutations.raw_vep.tsv -m /workspace/datasets/transfer/ferriol_stefano/2024-04_data/oncodrive3d.mutability.conf -d /workspace/nobackup/scratch/oncodrive3d/datasets_240506 -C BLCA_NORMAL -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/2024/BLCA_NORMAL -s 26 -v --o3d_transcripts --use_input_symbols
 // LAST RAW PLOT oncodrive3D plot -g /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/2024/BLCA_NORMAL/BLCA_NORMAL.3d_clustering_genes.csv -p /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/2024/BLCA_NORMAL/BLCA_NORMAL.3d_clustering_pos.csv -i /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/2024/BLCA_NORMAL/BLCA_NORMAL.mutations.processed.tsv -m /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/2024/BLCA_NORMAL/BLCA_NORMAL.miss_prob.processed.json -s /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/2024/BLCA_NORMAL/BLCA_NORMAL.seq_df.processed.tsv -d /workspace/nobackup/scratch/oncodrive3d/datasets_240506 -a /workspace/nobackup/scratch/oncodrive3d/annotations_240506 -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/2024/BLCA_NORMAL/ -c BLCA_NORMAL --title BLCA_NORMAL --output_tsv -v --summary_alpha 0.3
 
+// LAST CANCER WITH CHIMERAX 
+// nextflow run main.nf --indir /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/ --outdir /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer_202404/o3d_output/human_raw --data_dir /workspace/nobackup/scratch/oncodrive3d/datasets_240506 -profile container --vep_input true --verbose true --plot true --chimerax_plot
+
 input_files = params.vep_input ?
     "${params.indir}/{vep,mut_profile}/${params.cohort_pattern}{.vep.tsv.gz,.sig.json}" :
     "${params.indir}/{maf,mut_profile}/${params.cohort_pattern}{.in.maf,.sig.json}"
@@ -90,7 +93,6 @@ process O3D_run {
     """
 }
 
-
 process O3D_plot {
     tag "Plot $cohort"
     //label 'process_low'
@@ -107,8 +109,13 @@ process O3D_plot {
     tuple val(cohort), path(inputs), path(genes_csv), path(pos_csv), path(mutations_csv), path(miss_prob_json), path(seq_df_tsv)
 
     output:
-    val(cohort)
-    // path("**.log")   
+    tuple val(cohort), path("**.summary_plot.png")                               , emit: summary_plot
+    tuple val(cohort), path("**.genes_plots/**.png")                             , emit: genes_plot, optional: true
+    tuple val(cohort), path("**.associations_plots/**.logodds_plot.png")         , emit: logodds_plot, optional: true
+    tuple val(cohort), path("**.associations_plots/**.volcano_plot.png")         , emit: volcano_plot, optional: true
+    tuple val(cohort), path("**.associations_plots/**.volcano_plot_gene.png")    , emit: volcano_plot_gene, optional: true
+    tuple val(cohort), path("**.3d_clustering_pos.annotated.csv")                , emit: pos_annotated_csv
+    tuple val(cohort), path("**.log")          
 
     script:
     """
@@ -119,7 +126,7 @@ process O3D_plot {
                      -s $seq_df_tsv \\
                      -d ${params.data_dir} \\
                      -a ${params.annotations_dir} \\
-                     -o $outdir/$cohort \\
+                     -o $cohort \\
                      -c $cohort \\
                      --title $cohort \\
                      --output_csv ${params.verbose ? '-v' : ''}
@@ -143,12 +150,13 @@ process O3D_chimerax_plot {
     tuple val(cohort), path(inputs), path(genes_csv), path(pos_csv), path(mutations_csv), path(miss_prob_json), path(seq_df_tsv)
 
     output:
-    val(cohort)
-    // path("**.log")   
+    tuple val(cohort), path("chimerax/attributes/**.defattr")       , emit: chimerax_defattr, optional: true
+    tuple val(cohort), path("chimerax/plots/**.png")                , emit: chimerax_plot, optional: true
+    tuple val(cohort), path("**.log")                               , emit: log
 
     script:
     """
-    oncodrive3D chimerax-plot -o $outdir/$cohort \\
+    oncodrive3D chimerax-plot -o $cohort \\
                               -g $genes_csv \\
                               -p $pos_csv \\
                               -d ${params.data_dir} \\
@@ -159,7 +167,6 @@ process O3D_chimerax_plot {
                               ${params.verbose ? '-v' : ''}
     """
 }
-
 
 
 workflow {
