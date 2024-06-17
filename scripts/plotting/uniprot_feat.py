@@ -59,11 +59,11 @@ def _uniprot_request_feat(lst_uniprot_ids):
             if r.ok:
                 status = "FINISHED"
             else:
-                print(f"Error occurred after successfully sending request. Status: {r.raise_for_status()}")             
+                logger.debug(f"Error occurred after successfully sending request. Status: {r.raise_for_status()}")             
                 status = "ERROR"
         except requests.exceptions.RequestException as e:                          
             status = "ERROR"                                                     
-            print(f"Request failed: {e}")                               
+            logger.debug(f"Request failed: {e}")                               
     
     for dictio in json.loads(r.text):
 
