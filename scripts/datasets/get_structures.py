@@ -7,33 +7,11 @@ import subprocess
 import shutil
 
 from scripts import __logger_name__
-from scripts.datasets.utils import calculate_hash, download_single_file, extract_tar_file
+from scripts.datasets.utils import calculate_hash, download_single_file, extract_tar_file, assert_proteome_integrity, CHECKSUM
 
 logger = daiquiri.getLogger(__logger_name__ + ".build.AF-pdb")
 
 logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
-
-CHECKSUM = {
-    "UP000005640_9606_HUMAN_v4": "bf62d5402cb1c4580d219335a9af1ac831416edfbf2892391c8197a8356091f2",
-    "UP000000589_10090_MOUSE_v4" : "eb6c529c8757d511b75f4856c1a789378478e6255a442517ad8579708787bbab"
-}
-
-
-def assert_integrity_human(file_path, proteome):
-
-    if proteome in CHECKSUM.keys():
-        logger.debug('Asserting integrity of file...')
-        try:
-            assert CHECKSUM[proteome] == calculate_hash(file_path)
-            logger.debug('File integrity check: PASS')
-            return "PASS"
-        except Exception as e:
-            logger.critical('File integrity check: FAIL')
-            logger.critical(f'error: {e}') 
-            return "FAIL"
-    else:
-        logger.warning("Assertion skipped: Proteome checksum not in records.")
-        return "PASS"
     
 
 def mv_mane_pdb(path_datasets, pdb_dir, mane_pdb_dir) -> None:
@@ -59,9 +37,6 @@ def mv_mane_pdb(path_datasets, pdb_dir, mane_pdb_dir) -> None:
         source_file = os.path.join(path_mane_pdb, filename)
         dest_file = os.path.join(path_datasets, f"mane_{filename}")
         shutil.move(source_file, dest_file)
-         
-    # # Remove temp MANE dir            # TO DO: Do this at the end of the build-datasets when cleaning everything else
-    # shutil.rmtree(path_mane_pdb)   
         
 
 def get_structures(path: str, 
@@ -69,7 +44,7 @@ def get_structures(path: str,
                    mane: bool = False,
                    af_version: str = '4', 
                    threads: int = 1, 
-                   max_attempts: int = 10) -> None:
+                   max_attempts: int = 30) -> None:
     """
     Downloads AlphaFold predicted structures for a given organism and version.
 
@@ -92,7 +67,7 @@ def get_structures(path: str,
     # Select proteome
     if mane:
         if species == "Homo sapiens":
-            proteome = "mane_overlap_v4"
+            proteome = f"mane_overlap_v{af_version}"
         else:
             raise RuntimeError(f"Structures with MANE transcripts overlap are available only for 'Homo sapiens'. Exiting...")
     else:
@@ -112,8 +87,8 @@ def get_structures(path: str,
         attempts = 0
         status = "INIT"
         while status != "PASS":
-            download_single_file(af_url, file_path, threads)
-            status = assert_integrity_human(file_path, proteome)
+            download_single_file(af_url, file_path, threads, proteome)
+            status = assert_proteome_integrity(file_path, proteome)
             attempts += 1
             if attempts >= max_attempts:
                 raise RuntimeError(f"Failed to download with integrity after {max_attempts} attempts. Exiting...")

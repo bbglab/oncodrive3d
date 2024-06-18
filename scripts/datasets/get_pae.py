@@ -24,8 +24,10 @@ def download_pae(uniprot_id: str, af_version: int, output_dir: str) -> None:
     file_path = os.path.join(output_dir, f"{uniprot_id}-F1-predicted_aligned_error.json")
     download_url = f"https://alphafold.ebi.ac.uk/files/AF-{uniprot_id}-F1-predicted_aligned_error_v{af_version}.json"
 
+    i = 0
     status = "INIT"
     while status != "FINISHED":
+        i += 1
         if status != "INIT":
             time.sleep(30)
         try:  
@@ -36,11 +38,12 @@ def download_pae(uniprot_id: str, af_version: int, output_dir: str) -> None:
                     output_file.write(content)
                 status = "FINISHED"
         except requests.exceptions.RequestException as e:                          
-            status = "ERROR"                                                  
-            logger.debug(f"Request failed: {e}")    
+            status = "ERROR"       
+            if i % 10 == 0:                                           
+                logger.debug(f"Request failed {e}: Retrying")    
 
 
-def get_pae(input_dir: str, output_dir: str, threads: int, af_version: int = 4) -> None:
+def get_pae(input_dir: str, output_dir: str, num_cores: int, af_version: int = 4) -> None:
     """
     Download Predicted Aligned Error (PAE) files for all non-fragmented PDB 
     structures in the input directory.
@@ -48,7 +51,7 @@ def get_pae(input_dir: str, output_dir: str, threads: int, af_version: int = 4) 
     Args:
         input_dir (str): Input directory including the PDB structures.
         output_dir (str): Output directory where to download the PAE files.
-        threads (int): Number of cores for multithreading download.
+        num_cores (int): Number of cores for multithreading download.
         af_version (int): AlphaFold 2 version (default is 4).
     """
 
@@ -63,7 +66,7 @@ def get_pae(input_dir: str, output_dir: str, threads: int, af_version: int = 4) 
     pdb_files = [file for file in os.listdir(input_dir) if file.startswith("AF-") and file.endswith(f"-model_v{af_version}.pdb.gz")]
     uniprot_ids = [pdb_file.split("-")[1] for pdb_file in pdb_files]
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=threads) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=num_cores) as executor:
         tasks = [executor.submit(download_pae, uniprot_id, af_version, output_dir) for uniprot_id in uniprot_ids]
 
         for _ in tqdm(concurrent.futures.as_completed(tasks), total=len(tasks), desc="Downloading PAE"):

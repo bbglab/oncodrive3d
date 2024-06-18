@@ -14,22 +14,80 @@ from scripts import __logger_name__
 from scripts.run.communities import get_community_index_nx, get_network
 from scripts.run.miss_mut_prob import get_unif_gene_miss_prob
 from scripts.run.score_and_simulations import (get_anomaly_score,
-                                                 get_sim_anomaly_score)
-from scripts.run.utils import add_samples_info, get_samples_info
+                                               get_sim_anomaly_score,
+                                               recompute_inf_score)
+from scripts.run.utils import add_info
 
 logger = daiquiri.getLogger(__logger_name__ + ".run.clustering")
 
+
+def process_mapping_issue(issue_ix, 
+                          mut_gene_df, 
+                          result_gene_df, 
+                          gene, uniprot_id, 
+                          af_f, 
+                          transcript_status, 
+                          thr, 
+                          issue_type):
+    """
+    Check if there are mutations not in the structure (mut pos exceed lenght of 
+    the structure protein sequence) or mutations with mismatches between WT AA 
+    between mut and structure protein sequence. If the ratio of mutations do 
+    not exceed threshold, filter out the specific mutations, else filter out 
+    all mutations of that gene.
+    """
+
+    if issue_type == "Mut_not_in_structure":
+        logger_txt="mut not in the structure"
+        df_col = "Ratio_not_in_structure"
+    elif issue_type == "WT_mismatch":
+        logger_txt="mut with ref-structure WT AA mismatch"
+        df_col = "Ratio_WT_mismatch"
+    else:
+        logger.warning(f"'{issue_type}' is not a valid issue type, please select 'Mut_not_in_structure' or 'Ratio_not_in_structure': Skipping processing mapping issue..")
+        filter_gene = False
+        
+        return filter_gene, result_gene_df, mut_gene_df
+        
+    ratio_issue = sum(issue_ix) / len(mut_gene_df)
+    logger_out = f"Detected {sum(issue_ix)} ({ratio_issue*100:.1f}%) {logger_txt} of {gene} ({uniprot_id}-F{af_f}, transcript status = {transcript_status}): "
+    result_gene_df[df_col] = ratio_issue
+    
+    if ratio_issue > thr:
+        result_gene_df["Status"] = issue_type
+        if transcript_status == "Match":
+            logger.warning(logger_out + "Filtering the gene")
+        else:
+            logger.debug(logger_out + "Filtering the gene..")
+        filter_gene = True
+        
+        return filter_gene, result_gene_df, None
+    
+    else:
+        if transcript_status == "Match":
+            logger.warning(logger_out + "Filtering the mutations..")
+        else:
+            logger.debug(logger_out + "Filtering the mutations..")    
+        mut_gene_df = mut_gene_df[~issue_ix]
+        filter_gene = False
+        
+        return filter_gene, result_gene_df, mut_gene_df
+    
+    
 def clustering_3d(gene, 
                   uniprot_id,
                   mut_gene_df,                                      
                   cmap_path,
                   miss_prob_dict,
+                  seq_gene,
+                  af_f,
                   alpha=0.01,
                   num_iteration=10000,
                   cmap_prob_thr=0.5,
                   seed=None,
                   pae_path=None,
-                  thr_not_in_structure=0.1):
+                  thr_mapping_issue=0.1,
+                  sample_info=False):
     """
     Compute local density of missense mutations for a sphere of 10A around          
     each amino acid position of the selected gene product. It performed a 
@@ -66,18 +124,53 @@ def clustering_3d(gene,
     ## Initialize
 
     mut_count = len(mut_gene_df)
-    af_f = mut_gene_df.AF_F.unique()[0]
+    transcript_id_input = mut_gene_df.Transcript_ID.iloc[0]
+    transcript_id_o3d = mut_gene_df.O3D_transcript_ID.iloc[0]
+    transcript_status = mut_gene_df.Transcript_status.iloc[0]
     result_gene_df = pd.DataFrame({"Gene" : gene,
                                    "Uniprot_ID" : uniprot_id,
                                    "F" : af_f,                           
                                    "Mut_in_gene" : mut_count,
-                                   "Max_mut_pos" : np.nan,
-                                   "Structure_max_pos" : np.nan,
                                    "Ratio_not_in_structure" : 0,
+                                   "Ratio_WT_mismatch" : 0,
                                    "Mut_zero_mut_prob" : 0,
                                    "Pos_zero_mut_prob" : np.nan,
+                                   "Transcript_ID" : transcript_id_input,
+                                   "O3D_transcript_ID" : transcript_id_o3d,
+                                   "Transcript_status" : transcript_status,
                                    "Status" : np.nan}, 
                                     index=[1])
+
+
+    # Check if there is a mutation that is not in the structure      
+    if max(mut_gene_df.Pos) > len(seq_gene):
+        not_in_structure_ix = mut_gene_df.Pos > len(seq_gene)
+        filter_gene, result_gene_df, mut_gene_df = process_mapping_issue(not_in_structure_ix, 
+                                                                         mut_gene_df, 
+                                                                         result_gene_df, 
+                                                                         gene, 
+                                                                         uniprot_id, 
+                                                                         af_f, 
+                                                                         transcript_status, 
+                                                                         thr_mapping_issue,
+                                                                         issue_type="Mut_not_in_structure")
+        if filter_gene:
+            return None, result_gene_df
+            
+    # Check for mismatch between WT reference and WT structure 
+    wt_mismatch_ix = mut_gene_df.apply(lambda x: seq_gene[x.Pos-1] != x.WT, axis=1)
+    if sum(wt_mismatch_ix) > 0:
+        filter_gene, result_gene_df, mut_gene_df = process_mapping_issue(wt_mismatch_ix, 
+                                                                         mut_gene_df, 
+                                                                         result_gene_df, 
+                                                                         gene, 
+                                                                         uniprot_id, 
+                                                                         af_f, 
+                                                                         transcript_status, 
+                                                                         thr_mapping_issue,
+                                                                         issue_type="WT_mismatch")
+        if filter_gene:
+            return None, result_gene_df
 
     # Load cmap
     cmap_complete_path = f"{cmap_path}/{uniprot_id}-F{af_f}.npy"
@@ -95,26 +188,6 @@ def clustering_3d(gene,
         pae = np.load(pae_complete_path) 
     else:
         pae = None
-
-    # Check if there is a mutation that is not in the structure      
-    if max(mut_gene_df.Pos) > len(cmap):
-        not_in_structure_ix = mut_gene_df.Pos > len(cmap)
-        ratio_not_in_structure = sum(not_in_structure_ix) / len(mut_gene_df.Pos)
-        logger_out = f"Detected {sum(not_in_structure_ix)} ({ratio_not_in_structure*100:.3}%) mut not in the structure of {gene} ({uniprot_id}-F{af_f}): "
-        if ratio_not_in_structure > thr_not_in_structure:
-            result_gene_df["Max_mut_pos"] = max(mut_gene_df.Pos)  
-            result_gene_df["Structure_max_pos"] = len(cmap)
-            result_gene_df["Status"] = "Mut_not_in_structure"
-            logger.warning(logger_out + "Filtering the gene...")
-            return None, result_gene_df
-        else:
-            logger.warning(logger_out + "Filtering the mutations...")
-            mut_gene_df = mut_gene_df[~not_in_structure_ix]
-            mut_count = len(mut_gene_df)
-        result_gene_df["Ratio_not_in_structure"] = ratio_not_in_structure
-
-    # Samples info
-    samples_info = get_samples_info(mut_gene_df, cmap)
     
 
     ## Get expected local myssense mutation density
@@ -137,12 +210,27 @@ def clustering_3d(gene,
         result_gene_df["Status"] = "Mut_with_zero_prob"
         pos_prob_vec = np.array(gene_miss_prob)[pos_vec-1]
         pos_zero_prob = list(pos_vec[pos_prob_vec == 0])
-        mut_zero_prob = sum([pos in pos_zero_prob for pos in mut_gene_df["Pos"].values])
-        result_gene_df["Mut_zero_mut_prob"] = mut_zero_prob
+        mut_zero_prob_ix = mut_gene_df["Pos"].isin(pos_zero_prob)
+        mut_zero_prob_count = sum(mut_zero_prob_ix)
+        result_gene_df["Mut_zero_mut_prob"] = mut_zero_prob_count
         result_gene_df["Pos_zero_mut_prob"] = str(pos_zero_prob)
-        result_gene_df["Status"] = "Mut_with_zero_prob"
-        logger.warning(f"Detected {mut_zero_prob} mut in {len(pos_zero_prob)} pos {pos_zero_prob} with zero mut prob in {gene} ({uniprot_id}-F{af_f}): Filtering the gene...")  
-        return None, result_gene_df
+        ratio_zero_prob = mut_zero_prob_count / len(mut_gene_df)
+        logger_out = f"Detected {mut_zero_prob_count} ({ratio_zero_prob*100:.1f}%) mut in {len(pos_zero_prob)} pos {pos_zero_prob} with zero mut prob in {gene} ({uniprot_id}-F{af_f}, transcript status = {transcript_status}): "
+        result_gene_df["Ratio_mut_zero_prob"] = ratio_zero_prob 
+        
+        if ratio_zero_prob > thr_mapping_issue:
+            result_gene_df["Status"] = "Mut_with_zero_prob"
+            if transcript_status == "Match":
+                logger.warning(logger_out + "Filtering the gene..")
+            else:
+                logger.debug(logger_out + "Filtering the gene..")
+            return None, result_gene_df
+        else:
+            if transcript_status == "Match":
+                logger.warning(logger_out + "Filtering the mutations..")
+            else:
+                logger.debug(logger_out + "Filtering the mutations..")    
+            mut_gene_df = mut_gene_df[~mut_zero_prob_ix]
 
     # Probability that the volume of each residue can be hit by a missense mut
     vol_missense_mut_prob = np.dot(cmap, gene_miss_prob)
@@ -167,7 +255,7 @@ def clustering_3d(gene,
     result_pos_df = pd.DataFrame({"Pos" : mutated_pos, "Mut_in_vol" : density_m[0, mutated_pos-1].astype(int)})
 
     # Get the ranked simulated score
-    sim_anomaly = get_sim_anomaly_score(mut_count, 
+    sim_anomaly = get_sim_anomaly_score(len(mut_gene_df), 
                                         cmap, 
                                         gene_miss_prob,
                                         vol_missense_mut_prob,                                                                               
@@ -177,13 +265,16 @@ def clustering_3d(gene,
     # Get ranked observed score (loglik+_LFC) 
     no_mut_pos = len(result_pos_df)
     sim_anomaly = sim_anomaly.iloc[:no_mut_pos,:].reset_index()
-    result_pos_df["Obs_anomaly"] = get_anomaly_score(result_pos_df["Mut_in_vol"], mut_count, vol_missense_mut_prob[result_pos_df["Pos"]-1])
-    mut_in_res = count.reset_index().rename(columns = {"Pos" : "Mut_in_res", "index" : "Pos"})      
+    result_pos_df["Score"] = get_anomaly_score(result_pos_df["Mut_in_vol"], 
+                                                     len(mut_gene_df), 
+                                                     vol_missense_mut_prob[result_pos_df["Pos"]-1])
+    if np.isinf(result_pos_df.Score).any():
+        logger.debug(f"Detected inf observed score in gene {gene} ({uniprot_id}-F{af_f}): Recomputing with higher precision..")
+        result_pos_df = recompute_inf_score(result_pos_df, len(mut_gene_df), vol_missense_mut_prob[result_pos_df["Pos"]-1])
+    
+    mut_in_res = count.rename("Mut_in_res").reset_index().rename(columns={"index" : "Pos"})
     result_pos_df = mut_in_res.merge(result_pos_df, on = "Pos", how = "outer")                          
-    result_pos_df = result_pos_df.sort_values("Obs_anomaly", ascending=False).reset_index(drop=True)
-    if np.isinf(result_pos_df["Obs_anomaly"].values).any():
-        logger.warning(f"Detected infinity observed anomaly in gene {gene} ({uniprot_id}-F{af_f}): replacing with 1...")
-        result_pos_df.replace(np.inf, 1, inplace=True) # TO DO: ideally, we would like to avoid getting inf (e.g., IDH1 in TCGA_WXS_LGGNOS)   
+    result_pos_df = result_pos_df.sort_values("Score", ascending=False).reset_index(drop=True)
 
 
     ## Compute p-val and assign hits
@@ -194,10 +285,10 @@ def clustering_3d(gene,
 
     # Ratio observed and simulated anomaly scores 
     # (used to break the tie in p-values gene sorting)
-    result_pos_df["Ratio_obs_sim"] = sim_anomaly.apply(lambda x: result_pos_df["Obs_anomaly"].values[int(x["index"])] / np.mean(x[1:]), axis=1) 
+    result_pos_df["Score_obs_sim"] = sim_anomaly.apply(lambda x: result_pos_df["Score"].values[int(x["index"])] / np.mean(x[1:]), axis=1) 
 
     # Empirical p-val
-    result_pos_df["pval"] = sim_anomaly.apply(lambda x: sum(x[1:] >= result_pos_df["Obs_anomaly"].values[int(x["index"])]) / len(x[1:]), axis=1)
+    result_pos_df["pval"] = sim_anomaly.apply(lambda x: sum(x[1:] >= result_pos_df["Score"].values[int(x["index"])]) / len(x[1:]), axis=1)
 
     # Assign hits
     result_pos_df["C"] = [int(i) for i in result_pos_df["pval"] < alpha]              
@@ -239,8 +330,8 @@ def clustering_3d(gene,
     result_pos_df.insert(0, "Gene", gene)
     result_pos_df.insert(1, "Uniprot_ID", uniprot_id)
     result_pos_df.insert(2, "F", af_f)
-    result_pos_df.insert(4, "Mut_in_gene", mut_count)    
-    result_pos_df = add_samples_info(mut_gene_df, result_pos_df, samples_info, cmap, pae)
+    result_pos_df.insert(4, "Mut_in_gene", len(mut_gene_df))    
+    result_pos_df = add_info(mut_gene_df, result_pos_df, cmap, pae, sample_info)
     result_gene_df["Clust_res"] = len(pos_hits)
     result_gene_df["Clust_mut"] = clustered_mut
     result_gene_df["Status"] = "Processed"
@@ -252,7 +343,7 @@ def clustering_3d_mp(genes,
                      data,
                      cmap_path,
                      miss_prob_dict,
-                     gene_to_uniprot_dict,
+                     seq_df,
                      plddt_df,
                      num_process,
                      alpha=0.01,
@@ -260,7 +351,8 @@ def clustering_3d_mp(genes,
                      cmap_prob_thr=0.5,
                      seed=None,
                      pae_path=None,
-                     thr_not_in_structure=0.1):
+                     thr_mapping_issue=0.1,
+                     sample_info=False):
     """
     Run the 3D-clustering algorithm in parallel on multiple genes.
     """
@@ -271,10 +363,13 @@ def clustering_3d_mp(genes,
     for n, gene in enumerate(genes):
     
         mut_gene_df = data[data["Gene"] == gene]
-        uniprot_id = gene_to_uniprot_dict[gene]
-
+        seq_df_gene = seq_df[seq_df["Gene"] == gene]
+        uniprot_id = seq_df_gene['Uniprot_ID'].values[0]
+        seq = seq_df_gene['Seq'].values[0]
+        af_f = seq_df_gene['F'].values[0]
+        
         # Add confidence to mut_gene_df
-        plddt_df_gene_df = plddt_df[plddt_df["Uniprot_ID"] == uniprot_id]
+        plddt_df_gene_df = plddt_df[plddt_df["Uniprot_ID"] == uniprot_id].drop(columns=["Uniprot_ID"])
         mut_gene_df = mut_gene_df.merge(plddt_df_gene_df, on = ["Pos"], how = "left")
 
         pos_result, result_gene = clustering_3d(gene,
@@ -282,21 +377,24 @@ def clustering_3d_mp(genes,
                                                 mut_gene_df, 
                                                 cmap_path,
                                                 miss_prob_dict,
+                                                seq_gene=seq,
+                                                af_f=af_f,
                                                 alpha=alpha,
                                                 num_iteration=num_iteration,
                                                 cmap_prob_thr=cmap_prob_thr,
                                                 seed=seed,
                                                 pae_path=pae_path,
-                                                thr_not_in_structure=thr_not_in_structure)
+                                                thr_mapping_issue=thr_mapping_issue,
+                                                sample_info=sample_info)
         result_gene_lst.append(result_gene)
         if pos_result is not None:
             result_pos_lst.append(pos_result)
             
-        # logging - monitor processing
+        # Monitor processing
         if n == 0:
-            logger.debug(f"Process [{num_process+1}] starting...")
+            logger.debug(f"Process [{num_process+1}] starting..")
         elif n % 10 == 0:
-            logger.debug(f"Process [{num_process+1}] completed [{n+1}/{len(genes)}] structures...")
+            logger.debug(f"Process [{num_process+1}] completed [{n+1}/{len(genes)}] structures..")
         elif n+1 == len(genes):
             logger.debug(f"Process [{num_process+1}] completed!")
 
@@ -307,7 +405,7 @@ def clustering_3d_mp_wrapper(genes,
                              data,
                              cmap_path,
                              miss_prob_dict,
-                             gene_to_uniprot_dict,
+                             seq_df,
                              plddt_df,
                              num_cores,
                              alpha=0.01,
@@ -315,7 +413,8 @@ def clustering_3d_mp_wrapper(genes,
                              cmap_prob_thr=0.5,
                              seed=None,
                              pae_path=None,
-                             thr_not_in_structure=0.1):
+                             thr_mapping_issue=0.1,
+                             sample_info=False):
     """
     Wrapper function to run the 3D-clustering algorithm in parallel on multiple genes.
     """
@@ -323,23 +422,26 @@ def clustering_3d_mp_wrapper(genes,
     # Split the genes into chunks for each process
     chunk_size = int(len(genes) / num_cores) + 1
     chunks = [genes[i : i + chunk_size] for i in range(0, len(genes), chunk_size)]
+    # num_cores = min(num_cores, len(chunks))
     
     # Create a pool of processes and run clustering in parallel
     with multiprocessing.Pool(processes = num_cores) as pool:
-        logger.debug(f'Starting [{len(chunks)}] processes...')
-        results = pool.starmap(clustering_3d_mp, [(chunk, 
-                                                   data, 
+        
+        logger.debug(f'Starting [{len(chunks)}] processes..')
+        results = pool.starmap(clustering_3d_mp, [(chunk,
+                                                   data[data["Gene"].isin(chunk)], 
                                                    cmap_path, 
                                                    miss_prob_dict, 
-                                                   gene_to_uniprot_dict, 
-                                                   plddt_df, 
+                                                   seq_df[seq_df["Gene"].isin(chunk)],
+                                                   plddt_df[plddt_df["Uniprot_ID"].isin(seq_df.loc[seq_df["Gene"].isin(chunk), "Uniprot_ID"])],
                                                    n_process,
                                                    alpha, 
                                                    num_iteration, 
                                                    cmap_prob_thr, 
                                                    seed, 
                                                    pae_path,
-                                                   thr_not_in_structure) 
+                                                   thr_mapping_issue,
+                                                   sample_info) 
                                                   for n_process, chunk in enumerate(chunks)])
         
     # Parse output

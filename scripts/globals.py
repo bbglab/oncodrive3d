@@ -2,7 +2,6 @@ import os
 import logging
 import daiquiri
 import click
-import subprocess
 import shutil
 from datetime import datetime
 
@@ -27,7 +26,7 @@ def setup_logging_decorator(func):
         log_dir = os.path.join(click.get_current_context().params['output_dir'], 'log')
         command_name = click.get_current_context().command.name
 
-        if command_name == 'run' or command_name == 'plot':
+        if command_name in ['run', 'plot', 'chimerax_plot', 'chimerax-plot']:
             cohort = click.get_current_context().params["cohort"]
             fname = f'{command_name}_{cohort if cohort != "None" else ""}_{DATE}.log'
         else: 
@@ -69,49 +68,76 @@ def startup_message(version, initializing_text):
     logger.info("")
 
 
-# =========
-#  Clean
-# =========
+# ===================
+#  Clean and organize
+# ===================
+
+
+def copy_dir(source_dir, destination_dir):
+    """
+    Ccopy the entire directory.
+    """
+
+    logger.debug("Copying directory..")
+    logger.debug(f"From {source_dir}")
+    logger.debug(f"To {destination_dir}")
+    
+    if os.path.exists(source_dir):
+        if os.path.isdir(source_dir):
+            
+            try:
+                shutil.copytree(source_dir, destination_dir)
+                logger.debug("Directory copied successfully!")
+            except Exception as e:
+                logger.warning(f"An error occurred ({e}): Skipping")
+                
+        else:
+            logger.warning("Error while copying directory (source path is not a directory): Skipping")
+    else:
+        logger.warning("Error while copying directory (source path does not exist): Skipping")
+        
+
+def rm_dir(dir_path):             # TO DO: Probably, if the directory is not empty, it should ask for confirmation
+    """
+    Remove directory.
+    """
+    
+    if os.path.isdir(dir_path):
+        shutil.rmtree(dir_path, ignore_errors=True)
+    
+    
+def rm_files(dir_path, ext=[".cif.gz", ".cif"]) -> None:
+    """
+    Remove any file with a given extension in a given directory.
+    """
+    
+    for file in os.listdir(dir_path):
+        file_path = os.path.join(dir_path, file)
+        if any([file.endswith(ext_i) for ext_i in ext]):
+            os.remove(file_path)
 
 
 def clean_directory(path: str, loc: str) -> None:
     """
     Clean a directory by removing specific files and subdirectories.
-
-    Args:
-        path (str): Path to the directory to be cleaned.
     """
 
     if loc == "d":
-
-        clean_files = f"rm -rf {os.path.join(path, '*.csv')} {os.path.join(path, '*.json')} {os.path.join(path, '.*.txt')}"
-        clean_pae = ["rm", "-rf", os.path.join(path, "pae")]
-        clean_pdb = ["rm", "-rf", os.path.join(path, "pdb_structures")]
-        clean_pcmaps = ["rm", "-rf", os.path.join(path, "prob_cmaps")]
-
-        logger.debug(clean_files)
-        subprocess.run(clean_files, shell=True)
-
-        logger.debug(' '.join(clean_pae))
-        subprocess.run(clean_pae)
-
-        logger.debug(' '.join(clean_pdb))
-        subprocess.run(clean_pdb)
-
-        logger.debug(' '.join(clean_pcmaps))
-        subprocess.run(clean_pcmaps)
+        logger.debug(f"Cleaning {path}")
+        rm_files(path, ext=[".tsv", ".csv", ".json", ".txt", ".txt.gz"])
+        dirs = "pae", "pdb_structures", "pdb_structures_mane", "prob_cmaps"
+        path_dirs = [os.path.join(path, d) for d in dirs]
+        for path in path_dirs:
+            rm_dir(path)
 
     elif loc == "r":
         # TODO: implement cleaning function for output
         pass
 
 
-def clean_dir(path: str, loc: str = 'd') -> None:
+def clean_dir(path: str, loc: str = 'd', txt_file=False) -> None:
     """
     Clean it upon request if it already exists.
-
-    Args:
-        path (str): Path to the directory to be created or cleaned.
     """
 
     if os.listdir(path) != ['log']:
@@ -129,35 +155,15 @@ def clean_dir(path: str, loc: str = 'd') -> None:
             logger.warning(f"Dataset files in {path} have not been removed.")
     else:
         pass
-    
-    
-def rm_files(dir_path, ext=[".cif.gz", ".cif"]) -> None:
-    """
-    Remove any file with a given extension in a given directory.
-    """
-    
-    for file in os.listdir(dir_path):
-        file_path = os.path.join(dir_path, file)
-        if any([file.endswith(ext_i) for ext_i in ext]):
-            os.remove(file_path)
             
             
-def clean_temp_files(path: str, rm_pdb_files=False) -> None:
+def clean_temp_files(path: str) -> None:
     """
     Clean temp files from dir after completing building the datasets. 
-
-    Args:
-        path (str): Path to build directory to be cleaned.
     """
     
     pdb_dir = os.path.join(path, "pdb_structures")
-    if rm_pdb_files:
-        logger.debug(f"Removing {pdb_dir}")
-        logger.warning(f"Removing {pdb_dir}: building annotations might be limited.")
-        shutil.rmtree(pdb_dir)
-    else:
-        rm_files(pdb_dir, ext=[".cif.gz", ".cif", ".tar"])
-        shutil.rmtree(os.path.join(pdb_dir, "fragmented_pdbs"))
-        
+    rm_files(pdb_dir, ext=[".cif.gz", ".cif", ".tar"])
     rm_files(os.path.join(path, "pae"), ext=[".json"])
-    shutil.rmtree(os.path.join(path, "pdb_structures_mane"))
+    rm_dir(os.path.join(path, "pdb_structures_mane"))
+    rm_dir(os.path.join(pdb_dir, "fragmented_pdbs"))

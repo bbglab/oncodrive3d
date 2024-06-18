@@ -2,7 +2,6 @@ import logging
 import os
 
 import daiquiri
-import subprocess
 import pandas as pd
 import numpy as np
 import re
@@ -13,8 +12,9 @@ import json
 
 from scripts import __logger_name__
 from scripts.datasets.utils import download_single_file, extract_zip_file
+from scripts.globals import rm_dir
 
-logger = daiquiri.getLogger(__logger_name__ + ".annotations.stability_change")
+logger = daiquiri.getLogger(__logger_name__ + ".plotting.stability_change")
 
 logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
 
@@ -172,14 +172,13 @@ def parse_ddg_rasp(input_path, output_path, threads=1):
             # Map the worker function to the arguments list
             pool.map(parse_ddg_rasp_worker, args_list) 
         if len(lst_files) > 50:
-            subprocess.run("clear")
+            os.system('clear')
             logger.debug(f"clear")
         logger.debug(f"DDG succesfully converted into json files...")
     else:
         logger.debug(f"DDG not found: Skipping...")
         
     # Remove the original folder
-    rm_ddg_dir = ["rm", "-rf", input_path]
-    logger.debug(' '.join(rm_ddg_dir))
-    subprocess.run(rm_ddg_dir)
+    logger.debug(f"Deleting {input_path}")
+    rm_dir(input_path)
     logger.info(f"Parsing of DDG completed!")

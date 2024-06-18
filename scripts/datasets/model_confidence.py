@@ -44,7 +44,7 @@ def get_confidence_one_chain(chain):
     return pd.DataFrame({"Res" : res_ids, "Confidence" : confidence_scores})
 
 
-def get_confidence(input, output_dir):
+def get_confidence(input, output_dir, seq_df):
     """
     Get per-residue model confidence from all AlphaFold 
     predicted structures contained in a given directory.
@@ -68,24 +68,25 @@ def get_confidence(input, output_dir):
             try:
                 identifier = file.split("AF-")[1].split("-model")[0].split("-F")
             except Exception as e:
-                logger.error(f'{file}, {e}')
-                
-            # Get chain
-            parser = PDBParser()
-            if file.endswith(".gz"):  
-                with gzip.open(file, 'rt') as handle:
-                    structure = parser.get_structure("ID", handle)
-            else:
-                with open(file, 'r') as handle:
-                    structure = parser.get_structure("ID", handle)
-            chain = structure[0]["A"]
+                logger.warning(f'Could not extract Uniprot ID from {file}, {e}')
+            
+            if identifier[0] in seq_df["Uniprot_ID"].values:
 
-            # Get confidence
-            confidence_df = get_confidence_one_chain(chain).reset_index().rename(columns={"index": "Pos"})
-            confidence_df["Pos"] = confidence_df["Pos"] + 1
-            confidence_df["Uniprot_ID"] = identifier[0]
-            confidence_df["AF_F"] = identifier[1]            
-            df_list.append(confidence_df)
+                parser = PDBParser()
+                if file.endswith(".gz"):  
+                    with gzip.open(file, 'rt') as handle:
+                        structure = parser.get_structure("ID", handle)
+                else:
+                    with open(file, 'r') as handle:
+                        structure = parser.get_structure("ID", handle)
+                chain = structure[0]["A"]
+
+                # Get confidence
+                confidence_df = get_confidence_one_chain(chain).reset_index().rename(columns={"index": "Pos"})
+                confidence_df["Pos"] = confidence_df["Pos"] + 1
+                confidence_df["Uniprot_ID"] = identifier[0]
+                confidence_df["AF_F"] = identifier[1]            
+                df_list.append(confidence_df)
             
         confidence_df = pd.concat(df_list).reset_index(drop=True)
         confidence_df.to_csv(output, index=False, sep="\t")

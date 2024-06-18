@@ -172,7 +172,7 @@ def get_miss_mut_prob(dna_seq, dna_tricontext, mut_rate_dict, mutability=False,
                         if not mutability:
                             mut = f"{trinucl}>{alt}"    # query using only the trinucleotide change
                             mut_prob = mut_rate_dict[mut] if mut in mut_rate_dict else 0                                               
-                            if v: print(f"{trinucl}>{alt}", "\t", mut_prob, "\t", alt_codon, "\t    ", alt_aa, )                       
+                            logger.debug(f"{trinucl}>{alt}", "\t", mut_prob, "\t", alt_codon, "\t    ", alt_aa, )                       
                             missense_prob += mut_prob
 
                         else:

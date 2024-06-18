@@ -39,17 +39,15 @@ def build(output_datasets,
           organism,
           mane,
           distance_threshold,
-          uniprot_to_hugo,
           num_cores,
           af_version,
-          rm_pdb_files,
-          ):
+          mane_version):
     """
     Build datasets necessary to run Oncodrive3D.
     """
   
     # Empty directory
-    clean_dir(output_datasets, 'd')
+    clean_dir(output_datasets, 'd', txt_file=True)
 
     # Download PDB structures
     species = get_species(organism)
@@ -66,36 +64,36 @@ def build(output_datasets,
                        gzip=True)
     
     # Download PDB MANE structures
-    if mane:
-      if species == "Homo sapiens":
-        logger.info("Downloading AlphaFold (AF) predicted structures overlap with MANE...")
-        get_structures(path=os.path.join(output_datasets,"pdb_structures_mane"),
-                       species=species,
-                       mane=mane,
-                       threads=num_cores)
-        mv_mane_pdb(output_datasets, "pdb_structures", "pdb_structures_mane")
-        logger.info("Download of MANE structures completed!")
-      else:
-        raise RuntimeError(f"Structures with MANE transcripts overlap are available only for 'Homo sapiens'. Exiting...")
+    if species == "Homo sapiens":
+      logger.info("Downloading AlphaFold (AF) predicted structures overlap with MANE...")
+      get_structures(path=os.path.join(output_datasets,"pdb_structures_mane"),
+                      species=species,
+                      mane=True,
+                      threads=num_cores)
+      mv_mane_pdb(output_datasets, "pdb_structures", "pdb_structures_mane")
+      logger.info("Download of MANE structures completed!")
+
+    # Create df including genes and proteins sequences & Hugo to Uniprot_ID mapping
+    logger.info("Generating dataframe for genes and proteins sequences...")
+    seq_df = get_seq_df(datasets_dir=output_datasets,
+                        output_seq_df=os.path.join(output_datasets, "seq_for_mut_prob.tsv"),
+                        organism=species,
+                        mane=mane,
+                        num_cores=num_cores,
+                        mane_version=mane_version)
+    logger.info("Generation of sequences dataframe completed!")
     
     # Get model confidence
     logger.info("Extracting AF model confidence...")
     get_confidence(input=os.path.join(output_datasets, "pdb_structures"),
-                   output_dir=os.path.join(output_datasets))
-
-    # Create df including genes and proteins sequences & Hugo to Uniprot_ID mapping
-    logger.info("Generating dataframe for genes and proteins sequences...")
-    get_seq_df(input_dir=os.path.join(output_datasets, "pdb_structures"),
-               output_seq_df=os.path.join(output_datasets, "seq_for_mut_prob.tsv"),
-               uniprot_to_gene_dict=uniprot_to_hugo,
-               organism=species)
-    logger.info("Generation of sequences dataframe completed!")
+                   output_dir=os.path.join(output_datasets),
+                   seq_df=seq_df)
 
     # Get PAE
     logger.info("Downloading AF predicted aligned error (PAE)...")
     get_pae(input_dir=os.path.join(output_datasets,"pdb_structures"),
             output_dir=os.path.join(output_datasets,"pae"),
-            threads=num_cores,
+            num_cores=num_cores,
             af_version=str(af_version))
 
     # Parse PAE
@@ -114,9 +112,10 @@ def build(output_datasets,
 
     # Clean datasets
     logger.info("Cleaning datasets...")
-    clean_temp_files(path=output_datasets,
-                     rm_pdb_files=rm_pdb_files)
+    clean_temp_files(path=output_datasets)
     logger.info("Datasets cleaning completed!")
+
+    # TO DO: add a step that clean up all structures not added in the sequence df
 
     logger.info("Datasets have been successfully built and are ready for analysis!")
     
@@ -125,7 +124,6 @@ if __name__ == "__main__":
         organism="Homo sapiens",
         mane=True,
         distance_threshold=10,
-        uniprot_to_hugo=None,
-        num_cores=4,
+        num_cores=8,
         af_version=4,
-        rm_pdb_files=True)
+        mane_version=1.3)

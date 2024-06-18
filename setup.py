@@ -29,7 +29,10 @@ setup(
     license="GNU Affero General Public License v3 or later (AGPLv3+)", # TODO change accordingly
     entry_points={
         'console_scripts': [
-            'oncodrive3D = scripts.main:oncodrive3D'
+            'oncodrive3D = scripts.main:oncodrive3D',
+            'oncodrive3d = scripts.main:oncodrive3D',
+            'Oncodrive3d = scripts.main:oncodrive3D',
+            'Oncodrive3D = scripts.main:oncodrive3D'
         ]
     }
 )
