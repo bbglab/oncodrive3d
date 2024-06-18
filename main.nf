@@ -63,8 +63,8 @@ process O3D_run {
     // label 'process_high'
     debug true
     queue 'normal,bigmem'
-    errorStrategy 'retry'
-    maxRetries 2   
+    // errorStrategy 'retry'
+    // maxRetries 2   
     container params.container               
     cpus params.cores
     memory params.memory
@@ -104,16 +104,17 @@ process O3D_plot {
     cpus 4
     memory "10G"
     maxForks params.max_running
+    publishDir outdir, mode:'copy'
 
     input:
     tuple val(cohort), path(inputs), path(genes_csv), path(pos_csv), path(mutations_csv), path(miss_prob_json), path(seq_df_tsv)
 
     output:
-    tuple val(cohort), path("**.summary_plot.png")                               , emit: summary_plot
+    tuple val(cohort), path("**.summary_plot.png")                               , emit: summary_plot, optional: true
     tuple val(cohort), path("**.genes_plots/**.png")                             , emit: genes_plot, optional: true
-    tuple val(cohort), path("**.associations_plots/**.logodds_plot.png")         , emit: logodds_plot, optional: true
-    tuple val(cohort), path("**.associations_plots/**.volcano_plot.png")         , emit: volcano_plot, optional: true
-    tuple val(cohort), path("**.associations_plots/**.volcano_plot_gene.png")    , emit: volcano_plot_gene, optional: true
+    tuple val(cohort), path("**.associations_plots_2/**.logodds_plot.png")         , emit: logodds_plot, optional: true
+    tuple val(cohort), path("**.associations_plots_2/**.volcano_plot.png")         , emit: volcano_plot, optional: true
+    tuple val(cohort), path("**.associations_plots_2/**.volcano_plot_gene.png")    , emit: volcano_plot_gene, optional: true
     tuple val(cohort), path("**.3d_clustering_pos.annotated.csv")                , emit: pos_annotated_csv
     tuple val(cohort), path("**.log")          
 
@@ -145,6 +146,7 @@ process O3D_chimerax_plot {
     cpus 4
     memory "10G"
     maxForks params.max_running
+    publishDir outdir, mode:'copy'
 
     input:
     tuple val(cohort), path(inputs), path(genes_csv), path(pos_csv), path(mutations_csv), path(miss_prob_json), path(seq_df_tsv)
