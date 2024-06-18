@@ -147,7 +147,7 @@ def generate_chimerax_plot(output_dir,
     genes = result_genes[result_genes["C_gene"] == 1].Gene.unique()
     if len(genes) > 0:
         
-        chimera_out_path = os.path.join(output_dir, "chimerax")
+        chimera_out_path = os.path.join(output_dir, "{cohort}.chimerax")
         chimera_attr_path = os.path.join(chimera_out_path, "attributes")
         chimera_plots_path = os.path.join(chimera_out_path, "plots")
         for path in [chimera_out_path, chimera_attr_path, chimera_plots_path]:

@@ -2213,7 +2213,7 @@ def associations_plots(df_annotated,
     # Plots
     genes = logreg_results[~logreg_results.drop(columns=["Gene", "Uniprot_ID"]).isna().all(axis=1)].Gene.unique()
     if len(genes) > 0:
-        output_dir_associations_plots = os.path.join(output_dir, f"{cohort}.associations_plots_2")
+        output_dir_associations_plots = os.path.join(output_dir, f"{cohort}.associations_plots")
         logger.info(f"Generating associations plots in {output_dir_associations_plots}")
         os.makedirs(output_dir_associations_plots, exist_ok=True)
         log_odds_plot(logreg_results, 
