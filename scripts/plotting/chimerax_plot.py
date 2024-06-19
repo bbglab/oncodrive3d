@@ -129,6 +129,7 @@ def generate_chimerax_plot(output_dir,
                             datasets_dir,
                             seq_df_path,
                             cohort,
+                            max_genes,
                             pixel_size,
                             cluster_ext,
                             fragmented_proteins,
@@ -153,7 +154,7 @@ def generate_chimerax_plot(output_dir,
         for path in [chimera_out_path, chimera_attr_path, chimera_plots_path]:
             os.makedirs(path, exist_ok=True)
                 
-        for i, gene in enumerate(genes):
+        for i, gene in enumerate(genes[:max_genes]):
             logger.info(f"Processing {gene}")
             
             # Attribute files

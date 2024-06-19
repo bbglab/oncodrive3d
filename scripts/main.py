@@ -899,6 +899,7 @@ def comparative_plot(o3d_result_dir_1,
               help="Path to sequences dataframe", type=click.Path(exists=True), required=True)
 @click.option("-c", "--cohort", 
               help="Cohort name", default="")
+@click.option("--max_n_genes", help="Maximum number of genes to plot", type=int, default=30)
 @click.option("--pixel_size", help="Pixel size (smaller value is larger number of pixels)", type=float, default=0.08)
 @click.option("--cluster_ext", help="Include extended clusters", is_flag=True)
 @click.option("--fragmented_proteins", help="Include fragmented proteins", is_flag=True)
@@ -913,6 +914,7 @@ def chimerax_plot(output_dir,
                   datasets_dir,
                   seq_df_path,
                   cohort,
+                  max_n_genes,
                   pixel_size,
                   cluster_ext,
                   fragmented_proteins,
@@ -929,6 +931,7 @@ def chimerax_plot(output_dir,
     logger.info(f"Datasets dir: {datasets_dir}")
     logger.info(f"Sequence dataframe path: {seq_df_path}")
     logger.info(f"Cohort: {cohort}")
+    logger.info(f"Max number of genes to plot: {max_n_genes}")
     logger.info(f"Pixel size: {pixel_size}")
     logger.info(f"Cluster extended: {cluster_ext}")
     logger.info(f"Fragmented proteins: {fragmented_proteins}")
@@ -944,6 +947,7 @@ def chimerax_plot(output_dir,
                         datasets_dir,
                         seq_df_path,
                         cohort,
+                        max_n_genes,
                         pixel_size,
                         cluster_ext,
                         fragmented_proteins,
