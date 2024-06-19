@@ -383,11 +383,13 @@ def run(input_maf_path,
         if mutability_config_path is not None:
             logger.info("Computing missense mut probabilities using mutabilities..")
             mutab_config = json.load(open(mutability_config_path, encoding="utf-8"))
+            logger.debug("Init mutabilities module..")
             init_mutabilities_module(mutab_config)
             seq_df = seq_df[seq_df["Reference_info"] == 1]   
             seq_df['Exons_coord'] = seq_df['Exons_coord'].apply(eval)  
             genes_to_process = [gene for gene in genes_to_process if gene in seq_df["Gene"].unique()]
             genes_not_mutability = [gene for gene in genes_to_process if gene not in seq_df["Gene"].unique()]
+            logger.debug("Computing probabilities..")
             miss_prob_dict = get_miss_mut_prob_dict(mut_rate_dict=None, seq_df=seq_df,
                                                     mutability=True, mutability_config=mutab_config)
             

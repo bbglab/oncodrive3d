@@ -27,7 +27,7 @@ def get_unif_gene_miss_prob(size):
     return vector / sum(vector)
 
 
-def mut_rate_vec_to_dict(mut_rate, v=False):
+def mut_rate_vec_to_dict(mut_rate):
     """
     Convert the vector of mut mut_rate of 96 channels to a dictionary of 192 
     items: the keys are mutations in trinucleotide context (e.g., "ACA>A") 
@@ -36,7 +36,7 @@ def mut_rate_vec_to_dict(mut_rate, v=False):
     """
     
     cb  = dict(zip('ACGT', 'TGCA'))
-    if v: logger.debug("Mut1\tMut2\tN_context\tMut_rate")
+    logger.debug("Mut1\tMut2\tN_context\tMut_rate")
     mut_rate_dict = {}
     i = 0
     for ref in ['C', 'T']:
@@ -49,7 +49,7 @@ def mut_rate_vec_to_dict(mut_rate, v=False):
                     cmut = f"{cb[p[1]]}{cb[ref]}{cb[p[0]]}>{cb[alt]}"
                     mut_rate_dict[mut] = mut_rate[i]
                     mut_rate_dict[cmut] = mut_rate[i]
-                    if v: logger.debug(f"{mut}\t{cmut}\t{i}\t\t{mut_rate[i]}")
+                    logger.debug(f"{mut}\t{cmut}\t{i}\t\t{mut_rate[i]}")
                     i +=1
                     
     return mut_rate_dict
@@ -86,8 +86,12 @@ def codons_trinucleotide_context(lst_contexts):
 
 # TODO: doc function
 
-def get_miss_mut_prob(dna_seq, dna_tricontext, mut_rate_dict, mutability=False, 
-                        get_probability=True, mut_start_codon=False, v=False):
+def get_miss_mut_prob(dna_seq, 
+                      dna_tricontext, 
+                      mut_rate_dict, 
+                      mutability=False, 
+                      get_probability=True, 
+                      mut_start_codon=False):
     """
     Generate a list including the probabilities that the 
     codons can mutate resulting into a missense mutations.
@@ -129,10 +133,12 @@ def get_miss_mut_prob(dna_seq, dna_tricontext, mut_rate_dict, mutability=False,
         'TGC':'C', 'TGT':'C', 'TGA':'_', 'TGG':'W'}
 
     # Get all codons of the seq
+    logger.denug("Getting codons of seq.. XXX-")
     codons = get_codons(dna_seq)
     missense_prob_vec = []
     
-    # Get the trinucleotide context as list of tuples of 3 elements corresponding to each codon                                  
+    # Get the trinucleotide context as list of tuples of 3 elements corresponding to each codon   
+    logger.debug("Getting tri context seq.. XXX-")                               
     tricontext = codons_trinucleotide_context(dna_tricontext.split(","))
     
     # Iterate through codons and get prob of missense based on context
@@ -143,22 +149,20 @@ def get_miss_mut_prob(dna_seq, dna_tricontext, mut_rate_dict, mutability=False,
         trinucl0, trinucl1, trinucl2  = tricontext[c]
 
         # Print codon info
-        if v:
-            logger.debug(f"\n{colored('>>>')} Codon n: {c}", "\tRef AA:", aa, "\tCodon:", colored(codon))
-            logger.debug("")
-            logger.debug(f"\t\t...{colored(codons[c])}...")
-            logger.debug(f"\t\t..{colored(trinucl0, 0, 0, 255)}....")
-            logger.debug(f"\t\t...{colored(trinucl1, 0, 0, 255)}...")
-            logger.debug(f"\t\t....{colored(trinucl2, 0, 0, 255)}..")
-            logger.debug("")
+        logger.debug(f"\n{colored('>>>')} Codon n: {c}", "\tRef AA:", aa, "\tCodon:", colored(codon))
+        logger.debug("")
+        logger.debug(f"\t\t...{colored(codons[c])}...")
+        logger.debug(f"\t\t..{colored(trinucl0, 0, 0, 255)}....")
+        logger.debug(f"\t\t...{colored(trinucl1, 0, 0, 255)}...")
+        logger.debug(f"\t\t....{colored(trinucl2, 0, 0, 255)}..")
+        logger.debug("")
 
         # Iterate through the possible contexts of a missense mut
         for i, trinucl in enumerate([trinucl0, trinucl1, trinucl2]):
             ref = trinucl[1]
             aa = gencode[codon]
-            if v: 
-                logger.debug(">> Context:", colored(trinucl, 0, 0, 255), "\n   Ref:", ref, "\n")
-                logger.debug("Mut      Mut_prob                Alt_codon   Alt_AA")
+            logger.debug(">> Context:", colored(trinucl, 0, 0, 255), "\n   Ref:", ref, "\n")
+            logger.debug("Mut      Mut_prob                Alt_codon   Alt_AA")
 
             # Iterate through the possible alt 
             for alt in "ACGT":
@@ -183,9 +187,9 @@ def get_miss_mut_prob(dna_seq, dna_tricontext, mut_rate_dict, mutability=False,
                             else:
                                 missense_prob += 0
 
-            if v: logger.debug("")
+            logger.debug("")
 
-        if v: logger.debug(f">> Prob of missense mut: {missense_prob:.3}\n")
+        logger.debug(f">> Prob of missense mut: {missense_prob:.3}\n")
         missense_prob_vec.append(missense_prob)
 
     # Assign 0 prob to the first residue
