@@ -203,7 +203,7 @@ def get_miss_mut_prob(dna_seq,
     return list(missense_prob_vec)
 
 
-def get_miss_mut_prob_dict(mut_rate_dict, seq_df, mutability=False, mutability_config=None, v=False):
+def get_miss_mut_prob_dict(mut_rate_dict, seq_df, mutability=False, mutability_config=None):
     """
     Given a dictionary of mut rate in 96 contexts (mut profile) and a 
     dataframe including Uniprot ID, HUGO symbol and DNA sequences, 
@@ -221,11 +221,11 @@ def get_miss_mut_prob_dict(mut_rate_dict, seq_df, mutability=False, mutability_c
         for _, row in seq_df.iterrows():
             # Mutabilities
             mutability_dict = Mutabilities(row.Uniprot_ID, row.Chr, row.Exons_coord, len(row.Seq_dna), row.Reverse_strand, mutability_config).mutabilities_by_pos
-            miss_prob_dict[f"{row.Uniprot_ID}-F{row.F}"] = get_miss_mut_prob(row.Seq_dna, row.Tri_context, mutability_dict, mutability=True, v=v)
+            miss_prob_dict[f"{row.Uniprot_ID}-F{row.F}"] = get_miss_mut_prob(row.Seq_dna, row.Tri_context, mutability_dict, mutability=True)
 
     else:
         # Process any Protein/fragment in the sequence df
         for _, row in seq_df.iterrows():
-            miss_prob_dict[f"{row.Uniprot_ID}-F{row.F}"] = get_miss_mut_prob(row.Seq_dna, row.Tri_context, mut_rate_dict, v=v)
+            miss_prob_dict[f"{row.Uniprot_ID}-F{row.F}"] = get_miss_mut_prob(row.Seq_dna, row.Tri_context, mut_rate_dict)
     
     return miss_prob_dict
