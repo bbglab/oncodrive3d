@@ -152,8 +152,8 @@ process O3D_chimerax_plot {
     tuple val(cohort), path(inputs), path(genes_csv), path(pos_csv), path(mutations_csv), path(miss_prob_json), path(seq_df_tsv)
 
     output:
-    tuple val(cohort), path("chimerax/attributes/**.defattr")       , emit: chimerax_defattr, optional: true
-    tuple val(cohort), path("chimerax/plots/**.png")                , emit: chimerax_plot, optional: true
+    tuple val(cohort), path("**chimerax/attributes/**.defattr")       , emit: chimerax_defattr, optional: true
+    tuple val(cohort), path("**chimerax/plots/**.png")                , emit: chimerax_plot, optional: true
     tuple val(cohort), path("**.log")                               , emit: log
 
     script:
