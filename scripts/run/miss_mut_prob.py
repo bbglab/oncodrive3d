@@ -133,7 +133,7 @@ def get_miss_mut_prob(dna_seq,
         'TGC':'C', 'TGT':'C', 'TGA':'_', 'TGG':'W'}
 
     # Get all codons of the seq
-    logger.denug("Getting codons of seq.. XXX-")
+    logger.debug("Getting codons of seq.. XXX-")
     codons = get_codons(dna_seq)
     missense_prob_vec = []
     
