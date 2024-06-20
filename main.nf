@@ -112,10 +112,10 @@ process O3D_plot {
     output:
     tuple val(cohort), path("**.summary_plot.png")                               , emit: summary_plot, optional: true
     tuple val(cohort), path("**.genes_plots/**.png")                             , emit: genes_plot, optional: true
-    tuple val(cohort), path("**.associations_plots_2/**.logodds_plot.png")         , emit: logodds_plot, optional: true
-    tuple val(cohort), path("**.associations_plots_2/**.volcano_plot.png")         , emit: volcano_plot, optional: true
-    tuple val(cohort), path("**.associations_plots_2/**.volcano_plot_gene.png")    , emit: volcano_plot_gene, optional: true
-    tuple val(cohort), path("**.3d_clustering_pos.annotated.csv")                , emit: pos_annotated_csv
+    tuple val(cohort), path("**.associations_plots/**.logodds_plot.png")         , emit: logodds_plot, optional: true
+    tuple val(cohort), path("**.associations_plots/**.volcano_plot.png")         , emit: volcano_plot, optional: true
+    tuple val(cohort), path("**.associations_plots/**.volcano_plot_gene.png")    , emit: volcano_plot_gene, optional: true
+    tuple val(cohort), path("**.3d_clustering_pos.annotated.csv")                , emit: pos_annotated_csv, optional: true
     tuple val(cohort), path("**.log")          
 
     script:
@@ -152,9 +152,9 @@ process O3D_chimerax_plot {
     tuple val(cohort), path(inputs), path(genes_csv), path(pos_csv), path(mutations_csv), path(miss_prob_json), path(seq_df_tsv)
 
     output:
-    tuple val(cohort), path("**chimerax/attributes/**.defattr")       , emit: chimerax_defattr, optional: true
-    tuple val(cohort), path("**chimerax/plots/**.png")                , emit: chimerax_plot, optional: true
-    tuple val(cohort), path("**.log")                               , emit: log
+    tuple val(cohort), path("**.chimerax/attributes/**.defattr")       , emit: chimerax_defattr, optional: true
+    tuple val(cohort), path("**.chimerax/plots/**.png")                , emit: chimerax_plot, optional: true
+    tuple val(cohort), path("**.log")                                  , emit: log
 
     script:
     """
