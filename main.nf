@@ -116,6 +116,7 @@ process O3D_plot {
     tuple val(cohort), path("**.associations_plots/**.volcano_plot.png")         , emit: volcano_plot, optional: true
     tuple val(cohort), path("**.associations_plots/**.volcano_plot_gene.png")    , emit: volcano_plot_gene, optional: true
     tuple val(cohort), path("**.3d_clustering_pos.annotated.csv")                , emit: pos_annotated_csv, optional: true
+    tuple val(cohort), path("**.uniprot_feat.tsv")                               , emit: uniprot_feat_csv, optional: true
     tuple val(cohort), path("**.log")          
 
     script:

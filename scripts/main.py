@@ -937,7 +937,6 @@ def chimerax_plot(output_dir,
     logger.info(f"Pixel size: {pixel_size}")
     logger.info(f"Cluster extended: {cluster_ext}")
     logger.info(f"Fragmented proteins: {fragmented_proteins}")
-    logger.info(f"Palette: {palette}")
     logger.info(f"Transparent background: {transparent_bg}")
     logger.info(f"Verbose: {bool(verbose)}")
     logger.info(f'Log path: {os.path.join(output_dir, "log")}')
@@ -953,7 +952,6 @@ def chimerax_plot(output_dir,
                         pixel_size,
                         cluster_ext,
                         fragmented_proteins,
-                        palette,
                         transparent_bg,
                         chimerax_bin)
 

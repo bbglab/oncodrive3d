@@ -73,6 +73,17 @@ def get_key_logscore(intervals):
     return f"{intervals[0]},#0571B0:{intervals[1]},#92C5DE:{intervals[2]},white:{intervals[3]},#F4A582:{intervals[4]},#CA0020"
 
 
+def get_palette(intervals, type="diverging"):
+    
+    # Diverging palette
+    if type == "diverging":
+        return f"{intervals[0]},#0571B0:{intervals[1]},#92C5DE:{intervals[2]},white:{intervals[3]},#F4A582:{intervals[4]},#CA0020"
+    
+    # Sequential palette
+    else:
+        return f"{intervals[0]},#FFFFB2:{intervals[1]},#FECC5C:{intervals[2]},#FD8D3C:{intervals[3]},#F03B20:{intervals[4]},#BD0026"
+
+
 def get_chimerax_command(chimerax_bin, 
                          pdb_path, 
                          chimera_output_path, 
@@ -87,10 +98,9 @@ def get_chimerax_command(chimerax_bin,
                          cohort="",
                          clusters=None,
                          pixelsize=0.1,
-                         palette="YlOrRd-5",
                          transparent_bg=False):
     
-    palette = get_key_logscore(intervals) if attribute == "logscore" else palette
+    palette = get_palette(intervals, type="diverging") if attribute == "logscore" else get_palette(intervals, type="sequential")
     transparent_bg = " transparentBackground  true" if transparent_bg else ""
     
     chimerax_command = (
@@ -217,7 +227,6 @@ def generate_chimerax_plot(output_dir,
                                                             f,
                                                             cohort,
                                                             pixelsize=pixel_size,
-                                                            palette=palette,
                                                             transparent_bg=transparent_bg)
                     subprocess.run(chimerax_command, shell=True)
                     logger.debug(chimerax_command)
@@ -237,7 +246,6 @@ def generate_chimerax_plot(output_dir,
                                                                 cohort,
                                                                 clusters=clusters,
                                                                 pixelsize=pixel_size,
-                                                                palette=palette,
                                                                 transparent_bg=transparent_bg)
                         subprocess.run(chimerax_command, shell=True)
                         logger.debug(chimerax_command)
