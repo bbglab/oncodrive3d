@@ -905,7 +905,6 @@ def comparative_plot(o3d_result_dir_1,
 @click.option("--pixel_size", help="Pixel size (smaller value is larger number of pixels)", type=float, default=0.08)
 @click.option("--cluster_ext", help="Include extended clusters", is_flag=True)
 @click.option("--fragmented_proteins", help="Include fragmented proteins", is_flag=True)
-@click.option("--palette", help="Color palette", type=str, default="YlOrRd-5")
 @click.option("--transparent_bg", help="Set background as transparent", type=str, is_flag=True)
 @click.option("--chimerax_bin", help="Path to chimerax installation", type=str, default="/usr/bin/chimerax")
 @click.option("-v", "--verbose", help="Verbose", is_flag=True)
@@ -920,7 +919,6 @@ def chimerax_plot(output_dir,
                   pixel_size,
                   cluster_ext,
                   fragmented_proteins,
-                  palette,
                   transparent_bg,
                   chimerax_bin,
                   verbose):

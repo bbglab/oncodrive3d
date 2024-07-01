@@ -69,10 +69,6 @@ def get_intervals(attribute_vector, attribute):
     return intervals
 
 
-def get_key_logscore(intervals):
-    return f"{intervals[0]},#0571B0:{intervals[1]},#92C5DE:{intervals[2]},white:{intervals[3]},#F4A582:{intervals[4]},#CA0020"
-
-
 def get_palette(intervals, type="diverging"):
     
     # Diverging palette

@@ -26,6 +26,7 @@
 
 // LAST CANCER WITH CHIMERAX 
 // nextflow run main.nf --indir /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/ --outdir /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer_202404/o3d_output/human_raw --data_dir /workspace/nobackup/scratch/oncodrive3d/datasets_240506 -profile container --vep_input true --verbose true --plot true --chimerax_plot
+// nextflow run main.nf --indir /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/ --outdir /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer_202404/o3d_output/human_mane_raw --data_dir /workspace/nobackup/scratch/oncodrive3d/datasets_mane_240506 -profile container --vep_input true --verbose true --plot true --chimerax_plot true --mane true --seed 64
 
 input_files = params.vep_input ?
     "${params.indir}/{vep,mut_profile}/${params.cohort_pattern}{.vep.tsv.gz,.sig.json}" :
