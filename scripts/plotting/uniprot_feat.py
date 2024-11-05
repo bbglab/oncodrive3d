@@ -18,10 +18,22 @@ def get_evidence(feat):
     """
 
     if "evidences" in feat.keys():
-        evidence = [f'{e["code"]}{" | " + e["source"]["name"] if "source" in e.keys() else ""}' for e in feat["evidences"]]
+        evidence = list(set([f'{e["source"]["name"] if "source" in e.keys() else np.nan}' for e in feat["evidences"]]))
     else:
         evidence = np.nan
     return evidence
+
+
+def get_domain_id(feat):
+    """
+    Get domain ID.
+    """
+
+    if "evidences" in feat.keys() and "source" in feat["evidences"][0]:
+        domain_id = feat["evidences"][0]["source"]["id"]
+    else:
+        domain_id = np.nan
+    return domain_id
 
 
 def get_description(feat):
@@ -85,6 +97,7 @@ def get_batch_prot_feat(batch_ids):
     lst_end = []
     lst_description = []
     lst_evidence = []
+    lst_domain_id = []
 
     types = ["DOMAIN", "DNA_BIND", 
              "ACT_SITE", "BINDING", "SITE",
@@ -102,13 +115,18 @@ def get_batch_prot_feat(batch_ids):
                 lst_end.append(feat["end"])
                 lst_description.append(get_description(feat))
                 lst_evidence.append(get_evidence(feat))
-
+                if feat["type"] == "DOMAIN":
+                    lst_domain_id.append(get_domain_id(feat))
+                else:
+                    lst_domain_id.append(np.nan)
+                    
     return pd.DataFrame({"Uniprot_ID" : lst_uni_id, 
                          "Type" : lst_type, 
                          "Begin" : lst_begin, 
                          "End" : lst_end, 
                          "Description" : lst_description, 
-                         "Evidence" : lst_evidence})
+                         "Evidence" : lst_evidence, 
+                         "Domain_ID" : lst_domain_id})
 
 
 def get_prot_feat(ids, batch_size=100):
@@ -213,6 +231,7 @@ def parse_prot_feat(feat_df):
         lambda x: x["Description"].split(";")[0] if pd.notna(x["Description"]) else np.nan, axis=1)
     feat_df.loc[feat_df["Type"] == "DOMAIN", "Description"] = feat_df.loc[feat_df["Type"] == "DOMAIN", 
                                                                           "Description"].str.replace(r' \d+', '')
+    feat_df["Domain_ID"] = feat_df.pop("Domain_ID")
     
     return feat_df
 
