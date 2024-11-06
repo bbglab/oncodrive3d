@@ -1,3 +1,4 @@
+bgreference==0.7
 adjusttext==1.1.1 
 biopython==1.79
 click==8.1.3

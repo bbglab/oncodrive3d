@@ -30,7 +30,7 @@ import pandas as pd
 import requests
 import sys
 from tqdm import tqdm
-from bgreference import hg38, mm10#mm39
+from bgreference import hg38, mm39
 from Bio.Seq import Seq
 
 
@@ -701,9 +701,11 @@ def process_seq_df(seq_df,
     
     # Add ref DNA seq and its per-site trinucleotide context (entries in Proteins API)
     if organism == "Homo sapiens":
+        logger.debug("Loading reference genome hg38..")
         genome_fun = hg38
     elif organism == "Mus musculus":
-        genome_fun = mm10#mm39
+        logger.debug("Loading reference genome mm39..")
+        genome_fun = mm39
     else:
         raise RuntimeError(f"Failed to recognize '{organism}' as organism. Currently accepted ones are 'Homo sapiens' and 'Mus musculus'. Exiting..")
     seq_df = add_ref_dna_and_context(seq_df, genome_fun)

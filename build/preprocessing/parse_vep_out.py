@@ -12,9 +12,11 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("-i", "--input_vcf", help = "Path of the vcf file used as input", type=str, required=True)
 parser.add_argument("-o", "--output_path", help = "Path of the output file", type=str, required=True)
+parser.add_argument("-c", "--canonical_only", help = "Include only canonical transcripts", type=bool, default=False)
 args = parser.parse_args()
 input_vcf = args.input_vcf
 output_path = args.output_path
+canonical_only = args.canonical_only
 
 # Load vcf and rename columns for the output file
 out_vep = pd.read_csv(input_vcf, sep='\t')
@@ -26,7 +28,8 @@ out_vep = out_vep.rename(columns={"#Uploaded_variation" : "Tumor_Sample_Barcode"
                                   "Feature" : "Transcript_ID"})
 
 # Select only mutations mapped to canonical transcript 
-out_vep = out_vep[out_vep["CANONICAL"] == "YES"]
+if canonical_only:
+    out_vep = out_vep[out_vep["CANONICAL"] == "YES"]
 
 # Parse mutation on the protein
 out_vep["HGVSp_Short"] =  out_vep.apply(lambda x: 
