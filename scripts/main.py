@@ -57,11 +57,8 @@ oncodrive3D run -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input
 
 # =============================================================================
 # TODO: allow procesing without tumor sample info
-# TODO: handle inf of the score (e.g., decimal python package)
 # TODO: fix bug in requirement.txt (bgreference must be installed after setup.py)
 # TODO: add script to generate conf and mutability file
-# TODO: test run on normal tissue
-# TODO: add filter (and logs) for mutated genes without exons coordinate when mutability is provided
 
 # TODO: change progressbar to tqdm in run scripts
 # TODO: change output names?
@@ -172,7 +169,7 @@ def build_datasets(output_dir,
 
 @oncodrive3D.command(context_settings=dict(help_option_names=['-h', '--help']),
                      help="Run 3D-clustering analysis.")
-@click.option("-i", "--input_maf_path", type=click.Path(exists=True), required=True,
+@click.option("-i", "--input_maf_path", type=click.Path(exists=True), required=True, 
               help="Path of the MAF file (or direct VEP output) used as input")
 @click.option("-p", "--mut_profile_path", type=click.Path(exists=True), 
               help="Path of the mutation profile (192 trinucleotide contexts) used as optional input")

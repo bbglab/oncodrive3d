@@ -28,6 +28,9 @@
 // nextflow run main.nf --indir /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/ --outdir /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer_202404/o3d_output/human_raw --data_dir /workspace/nobackup/scratch/oncodrive3d/datasets_240506 -profile container --vep_input true --verbose true --plot true --chimerax_plot
 // nextflow run main.nf --indir /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/ --outdir /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer_202404/o3d_output/human_mane_raw --data_dir /workspace/nobackup/scratch/oncodrive3d/datasets_mane_240506 -profile container --vep_input true --verbose true --plot true --chimerax_plot true --mane true --seed 64
 
+// MOUSE RUN
+// nextflow run main.nf --indir /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_mouse/ --outdir /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer_mouse --data_dir /workspace/nobackup/scratch/oncodrive3d/datasets_mouse -profile conda --ignore_mapping_issues true
+
 input_files = params.vep_input ?
     "${params.indir}/{vep,mut_profile}/${params.cohort_pattern}{.vep.tsv.gz,.sig.json}" :
     "${params.indir}/{maf,mut_profile}/${params.cohort_pattern}{.in.maf,.sig.json}"
@@ -63,7 +66,7 @@ process O3D_run {
     tag "O3D $cohort"
     // label 'process_high'
     debug true
-    queue 'normal,bigmem'
+    queue 'bigmem' //normal,
     // errorStrategy 'retry'
     // maxRetries 2   
     container params.container               
@@ -88,6 +91,7 @@ process O3D_run {
                     -o ${cohort} \\
                     -s ${params.seed} \\
                     -c ${params.cores} \\
+                    ${params.ignore_mapping_issues ? '--thr_mapping_issue 1' : ''} \\
                     ${params.verbose ? '-v' : ''} \\
                     ${params.vep_input ? '--o3d_transcripts --use_input_symbols' : ''} \\
                     ${params.mane ? '--mane' : ''}

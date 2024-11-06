@@ -243,12 +243,6 @@ def parse_maf_input(maf_input_path, seq_df=None, use_o3d_transcripts=False, use_
     maf = read_input(maf_input_path)
     logger.debug(f"Processing [{len(maf)}] total mutations..")
     maf, seq_df = parse_vep_output(maf, seq_df, use_o3d_transcripts, use_input_symbols, mane)
-    
-    # ### DEBUG COMPARE INPUT
-    # logger.critical("Writing maf_00.tsv for debugging")
-    # maf.to_csv("/workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/2024/maf_00.tsv", sep="\t")
-    
-    # ###
 
     # Extract and parse missense mutations
     maf = maf[maf['Variant_Classification'].str.contains('Missense_Mutation|missense_variant')]
@@ -260,11 +254,6 @@ def parse_maf_input(maf_input_path, seq_df=None, use_o3d_transcripts=False, use_
     # Add transcript status from seq_df
     if seq_df is not None:
         maf = add_transcript_info(maf, seq_df)
-
-    # ### DEBUG COMPARE INPUT
-    # logger.critical("Writing maf_01.tsv for debugging")
-    # maf.to_csv("/workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/2024/maf_01.tsv", sep="\t")
-    # ###
     
     return maf.reset_index(drop=True), seq_df
 
@@ -435,6 +424,10 @@ def add_info(mut_gene_df, result_pos_df, cmap, pae=None, sample_info=False):
                                                      if len(mut_gene_df.Confidence[mut_gene_df["Pos"] == x.Pos].values > 0) else np.nan, axis=1)
     result_pos_df["pLDDT_vol"] = result_pos_df.apply(lambda x: weighted_avg_plddt_vol(x["Pos"], mut_gene_df, cmap), axis=1)
     result_pos_df["pLDDT_cl_vol"] = result_pos_df.pop("pLDDT_cl_vol")
+    
+    # WT AA mismatches
+    if "WT_mismatch" in mut_gene_df:
+        result_pos_df["WT_mismatch"] = result_pos_df.apply(lambda x: sum(mut_gene_df[mut_gene_df["Pos"] == x.Pos].WT_mismatch.dropna()), axis=1)
 
     # Sort positions
     result_pos_df = result_pos_df.sort_values("Rank").reset_index(drop=True)
