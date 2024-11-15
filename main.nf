@@ -66,7 +66,7 @@ process O3D_run {
     tag "O3D $cohort"
     // label 'process_high'
     debug true
-    queue 'bigmem' //normal,
+    queue 'bigmem,normal'
     // errorStrategy 'retry'
     // maxRetries 2   
     container params.container               
