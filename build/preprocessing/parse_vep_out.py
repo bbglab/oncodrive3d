@@ -40,34 +40,24 @@ def read_vep_output(file_path):
     return pd.read_table(file_path, skiprows=header_line, usecols=vep_cols)
 
 
-    cols_to_read = ["Variant_Classification",
-                    "Tumor_Sample_Barcode",
-                    "Feature", 
-                    "Transcript_ID",
-                    "Consequence", 
-                    "SYMBOL", 
-                    "Hugo_Symbol",
-                    "CANONICAL", 
-                    "HGVSp_Short",
-                    "Amino_acids", 
-                    "Protein_position"]
-
-
 # Load vcf and rename columns for the output file
 out_vep = read_vep_output(input_vcf)
-out_vep = out_vep.rename(columns={"#Uploaded_variation" : "Tumor_Sample_Barcode",
-                                  "Consequence" : "Variant_Classification",
-                                  "SYMBOL" : "Hugo_Symbol",
-                                  "Feature" : "Transcript_ID"})
+# out_vep = out_vep.rename(columns={"#Uploaded_variation" : "Tumor_Sample_Barcode",
+#                                   "Consequence" : "Variant_Classification",
+#                                   "SYMBOL" : "Hugo_Symbol",
+#                                   "Feature" : "Transcript_ID"})
 
 # Select only mutations mapped to canonical transcript 
 if canonical_only:
     out_vep = out_vep[out_vep["CANONICAL"] == "YES"]
 
-# Parse mutation on the protein
-out_vep["HGVSp_Short"] =  out_vep.apply(lambda x: 
-                              "p." + x["Amino_acids"].split("/")[0] + str(x["Protein_position"]) + x["Amino_acids"].split("/")[1] 
-                              if len(x["Amino_acids"].split("/")) > 1 
-                              else np.nan, axis=1)
-out_vep = out_vep[["Hugo_Symbol", "Tumor_Sample_Barcode", "Variant_Classification", "Transcript_ID", "HGVSp_Short"]]
-out_vep.to_csv(output_path, sep="\t", index=False)
+# # Parse mutation on the protein
+# out_vep["HGVSp_Short"] =  out_vep.apply(lambda x: 
+#                               "p." + x["Amino_acids"].split("/")[0] + str(x["Protein_position"]) + x["Amino_acids"].split("/")[1] 
+#                               if len(x["Amino_acids"].split("/")) > 1 
+#                               else np.nan, axis=1)
+
+# Save
+# out_vep = out_vep[["Hugo_Symbol", "Tumor_Sample_Barcode", "Variant_Classification", "Transcript_ID", "HGVSp_Short"]]
+# out_vep = out_vep.dropna(subset="HGVSp_Short")
+out_vep.to_csv(output_path, sep="\t", index=False, compression="gzip")

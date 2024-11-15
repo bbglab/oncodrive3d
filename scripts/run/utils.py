@@ -186,8 +186,9 @@ def read_input(input_path):
                     "Amino_acids", 
                     "Protein_position"]
     
-    header = pd.read_csv(input_path, delimiter='\t', nrows=0)
-    dtype_mapping = {col : "object" for col in cols_to_read if col in header.columns}
+    header = pd.read_table(input_path, nrows=0)
+    cols_to_read = [col for col in cols_to_read if col in header.columns]
+    dtype_mapping = {col : "object" for col in cols_to_read}
     dtype = {key: dtype_mapping[key] for key in cols_to_read if key in dtype_mapping}
     
     return pd.read_table(input_path, usecols=cols_to_read, dtype=dtype)
