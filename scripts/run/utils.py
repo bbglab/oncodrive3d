@@ -15,43 +15,6 @@ logger = daiquiri.getLogger(__logger_name__ + ".run.utils")
 
 ## Parsers
 
-def has_comments_as_header(filename):
-    """
-    Check if the file start with comments as headers.
-    """
-    
-    if filename.endswith('.gz') or filename.endswith('.gzip'):
-        with gzip.open(filename, 'rt') as file:
-            for line in file:
-                if line.startswith("## "):
-                    return True
-                else:
-                    return False  
-    else:
-        with open(filename, 'r') as file:
-            for line in file:
-                if line.startswith("## "):
-                    return True
-                else:
-                    return False
-            
-            
-def read_csv_without_comments(path):
-    """
-    Read a csv file without any lines starting with '##' which 
-    are commonly used as comments (e.g., as in the output of VEP).
-    """
-    
-    # Run bash command
-    command = f"cat {path} | grep -v '^## '"
-    result = subprocess.run(command, shell=True, stdout=subprocess.PIPE)
-
-    # Parse result
-    captured_output = result.stdout.decode('utf-8')
-    df = pd.read_csv(io.StringIO(captured_output), sep='\t', dtype={'Chromosome': str})
-    
-    return df
-
 
 def get_seq_df_input_symbols(input_df, seq_df, mane=False):
     """
@@ -224,13 +187,10 @@ def read_input(input_path):
                     "Protein_position"]
     
     header = pd.read_csv(input_path, delimiter='\t', nrows=0)
-    cols_to_read = [col for col in cols_to_read if col in header.columns]
-    dtype_mapping = {col : "object" for col in cols_to_read}
-
-    # Filter the dtype mapping to include only the columns you are going to read
+    dtype_mapping = {col : "object" for col in cols_to_read if col in header.columns}
     dtype = {key: dtype_mapping[key] for key in cols_to_read if key in dtype_mapping}
     
-    return pd.read_csv(input_path, delimiter='\t', usecols=cols_to_read, dtype=dtype)
+    return pd.read_table(input_path, usecols=cols_to_read, dtype=dtype)
 
 
 def parse_maf_input(maf_input_path, seq_df=None, use_o3d_transcripts=False, use_input_symbols=False, mane=False):
