@@ -13,60 +13,28 @@ and rank based comparison.
 # Build datasets
 
 cd path/to/oncodrive3D
-oncodrive3D build-datasets
 oncodrive3D build-datasets -m -v -o datasets_mane
 
 # Run 
             
-oncodrive3D run \
-    -i test/maf/TCGA_WXS_ACC.in.maf  \
-        -p test/mut_profile/TCGA_WXS_ACC.mutrate.json \
-            -o test/results
-                  
-
-singularity exec /workspace/projects/clustering_3d/clustering_3d/build/containers/oncodrive3d_231205.sif oncodrive3D run -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/kidney_pilot/all_mutations.all_samples.tsv -d /workspace/projects/clustering_3d/clustering_3d/datasets_normal -m /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/kidney_pilot/mutability_kidney.json -o <your_output_dir> -C kidney_normal -v -s 128 -t kidney 
-singularity exec /workspace/projects/clustering_3d/clustering_3d/build/containers/oncodrive3d_231205.sif oncodrive3D run -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/kidney_pilot/all_mutations.all_samples.tsv -d /workspace/projects/clustering_3d/clustering_3d/datasets_normal -m /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/kidney_pilot/mutability_kidney.json -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/kidney_231205_test -C kidney_normal -v -s 128 -t kidney 
-singularity exec oncodrive3D plot -i /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/kidney_231205_test -c kidney_normal
-
-oncodrive3D run -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/kidney_pilot/all_mutations.all_samples.tsv -d /workspace/nobackup/scratch/oncodrive3d/datasets -m /workspace/projects/clustering_3d/o3d_analysys/datasets/input/normal/kidney_pilot/mutability_kidney.json -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/kidney_240404 -C kidney_normal -v -s 128 -t kidney 
-
-
--- Old & nEw comparison
-
-- Old
-oncodrive3D run -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/maf/PCAWG_WGS_ESO_ADENOCA.in.maf -p /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/mut_profile/PCAWG_WGS_ESO_ADENOCA.mutrate.json -d /workspace/nobackup/scratch/oncodrive3d/datasets_last_real -C PCAWG_WGS_ESO_ADENOCA -o /workspace/projects/clustering_3d/dev_testing/result/o3d/PCAWG_WGS_ESO_ADENOCA -s 128 -c 10
-
-- New
-oncodrive3D run -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/maf/PCAWG_WGS_ESO_ADENOCA.in.maf -p /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/mut_profile/PCAWG_WGS_ESO_ADENOCA.sig.json -d /workspace/nobackup/scratch/oncodrive3d/datasets_last_real -C PCAWG_WGS_ESO_ADENOCA -o /workspace/projects/clustering_3d/dev_testing/result/o3d/PCAWG_WGS_ESO_ADENOCA_new -s 128 -c 10
-
-- New vep output as input
-oncodrive3D run -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/vep/PCAWG_WGS_ESO_ADENOCA.vep.tsv.gz -p /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/mut_profile/PCAWG_WGS_ESO_ADENOCA.sig.json -d /workspace/nobackup/scratch/oncodrive3d/datasets_last_real -C PCAWG_WGS_ESO_ADENOCA -o /workspace/projects/clustering_3d/dev_testing/result/o3d/PCAWG_WGS_ESO_ADENOCA_new_vep -s 128 -c 10 --o3d_transcripts
-oncodrive3D run -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/vep/TCGA_WXS_BLCA.vep.tsv.gz -p /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/mut_profile/TCGA_WXS_BLCA.sig.json -d /workspace/nobackup/scratch/oncodrive3d/datasets_last_real -C TCGA_WXS_BLCA -o /workspace/projects/clustering_3d/dev_testing/result/o3d/TCGA_WXS_BLCA_new -s 128 -c 10 --o3d_transcripts --use_input_symbols -v
-oncodrive3D run -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/vep/CBIOP_WXS_ACY_2019.vep.tsv.gz -p /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/mut_profile/CBIOP_WXS_ACY_2019.sig.json -d /workspace/nobackup/scratch/oncodrive3d/datasets_240506 -C CBIOP_WXS_ACY_2019 -o /workspace/projects/clustering_3d/dev_testing/result/o3d/test_240612 -s 26 -c 10 -v --o3d_transcripts --use_input_symbols -v
-
-# New vep output as input MANE
-oncodrive3D run -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/vep/PCAWG_WGS_ESO_ADENOCA.vep.tsv.gz -p /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/mut_profile/PCAWG_WGS_ESO_ADENOCA.sig.json -d /workspace/nobackup/scratch/oncodrive3d/datasets_mane_last_real -C PCAWG_WGS_ESO_ADENOCA -o /workspace/projects/clustering_3d/dev_testing/result/o3d/PCAWG_WGS_ESO_ADENOCA_new_mane_vep -s 128 -c 10 --o3d_transcripts --use_input_symbols -v --mane
-oncodrive3D run -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/vep/TCGA_WXS_BLCA.vep.tsv.gz -p /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/mut_profile/TCGA_WXS_BLCA.sig.json -d /workspace/nobackup/scratch/oncodrive3d/datasets_mane_last_real -C TCGA_WXS_BLCA -o /workspace/projects/clustering_3d/dev_testing/result/o3d/TCGA_WXS_BLCA_new_mane -s 128 -c 10 --o3d_transcripts --use_input_symbols -v --mane
-
+oncodrive3D run -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/vep/TCGA_WXS_BLCA.vep.tsv.gz \
+    -p /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/mut_profile/TCGA_WXS_BLCA.sig.json \
+        -d /workspace/nobackup/scratch/oncodrive3d/datasets_mane_last_real \
+            -C TCGA_WXS_BLCA \
+                -o /workspace/projects/clustering_3d/dev_testing/result/o3d/TCGA_WXS_BLCA_new_mane \
+                    -s 128 -c 10 --o3d_transcripts --use_input_symbols -v --mane
 
 # Plot
 
-# oncodrive3D plot --output_tsv --non_significant -r kidney_normal -g /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/results/TCGA_WXS_BLCA.3d_clustering_genes.tsv -p /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/results/TCGA_WXS_BLCA.3d_clustering_pos.tsv -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/maf/TCGA_WXS_BLCA.in.maf -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/plots -m /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/mut_profile/TCGA_WXS_BLCA.mutrate.json -d /workspace/projects/clustering_3d/clustering_3d/datasets -a /workspace/projects/clustering_3d/o3d_analysys/datasets/annotations
+# oncodrive3D plot --output_tsv --non_significant -r kidney_normal \
+    -g /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/results/TCGA_WXS_BLCA.3d_clustering_genes.tsv \
+        -p /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/results/TCGA_WXS_BLCA.3d_clustering_pos.tsv \
+            -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/maf/TCGA_WXS_BLCA.in.maf \
+                -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/plots \
+                    -m /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/mut_profile/TCGA_WXS_BLCA.mutrate.json \
+                        -d /workspace/projects/clustering_3d/clustering_3d/datasets \
+                            -a /workspace/projects/clustering_3d/o3d_analysys/datasets/annotations
 """
-
-
-# =============================================================================
-# TODO: allow procesing without tumor sample info
-# TODO: fix bug in requirement.txt (bgreference must be installed after setup.py)
-# TODO: add script to generate conf and mutability file
-
-# TODO: change progressbar to tqdm in run scripts
-# TODO: change output names?
-# TODO: change repo name
-# TODO: fix doc
-# TODO: update doc for normal tissue application
-# TODO: suppress verbosity of multi-threading download of structures
-# =============================================================================
 
 
 import json
@@ -283,6 +251,9 @@ def run(input_maf_path,
                                    use_o3d_transcripts=o3d_transcripts,
                                    use_input_symbols=use_input_symbols, 
                                    mane=mane)
+    
+    data = data[:100000]                   ######### SUBSET FOR DEBUGGING
+    logger.debug(f"{seq_df.Chr.unique()}")
     
     if len(data) > 0:
 
@@ -536,8 +507,6 @@ def run(input_maf_path,
 # Example:
 # oncodrive3D build-annotations -o annotations_final -v -d /workspace/projects/clustering_3d/clustering_3d/datasets
 
-# TODO: maybe use as input the path to datasets, then retrieve the structure from there.
-
 @oncodrive3D.command(context_settings=dict(help_option_names=['-h', '--help']),
                help="Build annotations - Required (once) only to plot annotations.")
 @click.option("-d", "--data_dir", help="Path to datasets", type=str, required=True)
@@ -592,9 +561,6 @@ def build_annotations(data_dir,
 # Example:
 # oncodrive3D plot -i /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/2024/ -d /workspace/nobackup/scratch/oncodrive3d/datasets_240506/ -a /workspace/nobackup/scratch/oncodrive3d/annotations_240506/ -o /workspace/projects/clustering_3d/dev_testing/result/plots -c all_samples_raw --title "Bladder normal tissue" --non_significant --output_tsv -v --summary_alpha 0.3
 
-# TO DO
-# - Add a check for lst hratios that match with lst tracks and annotations
-# - Add a check for the names of tracks and annotations
 
 @oncodrive3D.command(context_settings=dict(help_option_names=['-h', '--help']),
                help="Generate plots for a quick interpretation of the 3D-clustering analysis.")
@@ -769,9 +735,6 @@ def plot(gene_result_path,
 # Example:
 # oncodrive3D comparative-plot -i /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/2024/ -c all_samples_raw -I /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer_202404/o3d_output/human_raw/run_2024-05-07_17-46-44 -C TCGA_WXS_BRCA -d /workspace/nobackup/scratch/oncodrive3d/datasets_240506/ -a /workspace/nobackup/scratch/oncodrive3d/annotations_240506/ -o /workspace/projects/clustering_3d/dev_testing/result/plots -v
 
-# TO DO:
-# - Test plots with non-missense mutations
-# - Enable not morrirs for non-missensem mutations
 
 @oncodrive3D.command(context_settings=dict(help_option_names=['-h', '--help']),
                help="Generate plots to compare two runs of 3D-clustering analysis.")
