@@ -18,10 +18,43 @@ input_vcf = args.input_vcf
 output_path = args.output_path
 canonical_only = args.canonical_only
 
+
+def read_vep_output(file_path):
+    """
+    Parse VEP output skipping heading comments.
+    """
+    
+    with open(file_path, 'r') as file:
+        # Skip lines starting with '##'
+        lines = file.readlines()
+        header_line = None
+        for i, line in enumerate(lines):
+            if not line.startswith("## "):
+                header_line = i
+                break
+        if header_line is None:
+            raise ValueError("No header line found.")
+
+    vep_cols = ["#Uploaded_variation", "Feature", "Consequence", "SYMBOL", "CANONICAL", "Protein_position", "Amino_acids"]
+    
+    return pd.read_table(file_path, skiprows=header_line, usecols=vep_cols)
+
+
+    cols_to_read = ["Variant_Classification",
+                    "Tumor_Sample_Barcode",
+                    "Feature", 
+                    "Transcript_ID",
+                    "Consequence", 
+                    "SYMBOL", 
+                    "Hugo_Symbol",
+                    "CANONICAL", 
+                    "HGVSp_Short",
+                    "Amino_acids", 
+                    "Protein_position"]
+
+
 # Load vcf and rename columns for the output file
-out_vep = pd.read_csv(input_vcf, sep='\t')
-vep_cols = ["#Uploaded_variation", "Feature", "Consequence", "SYMBOL", "CANONICAL", "Protein_position", "Amino_acids"]
-out_vep = out_vep[vep_cols]
+out_vep = read_vep_output(input_vcf)
 out_vep = out_vep.rename(columns={"#Uploaded_variation" : "Tumor_Sample_Barcode",
                                   "Consequence" : "Variant_Classification",
                                   "SYMBOL" : "Hugo_Symbol",
