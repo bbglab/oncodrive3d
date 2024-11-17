@@ -4,19 +4,19 @@ Contains functions to perform the 3D clustering of missense mutations.
 
 import multiprocessing
 import os
-
+import json
 import daiquiri
 import networkx.algorithms.community as nx_comm
 import numpy as np
 import pandas as pd
 
 from scripts import __logger_name__
+
 from scripts.run.communities import get_community_index_nx, get_network
-from scripts.run.miss_mut_prob import get_unif_gene_miss_prob
-from scripts.run.score_and_simulations import (get_anomaly_score,
-                                               get_sim_anomaly_score,
-                                               recompute_inf_score)
-from scripts.run.utils import add_info
+from scripts.run.pvalues import get_final_gene_result
+from scripts.run.miss_mut_prob import get_miss_mut_prob_dict, mut_rate_vec_to_dict, get_unif_gene_miss_prob
+from scripts.run.score_and_simulations import get_anomaly_score, get_sim_anomaly_score, recompute_inf_score
+from scripts.run.utils import add_info, get_gene_entry, add_nan_clust_cols, parse_maf_input, sort_cols, empty_result_pos
 
 logger = daiquiri.getLogger(__logger_name__ + ".run.clustering")
 
@@ -486,3 +486,284 @@ def clustering_3d_mp_wrapper(genes,
     result_gene = pd.concat([pd.concat(r[0]) for r in results])
     
     return result_pos, result_gene
+
+
+def run_clustering(input_maf_path,
+                    mut_profile_path,
+                    mutability_config_path,
+                    output_dir,
+                    cmap_path,
+                    seq_df_path,
+                    plddt_path,
+                    pae_path,
+                    n_iterations,
+                    alpha,
+                    cmap_prob_thr,
+                    cores,
+                    seed,
+                    verbose,
+                    cancer_type,
+                    cohort,
+                    no_fragments,
+                    only_processed,
+                    thr_mapping_issue,
+                    o3d_transcripts,
+                    use_input_symbols,
+                    mane,
+                    sample_info):
+    """
+    Main function to lunch the 3D clustering analysis.
+    """
+
+    # Load
+    # ====
+
+    seq_df = pd.read_csv(seq_df_path, sep="\t")
+    data, seq_df = parse_maf_input(input_maf_path, 
+                                    seq_df, 
+                                    use_o3d_transcripts=o3d_transcripts,
+                                    use_input_symbols=use_input_symbols, 
+                                    mane=mane)
+
+    if len(data) > 0:
+
+
+        # Run
+        # ===
+
+        # Get genes with enough mut
+        result_np_gene_lst = []
+        genes = data.groupby("Gene").apply(len)
+        genes_mut = genes[genes >= 2]
+        genes_no_mut = genes[genes < 2].index
+
+        if len(genes_no_mut) > 0:
+            logger.debug(f"Detected [{len(genes_no_mut)}] genes without enough mutations: Skipping..")
+            result_gene = pd.DataFrame({"Gene" : genes_no_mut,
+                                        "Uniprot_ID" : np.nan,
+                                        "F" : np.nan,
+                                        "Mut_in_gene" : 1,
+                                        "Ratio_not_in_structure" : np.nan,
+                                        "Ratio_WT_mismatch" : np.nan,
+                                        "Mut_zero_mut_prob" : np.nan,
+                                        "Pos_zero_mut_prob" : np.nan,
+                                        "Transcript_ID" : get_gene_entry(data, genes_no_mut, "Transcript_ID"),
+                                        "O3D_transcript_ID" : get_gene_entry(data, genes_no_mut, "O3D_transcript_ID"),
+                                        "Transcript_status" : get_gene_entry(data, genes_no_mut, "Transcript_status"),
+                                        "Status" : "No_mut"})
+            result_np_gene_lst.append(result_gene)
+
+        # Seq df for metadata info
+        metadata_cols = [col for col in ["Gene", "HGNC_ID", "Ens_Gene_ID", "Ens_Transcr_ID", "Refseq_prot", "Uniprot_ID", "F"] if col in seq_df.columns]
+        metadata_mapping_cols = [col for col in ["Seq", "Chr", "Reverse_strand", "Exons_coord", "Seq_dna", "Tri_context", "Reference_info"] if col in seq_df.columns]
+        seq_df_all = seq_df[seq_df["Gene"].isin(genes.index)].copy()
+
+        # Get genes with corresponding Uniprot-ID mapping        
+        gene_to_uniprot_dict = {gene : uni_id for gene, uni_id in seq_df[["Gene", "Uniprot_ID"]].drop_duplicates().values}
+        genes_to_process = [gene for gene in genes_mut.index if gene in gene_to_uniprot_dict.keys()]
+        seq_df = seq_df[seq_df["Gene"].isin(genes_to_process)].reset_index(drop=True)
+        genes_no_mapping = genes[[gene in genes_mut.index and gene not in gene_to_uniprot_dict.keys() for gene in genes.index]]
+        if len(genes_no_mapping) > 0:
+            logger.debug(f"Detected [{len(genes_no_mapping)}] genes without IDs mapping: Skipping..")
+            result_gene = pd.DataFrame({"Gene" : genes_no_mapping.index,
+                                        "Uniprot_ID" : np.nan,
+                                        "F" : np.nan,
+                                        "Mut_in_gene" : genes_no_mapping.values,
+                                        "Ratio_not_in_structure" : np.nan,
+                                        "Ratio_WT_mismatch" : np.nan,
+                                        "Mut_zero_mut_prob" : np.nan,
+                                        "Pos_zero_mut_prob" : np.nan,
+                                        "Transcript_ID" : get_gene_entry(data, genes_no_mapping.index, "Transcript_ID"),
+                                        "O3D_transcript_ID" : get_gene_entry(data, genes_no_mapping.index, "O3D_transcript_ID"),
+                                        "Transcript_status" : get_gene_entry(data, genes_no_mapping.index, "Transcript_status"),
+                                        "Status" : "No_ID_mapping"})
+            result_np_gene_lst.append(result_gene)
+        
+        # Filter on fragmented (AF-F) genes
+        if no_fragments:
+            # Return the fragmented genes as non processed output
+            genes_frag = seq_df[seq_df.F.str.extract(r'(\d+)', expand=False).astype(int) > 1]
+            genes_frag = genes_frag.Gene.reset_index(drop=True).values
+            genes_frag_mut = genes_mut[[gene in genes_frag for gene in genes_mut.index]]
+            genes_frag = genes_frag_mut.index.values
+            if len(genes_frag) > 0:
+                logger.debug(f"Detected [{len(genes_frag)}] fragmented genes with disabled fragments processing: Skipping..")
+                result_gene = pd.DataFrame({"Gene" : genes_frag,
+                                            "Uniprot_ID" : np.nan, 
+                                            "F" : np.nan,
+                                            "Mut_in_gene" : genes_frag_mut.values,
+                                            "Ratio_not_in_structure" : np.nan,
+                                            "Ratio_WT_mismatch" : np.nan,
+                                            "Mut_zero_mut_prob" : np.nan,
+                                            "Pos_zero_mut_prob" : np.nan,
+                                            "Transcript_ID" : get_gene_entry(data, genes_frag, "Transcript_ID"),
+                                            "O3D_transcript_ID" : get_gene_entry(data, genes_frag, "O3D_transcript_ID"),
+                                            "Transcript_status" : get_gene_entry(data, genes_frag, "Transcript_status"),
+                                            "Status" : "Fragmented"})
+                result_np_gene_lst.append(result_gene)
+                # Filter out from genes to process and seq df
+                genes_to_process = [gene for gene in genes_to_process if gene not in genes_frag]
+                seq_df = seq_df[seq_df["Gene"].isin(genes_to_process)].reset_index(drop=True)
+                
+        # Filter on start-loss mutations
+        start_mut_ix = data["Pos"] == 1
+        start_mut = sum(start_mut_ix)
+        if start_mut > 0:
+            genes_start_mut = list(data[start_mut_ix].Gene.unique())
+            data = data[~start_mut_ix]
+            logger.warning(f"Detected {start_mut} start-loss mutations in {len(genes_start_mut)} genes {genes_start_mut}: Filtering mutations..")
+
+
+        # Missense mut prob
+        # =================
+        
+        # Using mutabilities if provided
+        if mutability_config_path is not None:
+            logger.info("Computing missense mut probabilities using mutabilities..")
+            mutab_config = json.load(open(mutability_config_path, encoding="utf-8"))
+            logger.debug("Init mutabilities module..")
+            init_mutabilities_module(mutab_config)
+            seq_df = seq_df[seq_df["Reference_info"] == 1]   
+            seq_df['Exons_coord'] = seq_df['Exons_coord'].apply(eval)  
+            genes_to_process = [gene for gene in genes_to_process if gene in seq_df["Gene"].unique()]
+            genes_not_mutability = [gene for gene in genes_to_process if gene not in seq_df["Gene"].unique()]
+            logger.debug("Computing probabilities..")
+            miss_prob_dict = get_miss_mut_prob_dict(mut_rate_dict=None, seq_df=seq_df,
+                                                    mutability=True, mutability_config=mutab_config)
+            
+            if len(genes_not_mutability) > 0:   
+                logger.debug(f"Detected [{len(genes_not_mutability)}] genes without mutability information: Skipping..")
+                result_gene = pd.DataFrame({"Gene" : genes_not_mutability,
+                                            "Uniprot_ID" : np.nan,
+                                            "F" : np.nan,
+                                            "Mut_in_gene" : np.nan,
+                                            "Ratio_not_in_structure" : np.nan,
+                                            "Ratio_WT_mismatch" : np.nan,
+                                            "Mut_zero_mut_prob" : np.nan,
+                                            "Pos_zero_mut_prob" : np.nan,
+                                            "Transcript_ID" : get_gene_entry(data, genes_not_mutability, "Transcript_ID"),
+                                            "O3D_transcript_ID" : get_gene_entry(data, genes_not_mutability, "O3D_transcript_ID"),
+                                            "Transcript_status" : get_gene_entry(data, genes_not_mutability, "Transcript_status"),
+                                            "Status" : "No_mutability"})
+                result_np_gene_lst.append(result_gene)
+                
+        # Using mutational profiles
+        elif mut_profile_path is not None:
+            # Compute dict from mut profile of the cohort and dna sequences
+            mut_profile = json.load(open(mut_profile_path, encoding="utf-8"))
+            logger.info("Computing missense mut probabilities..")
+            if not isinstance(mut_profile, dict):
+                mut_profile = mut_rate_vec_to_dict(mut_profile)
+            miss_prob_dict = get_miss_mut_prob_dict(mut_rate_dict=mut_profile, seq_df=seq_df)
+        else:
+            logger.warning("Mutation profile not provided: Uniform distribution will be used for scoring and simulations.")
+            miss_prob_dict = None
+
+
+        # Run 3D-clustering
+        # =================
+        
+        if len(result_np_gene_lst):
+            result_np_gene = pd.concat(result_np_gene_lst)
+            result_np_gene["Uniprot_ID"] = [gene_to_uniprot_dict[gene] if gene in gene_to_uniprot_dict.keys() else np.nan for gene in result_np_gene["Gene"].values]
+        if len(genes_to_process) > 0:
+            logger.info(f"Performing 3D-clustering on [{len(seq_df)}] proteins..")
+            seq_df = seq_df[["Gene", "Uniprot_ID", "F", "Seq"]]
+            plddt_df = pd.read_csv(plddt_path, sep="\t", usecols=["Pos", "Confidence", "Uniprot_ID"], dtype={"Pos" : np.int32,
+                                                                                                                "Confidence" : np.float32, 
+                                                                                                                "Uniprot_ID" : "object"})  
+            
+            result_pos, result_gene = clustering_3d_mp_wrapper(genes=genes_to_process,
+                                                                data=data,
+                                                                cmap_path=cmap_path,
+                                                                miss_prob_dict=miss_prob_dict,
+                                                                seq_df=seq_df,
+                                                                plddt_df=plddt_df,
+                                                                num_cores=cores,
+                                                                alpha=alpha,
+                                                                num_iteration=n_iterations,
+                                                                cmap_prob_thr=cmap_prob_thr,
+                                                                seed=seed,
+                                                                pae_path=pae_path,
+                                                                thr_mapping_issue=thr_mapping_issue,
+                                                                sample_info=sample_info)
+            if result_np_gene_lst:
+                result_gene = pd.concat((result_gene, result_np_gene))
+        else:
+            result_gene = result_np_gene
+            result_pos = None
+
+
+        # Save
+        #=====
+        
+        os.makedirs(output_dir, exist_ok=True)
+        result_gene["Cancer"] = cancer_type
+        result_gene["Cohort"] = cohort
+        output_path_pos = os.path.join(output_dir, f"{cohort}.3d_clustering_pos.csv")
+        output_path_genes = os.path.join(output_dir, f"{cohort}.3d_clustering_genes.csv")
+        
+        # Save processed seq_df and input files
+        seq_df_output = os.path.join(output_dir, f"{cohort}.seq_df.processed.tsv")
+        input_mut_output = os.path.join(output_dir, f"{cohort}.mutations.processed.tsv")
+        input_prob_output = os.path.join(output_dir, f"{cohort}.miss_prob.processed.json")
+        logger.info(f"Saving {seq_df_output}")
+        seq_df_all[metadata_cols + metadata_mapping_cols].to_csv(seq_df_output, sep="\t", index=False)
+        logger.info(f"Saving {input_mut_output}")
+        data.to_csv(input_mut_output, sep="\t", index=False)
+        logger.info(f"Saving {input_prob_output}")
+        with open(input_prob_output, "w") as json_file:
+            json.dump(miss_prob_dict, json_file)
+        
+        # Add extra metadata
+        result_gene = result_gene.merge(seq_df_all[metadata_cols], on=["Gene", "Uniprot_ID"], how="left")
+
+        if only_processed:
+            result_gene = result_gene[result_gene["Status"] == "Processed"]
+
+        if result_pos is None:
+            # Save gene-level result and empty res-level result
+            logger.warning("Did not processed any genes!")
+            result_gene = add_nan_clust_cols(result_gene)
+            result_gene = sort_cols(result_gene)
+            if not sample_info:
+                result_gene.drop(columns=[col for col in ['Tot_samples', 
+                                                            'Samples_in_top_vol', 
+                                                            'Samples_in_top_cl_vol'] if col in result_gene.columns], inplace=True)   
+            if no_fragments:
+                result_gene = result_gene.drop(columns=[col for col in ["F", "Mut_in_top_F", "Top_F"] if col in result_gene.columns])
+            empty_result_pos(sample_info).to_csv(output_path_pos, index=False)
+            result_gene.to_csv(output_path_genes, index=False)
+
+            logger.info(f"Saving (empty) {output_path_pos}")
+            logger.info(f"Saving {output_path_genes}")
+
+        else:
+            # Save res-level result
+            result_pos["Cancer"] = cancer_type
+            result_pos["Cohort"] = cohort
+            if not sample_info:
+                result_pos.drop(columns=[col for col in ['Tot_samples', 
+                                                            'Samples_in_vol', 
+                                                            'Samples_in_cl_vol'] if col in result_gene.columns], inplace=True) 
+            result_pos.to_csv(output_path_pos, index=False)
+
+            # Get gene global pval, qval, and clustering annotations and save gene-level result
+            result_gene = get_final_gene_result(result_pos, result_gene, alpha, sample_info)
+            result_gene = sort_cols(result_gene) 
+            if not sample_info:
+                result_gene.drop(columns=[col for col in ['Tot_samples', 
+                                                            'Samples_in_top_vol', 
+                                                            'Samples_in_top_cl_vol'] if col in result_gene.columns], inplace=True)   
+            if no_fragments:
+                result_gene.drop(columns=[col for col in ["F", "Mut_in_top_F", "Top_F"] if col in result_gene.columns], inplace=True)
+            with np.printoptions(linewidth=10000):
+                result_gene.to_csv(output_path_genes, index=False)
+
+            logger.info(f"Saving {output_path_pos}")
+            logger.info(f"Saving {output_path_genes}")
+
+        logger.info("3D-clustering analysis completed!")
+
+    else:
+        logger.warning("No missense mutations were found in the input MAF. Consider checking your data: the field 'Variant_Classification' should include either 'Missense_Mutation' or 'missense_variant'")
