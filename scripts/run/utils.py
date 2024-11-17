@@ -203,8 +203,6 @@ def parse_maf_input(maf_input_path, seq_df=None, use_o3d_transcripts=False, use_
     logger.info(f"Reading input mutations file..")
     maf = read_input(maf_input_path)
     logger.debug(f"Processing [{len(maf)}] total mutations..")
-    if "Protein_position" in maf.columns:                       #################################### DEBUG - TO REMOVE <<----
-        maf = maf.dropna(subset="Protein_position")             #################################### DEBUG - TO REMOVE <<----
     maf, seq_df = parse_vep_output(maf, seq_df, use_o3d_transcripts, use_input_symbols, mane)
 
     # Extract and parse missense mutations
@@ -213,7 +211,6 @@ def parse_maf_input(maf_input_path, seq_df=None, use_o3d_transcripts=False, use_
         maf = maf[~maf['Protein_position'].astype(str).str.contains('-')] # Filter DBS
     logger.debug(f"Processing [{len(maf)}] missense mutations..")
     maf = parse_mutations(maf)                       
-    maf = maf[maf["Gene"].isin(["Braf", "Kras", "Nras", "H2-M5", "Septin3", "Septin2", "Septin7"])]   #################################### DEBUG - TO REMOVE <<----
     
     # Add transcript status from seq_df
     if seq_df is not None:
