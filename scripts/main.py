@@ -213,8 +213,7 @@ def run(input_maf_path,
         sample_info):
     """Run Oncodrive3D."""
 
-    ## Initialize
-
+    # Initialize
     plddt_path = os.path.join(data_dir, "confidence.tsv")
     cmap_path = os.path.join(data_dir, "prob_cmaps")
     seq_df_path = os.path.join(data_dir, "seq_for_mut_prob.tsv")

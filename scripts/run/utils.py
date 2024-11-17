@@ -15,7 +15,6 @@ logger = daiquiri.getLogger(__logger_name__ + ".run.utils")
 
 ## Parsers
 
-
 def get_seq_df_input_symbols(input_df, seq_df, mane=False):
     """
     Update gene names (HUGO Symbols) of O3D built sequence with names in input file.
@@ -412,6 +411,7 @@ def add_nan_clust_cols(result_gene, sample_info=False):
                'Score_obs_sim_top_vol', 
                "Clust_res", 
                'Clust_mut', 
+               'Pos_top_vol',
                'Mut_in_top_vol', 
                "Mut_in_top_cl_vol",
                "PAE_top_vol", 
@@ -445,10 +445,11 @@ def sort_cols(result_gene):
             'C_gene', 
             'C_pos', 
             'C_label', 
-            'Score_obs_sim_top_vol', 
-            "Clust_res",
             'Mut_in_gene', 
-            'Clust_mut', 
+            'Clust_mut',
+            "Clust_res", 
+            'Pos_top_vol',
+            'Score_obs_sim_top_vol', 
             'Mut_in_top_vol', 
             "Mut_in_top_cl_vol",
             'Tot_samples', 

@@ -23,14 +23,11 @@ def get_final_gene_result(result_pos, result_gene, alpha_gene=0.05, sample_info=
     pos_hits = result_pos[result_pos["C"] == 1]
 
     if len(pos_hits) > 0:
-
         # Get significant positions and communities for each gene
         clusters = pos_hits.groupby("Gene").apply(lambda x: (x["Pos"].values)).reset_index().rename(columns={0 : "C_pos"})
         clusters["C_label"] = pos_hits.groupby("Gene").apply(lambda x: x["Cluster"].values).reset_index(drop=True)
-        
         # Annotate each gene with significant hits
         result_gene = clusters.merge(result_gene, on="Gene", how="outer")
-
     else:
         result_gene["C_pos"] = np.nan
         result_gene["C_label"] = np.nan
@@ -39,20 +36,22 @@ def get_final_gene_result(result_pos, result_gene, alpha_gene=0.05, sample_info=
     gene_pvals = result_pos.groupby("Gene").apply(lambda x: min(x["pval"].values)).reset_index().rename(columns={0 : "pval"})
     
     # Sample info and largest density among hits
-    # > NB: samples info for fragments will be displayed as they are individual proteins <
+    top_vol_ix = result_pos[(result_pos['pval'] == result_pos['pval'].min()) & 
+                            (result_pos['Score_obs_sim'] == result_pos['Score_obs_sim'].max())].index.values[0]
+    gene_pvals["Pos_top_vol"] = result_pos.iloc[top_vol_ix].Pos
     if sample_info:
-        gene_pvals["Tot_samples"] = result_pos.groupby("Gene").apply(lambda x: x["Tot_samples"].unique()[0]).values
-        gene_pvals["Samples_in_top_vol"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].Samples_in_vol)).values
-        gene_pvals["Samples_in_top_cl_vol"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].Samples_in_cl_vol)).values
-    gene_pvals["Mut_in_top_cl_vol"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].Mut_in_cl_vol)).values
-    gene_pvals["Score_obs_sim_top_vol"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].Score_obs_sim)).values
-    gene_pvals["Mut_in_top_vol"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].Mut_in_vol)).values
-    gene_pvals["PAE_top_vol"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].PAE_vol)).values
-    gene_pvals["pLDDT_top_vol"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].pLDDT_vol)).values
-    gene_pvals["pLDDT_top_cl_vol"] = result_pos.groupby("Gene").apply(lambda x: max(x[x["pval"] == min(x["pval"])].pLDDT_cl_vol)).values
-    
+        gene_pvals["Tot_samples"] = result_pos.iloc[top_vol_ix].Tot_samples
+        gene_pvals["Samples_in_top_vol"] = result_pos.iloc[top_vol_ix].Samples_in_vol
+        gene_pvals["Samples_in_top_cl_vol"] = result_pos.iloc[top_vol_ix].Samples_in_cl_vol
+    gene_pvals["Mut_in_top_vol"] = result_pos.iloc[top_vol_ix].Mut_in_vol
+    gene_pvals["Mut_in_top_cl_vol"] = result_pos.iloc[top_vol_ix].Mut_in_cl_vol
+    gene_pvals["Score_obs_sim_top_vol"] = result_pos.iloc[top_vol_ix].Score_obs_sim
+    gene_pvals["PAE_top_vol"] = result_pos.iloc[top_vol_ix].PAE_vol
+    gene_pvals["pLDDT_top_vol"] = result_pos.iloc[top_vol_ix].pLDDT_vol
+    gene_pvals["pLDDT_top_cl_vol"] = result_pos.iloc[top_vol_ix].pLDDT_cl_vol
+
     # Sort positions and get qval
-    gene_pvals = gene_pvals.sort_values(["pval"], ascending=True).reset_index(drop=True)
+    gene_pvals = gene_pvals.sort_values(["pval", "Score_obs_sim_top_vol"], ascending=[True, False]).reset_index(drop=True)
     not_processed_genes_count = sum(~result_gene.Status.str.contains("Processed", na=False))
     gene_pvals["qval"] = fdr(np.concatenate((gene_pvals["pval"], np.repeat(1, not_processed_genes_count))))[:len(gene_pvals)]
                      
