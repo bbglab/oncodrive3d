@@ -912,9 +912,13 @@ def get_seq_df(datasets_dir,
                                 num_cores, 
                                 rm_weird_chr, 
                                 mane_version=mane_version)
+        
+
+    # # Filter out non-standard chromosomes
+    # chr_lst = [str(i) for i in range(1, 23)] + ['X', 'Y', 'M']
+    # seq_df = seq_df[seq_df.Chr.isin(chr_lst) | seq_df.Chr.isna()].reset_index(drop=True)
     
     # Save
-    # seq_df = seq_df.merge(gene_ids_df, on=["Uniprot_ID", "Ens_Transcr_ID"], how="left")
     seq_df_cols = ['Gene', 'HGNC_ID', 'Ens_Gene_ID', 
                    'Ens_Transcr_ID', 'Uniprot_ID', 'F', 
                    'Seq', 'Chr', 'Reverse_strand', 'Exons_coord', 

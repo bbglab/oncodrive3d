@@ -51,31 +51,38 @@ def process_mapping_issue(issue_ix,
         
     ratio_issue = sum(issue_ix) / len(mut_gene_df)
     logger_out = f"Detected {sum(issue_ix)} ({ratio_issue*100:.1f}%) {logger_txt} of {gene} ({uniprot_id}-F{af_f}, transcript status = {transcript_status}): "
-    result_gene_df[df_col] = ratio_issue
+    result_gene_df[df_col] = np.round(ratio_issue, 3)
     
-    if ratio_issue > thr and thr != 1:
-        result_gene_df["Status"] = issue_type
-        if transcript_status == "Match":
-            logger.warning(logger_out + "Filtering the gene")
-        else:
-            logger.debug(logger_out + "Filtering the gene..")
-        filter_gene = True
-        
-        return filter_gene, result_gene_df, None
     
+    # Do not filter neither gene neither mut
+    if issue_type == "WT_mismatch" and thr == 1:
+        logger.warning(logger_out + "Filtering of mismatching mutations disabled ('thr_mapping_issue' = 1)..")
+        mut_gene_df.loc[issue_ix, "WT_mismatch"] = 1 
+        filter_gene = False
+        return filter_gene, result_gene_df, mut_gene_df
+
     else:
-        if thr == 1 and issue_type == "WT_mismatch":
-            logger.warning(logger_out + "Filtering of mismatching mutations disabled ('thr_mapping_issue' = 1)..")
-            mut_gene_df.loc[issue_ix, "Ratio_WT_mismatch"] = 1
+        # Filter gene
+        if ratio_issue >= thr:
+            result_gene_df["Status"] = issue_type
+            
+            if transcript_status == "Match":
+                logger.warning(logger_out + "Filtering the gene")
+            else:
+                logger.debug(logger_out + "Filtering the gene..")
+            filter_gene = True
+            return filter_gene, result_gene_df, None
+        
+        # Filter mut
         else:
             if transcript_status == "Match":
                 logger.warning(logger_out + "Filtering the mutations..")
             else:
                 logger.debug(logger_out + "Filtering the mutations..")    
             mut_gene_df = mut_gene_df[~issue_ix]
-        filter_gene = False
+            filter_gene = False
+            return filter_gene, result_gene_df, mut_gene_df
         
-        return filter_gene, result_gene_df, mut_gene_df
     
     
 def clustering_3d(gene, 
@@ -159,21 +166,29 @@ def clustering_3d(gene,
                                                                          thr_mapping_issue,
                                                                          issue_type="Mut_not_in_structure")
         if filter_gene:
+            logger.info("Filtering gene: True")                                                           ###################### DEEBUG
             return None, result_gene_df
+        else:
+            logger.info("Filtering gene: False")                                                           ###################### DEEBUG
             
     # Check for mismatch between WT reference and WT structure 
-    wt_mismatch_ix = mut_gene_df.apply(lambda x: seq_gene[x.Pos-1] != x.WT, axis=1)
-    logger.debug(f"{gene} - {type(wt_mismatch_ix)}")                                                                       ## <- DEBUGGING, REMOVE WHEN IT IS DONE
+    wt_mismatch_ix = mut_gene_df.apply(lambda x: bool(seq_gene[x.Pos-1] != x.WT), axis=1)
+    logger.info(f"{mut_gene_df}")                                                           ###################### DEEBUG
+    logger.info(f"> All boleans: {all(isinstance(val, bool) for val in wt_mismatch_ix)}")                                                           ###################### DEEBUG
+    if not all(isinstance(val, bool) for val in wt_mismatch_ix):
+        non_bool_items = [(idx, val) for idx, val in enumerate(wt_mismatch_ix) if not isinstance(val, bool)]                                                           ###################### DEEBUG
+        logger.info(f"> {non_bool_items}")
+        logger.info(f"{mut_gene_df}")                                                           ###################### DEEBUG
     if sum(wt_mismatch_ix) > 0:
         filter_gene, result_gene_df, mut_gene_df = process_mapping_issue(wt_mismatch_ix, 
-                                                                         mut_gene_df, 
-                                                                         result_gene_df, 
-                                                                         gene, 
-                                                                         uniprot_id, 
-                                                                         af_f, 
-                                                                         transcript_status, 
-                                                                         thr_mapping_issue,
-                                                                         issue_type="WT_mismatch")
+                                                                        mut_gene_df, 
+                                                                        result_gene_df, 
+                                                                        gene, 
+                                                                        uniprot_id, 
+                                                                        af_f, 
+                                                                        transcript_status, 
+                                                                        thr_mapping_issue,
+                                                                        issue_type="WT_mismatch")
         if filter_gene:
             return None, result_gene_df
 
