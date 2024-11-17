@@ -252,9 +252,6 @@ def run(input_maf_path,
                                    use_input_symbols=use_input_symbols, 
                                    mane=mane)
     
-    data = data[:100000]                   ######### SUBSET FOR DEBUGGING
-    logger.debug(f"{seq_df.Chr.unique()}")
-    
     if len(data) > 0:
 
 
