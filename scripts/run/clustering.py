@@ -276,14 +276,7 @@ def clustering_3d(gene,
     # Get ranked observed score (loglik+_LFC) 
     no_mut_pos = len(result_pos_df)
     sim_anomaly = sim_anomaly.iloc[:no_mut_pos,:].reset_index()
-    
-    # # X----X---------------------------------------------------------------------------------------------------------X TO DEL
-    # if gene == "TP53":
-    #     TMP_PATH_SIM_DF = f"/home/spellegrini/TEMP_DATA/{gene}_simulated_scores.csv"
-    #     logger.info(f"Saving {TMP_PATH_SIM_DF}")
-    #     sim_anomaly.to_csv(TMP_PATH_SIM_DF, index=False)
-    # # X----X---------------------------------------------------------------------------------------------------------X
-    
+
     result_pos_df["Score"] = get_anomaly_score(result_pos_df["Mut_in_vol"], 
                                                      len(mut_gene_df), 
                                                      vol_missense_mut_prob[result_pos_df["Pos"]-1])
@@ -301,13 +294,6 @@ def clustering_3d(gene,
     # Add to the simulated score of each iteration its standard deviation  
     # (makes the method more conservative, eg., avoid borderline cases)
     sim_anomaly.iloc[:,1:] = sim_anomaly.apply(lambda x: x[1:] + x[1:].std(), axis=1)
-    
-    # # X----X---------------------------------------------------------------------------------------------------------X TO DEL
-    # if gene == "TP53":
-    #     TMP_PATH_SIM_DF = f"/home/spellegrini/TEMP_DATA/{gene}_simulated_scores_std.csv"
-    #     logger.info(f"Saving {TMP_PATH_SIM_DF}")
-    #     sim_anomaly.to_csv(TMP_PATH_SIM_DF, index=False)
-    # # X----X---------------------------------------------------------------------------------------------------------X
 
     # Ratio observed and simulated anomaly scores 
     # (used to break the tie in p-values gene sorting)
@@ -318,13 +304,6 @@ def clustering_3d(gene,
 
     # Assign hits
     result_pos_df["C"] = [int(i) for i in result_pos_df["pval"] < alpha]       
-    
-    # # X----X---------------------------------------------------------------------------------------------------------X TO DEL
-    # if gene == "TP53":
-    #     TMP_PATH_OBS_DF = f"/home/spellegrini/TEMP_DATA/{gene}_obs_scores.csv"
-    #     logger.info(f"Saving {TMP_PATH_OBS_DF}")
-    #     result_pos_df.to_csv(TMP_PATH_OBS_DF, index=False)
-    # # X----X---------------------------------------------------------------------------------------------------------X   
     
     # Select extended significant hits
     pos_hits = result_pos_df[result_pos_df["C"] == 1].Pos
@@ -526,7 +505,6 @@ def run_clustering(input_maf_path,
                                     mane=mane)
 
     if len(data) > 0:
-
 
         # Run
         # ===
@@ -746,6 +724,7 @@ def run_clustering(input_maf_path,
                 result_pos.drop(columns=[col for col in ['Tot_samples', 
                                                             'Samples_in_vol', 
                                                             'Samples_in_cl_vol'] if col in result_gene.columns], inplace=True) 
+            result_pos = result_pos.sort_values(["pval", "Score_obs_sim"], ascending=[True, False]).reset_index(drop=True)
             result_pos.to_csv(output_path_pos, index=False)
 
             # Get gene global pval, qval, and clustering annotations and save gene-level result
