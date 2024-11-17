@@ -168,7 +168,7 @@ def build_datasets(output_dir,
 @click.option("--only_processed", is_flag=True,
               help="Include only processed genes in the output")
 @click.option("--thr_mapping_issue", type=float, default=0.1,
-              help="Threshold to filter out genes by the ratio of mutations with mapping issue (out of structure, WT AA mismatch, zero prob to mutate)")
+              help="Threshold to filter out genes by the ratio of mutations with mapping issue (out of structure, WT AA mismatch, zero prob to mutate). Threshold of 1 disable any WT AA mismatch mutations filtering.")
 @click.option("--o3d_transcripts", is_flag=True,
               help="Filter mutations by keeping transcripts included in Oncodrive3D built sequence dataframe. Only if input file (--i) is a raw VEP output")
 @click.option("--use_input_symbols", is_flag=True,
@@ -233,8 +233,8 @@ def run(input_maf_path,
     logger.info(f"Output only processed genes: {only_processed}")
     logger.info(f"Ratio threshold mutations with mapping issue: {thr_mapping_issue}")
     logger.info(f"Seed: {seed}")
-    logger.info(f"Filter input by Oncodrive3D transcripts (only if VEP output is used as input): {o3d_transcripts}")
-    logger.info(f"Use HUGO symbols of input file (only if VEP output is used as input): {use_input_symbols}")
+    logger.info(f"Filter input by Oncodrive3D transcripts: {o3d_transcripts}")
+    logger.info(f"Use HUGO symbols of input file: {use_input_symbols}")
     logger.info(f"Prioritize MANE transcripts when using input HUGO symbols: {mane}")
     logger.info(f"Include sample informations in output: {sample_info}")
     logger.info(f"Verbose: {verbose}")
