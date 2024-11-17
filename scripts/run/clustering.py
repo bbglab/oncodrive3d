@@ -166,19 +166,10 @@ def clustering_3d(gene,
                                                                          thr_mapping_issue,
                                                                          issue_type="Mut_not_in_structure")
         if filter_gene:
-            logger.info("Filtering gene: True")                                                           ###################### DEEBUG
             return None, result_gene_df
-        else:
-            logger.info("Filtering gene: False")                                                           ###################### DEEBUG
             
     # Check for mismatch between WT reference and WT structure 
     wt_mismatch_ix = mut_gene_df.apply(lambda x: bool(seq_gene[x.Pos-1] != x.WT), axis=1)
-    logger.info(f"{mut_gene_df}")                                                           ###################### DEEBUG
-    logger.info(f"> All boleans: {all(isinstance(val, bool) for val in wt_mismatch_ix)}")                                                           ###################### DEEBUG
-    if not all(isinstance(val, bool) for val in wt_mismatch_ix):
-        non_bool_items = [(idx, val) for idx, val in enumerate(wt_mismatch_ix) if not isinstance(val, bool)]                                                           ###################### DEEBUG
-        logger.info(f"> {non_bool_items}")
-        logger.info(f"{mut_gene_df}")                                                           ###################### DEEBUG
     if sum(wt_mismatch_ix) > 0:
         filter_gene, result_gene_df, mut_gene_df = process_mapping_issue(wt_mismatch_ix, 
                                                                         mut_gene_df, 
