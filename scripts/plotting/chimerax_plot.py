@@ -128,7 +128,7 @@ def get_chimerax_command(chimerax_bin,
     
     return chimerax_command
             
-            
+
 def generate_chimerax_plot(output_dir,
                             gene_result_path,
                             pos_result_path,
@@ -139,7 +139,6 @@ def generate_chimerax_plot(output_dir,
                             pixel_size,
                             cluster_ext,
                             fragmented_proteins,
-                            palette,
                             transparent_bg,
                             chimerax_bin):
 

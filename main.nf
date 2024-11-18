@@ -145,10 +145,10 @@ process O3D_chimerax_plot {
     tag "ChimeraX plot $cohort"
     //label 'process_low'
     debug true
-    queue 'bigmem'
+    queue 'normal,bigmem'
     // errorStrategy 'retry'
     // maxRetries 2   
-    container params.container_chimerax               
+    container params.container_chimerax      
     cpus 4
     memory "10G"
     maxForks params.max_running
