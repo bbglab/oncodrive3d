@@ -724,7 +724,7 @@ def run_clustering(input_maf_path,
                 result_pos.drop(columns=[col for col in ['Tot_samples', 
                                                             'Samples_in_vol', 
                                                             'Samples_in_cl_vol'] if col in result_gene.columns], inplace=True) 
-            result_pos = result_pos.sort_values(["pval", "Score_obs_sim"], ascending=[True, False]).reset_index(drop=True)
+            result_pos = result_pos.sort_values(["Gene", "pval", "Score_obs_sim"], ascending=[True, True, False]).reset_index(drop=True)
             result_pos.to_csv(output_path_pos, index=False)
 
             # Get gene global pval, qval, and clustering annotations and save gene-level result
@@ -732,8 +732,8 @@ def run_clustering(input_maf_path,
             result_gene = sort_cols(result_gene) 
             if not sample_info:
                 result_gene.drop(columns=[col for col in ['Tot_samples', 
-                                                            'Samples_in_top_vol', 
-                                                            'Samples_in_top_cl_vol'] if col in result_gene.columns], inplace=True)   
+                                                          'Samples_in_top_vol', 
+                                                          'Samples_in_top_cl_vol'] if col in result_gene.columns], inplace=True)   
             if no_fragments:
                 result_gene.drop(columns=[col for col in ["F", "Mut_in_top_F", "Top_F"] if col in result_gene.columns], inplace=True)
             with np.printoptions(linewidth=10000):

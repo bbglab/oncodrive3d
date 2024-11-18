@@ -32,12 +32,12 @@ def get_final_gene_result(result_pos, result_gene, alpha_gene=0.05, sample_info=
         result_gene["C_pos"] = np.nan
         result_gene["C_label"] = np.nan
     
-    # Gene pval, qval
+    # Gene pval
     gene_pvals = result_pos.groupby("Gene").apply(lambda x: min(x["pval"].values)).reset_index().rename(columns={0 : "pval"})
-    
+ 
     # Sample info and largest density among hits
-    top_vol_ix = result_pos[(result_pos['pval'] == result_pos['pval'].min()) & 
-                            (result_pos['Score_obs_sim'] == result_pos['Score_obs_sim'].max())].index.values[0]
+    lowest_pval = result_pos[result_pos['pval'] == result_pos['pval'].min()]
+    top_vol_ix = lowest_pval[lowest_pval['Score_obs_sim'] == lowest_pval['Score_obs_sim'].max()].index.values[0]
     gene_pvals["Pos_top_vol"] = result_pos.iloc[top_vol_ix].Pos
     if sample_info:
         gene_pvals["Tot_samples"] = result_pos.iloc[top_vol_ix].Tot_samples
@@ -58,7 +58,7 @@ def get_final_gene_result(result_pos, result_gene, alpha_gene=0.05, sample_info=
     # Combine gene-level clustering result, add label, sort genes, add fragment info
     result_gene = gene_pvals.merge(result_gene, on="Gene", how="outer")
     result_gene["C_gene"] = result_gene.apply(lambda x: 1 if x.qval < alpha_gene else 0, axis=1)
-    result_gene = result_gene.sort_values(["pval", "Score_obs_sim_top_vol"], ascending=[True, False])
+    # result_gene = result_gene.sort_values(["pval", "Score_obs_sim_top_vol"], ascending=[True, False])
     
     # Convert C_pos and C_label to str
     result_gene["C_pos"] = result_gene["C_pos"].apply(lambda x: str(x) if isinstance(x, list) else x)
