@@ -46,6 +46,9 @@ def get_pfam(seq_df, output_tsv, organism):
         ensembl_gene_dataset = "hsapiens_gene_ensembl"
     elif organism == "Mus musculus":
         ensembl_gene_dataset = "mmusculus_gene_ensembl"
+    else:
+        logger.error(f"Invalid organism: {organism}. Expected 'Homo sapiens' or 'Mus musculus'.")
+        raise ValueError(f"Invalid organism: {organism}. Must be 'Homo sapiens' or 'Mus musculus'.")
     
     while status != "PASS":
         if i < 5:

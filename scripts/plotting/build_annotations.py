@@ -84,19 +84,19 @@ def get_annotations(data_dir,
     seq_df = pd.read_csv(os.path.join(data_dir, "seq_for_mut_prob.tsv"), sep="\t")    
     pfam_df = get_pfam(seq_df = seq_df, 
                        output_tsv = os.path.join(output_dir, "pfam.tsv"),
-                       organism=organism)
+                       organism = species)
     logger.info(f"Completed!")
     
     # Get Uniprot features
     logger.info(f"Downloading and parsing Features from Uniprot..")
     get_uniprot_feat(seq_df = seq_df, 
                      pfam_df = pfam_df,
-                     output_tsv = os.path.join(output_dir, "uniprot_feat.tsv"))           #### <--- 2.tsv
+                     output_tsv = os.path.join(output_dir, "uniprot_feat.tsv"))      
     logger.info(f"Completed!")
     
 
 if __name__ == "__main__":
-    get_annotations(data_dir="/workspace/nobackup/scratch/oncodrive3d/datasets",
-                    output_dir="/workspace/nobackup/scratch/oncodrive3d/annotations",
-                    organism="Homo sapiens",
-                    cores=2)
+    get_annotations(data_dir = "/workspace/nobackup/scratch/oncodrive3d/datasets",
+                    output_dir = "/workspace/nobackup/scratch/oncodrive3d/annotations",
+                    organism = "Homo sapiens",
+                    cores = 4)
