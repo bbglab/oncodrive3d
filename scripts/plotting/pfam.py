@@ -34,7 +34,7 @@ def add_pfam_metadata(pfam, seq_df):
     return pfam
 
 
-def get_pfam(seq_df, output_tsv):
+def get_pfam(seq_df, output_tsv, organism):
     """
     Download and parse Pfam coordinates, name, description, 
     and Pfam ID to Transcript ID mapping.
@@ -42,6 +42,13 @@ def get_pfam(seq_df, output_tsv):
     
     status = "INIT"
     i = 0
+    if organism == "Homo sapiens":
+        ensembl_gene_dataset = "hsapiens_gene_ensembl"
+    elif organism == "Mus musculus":
+        ensembl_gene_dataset = "mmusculus_gene_ensembl"
+    else:
+        logger.error(f"Invalid organism: {organism}. Expected 'Homo sapiens' or 'Mus musculus'.")
+        raise ValueError(f"Invalid organism: {organism}. Must be 'Homo sapiens' or 'Mus musculus'.")
     
     while status != "PASS":
         if i < 5:
@@ -49,7 +56,7 @@ def get_pfam(seq_df, output_tsv):
                 # Pfam coordinates
                 logger.debug("Downloading and parsing Pfam coordinates...")
                 url_query = 'http://www.ensembl.org/biomart/martservice?query='
-                query = '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE Query><Query  virtualSchemaName = "default" formatter = "TSV" header = "0" uniqueRows = "0" count = "" datasetConfigVersion = "0.6" ><Dataset name = "hsapiens_gene_ensembl" interface = "default" ><Attribute name = "ensembl_gene_id" /><Attribute name = "ensembl_transcript_id" /><Attribute name = "pfam_start" /><Attribute name = "pfam_end" /><Attribute name = "pfam" /></Dataset></Query>'
+                query = f'<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE Query><Query  virtualSchemaName = "default" formatter = "TSV" header = "0" uniqueRows = "0" count = "" datasetConfigVersion = "0.6" ><Dataset name = "{ensembl_gene_dataset}" interface = "default" ><Attribute name = "ensembl_gene_id" /><Attribute name = "ensembl_transcript_id" /><Attribute name = "pfam_start" /><Attribute name = "pfam_end" /><Attribute name = "pfam" /></Dataset></Query>'
                 url = url_query + query
                 command = [f"wget", "-q", "-O", "pfam_coordinates.tsv", url]
                 subprocess.run(command)
