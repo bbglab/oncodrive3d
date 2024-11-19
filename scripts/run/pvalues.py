@@ -2,6 +2,7 @@
 Contains function to process the experimental p-values.
 """
 
+import pandas as pd
 import numpy as np
 from statsmodels.stats.multitest import multipletests
 
@@ -14,9 +15,35 @@ def fdr(p_vals, alpha=0.05):
     return multipletests(p_vals, alpha=alpha, method='fdr_bh', is_sorted=True)[1]   
 
 
+def get_top_vol_info(gene_result_pos):
+    """
+    Get score, mutations count and other info of the top volume 
+    (most significant one) across the mutated ones in each gene. 
+    """
+    
+    if len(gene_result_pos) > 1:
+        lowest_pval = gene_result_pos[gene_result_pos['pval'] == gene_result_pos['pval'].min()]
+        if len(lowest_pval) > 1:
+            top_vol = lowest_pval[lowest_pval['Score_obs_sim'] == lowest_pval['Score_obs_sim'].max()].iloc[0]
+        else:
+            top_vol = lowest_pval.iloc[0]
+    else:
+        top_vol = gene_result_pos.iloc[0]
+    
+    pos_top_vol = top_vol.Pos
+    mut_in_top_vol = np.round(top_vol.Mut_in_vol, 2)
+    mut_in_top_cl_vol = np.round(top_vol.Mut_in_cl_vol, 2)
+    score_obs_sim_top_vol = top_vol.Score_obs_sim
+    pae_top_vol = np.round(top_vol.PAE_vol, 2)
+    plddt_top_vol = top_vol.pLDDT_vol
+    pLDDT_top_cl_vol = np.round(top_vol.pLDDT_cl_vol, 2)
+    
+    return pos_top_vol, mut_in_top_vol, mut_in_top_cl_vol, score_obs_sim_top_vol, pae_top_vol, plddt_top_vol, pLDDT_top_cl_vol
+
+
 def get_final_gene_result(result_pos, result_gene, alpha_gene=0.05, sample_info=False):
     """
-    Output the final dataframe including gene global pval, s
+    Output the final dataframe including gene global pval, qval,
     significant positions, clusters, processing status, etc.
     """
 
@@ -35,20 +62,17 @@ def get_final_gene_result(result_pos, result_gene, alpha_gene=0.05, sample_info=
     # Gene pval
     gene_pvals = result_pos.groupby("Gene").apply(lambda x: min(x["pval"].values)).reset_index().rename(columns={0 : "pval"})
  
-    # Sample info and largest density among hits
-    lowest_pval = result_pos[result_pos['pval'] == result_pos['pval'].min()]
-    top_vol_ix = lowest_pval[lowest_pval['Score_obs_sim'] == lowest_pval['Score_obs_sim'].max()].index.values[0]
-    gene_pvals["Pos_top_vol"] = result_pos.iloc[top_vol_ix].Pos
-    if sample_info:
-        gene_pvals["Tot_samples"] = result_pos.iloc[top_vol_ix].Tot_samples
-        gene_pvals["Samples_in_top_vol"] = result_pos.iloc[top_vol_ix].Samples_in_vol
-        gene_pvals["Samples_in_top_cl_vol"] = result_pos.iloc[top_vol_ix].Samples_in_cl_vol
-    gene_pvals["Mut_in_top_vol"] = result_pos.iloc[top_vol_ix].Mut_in_vol
-    gene_pvals["Mut_in_top_cl_vol"] = result_pos.iloc[top_vol_ix].Mut_in_cl_vol
-    gene_pvals["Score_obs_sim_top_vol"] = result_pos.iloc[top_vol_ix].Score_obs_sim
-    gene_pvals["PAE_top_vol"] = result_pos.iloc[top_vol_ix].PAE_vol
-    gene_pvals["pLDDT_top_vol"] = result_pos.iloc[top_vol_ix].pLDDT_vol
-    gene_pvals["pLDDT_top_cl_vol"] = result_pos.iloc[top_vol_ix].pLDDT_cl_vol
+    # Top volume info
+    gene_top_vol_info = result_pos.groupby("Gene").apply(lambda x: get_top_vol_info(x)).apply(pd.Series)
+    gene_top_vol_info.columns = ["Pos_top_vol",
+                                 "Mut_in_top_vol", 
+                                 "Mut_in_top_cl_vol", 
+                                 "Score_obs_sim_top_vol", 
+                                 "PAE_top_vol", 
+                                 "pLDDT_top_vol", 
+                                 "pLDDT_top_cl_vol"]
+    gene_top_vol_info = gene_top_vol_info.reset_index()
+    gene_pvals = gene_pvals.merge(gene_top_vol_info, on="Gene")
 
     # Sort positions and get qval
     gene_pvals = gene_pvals.sort_values(["pval", "Score_obs_sim_top_vol"], ascending=[True, False]).reset_index(drop=True)

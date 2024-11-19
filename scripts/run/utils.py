@@ -359,7 +359,7 @@ def add_info(mut_gene_df, result_pos_df, cmap, pae=None, sample_info=False):
         
         community_info = pd.DataFrame({"Mut_in_cl_vol" : community_mut,
                                        "Res_in_cl" : community_pos_count,
-                                       "pLDDT_cl_vol" : community_plddt})
+                                       "pLDDT_cl_vol" : np.round(community_plddt, 2)})
         
         if sample_info:
             if "Tumor_Sample_Barcode" in mut_gene_df.columns:
@@ -375,14 +375,14 @@ def add_info(mut_gene_df, result_pos_df, cmap, pae=None, sample_info=False):
         
     # AF PAE
     if pae is not None:
-        result_pos_df["PAE_vol"] = result_pos_df.apply(lambda x: weighted_avg_pae_vol(x["Pos"], mut_gene_df, cmap, pae), axis=1)  
+        result_pos_df["PAE_vol"] = np.round(result_pos_df.apply(lambda x: weighted_avg_pae_vol(x["Pos"], mut_gene_df, cmap, pae), axis=1), 2)
     else:
         result_pos_df["PAE_vol"] = np.nan
         
     # AF confidence
     result_pos_df["pLDDT_res"] = result_pos_df.apply(lambda x: mut_gene_df.Confidence[mut_gene_df["Pos"] == x.Pos].values[0] 
                                                      if len(mut_gene_df.Confidence[mut_gene_df["Pos"] == x.Pos].values > 0) else np.nan, axis=1)
-    result_pos_df["pLDDT_vol"] = result_pos_df.apply(lambda x: weighted_avg_plddt_vol(x["Pos"], mut_gene_df, cmap), axis=1)
+    result_pos_df["pLDDT_vol"] = np.round(result_pos_df.apply(lambda x: weighted_avg_plddt_vol(x["Pos"], mut_gene_df, cmap), axis=1), 2)
     result_pos_df["pLDDT_cl_vol"] = result_pos_df.pop("pLDDT_cl_vol")
     
     # WT AA mismatches
@@ -436,20 +436,16 @@ def sort_cols(result_gene):
     """
 
     cols = ['Gene', 
-            'HGNC_ID',
-            'Ens_Gene_ID', 
-            'Refseq_prot',
             'Uniprot_ID', 
             'pval', 
-            'qval', 
+            'qval',
             'C_gene', 
             'C_pos', 
-            'C_label', 
+            'C_label',
+            'Score_obs_sim_top_vol',   
             'Mut_in_gene', 
             'Clust_mut',
             "Clust_res", 
-            'Pos_top_vol',
-            'Score_obs_sim_top_vol', 
             'Mut_in_top_vol', 
             "Mut_in_top_cl_vol",
             'Tot_samples', 
@@ -458,6 +454,7 @@ def sort_cols(result_gene):
             "PAE_top_vol", 
             "pLDDT_top_vol", 
             "pLDDT_top_cl_vol",
+            'Pos_top_vol',
             'F', 
             'Ratio_not_in_structure',
             'Ratio_WT_mismatch',
@@ -469,6 +466,9 @@ def sort_cols(result_gene):
             'Transcript_ID',
             'O3D_transcript_ID',
             'Transcript_status',
+            'Ens_Gene_ID', 
+            'HGNC_ID',
+            'Refseq_prot',
             'Status']
 
     return result_gene[[col for col in cols if col in result_gene.columns]]
