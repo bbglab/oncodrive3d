@@ -1,23 +1,25 @@
+# Start from Python image
 FROM python:3.8
 
 # Set environment variables
-ENV LC_ALL=C \
+ENV LC_ALL=C.UTF-8 \
+    LANG=C.UTF-8 \
     BGDATA_LOCAL="/bgdatacache" \
     BBGLAB_HOME="/home/user/.config/bbglab/"
 
-# Update system and install necessary tools
+# Update system, install necessary tools, and clean up
 RUN apt-get update -y \
     && apt-get upgrade -y \
     && apt-get install -y --no-install-recommends bash \
-    && pip install --upgrade pip \
+    && pip install --upgrade pip setuptools wheel \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Create necessary directories
-RUN mkdir -p "$BGDATA_LOCAL" "$BBGLAB_HOME"
+# Create required directories
+RUN install -d -m 0755 "$BGDATA_LOCAL" "$BBGLAB_HOME"
 
-# Install bgdata and bgreference packages
-RUN pip install bgdata bgreference 
+# Install Python packages
+RUN pip install --no-cache-dir bgdata bgreference 
 
 # Write bgdata configuration
 RUN echo "# Version of the bgdata config file\n\
@@ -41,15 +43,20 @@ RUN bgdata get datasets/genomereference/hg38 && bgdata get datasets/genomerefere
     && python3 -c "from bgreference import hg38, hg19; hg38(1, 1300000, 3000); hg19(1, 1300000, 3000)" \
     && python3 -c "from bgreference import mm39, mm10; mm39(1, 1300000, 3000); mm10(1, 1300000, 3000)"
 
-# Adjust permissions for bgdatacache
-RUN chmod -R 777 "$BGDATA_LOCAL"
+# Set permissions for cache directory
+RUN chmod -R 0755 "$BGDATA_LOCAL"
 
 # Copy and install Oncodrive3D
 COPY oncodrive3d /oncodrive3d
-RUN pip install /oncodrive3d
+RUN pip install --no-cache-dir /oncodrive3d
 
 # Metadata
-LABEL Author="stefano.pellegrini@irbbarcelona.org"
+LABEL maintainer="stefano.pellegrini@irbbarcelona.org" \
+      version="1.0.2" \
+      description="Docker image for running Oncodrive3D with genome references preloaded."
 
-# Test the installation
+# Set working directory
+WORKDIR /
+
+# Test
 CMD ["oncodrive3D", "run", "--help"]
