@@ -17,6 +17,7 @@ from scripts.run.pvalues import get_final_gene_result
 from scripts.run.miss_mut_prob import get_miss_mut_prob_dict, mut_rate_vec_to_dict, get_unif_gene_miss_prob
 from scripts.run.score_and_simulations import get_anomaly_score, get_sim_anomaly_score, recompute_inf_score
 from scripts.run.utils import add_info, get_gene_entry, add_nan_clust_cols, parse_maf_input, sort_cols, empty_result_pos
+from scripts.run.mutability import init_mutabilities_module
 
 logger = daiquiri.getLogger(__logger_name__ + ".run.clustering")
 
