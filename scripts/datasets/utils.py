@@ -1,6 +1,6 @@
 """
-Module including a collection of functions that provide 
-general-purpose functionalities that can be used across 
+Module including a collection of functions that provide
+general-purpose functionalities that can be used across
 different parts of the dataset building process.
 """
 
@@ -35,7 +35,7 @@ def rounded_up_division(num, den):
     """
     Simply round up the result of the division.
     """
-    
+
     return -(-num // den)
 
 
@@ -43,11 +43,11 @@ def get_pos_fragments(mut_gene_df):
     """
     Get the corresponding fragment of each position of the protein.
     """
-    
+
     max_f = rounded_up_division(max(mut_gene_df["Pos"]), 1400)
     bins = [n * 1400 for n in range(0, max_f+1)]
     group_names = list(range(1, max_f+1))
-    
+
     return pd.cut(mut_gene_df["Pos"], bins, labels = group_names)
 
 
@@ -55,10 +55,10 @@ def get_species(species):
     """
     Simply change species name to accepted format.
     """
-    
+
     if species == "human" or species.capitalize() == "Homo sapiens":
         species = "Homo sapiens"
-    elif species == "mouse" or species.capitalize() == "Mus musculus": 
+    elif species == "mouse" or species.capitalize() == "Mus musculus":
         species = "Mus musculus"
     else:
         raise RuntimeError(f"Failed to recognize '{species}' as species. Currently accepted ones are 'Homo sapiens' and 'Mus musculus'. Exiting..")
@@ -88,7 +88,7 @@ def assert_proteome_integrity(file_path, proteome):
                 return "FAIL"
         except Exception as e:
             logger.debug('File integrity check: FAIL')
-            logger.debug(f'Error: {e}') 
+            logger.debug(f'Error: {e}')
             return "FAIL"
     else:
         logger.warning("Assertion skipped: Proteome checksum not in records.")
@@ -106,7 +106,7 @@ def calculate_hash(filepath: str, hash_func=hashlib.sha256) -> str:
     Returns:
         str: The hexadecimal representation of the calculated hash.
     """
-    
+
     with open(filepath, 'rb') as file:
         hash_obj = hash_func()
         for chunk in iter(lambda: file.read(8192), b''):
@@ -122,7 +122,7 @@ def download_single_file(url: str, destination: str, threads: int, proteome=None
         url (str): The URL of the file to download.
         destination (str): The local path where the file will be saved.
     """
-    
+
     num_connections = 40 if threads > 40 else threads
 
     if os.path.exists(destination):
@@ -139,13 +139,15 @@ def download_single_file(url: str, destination: str, threads: int, proteome=None
     logger.debug(f"Downloading to {destination}")
     dl = Downloader()
     dl.start(url, destination, num_connections=num_connections, display=True)
+
+
     os.system("clear")
     logger.debug('clear')
     logger.debug('Download complete')
 
 
 def extract_tar_file(file_path, path):
-     
+
     checkpoint = os.path.join(path, ".tar_checkpoint.txt")
 
     if os.path.exists(checkpoint):
@@ -156,7 +158,7 @@ def extract_tar_file(file_path, path):
             logger.debug(f'Extracted { int(len(tar.getnames())/2)} structure.')
             with open(checkpoint, "w") as f:
                 f.write('')
-                
+
 
 def extract_zip_file(file_path, path):
     checkpoint = os.path.join(path, ".zip_checkpoint.txt")
@@ -169,7 +171,7 @@ def extract_zip_file(file_path, path):
             logger.debug(f'Extracted {len(zip_file.namelist())} files.')
             with open(checkpoint, "w") as f:
                 f.write('')
-                
+
 
 # PDB
 
@@ -178,14 +180,14 @@ def get_af_id_from_pdb(path_structure):
     Get AlphaFold 2 identifier (UniprotID_F) from path
     """
 
-    return path_structure.split("AF-")[1].split("-model")[0]   
+    return path_structure.split("AF-")[1].split("-model")[0]
 
 
 def get_seq_from_pdb(path_structure):
     """
     Get sequense of amino acid residues from PDB structure.
     """
-    if path_structure.endswith("gz"):  
+    if path_structure.endswith("gz"):
         with gzip.open(path_structure, 'rt') as handle:
             return np.array([record.seq for record in SeqIO.parse(handle, 'pdb-seqres')][0])
     else:
@@ -195,7 +197,7 @@ def get_seq_from_pdb(path_structure):
 
 def get_pdb_path_list_from_dir(path_dir):
     """
-    Takes as input a path of a given directory and it 
+    Takes as input a path of a given directory and it
     outputs a list of paths of the contained PDB files.
     """
 
@@ -210,47 +212,47 @@ def split_lst_into_chunks(lst, batch_size = 5000):
     """
     Simple split a list into list of list of chunk_size elements.
     """
-    
+
     return [lst[i:i+batch_size] for i in range(0, len(lst), batch_size)]
 
 
 def convert_dict_hugo_to_uniprot(dict_uniprot_hugo):
     """
-    Convert a Uniprot IDs to Hugo symbol dictionary to a Hugo symbo to 
-    Uniprot IDs dictionary, if multiple Hugo symbols are mapped to the 
+    Convert a Uniprot IDs to Hugo symbol dictionary to a Hugo symbo to
+    Uniprot IDs dictionary, if multiple Hugo symbols are mapped to the
     same Uniprot ID, add them as multiple keys.
     """
-    
+
     dict_hugo_uniprot = {}
 
     for uni_id, gene in dict_uniprot_hugo.items():
         if type(gene) == str:
             for g in gene.split(" "):
                 dict_hugo_uniprot[g] = uni_id
-                
+
     return dict_hugo_uniprot
 
 
 def uniprot_to_hudo_df(uniprot_ids):
     """
-    Given a list of Uniprot IDs (from any species), request an Id 
-    mapping job to UniprotKB to retrieve the corresponding Hugo 
+    Given a list of Uniprot IDs (from any species), request an Id
+    mapping job to UniprotKB to retrieve the corresponding Hugo
     symbols and additional protein info. Return a pandas dataframe.
     It is recommended to provide batches of IDs up to 5000 elements.
     """
-    
+
     job_id = get_mapping_jobid(uniprot_ids)
     url = f"https://rest.uniprot.org/idmapping/uniprotkb/results/stream/{job_id}?compressed=true&fields=accession%2Cid%2Cprotein_name%2Cgene_names%2Corganism_name%2Clength&format=tsv"
     df = load_df_from_url(url)
-    
+
     i = 60
     while df is None:
         time.sleep(1)
         df = load_df_from_url(url)
         if i % 180 == 0:
             logger.debug(f"Waiting for UniprotKB mapping job to produce url..")
-        i += 1 
-        
+        i += 1
+
     return df
 
 
@@ -265,21 +267,21 @@ def load_df_from_url(url):
         df = pd.read_csv(io.BytesIO(decompressed_data), sep='\t')
     except:
         df = None
-    
+
     return df
 
 
 def get_response_jobid(response):
     """
-    Get jobId after submitting ID Mapping job to UniprotKB. 
+    Get jobId after submitting ID Mapping job to UniprotKB.
     """
-    
+
     try:
         data = response.json()
         job_id = data.get("jobId")
     except:
         job_id = None
-        
+
     return job_id
 
 
@@ -287,7 +289,7 @@ def get_mapping_jobid(uniprot_ids):
     """
     Submit an ID Mapping job to UniprotKB.
     """
-    
+
     command = f"https://rest.uniprot.org/idmapping/run?from=UniProtKB_AC-ID&to=UniProtKB&ids={','.join(uniprot_ids)}"
 
     response = "INIT"
@@ -296,32 +298,32 @@ def get_mapping_jobid(uniprot_ids):
             time.sleep(10)
         try:
             response = requests.post(command)
-        except requests.exceptions.RequestException as e:                          
-            response = "ERROR"                                                     
-            logger.debug(f"Request failed {e}: Retrying")    
-            
+        except requests.exceptions.RequestException as e:
+            response = "ERROR"
+            logger.debug(f"Request failed {e}: Retrying")
+
     job_id = get_response_jobid(response)
     i = 60
     while job_id is None:
-        time.sleep(1) 
+        time.sleep(1)
         job_id = get_response_jobid(response)
         if i % 60 == 0:
             logger.debug(f"Requesting ID mapping job to UniprotKB for IDs..")
         i += 1
-    
+
     return job_id
 
 
 def uniprot_to_hugo(uniprot_ids, hugo_as_keys=False, batch_size=5000):
     """
-    Given a list of Uniprot IDs (any species.), request an Id mapping 
-    job to UniprotKB to retrieve the corresponding Hugo symbols. 
+    Given a list of Uniprot IDs (any species.), request an Id mapping
+    job to UniprotKB to retrieve the corresponding Hugo symbols.
     Return a dictionary of Uniprot IDs to Hugo symbols or vice versa.
     """
-    
+
     # Split uniprot IDs into chunks
     uniprot_ids_lst = split_lst_into_chunks(uniprot_ids, batch_size)
-    
+
     # Get a dataframe including all IDs mapping info
     df_lst = []
     for i, ids in enumerate(uniprot_ids_lst):
@@ -333,37 +335,37 @@ def uniprot_to_hugo(uniprot_ids, hugo_as_keys=False, batch_size=5000):
     # Get a dictionary for Uniprot ID to Hugo symbols
     dictio = {}
     for i, r in df[["Entry", "Gene Names"]].iterrows():
-        uni_id, gene = r 
+        uni_id, gene = r
         dictio[uni_id] = gene
-    
+
     # Convert to a dictionary of Hugo symbols to Uniprot IDs
     if hugo_as_keys:
         dictio = convert_dict_hugo_to_uniprot(dictio)
-            
+
     return dictio
 
 
 # def uniprot_to_hugo_pressed(uniprot_ids, hugo_as_keys=False, batch_size=5000, max_attempts=15):
 #     """
-#     Given a list of Uniprot IDs (any species.), return a 
+#     Given a list of Uniprot IDs (any species.), return a
 #     dictionary of Uniprot IDs to Hugo symbols or vice versa.
 #     """
-    
+
 #     # Split uniprot IDs into chunks
 #     uniprot_ids_lst = split_lst_into_chunks(uniprot_ids, batch_size)
-    
+
 #     # Get a dataframe including all IDs mapping info
 #     result_lst = []
-    
+
 #     for i, ids in enumerate(uniprot_ids_lst):
 #         logger.debug(f"Batch {i+1}/{len(uniprot_ids_lst)} ({len(ids)} IDs)..")
 #         status = "INIT"
-        
+
 #         n = 0
 #         while status != "FINISHED":
 #             try:
-#                 request = IdMappingClient.submit(source="UniProtKB_AC-ID", 
-#                                                  dest="Gene_Name", 
+#                 request = IdMappingClient.submit(source="UniProtKB_AC-ID",
+#                                                  dest="Gene_Name",
 #                                                  ids={uni_id for uni_id in ids})
 #                 j = 0
 #                 while status != "FINISHED":
@@ -376,21 +378,21 @@ def uniprot_to_hugo(uniprot_ids, hugo_as_keys=False, batch_size=5000):
 #                         j += 1
 #                         if j == max_attempts:
 #                             logger.debug(f"Failed to obtain Uniprot ID to Hugo Symbol mapping: Retrying..")
-#                             sys.exit() 
+#                             sys.exit()
 #             except Exception as e:
 #                 n += 1
 #                 if n == max_attempts:
 #                     logger.error(f"Failed to obtain Uniprot ID to Hugo Symbol mapping and reached maximum attempts: Exiting..")
-#                     sys.exit() 
+#                     sys.exit()
 #                 else:
 #                     status = "ERROR"
 #                     logger.debug(f"Error while obtaining Uniprot ID to Hugo Symbol mapping {e}: Retrying..")
 
 #     result_lst = [entry for batch in result_lst for entry in batch]
 #     result_dict = {r["from"] : (r["to"].split()[0] if len(r["to"].split()) > 1 else r["to"]) for r in result_lst}
-    
+
 #     # Convert to a dictionary of Hugo symbols to Uniprot IDs
 #     if hugo_as_keys:
 #         result_dict = convert_dict_hugo_to_uniprot(result_dict)
-            
+
 #     return result_dict

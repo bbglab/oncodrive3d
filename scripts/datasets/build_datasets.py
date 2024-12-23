@@ -23,7 +23,6 @@ import os
 import daiquiri
 
 from scripts import __logger_name__
-from scripts.datasets.utils import get_species
 from scripts.datasets.af_merge import merge_af_fragments
 from scripts.datasets.get_pae import get_pae
 from scripts.datasets.get_structures import get_structures, mv_mane_pdb
@@ -31,6 +30,7 @@ from scripts.datasets.model_confidence import get_confidence
 from scripts.datasets.parse_pae import parse_pae
 from scripts.datasets.prob_contact_maps import get_prob_cmaps_mp
 from scripts.datasets.seq_for_mut_prob import get_seq_df
+from scripts.datasets.utils import get_species
 from scripts.globals import clean_dir, clean_temp_files
 
 logger = daiquiri.getLogger(__logger_name__ + ".build")
@@ -45,7 +45,7 @@ def build(output_datasets,
     """
     Build datasets necessary to run Oncodrive3D.
     """
-  
+
     # Empty directory
     clean_dir(output_datasets, 'd', txt_file=True)
 
@@ -62,16 +62,16 @@ def build(output_datasets,
     logger.info("Merging fragmented structures...")
     merge_af_fragments(input_dir=os.path.join(output_datasets,"pdb_structures"), 
                        gzip=True)
-    
+
     # Download PDB MANE structures
     if species == "Homo sapiens":
-      logger.info("Downloading AlphaFold (AF) predicted structures overlap with MANE...")
-      get_structures(path=os.path.join(output_datasets,"pdb_structures_mane"),
+        logger.info("Downloading AlphaFold (AF) predicted structures overlap with MANE...")
+        get_structures(path=os.path.join(output_datasets,"pdb_structures_mane"),
                       species=species,
                       mane=True,
                       threads=num_cores)
-      mv_mane_pdb(output_datasets, "pdb_structures", "pdb_structures_mane")
-      logger.info("Download of MANE structures completed!")
+        mv_mane_pdb(output_datasets, "pdb_structures", "pdb_structures_mane")
+        logger.info("Download of MANE structures completed!")
 
     # Create df including genes and proteins sequences & Hugo to Uniprot_ID mapping
     logger.info("Generating dataframe for genes and proteins sequences...")
@@ -82,7 +82,7 @@ def build(output_datasets,
                         num_cores=num_cores,
                         mane_version=mane_version)
     logger.info("Generation of sequences dataframe completed!")
-    
+
     # Get model confidence
     logger.info("Extracting AF model confidence...")
     get_confidence(input=os.path.join(output_datasets, "pdb_structures"),
@@ -100,7 +100,7 @@ def build(output_datasets,
     logger.info("Parsing PAE...")
     parse_pae(input=os.path.join(output_datasets, 'pae'))
     logger.info("Parsing PAE completed!")
-    
+
     # Get pCAMPs
     logger.info("Generating contact probability maps (pCMAPs)..")
     get_prob_cmaps_mp(input_pdb=os.path.join(output_datasets, "pdb_structures"),
@@ -118,9 +118,9 @@ def build(output_datasets,
     # TO DO: add a step that clean up all structures not added in the sequence df
 
     logger.info("Datasets have been successfully built and are ready for analysis!")
-    
+
 if __name__ == "__main__":
-  build(output_datasets="/workspace/nobackup/scratch/oncodrive3d/datasets_mane",
+    build(output_datasets="/workspace/nobackup/scratch/oncodrive3d/datasets_mane",
         organism="Homo sapiens",
         mane=True,
         distance_threshold=10,
