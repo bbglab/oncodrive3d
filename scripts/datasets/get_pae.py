@@ -9,8 +9,8 @@ from tqdm import tqdm
 from scripts import __logger_name__
 
 logger = daiquiri.getLogger(__logger_name__ + ".build.PAE")
-        
-        
+
+
 def download_pae(uniprot_id: str, af_version: int, output_dir: str) -> None:
     """
     Download Predicted Aligned Error (PAE) file from AlphaFold DB.
@@ -20,7 +20,7 @@ def download_pae(uniprot_id: str, af_version: int, output_dir: str) -> None:
         af_version (int): AlphaFold 2 version.
         output_dir (str): Output directory where to download the PAE files.
     """
-    
+
     file_path = os.path.join(output_dir, f"{uniprot_id}-F1-predicted_aligned_error.json")
     download_url = f"https://alphafold.ebi.ac.uk/files/AF-{uniprot_id}-F1-predicted_aligned_error_v{af_version}.json"
 
@@ -30,22 +30,22 @@ def download_pae(uniprot_id: str, af_version: int, output_dir: str) -> None:
         i += 1
         if status != "INIT":
             time.sleep(30)
-        try:  
+        try:
             response = requests.get(download_url, timeout=30)
             content = response.content
             if content.endswith(b'}]') and not content.endswith(b'</Error>'):
                 with open(file_path, 'wb') as output_file:
                     output_file.write(content)
                 status = "FINISHED"
-        except requests.exceptions.RequestException as e:                          
-            status = "ERROR"       
-            if i % 10 == 0:                                           
-                logger.debug(f"Request failed {e}: Retrying")    
+        except requests.exceptions.RequestException as e:
+            status = "ERROR"
+            if i % 10 == 0:
+                logger.debug(f"Request failed {e}: Retrying")
 
 
 def get_pae(input_dir: str, output_dir: str, num_cores: int, af_version: int = 4) -> None:
     """
-    Download Predicted Aligned Error (PAE) files for all non-fragmented PDB 
+    Download Predicted Aligned Error (PAE) files for all non-fragmented PDB
     structures in the input directory.
 
     Args:

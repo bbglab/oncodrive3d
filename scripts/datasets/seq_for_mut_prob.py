@@ -1,17 +1,12 @@
 """
-Module to generate a pandas dataframe including identifiers
-mapped to protein and DNA sequences.
+Module to generate a pandas dataframe including identifiers mapped to protein and DNA sequences.
 
-The functions are used to extract all protein sequences of PDB
-structures in a given directory; use EMBOSS backtranseq back
-translate proteins sequences into DNA; generate a dataframe
-including HUGO symbol, Uniprot_ID, protein, and DNA sequences.
-This dataframe is required to get the probability of each residue
-to mutate (missense mutation) based on the mutation profile
-(mutation rate in 96 trinucleotide contexts) of the cohort.
-The per-residue missense mutation probability of each protein is
-then used to get the probability of a certain volume to be hit by
-a missense mutation.
+The functions are used to extract all protein sequences of PDB structures in a given directory; 
+use EMBOSS backtranseq back translate proteins sequences into DNA; generate a dataframe including HUGO symbol, 
+Uniprot_ID, protein, and DNA sequences. This dataframe is required to get the probability of each residue to mutate 
+(missense mutation) based on the mutation profile (mutation rate in 96 trinucleotide contexts) of the cohort.
+The per-residue missense mutation probability of each protein is then used to get the probability of a 
+certain volume to be hit by a missense mutation.
 """
 
 
@@ -46,7 +41,7 @@ logger = daiquiri.getLogger(__logger_name__ + ".build.seq_for_mut_prob")
 
 
 #===========
-# Initialize
+# region Initialize
 #===========
 
 def initialize_seq_df(input_path, uniprot_to_gene_dict):
@@ -875,7 +870,7 @@ def get_seq_df(datasets_dir,
     https://www.ebi.ac.uk/jdispatcher/st/emboss_backtranseq
     """
 
-    # Initialization
+    # region Initialization
     #===============
 
     # Load Uniprot ID to HUGO and MANE to AF mapping
@@ -898,7 +893,7 @@ def get_seq_df(datasets_dir,
     seq_df = initialize_seq_df(pdb_dir, uniprot_to_gene_dict)
 
     if mane:
-       seq_df = process_seq_df_mane(seq_df,
+        seq_df = process_seq_df_mane(seq_df,
                                     datasets_dir,
                                     uniprot_to_gene_dict,
                                     ens_canonical_transcripts_lst,
@@ -929,3 +924,13 @@ def get_seq_df(datasets_dir,
     logger.debug(f"Sequences dataframe saved in: {output_seq_df}")
 
     return seq_df
+
+
+if __name__ == "__main__":
+    OUTPUT_DS = 'test/output_datasets'
+    get_seq_df(datasets_dir=OUTPUT_DS,
+                output_seq_df=os.path.join(OUTPUT_DS, "seq_for_mut_prob.tsv"),
+                organism="Homo sapiens",
+                mane=True,
+                num_cores=8,
+                mane_version=1.3)

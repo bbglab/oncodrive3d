@@ -2,7 +2,7 @@
 Module to merge overlapping fragments produced by AlphaFold 2
 for the predictions of proteins larger than 2700 amino acids.
 
-The module uses an adapted version of the code written by the 
+The module uses an adapted version of the code written by the
 authors of DEGRONOPEDIA (Natalia A. Szulc, nszulc@iimcb.gov.pl).
 DEGRONOPEDIA - a web server for proteome-wide inspection of degrons
 doi: 10.1101/2022.05.19.492622.
@@ -34,7 +34,7 @@ daiquiri.getLogger('py.warnings').setLevel(logging.ERROR)
 def degronopedia_af_merge(struct_name, input_path, afold_version, output_path, zip):
     """
     DEGRONOPEDIA script to merge any AlphaFold fragments into a unique structure.
-    
+
     DEGRONOPEDIA - a web server for proteome-wide inspection of degrons
     doi: 10.1101/2022.05.19.492622
     https://degronopedia.com/degronopedia/about
@@ -148,7 +148,7 @@ def degronopedia_af_merge(struct_name, input_path, afold_version, output_path, z
         io.save(struct_save_path)
 
         # Unify models
-        bashCommand1 = os.path.join("sed '", "TER", f"d' {save_path}", f"AF-{struct_name}-FM-model_v{afold_version}.pdb > {save_path}", "tmp.pdb") 
+        bashCommand1 = os.path.join("sed '", "TER", f"d' {save_path}", f"AF-{struct_name}-FM-model_v{afold_version}.pdb > {save_path}", "tmp.pdb")
         bashCommand2 = os.path.join("sed '", "MODEL", f"d' {save_path}", f"tmp.pdb > {save_path}", "tmp1.pdb")
         bashCommand3 = os.path.join("sed '", "ENDMDL", f"d' {save_path}", f"tmp1.pdb > {save_path}", "tmp2.pdb")
 
@@ -279,7 +279,7 @@ def save_unprocessed_ids(uni_ids, filename):
 def merge_af_fragments(input_dir, output_dir=None, af_version=4, gzip=False):
     """
     Run and parse DEGRONOPEDIA script to merge any AlphaFold fragments into a unique structure.
-    
+
     DEGRONOPEDIA - a web server for proteome-wide inspection of degrons
     doi: 10.1101/2022.05.19.492622
     https://degronopedia.com/degronopedia/about

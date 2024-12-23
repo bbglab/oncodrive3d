@@ -12,38 +12,38 @@ from scripts.datasets.utils import calculate_hash, download_single_file, extract
 logger = daiquiri.getLogger(__logger_name__ + ".build.AF-pdb")
 
 logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
-    
+
 
 def mv_mane_pdb(path_datasets, pdb_dir, mane_pdb_dir) -> None:
     """
-    Move AF structures with overlap with MANE Select 
-    transcripts to directory with AF structures from 
+    Move AF structures with overlap with MANE Select
+    transcripts to directory with AF structures from
     human proteome. Overwrite any overlapping AF ID.
     """
-        
+
     path_pdb = os.path.join(path_datasets, pdb_dir)
     path_mane_pdb = os.path.join(path_datasets, mane_pdb_dir)
     if not os.path.exists(path_mane_pdb):
         os.makedirs(path_mane_pdb)
-    
+
     # Move MANE structures
     for filename in [file for file in os.listdir(path_mane_pdb) if file.endswith(".pdb.gz") or file.endswith(".pdb")]:
         pdb = os.path.join(path_pdb, filename)
         pdb_mane = os.path.join(path_mane_pdb, filename)
         shutil.move(pdb_mane, pdb)
-        
+
     # Move MANE metadata files
     for filename in [file for file in os.listdir(os.path.join(path_mane_pdb)) if file.endswith(".csv") or file.endswith("readme.txt")]:
         source_file = os.path.join(path_mane_pdb, filename)
         dest_file = os.path.join(path_datasets, f"mane_{filename}")
         shutil.move(source_file, dest_file)
-        
 
-def get_structures(path: str, 
-                   species: str = 'Homo sapiens', 
+
+def get_structures(path: str,
+                   species: str = 'Homo sapiens',
                    mane: bool = False,
-                   af_version: str = '4', 
-                   threads: int = 1, 
+                   af_version: str = '4',
+                   threads: int = 1,
                    max_attempts: int = 30) -> None:
     """
     Downloads AlphaFold predicted structures for a given organism and version.
@@ -63,7 +63,7 @@ def get_structures(path: str,
     if not os.path.isdir(path):
         os.makedirs(path)
         logger.debug(f'mkdir {path}')
-    
+
     # Select proteome
     if mane:
         if species == "Homo sapiens":
@@ -73,11 +73,11 @@ def get_structures(path: str,
     else:
         if species == "Homo sapiens":
             proteome = f"UP000005640_9606_HUMAN_v{af_version}"
-        elif species == "Mus musculus": 
+        elif species == "Mus musculus":
             proteome = f"UP000000589_10090_MOUSE_v{af_version}"
         else:
             raise RuntimeError(f"Failed to recognize '{species}' as organism. Currently accepted ones are 'Homo sapiens' and 'Mus musculus'. Exiting...")
-            
+
     logger.debug(f"Proteome to download: {proteome}")
     af_url = f"https://ftp.ebi.ac.uk/pub/databases/alphafold/latest/{proteome}.tar"
     file_path = os.path.join(path, f"{proteome}.tar")
@@ -93,7 +93,7 @@ def get_structures(path: str,
             if attempts >= max_attempts:
                 raise RuntimeError(f"Failed to download with integrity after {max_attempts} attempts. Exiting...")
             time.sleep(10)
-        
+
         ## STEP2 --- Extract structures
         logger.info(f'Extracting {file_path}')
         extract_tar_file(file_path, path)

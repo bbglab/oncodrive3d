@@ -2,18 +2,18 @@
 Module to generate datasets necessary to run Oncodrive3D.
 
 The build is a pipeline that perform the following tasks:
-    - Download the PDB structures of the selected proteome 
+    - Download the PDB structures of the selected proteome
       predicted by AlphaFold 2 from AlphaFold DB.
     - Merge the overlapping structures processed as fragments.
     - Extract AlphaFold model confidence (pLDDT).
     - Generate a dataframe including Uniprot_ID, Hugo Symbol,
-      protein and DNA sequence. 
-    - Download AlphaFold predicted aligned error (PAE) from 
+      protein and DNA sequence.
+    - Download AlphaFold predicted aligned error (PAE) from
       AlphaFold DB and convert the files into npy format.
-    - Use the PDB structure and PAE to create maps of 
-      probability of contacts (pCMAPs) for any protein of the 
+    - Use the PDB structure and PAE to create maps of
+      probability of contacts (pCMAPs) for any protein of the
       downloaded proteome with available PAE.
-    - Remove unnecessary temp files (e.g., PDB structures) if 
+    - Remove unnecessary temp files (e.g., PDB structures) if
       not specified otherwise.
 """
 
@@ -54,13 +54,13 @@ def build(output_datasets,
     logger.info("Downloading AlphaFold (AF) predicted structures...")
     get_structures(path=os.path.join(output_datasets,"pdb_structures"),
                    species=species,
-                   af_version=str(af_version), 
+                   af_version=str(af_version),
                    threads=num_cores)
     logger.info("Download of structures completed!")
 
     # Merge fragmented structures
     logger.info("Merging fragmented structures...")
-    merge_af_fragments(input_dir=os.path.join(output_datasets,"pdb_structures"), 
+    merge_af_fragments(input_dir=os.path.join(output_datasets,"pdb_structures"),
                        gzip=True)
 
     # Download PDB MANE structures
