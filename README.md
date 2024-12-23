@@ -15,13 +15,31 @@ Install using pip from PyPI:
 pip install oncodrive3d
 ```
 
-Install from source:
+You can obtain the latest code from the repository and install it for development with pip:
 
 ```bash
 git clone https://github.com/bbglab/clustering_3d.git
-cd clustering_3d           # >>> Modify to oncodrive3D
-pip install .
+cd clustering_3d
+python -m venv .venv
+.venv/bin/pip install -e .
+source .venv/bin/activate
+oncodrive3d --help
 ```
+
+> [!NOTE]
+> The first time that you run Oncodrive3D building dataset step with a given reference genome, it
+> will download it from our servers. By default the downloaded datasets go to
+> `~/.bgdata`. If you want to move these datasets to another folder you have to
+> define the system environment variable `BGDATA_LOCAL` with an export command.
+
+> [!NOTE]
+> If you install a modern build tool like [uv](https://github.com/astral-sh/uv),
+> you can simply do this:
+> ```bash
+> git clone https://github.com/bbglab/clustering_3d.git
+> cd clustering_3d
+> uv run oncodrive3d --help
+> ```
 
 Install bbgreference (temporarely untill we fix the installation):  
 
