@@ -20,7 +20,9 @@ import pandas as pd
 import requests
 from Bio import SeqIO
 from Bio.Seq import Seq
-from pypdl import Downloader
+from pypdl import Pypdl as Downloader
+import aiohttp
+
 from zipfile import ZipFile
 import subprocess
 
@@ -123,7 +125,7 @@ def download_single_file(url: str, destination: str, threads: int, proteome=None
         destination (str): The local path where the file will be saved.
     """
 
-    num_connections = 40 if threads > 40 else threads
+    num_connections = 15 if threads > 40 else threads
 
     if os.path.exists(destination):
         logger.debug(f"File {destination} already exists..")
@@ -137,8 +139,8 @@ def download_single_file(url: str, destination: str, threads: int, proteome=None
 
     logger.debug(f'Downloading {url}')
     logger.debug(f"Downloading to {destination}")
-    dl = Downloader()
-    dl.start(url, destination, num_connections=num_connections, display=True)
+    dl = Downloader(timeout=aiohttp.ClientTimeout(sock_read=20))
+    dl.start(url, destination, segments=num_connections, display=True, retries=5, clear_terminal=False)
 
 
     os.system("clear")
