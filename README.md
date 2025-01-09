@@ -185,29 +185,28 @@ singularity pull build/containers/oncodrive3d.sif docker://spellegrini87/oncodri
 
 #### Option 2: Using Conda
 
-Ensure Oncodrive3D is installed in your Conda environment and update the `Profiles` section of the `nextflow.config` file to point to your Conda installation:
+Ensure Oncodrive3D is installed in your Conda environment and update the `params` section of the `nextflow.config` file to point to your Conda installation:
 
 ```groovy
-conda {
-   process.executor = 'slurm'
-   singularity.enabled = false
-   conda.enabled = true
-   process.conda = '<conda_environment_with_oncodrive3d>'
+params {
+    ...
+    conda_env = '/path/to/conda/environment/with/oncodrive3d' 
+    ...
 }
 ```
 
-Replace `<conda_environment_with_oncodrive3d>` with the path to your Conda environment.
+Replace `/path/to/conda/environment/with/oncodrive3d` with the path to your Conda environment. Alternatively, you can provide it as a command-line argument.
 
 #### Test Run
 
 Run a test to ensure that everything is set up correctly and functioning as expected:
 
 ```bash
-nextflow run main.nf -profile test,conda --data_dir <build_folder>
+nextflow run main.nf -profile test,container --data_dir <build_folder>
 ```
 
 Replace `<build_folder>` with the path to the Oncodrive3D datasets built in the [building datasets](#building-datasets) step.
-If you prefer to use Singularity, replace `conda` in the `-profile` argument with `container`.
+If you prefer to use Conda, replace `container` in the `-profile` argument with `conda`.
 
 #### Run on New Data
 
@@ -235,7 +234,7 @@ input/
 Example of run using VEP output as input and MANE Select transcripts:
 
 ```bash
-nextflow run main.nf -profile conda --data_dir <build_folder> --indir <input> --vep_input true --mane true
+nextflow run main.nf -profile container --data_dir <build_folder> --indir <input> --vep_input true --mane true
 ```
 
 #### Main Command Line Options:
