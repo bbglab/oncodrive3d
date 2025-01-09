@@ -156,7 +156,7 @@ def build_datasets(output_dir,
               help="Path of the mutation profile (192 trinucleotide contexts) used as optional input")
 @click.option("-m", "--mutability_config_path", type=click.Path(exists=True), 
               help="Path of the config file with information on mutability")
-@click.option("-o", "--output_dir", type=str, default='results', 
+@click.option("-o", "--output_dir", type=str, default='output', 
               help="Path to output directory")
 @click.option("-d", "--data_dir", type=click.Path(exists=True), default = os.path.join('datasets'), 
               help="Path to datasets")
@@ -373,8 +373,9 @@ def build_annotations(data_dir,
 @click.option("--summary_alpha", help="Alpha value for score track in summary plot", type=float, default=0.7)
 @click.option("--dist_thr", help="Threshold of ratios to avoid clashing feature names (e.g., domains and motifs)", type=float, default=0.1)
 @click.option("--genes", help="List of genes to be analysed in the report (e.g., --genes TP53,KRAS,PIK3CA)", type=str)
-@click.option("--n_genes", help="Top number of genes to be included in the plots", type=int, default=30)
-@click.option("--volcano_top_n", help="Top associations to annotated in volcano plot", type=int, default=15)
+@click.option("--c_genes_only", help="Generate gene plots only for significant genes (use --no-c_genes_only to disable)", is_flag=True, default=True)
+@click.option("--max_n_genes", help="Max number of genes to plot", type=int, default=30)
+@click.option("--volcano_top_n", help="Top associations to annotate in volcano plot", type=int, default=15)
 @click.option("--volcano_fsize_x", help="Figure size x-axis for volcano plot", type=float, default=10)
 @click.option("--volcano_fsize_y", help="Figure size y-axis for volcano plot", type=float, default=6)
 @click.option("--volcano_subplots_fsize_x", help="Figure size x-axis for volcano subplots (dynamically adjusted)", type=float, default=3.2)
@@ -407,7 +408,8 @@ def plot(gene_result_path,
          summary_alpha,
          dist_thr, 
          genes,
-         n_genes,
+         c_genes_only,
+         max_n_genes,
          volcano_top_n,
          volcano_fsize_x,
          volcano_fsize_y,
@@ -449,7 +451,8 @@ def plot(gene_result_path,
     logger.info(f"Summary plot score alpha: {summary_alpha}")
     logger.info(f"Threshold for clashing feat: {dist_thr}")
     logger.info(f"Subset of genes: {genes}")
-    logger.info(f"Max number of genes to plot: {n_genes}")
+    logger.info(f"Gene plots for significant genes only: {bool(c_genes_only)}")
+    logger.info(f"Max number of genes to plot: {max_n_genes}")
     logger.info(f"Volcano plot top associations to annotate: {volcano_top_n}")
     logger.info(f"Output csv file: {bool(output_csv)}")
     logger.info(f"Include non-mutated positions in csv file: {bool(output_all_pos)}")
@@ -488,7 +491,8 @@ def plot(gene_result_path,
                   output_dir=output_dir,
                   plot_pars=plot_pars,
                   maf_path_for_nonmiss=maf_for_nonmiss_path,
-                  n_genes=n_genes,
+                  c_genes_only=c_genes_only,
+                  n_genes=max_n_genes,
                   lst_genes=genes,
                   save_plot=True,
                   show_plot=False,
@@ -523,7 +527,7 @@ def plot(gene_result_path,
 @click.option("--maf_path_nonmiss_2", type=click.Path(exists=True), 
               help="Path to input mutations file B including non-missense mutations (e.g., miss_count,miss_prob,score)")
 @click.option("--lst_tracks", type=str,
-              help="List of tracks to be included in the plots", 
+              help="List of tracks to plot", 
               default="miss_count,miss_prob,score,clusters,ddg,disorder,pacc,ptm,site,sse,pfam,prosite,membrane,motif")
 @click.option("--lst_hratios", type=str,
               help="List of float to define horizontal ratio of each track of the plot") 
@@ -531,7 +535,7 @@ def plot(gene_result_path,
 @click.option("--fsize_y", help="Figure size y-axis", type=float, default=12)
 @click.option("--dist_thr", help="Threshold of ratios to avoid clashing feature names (e.g., domains and motifs)", type=float, default=0.1)
 @click.option("--genes", help="List of genes to be analysed in the report (e.g., --genes TP53,KRAS,PIK3CA)", type=str)
-@click.option("--n_genes", help="Top number of genes to be included in the plots", type=int, default=30)
+@click.option("--max_n_genes", help="Max number of genes to plot", type=int, default=30)
 @click.option("--count_mirror", help="Missense mutation count track as mirror image", is_flag=True)
 @click.option("--prob_mirror", help="Missense mutation prob track as mirror image", is_flag=True)
 @click.option("--score_mirror", help="Clustering score track as mirror image", is_flag=True)
@@ -555,7 +559,7 @@ def comparative_plot(o3d_result_dir_1,
                      prob_mirror,
                      score_mirror,
                      genes,
-                     n_genes,
+                     max_n_genes,
                      verbose):
     """"Generate genes comparative plots to comprare two runs of 3D-clustering analysis."""
 
@@ -579,7 +583,7 @@ def comparative_plot(o3d_result_dir_1,
     logger.info(f"Score as mirror image: {bool(score_mirror)}")
     logger.info(f"Verbose: {bool(verbose)}")
     logger.info(f"Subset of genes: {genes}")
-    logger.info(f"Max number of genes to plot: {n_genes}")
+    logger.info(f"Max number of genes to plot: {max_n_genes}")
     logger.info(f"Verbose: {bool(verbose)}")
     logger.info(f'Log path: {os.path.join(output_dir, "log")}')
     logger.info("")
@@ -604,7 +608,7 @@ def comparative_plot(o3d_result_dir_1,
                                plot_pars=plot_pars,
                                maf_path_nonmiss_1=maf_path_nonmiss_1,
                                maf_path_nonmiss_2=maf_path_nonmiss_2,
-                               n_genes=n_genes, 
+                               n_genes=max_n_genes, 
                                lst_genes=genes)
 
 

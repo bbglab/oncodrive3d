@@ -143,14 +143,14 @@ def generate_chimerax_plot(output_dir,
                             chimerax_bin):
 
     seq_df = pd.read_csv(seq_df_path, sep="\t")
-    result_genes = pd.read_csv(gene_result_path)
+    gene_result = pd.read_csv(gene_result_path)
     result = pd.read_csv(pos_result_path)
     if "Ratio_obs_sim" in result.columns:
         result = result.rename(columns={"Ratio_obs_sim" : "Score_obs_sim"})
     result["Logscore_obs_sim"] = np.log(result["Score_obs_sim"])
 
     # Process each gene
-    genes = result_genes[result_genes["C_gene"] == 1].Gene.unique()
+    genes = gene_result[gene_result["C_gene"] == 1].Gene.unique()
     if len(genes) > 0:
         
         chimera_out_path = os.path.join(output_dir, f"{cohort}.chimerax")
