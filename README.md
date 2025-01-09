@@ -60,24 +60,24 @@ As mention above, to better understand the format of the input files, how they c
 
 ### Input
 
-- **<input_mutations>** (`required`): Mutation file that can be eihter:
-   - A Mutation Annotation Format (MAF) file annotated with consequences (e.g., by using [Ensembl Variant Effect Predictor (VEP)](https://www.ensembl.org/info/docs/tools/vep/index.html)).
-   - The unfiltered output of VEP (`<cohort>.vep.tsv.gz`) including annotations for all possible transcripts.
+- **<input_mutations>** (`required`): Mutation file that can be either:
+   - **<input_maf>**: A Mutation Annotation Format (MAF) file annotated with consequences (e.g., by using [Ensembl Variant Effect Predictor (VEP)](https://www.ensembl.org/info/docs/tools/vep/index.html)).
+   - **<input_vep>**: The unfiltered output of VEP (`<cohort>.vep.tsv.gz`) including annotations for all possible transcripts.
 
 - **<mut_profile>** (`optional`): Dictionary including the normalized frequencies of mutations (*values*) in every possible trinucleotide context (*keys*), such as 'ACA>A', 'ACC>A', and so on.
 
 ---
 
 **⚠️ Note:**  
-Oncodrive3D uses the mutational profile of the cohort to improve the accuracy of neutral mutagenesis simulations. However, it’s not strictly required. If the mutational profile is not provided, the tool will use a simple, uniform distribution as a default behavior for simulating mutations.
+Oncodrive3D uses the mutational profile of the cohort to improve the accuracy of neutral mutagenesis simulations. However, it’s not strictly required. If the mutational profile is not provided, the tool will use a simple uniform distribution as the background model for simulating mutations and scoring potential 3D clusters.
 
 ---
 
 ### Main output
 
-- **<cohort>.3d_clustering_genes.csv**: A Comma-Separated Values (CSV) file containing the results of the analysis at the gene level. Each row represents a gene, sorted from the most significant to the least significant based on the 3D clustering analysis. The table also includes genes that were not analyzed, with the reason for exclusion provided in the `status` column.
+- **\<cohort>.3d_clustering_genes.csv**: A Comma-Separated Values (CSV) file containing the results of the analysis at the gene level. Each row represents a gene, sorted from the most significant to the least significant based on the 3D clustering analysis. The table also includes genes that were not analyzed, with the reason for exclusion provided in the `status` column.
   
-- **<cohort>.3d_clustering_pos.csv**: A Comma-Separated Values (CSV) file containing the results of the analysis at the level of mutated residues. Each row corresponds to a mutated position within a gene and includes detailed information for each mutational cluster.
+- **\<cohort>.3d_clustering_pos.csv**: A Comma-Separated Values (CSV) file containing the results of the analysis at the level of mutated residues. Each row corresponds to a mutated position within a gene and includes detailed information for each mutational cluster.
 
 
 ### Example Runs:
@@ -101,7 +101,7 @@ To maximize the number of matching transcripts between the input mutations and t
 
 ---
 
-### Command Line Options:
+### Main Command Line Options:
 
 - **-i, --input_path <path (required)>**: Path to the input file (MAF or VEP output) containing the annotated mutations for the cohort.
 
@@ -150,7 +150,7 @@ Basic test run:
 oncodrive3d run -d <build_folder> -i ./test/input/maf/TCGA_WXS_ACC.in.maf -p ./test/input/mut_profile/TCGA_WXS_ACC.sig.json -o ./test/output/ -C TCGA_WXS_ACC
 ```
 
-Test run using VEP outout as Oncodrive3D input: 
+Test run using VEP output as Oncodrive3D input: 
 
 ```bash
 oncodrive3d run -d <build_folder> -i ./test/input/maf/TCGA_WXS_ACC.vep.tsv.gz -p ./test/input/mut_profile/TCGA_WXS_ACC.sig.json -o ./test/output/ -C TCGA_WXS_ACC --o3d_transcripts --use_input_symbols
@@ -167,7 +167,7 @@ Oncodrive3D can be run in parallel on multiple cohorts using [Nextflow](https://
 
 ### Requirements
 
-1. Install [Nextflow](https://www.nextflow.io/docs/latest/getstarted.html) (version `23.04.3.5875` was used for testing).
+1. Install [Nextflow](https://www.nextflow.io/docs/latest/getstarted.html) (version `23.04.3` was used for testing).
 2. Install either or both:
    - [Singularity](https://sylabs.io/guides/latest/user-guide/installation.html)
    - [Conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html)
@@ -238,7 +238,7 @@ Example of run using VEP output as input and MANE Select transcripts:
 nextflow run main.nf -profile conda --data_dir <build_folder> --indir <input> --vep_input true --mane true
 ```
 
-#### Command Line Options:
+#### Main Command Line Options:
 
 - **--indir <path>**: Path to the input directory including the subdirectories ``maf`` or ``vep`` and ``mut_profile``. *Default:* ``${baseDir}/test/``
 
