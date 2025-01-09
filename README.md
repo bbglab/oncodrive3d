@@ -69,7 +69,7 @@ As mention above, to better understand the format of the input files, how they c
 ---
 
 **⚠️ Note:**  
-Oncodrive3D uses the mutational profile of the cohort to improve the accuracy of neutral mutagenesis simulations. However, it’s not strictly required. If the mutational profile is not provided, the tool will use a simple uniform distribution as the background model for simulating mutations and scoring potential 3D clusters.
+Oncodrive3D uses the mutational profile of the cohort to build an accurate background model. However, it’s not strictly required. If the mutational profile is not provided, the tool will use a simple uniform distribution as the background model for simulating mutations and scoring potential 3D clusters.
 
 ---
 
