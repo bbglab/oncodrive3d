@@ -150,7 +150,7 @@ def build_datasets(output_dir,
 
 @oncodrive3D.command(context_settings=dict(help_option_names=['-h', '--help']),
                      help="Run 3D-clustering analysis.")
-@click.option("-i", "--input_maf_path", type=click.Path(exists=True), required=True, 
+@click.option("-i", "--input_path", type=click.Path(exists=True), required=True, 
               help="Path of the MAF file (or direct VEP output) used as input")
 @click.option("-p", "--mut_profile_path", type=click.Path(exists=True), 
               help="Path of the mutation profile (192 trinucleotide contexts) used as optional input")
@@ -191,7 +191,7 @@ def build_datasets(output_dir,
 @click.option("--sample_info", is_flag=True,
               help="Include sample information in position-level result (currently unavailable).")                  # TODO: enable sample info in output
 @setup_logging_decorator
-def run(input_maf_path,
+def run(input_path,
         mut_profile_path,
         mutability_config_path,
         output_dir,
@@ -226,7 +226,7 @@ def run(input_maf_path,
     # Log
     startup_message(__version__, "Initializing analysis..")
 
-    logger.info(f"Input MAF: {input_maf_path}")
+    logger.info(f"Input MAF: {input_path}")
     logger.info(f"Input mut profile: {path_prob}")
     logger.info(f"Input mutability config: {path_mutability_config}")
     logger.info(f"Build directory: {data_dir}")
@@ -253,7 +253,7 @@ def run(input_maf_path,
     logger.info(f'Log path: {os.path.join(output_dir, "log")}')
     logger.info("")
 
-    run_clustering(input_maf_path,
+    run_clustering(input_path,
                     mut_profile_path,
                     mutability_config_path,
                     output_dir,  

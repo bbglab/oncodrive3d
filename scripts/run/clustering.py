@@ -322,15 +322,15 @@ def clustering_3d(gene,
             # Build network and perform detection
             G = get_network(pos_hits, mut_count_v, cmap)
             communities = nx_comm.label_propagation_communities(G)
-            clusters = get_community_index_nx(pos_hits, communities)
+            clumps = get_community_index_nx(pos_hits, communities)
 
         else:
             # Assign cluster 0 to the only pos hit
-            clusters = 0 
-        meta_clusters = pd.DataFrame({"Pos" : pos_hits, "Cluster" : clusters})
+            clumps = 0 
+        meta_clusters = pd.DataFrame({"Pos" : pos_hits, "Clump" : clumps})
         result_pos_df = result_pos_df.merge(meta_clusters, how = "left", on = "Pos")
     else:
-        result_pos_df["Cluster"] = np.nan
+        result_pos_df["Clump"] = np.nan
     
 
     ## Output
@@ -468,7 +468,7 @@ def clustering_3d_mp_wrapper(genes,
     return result_pos, result_gene
 
 
-def run_clustering(input_maf_path,
+def run_clustering(input_path,
                     mut_profile_path,
                     mutability_config_path,
                     output_dir,
@@ -499,7 +499,7 @@ def run_clustering(input_maf_path,
     # ====
 
     seq_df = pd.read_csv(seq_df_path, sep="\t")
-    data, seq_df = parse_maf_input(input_maf_path, 
+    data, seq_df = parse_maf_input(input_path, 
                                     seq_df, 
                                     use_o3d_transcripts=o3d_transcripts,
                                     use_input_symbols=use_input_symbols, 

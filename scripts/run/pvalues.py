@@ -44,17 +44,17 @@ def get_top_vol_info(gene_result_pos):
 def get_final_gene_result(result_pos, result_gene, alpha_gene=0.05, sample_info=False):
     """
     Output the final dataframe including gene global pval, qval,
-    significant positions, clusters, processing status, etc.
+    significant positions, clumps, processing status, etc.
     """
 
     pos_hits = result_pos[result_pos["C"] == 1]
 
     if len(pos_hits) > 0:
         # Get significant positions and communities for each gene
-        clusters = pos_hits.groupby("Gene").apply(lambda x: (x["Pos"].values)).reset_index().rename(columns={0 : "C_pos"})
-        clusters["C_label"] = pos_hits.groupby("Gene").apply(lambda x: x["Cluster"].values).reset_index(drop=True)
+        clumps = pos_hits.groupby("Gene").apply(lambda x: (x["Pos"].values)).reset_index().rename(columns={0 : "C_pos"})
+        clumps["C_label"] = pos_hits.groupby("Gene").apply(lambda x: x["Clump"].values).reset_index(drop=True)
         # Annotate each gene with significant hits
-        result_gene = clusters.merge(result_gene, on="Gene", how="outer")
+        result_gene = clumps.merge(result_gene, on="Gene", how="outer")
     else:
         result_gene["C_pos"] = np.nan
         result_gene["C_label"] = np.nan

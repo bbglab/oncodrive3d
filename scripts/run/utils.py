@@ -193,14 +193,14 @@ def read_input(input_path):
     return pd.read_table(input_path, usecols=cols_to_read, dtype=dtype)
 
 
-def parse_maf_input(maf_input_path, seq_df=None, use_o3d_transcripts=False, use_input_symbols=False, mane=False):
+def parse_maf_input(input_path, seq_df=None, use_o3d_transcripts=False, use_input_symbols=False, mane=False):
     """
     Parsing and process MAF input data.
     """
 
     # Load, parse from VEP and update seq_df if needed
     logger.info(f"Reading input mutations file..")
-    maf = read_input(maf_input_path)
+    maf = read_input(input_path)
     logger.debug(f"Processing [{len(maf)}] total mutations..")
     maf, seq_df = parse_vep_output(maf, seq_df, use_o3d_transcripts, use_input_symbols, mane)
 
@@ -343,14 +343,14 @@ def add_info(mut_gene_df, result_pos_df, cmap, pae=None, sample_info=False):
             result_pos_df["Samples_in_vol"] = np.nan
 
     # Get per-community info
-    if result_pos_df["Cluster"].isna().all():
+    if result_pos_df["Clump"].isna().all():
         if sample_info:
             result_pos_df["Samples_in_cl_vol"] = np.nan
         result_pos_df["Mut_in_cl_vol"] = np.nan
         result_pos_df["Res_in_cl"] = np.nan
         result_pos_df["pLDDT_cl_vol"] = np.nan
     else:       
-        community_pos = result_pos_df.groupby("Cluster").apply(lambda x: x.Pos.values)
+        community_pos = result_pos_df.groupby("Clump").apply(lambda x: x.Pos.values)
         community_mut = community_pos.apply(lambda x: sum([pos in get_unique_pos_in_contact(x, cmap) for 
                                                            pos in mut_gene_df.Pos]))
         community_plddt = community_pos.apply(lambda x: mut_gene_df.Confidence[[pos in get_unique_pos_in_contact(x, cmap) 
@@ -371,7 +371,7 @@ def add_info(mut_gene_df, result_pos_df, cmap, pae=None, sample_info=False):
             community_info["Samples_in_cl_vol"] = community_samples
         
         # Add to residues-level result
-        result_pos_df = result_pos_df.merge(community_info, on="Cluster", how="outer")
+        result_pos_df = result_pos_df.merge(community_info, on="Clump", how="outer")
         
     # AF PAE
     if pae is not None:
@@ -491,7 +491,7 @@ def empty_result_pos(sample_info=False):
             'pval', 
             'C', 
             'C_ext',
-            'Cluster', 
+            'Clump', 
             'Rank', 
             'Tot_samples', 
             'Samples_in_vol', 
