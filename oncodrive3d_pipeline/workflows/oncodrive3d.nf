@@ -3,7 +3,9 @@ include { O3D_PLOT } from '../modules/o3d_plot'
 include { O3D_CHIMERAX_PLOT } from '../modules/o3d_chimerax_plot'
 
 workflow ONCODRIVE3D {
+
     main:
+
     // Define input channels
     input_files = params.vep_input ?
         "${params.indir}/{vep,mut_profile}/${params.cohort_pattern}{.vep.tsv.gz,.sig.json}" :
@@ -47,18 +49,12 @@ workflow ONCODRIVE3D {
         }
         .set { file_pairs_ch }
 
-    // Run O3D_RUN process
+    // Run processes
     O3D_RUN(file_pairs_ch)
-
-    // Combine input files with O3D_RUN results for plotting
     plot_input_ch = file_pairs_ch.join(O3D_RUN.out.o3d_result)
-
-    // Conditional execution of O3D_PLOT
     if (params.plot) {
         O3D_PLOT(plot_input_ch)
     }
-
-    // Conditional execution of O3D_CHIMERAX_PLOT
     if (params.chimerax_plot) {
         O3D_CHIMERAX_PLOT(plot_input_ch)
     }
@@ -71,6 +67,9 @@ workflow ONCODRIVE3D {
         plot_genes = params.plot ? O3D_PLOT.out.genes_plot : Channel.empty()
         plot_pos_annotated = params.plot ? O3D_PLOT.out.pos_annotated_csv : Channel.empty()
         plot_uniprot_feat = params.plot ? O3D_PLOT.out.uniprot_feat_csv : Channel.empty()
+        // logodds_plot = params.plot ? O3D_PLOT.out.logodds_plot : Channel.empty()
+        // volcano_plot = params.plot ? O3D_PLOT.out.volcano_plot : Channel.empty()
+        // volcano_plot_gene = params.plot ? O3D_PLOT.out.volcano_plot_gene : Channel.empty()
         plot_logs = params.plot ? O3D_PLOT.out.log : Channel.empty()
 
         plot_chimerax_defattr = params.chimerax_plot ? O3D_CHIMERAX_PLOT.out.chimerax_defattr : Channel.empty()
