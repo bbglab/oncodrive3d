@@ -2,7 +2,7 @@
 
 **Oncodrive3D** is a computational method for analyzing patterns of somatic mutations across tumors. It identifies **three-dimensional (3D) clusters** of missense mutations and detects genes under **positive selection**.
 
-For detailed instructions on how to install, setup, and run the tool, how to obtain the required input data and for comprehensive information about the output, please refer to the [Oncodrive3D documentation](https://readthedocs-toy.readthedocs.io/en/latest/).
+For detailed instructions on how to install, setup, and run the tool, how to obtain the required input data and for comprehensive information about the output, please refer to the [Oncodrive3D documentation](https://readthedocs-toy.readthedocs.io/en/latest/) (*note: the ReadTheDocs documentation is currently obsolete, under development, and requires updates to be complete*).
 
 ---
 
@@ -56,7 +56,7 @@ oncodrive3d build-datasets -o <build_folder> --mane
 
 ## Running 3D-clustering Analysis
 
-As mention above, to better understand the format of the input files, how they can be generated, and the in depth the description of the output files, please refer to the [Oncodrive3D documentation](https://readthedocs-toy.readthedocs.io/en/latest/).
+As mention above, to better understand the format of the input files, how they can be generated, and the in depth the description of the output files, please refer to the [Oncodrive3D documentation](https://readthedocs-toy.readthedocs.io/en/latest/) (*note: the ReadTheDocs documentation is currently obsolete, under development, and requires updates to be complete*).
 
 ### Input
 
@@ -202,6 +202,7 @@ Replace `/path/to/conda/environment/with/oncodrive3d` with the path to your Cond
 Run a test to ensure that everything is set up correctly and functioning as expected:
 
 ```bash
+cd oncodrive3d_pipeline
 nextflow run main.nf -profile test,container --data_dir <build_folder>
 ```
 
