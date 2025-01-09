@@ -181,6 +181,7 @@ timeline*
 trace*
 *.log
 .nextflow*
+run_*
 
 # Containers
 *.def
