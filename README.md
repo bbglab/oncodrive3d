@@ -21,7 +21,7 @@ cd clustering_3d                                          # >>> Modify to oncodr
 pip install .
 ```
 
-## Building datasets
+## Building Datasets
 
 This step is required after installation or whenever you need to generate datasets for a different organism or apply a specific threshold to define amino acid contacts.
 
@@ -31,7 +31,7 @@ Basic build:
 oncodrive3d build-datasets -o <build_folder>
 ```
 
-Build with MANE Select transcripts:
+Add the `--mane` flag to include AlphaFold-predicted structures corresponding to MANE Select transcripts:
 
 ```bash
 oncodrive3d build-datasets -o <build_folder> --mane
@@ -39,58 +39,70 @@ oncodrive3d build-datasets -o <build_folder> --mane
 
 ### Command Line Options:
 
-- **-o, --output_dir <path>**: Path to the directory where the output files will be saved. Default: `./datasets/`.
+- **-o, --output_dir <path>**: Path to the directory where the output files will be saved. *default:* `./datasets/`.
 
-- **-s, --organism <str>**: Specifies the organism (`human` or `mouse`). Default: `human`.
+- **-s, --organism <str>**: Specifies the organism (`human` or `mouse`). *default:* `human`.
 
 - **-m, --mane <flag: set to enable>**: Use structures predicted from MANE Select transcripts (applicable to Homo sapiens only).
 
-- **-d, --distance_threshold <int>**: Distance threshold in Ångströms for defining amino acid contacts. Default: `10`.
+- **-d, --distance_threshold <int>**: Distance threshold in Ångströms for defining amino acid contacts. *default:* `10`.
 
-- **-c, --cores <int>**: Number of CPU cores for computation. Default: All available CPU cores.
+- **-c, --cores <int>**: Number of CPU cores for computation. *default:* All available CPU cores.
 
 - **-v, --verbose <flag: set to enable>**: Enables verbose output.
 
 
-## Running 3D-clustering analysis
+## Running 3D-clustering Analysis
 
-Basic run:
+### Input
+
+- **<input_mutations>** (`required`): Mutation Annotation Format (MAF) file annotated with consequences (e.g., by using [Ensembl Variant Effect Predictor (VEP)](https://www.ensembl.org/info/docs/tools/vep/index.html)).
+
+- **<mut_profile>** (`optional`): Dictionary including the normalized frequencies of mutations (*values*) in every possible trinucleotide context (*keys*), such as 'ACA>A', 'ACC>A', and so on.
+
+### Output
+
+- **<cohort>.3d_clustering_genes.csv**: This is a Comma-Separated Values (CSV) file containing the results of the analysis at the gene level.
+  
+- **<cohort>.3d_clustering_pos.csv**: This is a Comma-Separated Values (CSV) file containing the results of the analysis at the level of mutated positions.
+
+
+### Example Runs:
+
+The `oncodrive3d run` command allows for flexible configurations based on the input data and desired options. Below are the typical scenarios:
+
+Example of basic run:
 
 ```bash
-oncodrive3d run -i <input_maf> -p <mut_profile> -d <build_folder> -C <cohort_name>
+oncodrive3d run -i <input_maf> -p <mut_profile> -d <build_folder> -C <cohort_name> -t <cancer_type>
 ```
 
-Run with MANE Select transcripts:
+Additional Options:
+
+- Use MANE Select transcripts: Add the `--mane` flag to prioritize MANE transcripts.
+- Use VEP output as input: Replace <input_maf> with <input_vep> and include the `--o3d_transcripts` and `--use_input_symbols` flags.
+- Combine VEP input with MANE Select transcripts: Use both `--mane` and `--o3d_transcripts` flags together.
+
+Example of run using VEP output as input and MANE Select transcripts:
 
 ```bash
-oncodrive3d run -i <input_maf> -p <mut_profile> -d <build_folder> -C <cohort_name> --mane
+oncodrive3d run -i <input_vep> -p <mut_profile> -d <build_folder> -C <cohort_name> -t <cancer_type> --o3d_transcripts --use_input_symbols --mane
 ```
 
-Run using VEP outout as Oncodrive3D input:
 
-```bash
-oncodrive3d run -i <input_vep> -p <mut_profile> -d <build_folder> -C <cohort_name> --o3d_transcripts --use_input_symbols
-```
-
-Run using VEP outout as Oncodrive3D input and MANE Select transcripts:
-
-```bash
-oncodrive3d run -i <input_vep> -p <mut_profile> -d <build_folder> -C <cohort_name> --o3d_transcripts --use_input_symbols --mane
-```
-
-### Command Line Options:
+#### Command Line Options:
 
 - **-i, --input_path <path (required)>**: Path to the input file (MAF or VEP output) containing the annotated mutations for the cohort.
 
 - **-p, --mut_profile_path <path>**: Path to the JSON file specifying the cohort's mutational profile (192 key-value pairs). If neither `--mut_profile_path` nor `--mutability_config_path` is provided, a uniform distribution across protein residues will be used to model neutral mutagenesis.
 
-- **-m, --mutability_config_path <path>**Path to the mutability configuration file, which contains integrated information about the mutation profile and sequencing depth of the cohor (required only for datasets generated with high variable depth between sites, such as those produced by Duplex Sequencing technology).
+<!-- - **-m, --mutability_config_path <path>**: Path to the mutability configuration file, which contains integrated information about the mutation profile and sequencing depth of the cohor (required only for datasets generated with high variable depth between sites, such as those produced by Duplex Sequencing technology). -->
 
-- **-o, --output_dir <path>**: Output directory for results. Default: `./results/`.
+- **-o, --output_dir <path>**: Path to the output directory for results. *default:* `./output/`.
 
-- **-d, --data_dir <path>**: Path to the directory containing the datasets built in the [building datasets](#building-datasets) step. Default: `./datasets/`.
+- **-d, --data_dir <path>**: Path to the directory containing the datasets built in the [building datasets](#building-datasets) step. *default:* `./datasets/`.
 
-- **-c, --cores <int>**: Number of CPU cores to use. Default: All available CPU cores.
+- **-c, --cores <int>**: Number of CPU cores to use. *default:* All available CPU cores.
 
 - **-s, --seed <int>**: Random seed for reproducibility.
 
@@ -109,29 +121,12 @@ oncodrive3d run -i <input_vep> -p <mut_profile> -d <build_folder> -C <cohort_nam
 - **--mane <flag: set to enable>**: Prioritizes MANE Select transcripts when multiple structures map to the same gene symbol.
 
 
-### Running with Singularity
+### Running With Singularity
 
 ```bash
 singularity pull oncodrive3d.sif docker://spellegrini87/oncodrive3d:1.0.2                                                              # TODO: TO UPDATE
 singularity exec oncodrive3d.sif oncodrive3d run -i <input_maf> -p <mut_profile> -d <build_folder> -C <cohort_name>
 ```
-
-
-## Input & output
-
-### Input
-
-- **input.maf** (`required`): Mutation Annotation Format (MAF) file annotated with consequences (e.g., by using [Ensembl Variant Effect Predictor (VEP)](https://www.ensembl.org/info/docs/tools/vep/index.html)).
-
-- **mut_profile.json** (`optional`): Dictionary including the normalized frequencies of mutations (*values*) in every possible trinucleotide context (*keys*), such as 'ACA>A', 'ACC>A', and so on.
-
-- **mutability_config_path.json** (`optional`): # TODO: provide explaination: Dictionary of dictionary having...
-
-### Output
-
-- **cohort_filename.3d_clustering_genes.csv**: This is a Comma-Separated Values (CSV) file containing the results of the analysis at the gene level.
-  
-- **cohort_filename.3d_clustering_pos.csv**: This is a Comma-Separated Values (CSV) file containing the results of the analysis at the level of mutated positions.
 
 
 ## Testing
@@ -147,7 +142,7 @@ Basic test run:
 Test run using VEP outout as Oncodrive3D input: 
 
 ```bash
-   oncodrive3d run -d <build_folder> -i ./test/input/maf/TCGA_WXS_ACC.in.maf -p ./test/input/mut_profile/TCGA_WXS_ACC.sig.json -o ./test/output/ -C TCGA_WXS_ACC --o3d_transcripts --use_input_symbols
+   oncodrive3d run -d <build_folder> -i ./test/input/maf/TCGA_WXS_ACC.vep.tsv.gz -p ./test/input/mut_profile/TCGA_WXS_ACC.sig.json -o ./test/output/ -C TCGA_WXS_ACC --o3d_transcripts --use_input_symbols
 ```
 
 Check the output in the `./test/output/` directory to ensure the analysis completes successfully.
@@ -155,100 +150,99 @@ Check the output in the `./test/output/` directory to ensure the analysis comple
 The provided input files also serve as examples to demonstrate the expected structure and format of the input files. Users can refer to these files when preparing their own input data for analysis.
 
 
-# Parallel processing on multiple cohort
+# Parallel Processing on Multiple Cohorts
 
-It is possible to run Oncodrive3D in parallel on multiple cohorts by using [nextflow](https://www.nextflow.io/).
+Oncodrive3D can be run in parallel on multiple cohorts using [Nextflow](https://www.nextflow.io/). This approach enables efficient, reproducible and scalable analysis across datasets.
 
-1. Install [nextflow](https://www.nextflow.io/docs/latest/getstarted.html) and [Singularity](https://www.nextflow.io/docs/latest/getstarted.html) (versions `23.04.3.5875` and `3.5.3` were used respectively).
+### Requirements
 
-2. Pull Oncodrive3D image from Docker Hub:
-
-```bash
-   singularity pull build/containers/oncodrive3d.sif docker://spellegrini87/oncodrive3d:1.0.2
-```
-
-3. Run Oncodrive3D in parallel on multiple cohorts by using the provided nextflow script. For example:
-
-```bash
-   nextflow run oncodrive3d.nf --indir test/input --outdir test/output/
-```
-
-The nextflow script takes the following arguments:
-
---indir <path>   Input directory including the subdirectories ``maf`` and ``mut_profile``. Default: ``${baseDir}/test/``
-
---outdir <path>   Output directory. Default: ``run_<timestamp>/``
-
---cohort_pattern <str>   Pattern expression to select specific files within the input directory (e.g., 'TCGA*' would select only TCGA cohorts). Default: ``*``
-
---data_dir <path>   Build folder including the files compiled during the :ref:`building datasets` step. Default: ``${baseDir}/datasets/``
-
---container <path>   Singularity image with installation of Oncodrive3D. Default: ``${baseDir}/build/containers/oncodrive3d.sif``
-
---max_running <int>   Maximum number of cohorts allowed to be processed in parallel . Default: ``5``
-
---cores <int>   CPU cores used to process each cohort. Default: ``9``
-
---memory <str>   Memory used to process each cohort. Default: ``50GB``
-
---seed <int>   Seed to be used for reproducibility. Default: ``128``
-
-When using the nextflow script, it is important to ensure that your input *maf* and *mut profile* files are located in the same folder, as shown in 
-``test/input``. These files should have the extensions ``.in.maf`` and ``.sig.json``, respectively.
+1. Install [Nextflow](https://www.nextflow.io/docs/latest/getstarted.html) (version `23.04.3.5875` was used for testing).
+2. Install either or both:
+   - [Singularity](https://sylabs.io/guides/latest/user-guide/installation.html), or
+   - [Conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html).
 
 
-## Quick interpretation of the analysis
+### Setting Up and Running Oncodrive3D with Nextflow
 
-You can generate plots for a quick interpretation of the 3D clustering analysis 
-performed by Oncodrive-3D. The plots can be simple or annotated with structural 
-and genomics features. To generate annotated plots, it is required (once) to 
-build the annotations datasets.
+#### Option 1: Using Singularity
 
-### Installation of external software for annotations
-
-Install PDB_Tool to determine solvent accessibility and secondary structures 
-from the PDB files.
-
-1. Clone PDB_Tool:
+Pull the Oncodrive3D Singularity images from Docker Hub.
 
 ```bash
-git clone https://github.com/realbigws/PDB_Tool
-cd PDB_Tool/source_code
-make
+   singularity pull build/containers/oncodrive3d.sif docker://spellegrini87/oncodrive3d:latest
 ```
 
-2. Open your configuration file for the Bash shell environment:
+#### Option 2: Using Conda
+
+Ensure Oncodrive3D is installed in your Conda environment and update the `Profiles` section of the `nextflow.config` file to point to your Conda installation:
+
+```groovy
+    conda {
+        process.executor = 'slurm'
+        singularity.enabled = false
+        conda.enabled = true
+        process.conda = '<conda_environment_with_oncodrive3d>'
+    }
+```
+
+Replace `<conda_environment_with_oncodrive3d>` with the path to your Conda environment.
+
+#### Test Run
+
+Run a test to ensure that everything is set up correctly and functioning as expected:
 
 ```bash
-nano ~/.bashrc
+nextflow run main.nf -profile test,conda --data_dir <build_folder>
 ```
 
-3. Export the path for PDB_Tool to your enviroment variable by adding the 
-following line to your configuraion file (change `/path/to/PDB_Tool` to the 
-your actual path to PDB_Tool):
+Replace `<build_folder>` with the path to the Oncodrive3D datasets built in the [building datasets](#building-datasets) step.
+If you prefer to use Singularity, replace `conda` in the `-profile` argument with `container`.
+
+#### Run on New Data
+
+---
+
+**⚠️ Note:**  
+When using the Nextflow script, ensure that your input files are organized in the following directory structure:
+
+```plaintext
+input/
+  ├── maf/
+  │   └── <cohort>.in.maf
+  ├── vep/
+  │   └── <cohort>.vep.tsv.gz
+  └── mut_profile/
+      └── <cohort>.sig.json
+```
+
+- maf/: Contains mutation files with the `.in.maf` extension.
+- vep/: Contains VEP annotation files with the `.vep.tsv.gz` extension, which include annotated mutations with all possible transcripts.
+- mut_profile/: Contains mutational profile files with the `.sig.json` extension.
+
+---
+
+Example basic run using VEP output as input and MANE Select transcripts:
 
 ```bash
-export PATH="$PATH:/path/to/PDB_Tool"
+nextflow run main.nf -profile conda --data_dir <build_folder> --indir <input> --vep_input true --mane true
 ```
 
-### Building annotations
+#### Command Line Options:
 
-This step is required once, only to enable Oncodrive3D to produce annotated plots.
-It is not required to produce simple plot nor to run the 3D-clustering analysis.
+- **--indir <path>**: Path to the input directory including the subdirectories ``maf`` or ``vep`` and ``mut_profile``. *default:* ``${baseDir}/test/``
 
-```bash
-oncodrive3D build-annotations -o annotation_folder/
-```
+- **--outdir <path>**: Path to the output directory. *default:* ``run_<timestamp>/``
 
-- **-o, --output_dir <path>**: Specifies the annotation folder where files will be saved. Default: `./annotations/`.
+- **--cohort_pattern <str>**: Pattern expression to filter specific files within the input directory (e.g., 'TCGA*' would select only TCGA cohorts). *default:* ``*``
 
-- **-c, --cores <int>**: Determines the number of CPU cores to use in the computation. Default: Number of available CPU cores.
+- **--data_dir <path>**: Path to the Oncodrive3D datasets directory, which includes the files compiled during the :ref:`building datasets` step. *default:* ``${baseDir}/datasets/``
 
-- **-v, --verbose <flag: set to enable>**: Enables a more verbose output from the method.
+- **--container <path>**: Path to the Singularity image with Oncodrive3D installation. *default:* ``${baseDir}/build/containers/oncodrive3d.sif``
 
+- **--max_running <int>**: Maximum number of cohorts to process in parallel . *default:* ``5``
 
-### Generating plots
+- **--cores <int>**: Number of CPU cores used to process each cohort. *default:* ``10``
 
-```bash
-oncodrive3D plot -i oncodrive3d_result/ -f filename
-```
+- **--memory <str>**: Amount of memory allocated for processing each cohort. *default:* ``70GB``
+
+- **--seed <int>**: Seed value for reproducibility. **default:** ``128``
