@@ -25,6 +25,7 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+bdist.linux-x86_64
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -171,6 +172,7 @@ tests/normal_tests
 scripts/test.qmap
 scripts/run_*
 scripts/submit*
+guidelines.txt
 
 # Nextflow
 work
@@ -179,6 +181,7 @@ timeline*
 trace*
 *.log
 .nextflow*
+run_*
 
 # Containers
 *.def

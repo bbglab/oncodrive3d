@@ -68,8 +68,8 @@ def get_summary_counts(gene_result, pos_result, seq_df):
     count_pos_df = count_pos_df.sort_values("C", ascending=False).reset_index(drop=True)
 
     # Df with cluster count
-    cluster_df = pos_result.groupby("Gene").max("Cluster").Cluster.reset_index()
-    cluster_df["Cluster"] = cluster_df["Cluster"] + 1
+    cluster_df = pos_result.groupby("Gene").max("Clump").Clump.reset_index()
+    cluster_df["Clump"] = cluster_df["Clump"] + 1
     
     return count_mut_gene_df, count_pos_df, cluster_df
         
@@ -145,8 +145,8 @@ def summary_plot(gene_result,
     
     if "clusters" in tracks:
         ax = tracks.index("clusters")
-        sns.barplot(x='Gene', y='Cluster', data=cluster_df, order=gene_result.Gene, ax=axes[ax], color=sns.color_palette("pastel")[0], ec="black", lw=0.5)
-        axes[ax].set_ylabel('Clusters', fontsize=12)
+        sns.barplot(x='Gene', y='Clump', data=cluster_df, order=gene_result.Gene, ax=axes[ax], color=sns.color_palette("pastel")[0], ec="black", lw=0.5)
+        axes[ax].set_ylabel('Clumps', fontsize=12)
         axes[ax].set_xlabel(None)
     
     # Details
@@ -358,7 +358,7 @@ def parse_pos_result_for_genes_plot(pos_result_gene, c_ext=True):
     """
     
     pos_result_gene = pos_result_gene.copy()
-    pos_result_gene = pos_result_gene[["Pos", "Mut_in_res", "Mut_in_vol", "Score_obs_sim", "C", "C_ext", "pval", "Cluster", "PAE_vol"]]
+    pos_result_gene = pos_result_gene[["Pos", "Mut_in_res", "Mut_in_vol", "Score_obs_sim", "C", "C_ext", "pval", "Clump", "PAE_vol"]]
     if not c_ext:  
         pos_result_gene["C"] = pos_result_gene.apply(
             lambda x: 1 if (x["C"] == 1) & (x["C_ext"] == 0) else 2 if (x["C"] == 1) & (x["C_ext"] == 1) else 0, axis=1)
@@ -498,7 +498,7 @@ def genes_plots(gene_result,
 
             pos_result_gene = pos_result_gene[["Pos", "Mut_in_res", "Mut_in_vol", 
                                                "Score_obs_sim", "C", "C_ext", 
-                                               "pval", "Cluster", "PAE_vol"]]
+                                               "pval", "Clump", "PAE_vol"]]
             pos_result_gene, max_mut = parse_pos_result_for_genes_plot(pos_result_gene, c_ext=c_ext)
             
             # Counts
@@ -784,13 +784,13 @@ def genes_plots(gene_result,
             if "clusters" in annotations:
                 ax = annotations.index("clusters")
 
-                clusters_label = pos_result_gene.Cluster.dropna().unique()
+                clusters_label = pos_result_gene.Clump.dropna().unique()
                 palette = sns.color_palette(cc.glasbey, n_colors=len(clusters_label))
                 for i, cluster in enumerate(clusters_label):
                     axes[ax].fill_between(pos_result_gene['Pos'], -0.5, 0.46, 
-                                            where=((pos_result_gene['Cluster'] == cluster) & (pos_result_gene['C'] == 1)),
+                                            where=((pos_result_gene['Clump'] == cluster) & (pos_result_gene['C'] == 1)),
                                             color=palette[i], lw=0.4) # alpha=0.6
-                axes[ax].set_ylabel('Clusters', fontsize=13.5, rotation=0, va='center')
+                axes[ax].set_ylabel('Clumps', fontsize=13.5, rotation=0, va='center')
                 axes[ax].set_yticks([])  
                 axes[ax
                 ].set_yticklabels([], fontsize=12)
@@ -1055,10 +1055,10 @@ def comparative_plots(shared_genes,
         if len(pos_result_gene_1) > 0 and len(pos_result_gene_2) > 0:
             pos_result_gene_1 = pos_result_gene_1[["Pos", "Mut_in_res", "Mut_in_vol", 
                                                   "Score_obs_sim", "C", "C_ext", 
-                                                  "pval", "Cluster", "PAE_vol"]]
+                                                  "pval", "Clump", "PAE_vol"]]
             pos_result_gene_2 = pos_result_gene_2[["Pos", "Mut_in_res", "Mut_in_vol", 
                                                    "Score_obs_sim", "C", "C_ext", 
-                                                   "pval", "Cluster", "PAE_vol"]]
+                                                   "pval", "Clump", "PAE_vol"]]
             pos_result_gene_1, max_mut_1 = parse_pos_result_for_genes_plot(pos_result_gene_1)
             pos_result_gene_2, max_mut_2 = parse_pos_result_for_genes_plot(pos_result_gene_2)
             
@@ -1332,13 +1332,13 @@ def comparative_plots(shared_genes,
             if "clusters" in annotations: 
                 ax = annotations.index("clusters") 
 
-                clusters_label = pos_result_gene_1.Cluster.dropna().unique()
-                clusters_label_2 = pos_result_gene_2.Cluster.dropna().unique()
+                clusters_label = pos_result_gene_1.Clump.dropna().unique()
+                clusters_label_2 = pos_result_gene_2.Clump.dropna().unique()
                 n_colors = max(len(clusters_label), len(clusters_label_2))
                 palette = sns.color_palette(cc.glasbey, n_colors=n_colors)
                 for i, cluster in enumerate(clusters_label):
                     axes[ax].fill_between(pos_result_gene_1['Pos'], -0.5, 0.46, 
-                                            where=((pos_result_gene_1['Cluster'] == cluster) & (pos_result_gene_1['C'] == 1)),
+                                            where=((pos_result_gene_1['Clump'] == cluster) & (pos_result_gene_1['C'] == 1)),
                                             color=palette[i], lw=0.4) # alpha=0.6
                 axes[ax].set_ylabel('Clusters A                ', fontsize=13.5, rotation=0, va='center')
                 axes[ax].set_yticks([])  
@@ -1348,10 +1348,10 @@ def comparative_plots(shared_genes,
             if "clusters_2" in annotations: 
                 ax = annotations.index("clusters_2") 
                 
-                clusters_label_2 = pos_result_gene_2.Cluster.dropna().unique()
+                clusters_label_2 = pos_result_gene_2.Clump.dropna().unique()
                 for i, cluster in enumerate(clusters_label_2):
                     axes[ax].fill_between(pos_result_gene_2['Pos'], -0.5, 0.46, 
-                                            where=((pos_result_gene_2['Cluster'] == cluster) & (pos_result_gene_2['C'] == 1)),
+                                            where=((pos_result_gene_2['Clump'] == cluster) & (pos_result_gene_2['C'] == 1)),
                                             color=palette[i], lw=0.4) # alpha=0.6
                 axes[ax].set_ylabel('Clusters B                ', fontsize=13.5, rotation=0, va='center')
                 axes[ax].set_yticks([])  
@@ -2196,7 +2196,7 @@ def associations_plots(df_annotated,
     df_annotated = df_annotated.copy()
     df_annotated["Miss_prob"] = df_annotated.apply(lambda x: (miss_prob_dict[f"{x.Uniprot_ID}-F{x.F}"][x.Pos-1]), axis=1)
     df_annotated = df_annotated[df_annotated["Miss_prob"] > 0]
-    cols_drop = "Mut_in_res", "Mut_in_vol", "Score_obs_sim", "C_ext", "pval", "Cluster", "Res", "F", "Ens_Gene_ID", "Ens_Transcr_ID", "PAE_vol", "Miss_prob"
+    cols_drop = "Mut_in_res", "Mut_in_vol", "Score_obs_sim", "C_ext", "pval", "Clump", "Res", "F", "Ens_Gene_ID", "Ens_Transcr_ID", "PAE_vol", "Miss_prob"
     df_annotated = df_annotated.drop(columns=[col for col in cols_drop if col in df_annotated.columns])
     sse_dummies = pd.get_dummies(df_annotated['SSE'], prefix='SSE')
     df_annotated = pd.concat((df_annotated.drop(columns="SSE"), sse_dummies), axis=1)
@@ -2252,6 +2252,7 @@ def generate_plots(gene_result_path,
                    output_dir,
                    plot_pars,
                    maf_path_for_nonmiss=None,
+                   c_genes_only=True,
                    n_genes=30, 
                    lst_genes=None,
                    save_plot=True,
@@ -2327,48 +2328,59 @@ def generate_plots(gene_result_path,
         output_dir_genes_plots = os.path.join(output_dir, f"{cohort}.genes_plots")
         os.makedirs(output_dir_genes_plots, exist_ok=True)
         logger.info(f"Generating genes plots in {output_dir_genes_plots}")
-        pos_result_annotated, uni_feat_processed = genes_plots(gene_result, 
-                                                                pos_result, 
-                                                                seq_df,
-                                                                maf,
-                                                                maf_nonmiss,
-                                                                miss_prob_dict,
-                                                                output_dir_genes_plots,
-                                                                cohort,
-                                                                annotations_dir,
-                                                                disorder,
-                                                                uniprot_feat,
-                                                                pdb_tool,
+        
+        if c_genes_only:
+            n_genes = len(gene_result[gene_result["C_gene"] == 1])
+            gene_result, pos_result, genes, uni_ids = filter_o3d_result(gene_result, 
+                                                                        pos_result, 
+                                                                        n_genes, 
+                                                                        lst_genes)
+        
+        if c_genes_only == False or (c_genes_only and n_genes > 1):
+        
+            pos_result_annotated, uni_feat_processed = genes_plots(gene_result, 
+                                                                    pos_result, 
+                                                                    seq_df,
+                                                                    maf,
+                                                                    maf_nonmiss,
+                                                                    miss_prob_dict,
+                                                                    output_dir_genes_plots,
+                                                                    cohort,
+                                                                    annotations_dir,
+                                                                    disorder,
+                                                                    uniprot_feat,
+                                                                    pdb_tool,
+                                                                    plot_pars,
+                                                                    save_plot=save_plot,
+                                                                    show_plot=show_plot,
+                                                                    c_ext=c_ext,
+                                                                    title=title)
+            
+            # Associations plots     
+            if plot_associations and len(pos_result_annotated) > 0:        
+                pos_result_annotated_uni_feat = associations_plots(pos_result_annotated, 
+                                                                uni_feat_processed, 
+                                                                output_dir,
                                                                 plot_pars,
-                                                                save_plot=save_plot,
-                                                                show_plot=show_plot,
-                                                                c_ext=c_ext,
-                                                                title=title)
-        
-        # Associations plots     
-        if plot_associations and len(pos_result_annotated) > 0:        
-            pos_result_annotated_uni_feat = associations_plots(pos_result_annotated, 
-                                                               uni_feat_processed, 
-                                                               output_dir,
-                                                               plot_pars,
-                                                               miss_prob_dict,
-                                                               cohort)
-            pos_result_annotated = pos_result_annotated.merge(
-                pos_result_annotated_uni_feat.fillna(0), how="left", on=["Uniprot_ID", "Pos"])
+                                                                miss_prob_dict,
+                                                                cohort)
+                pos_result_annotated = pos_result_annotated.merge(
+                    pos_result_annotated_uni_feat.fillna(0), how="left", on=["Uniprot_ID", "Pos"])
+                
             
-        
-        # Save annotations
-        if save_csv and pos_result_annotated is not None:
-            logger.info(f"Saving annotated Oncodrive3D result in {output_dir}")
-            save_annotated_result(pos_result, 
-                                  pos_result_annotated, 
-                                  uni_feat_processed, 
-                                  output_dir, 
-                                  cohort, 
-                                  include_all_pos)
-            
-        logger.info("Plotting completed!")
-    
+            # Save annotations
+            if save_csv and pos_result_annotated is not None:
+                logger.info(f"Saving annotated Oncodrive3D result in {output_dir}")
+                save_annotated_result(pos_result, 
+                                    pos_result_annotated, 
+                                    uni_feat_processed, 
+                                    output_dir, 
+                                    cohort, 
+                                    include_all_pos)
+                
+            logger.info("Plotting completed!")
+        else:
+            logger.warning("There aren't any significant genes to plot!")
     else:
         logger.warning("There aren't any genes to plot!")
         
