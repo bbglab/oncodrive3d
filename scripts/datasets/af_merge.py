@@ -2,7 +2,7 @@
 Module to merge overlapping fragments produced by AlphaFold 2
 for the predictions of proteins larger than 2700 amino acids.
 
-The module uses an adapted version of the code written by the 
+The module uses an adapted version of the code written by the
 authors of DEGRONOPEDIA (Natalia A. Szulc, nszulc@iimcb.gov.pl).
 DEGRONOPEDIA - a web server for proteome-wide inspection of degrons
 doi: 10.1101/2022.05.19.492622.
@@ -18,8 +18,8 @@ from os import sep
 
 import daiquiri
 import pandas as pd
-from Bio.PDB import *
-from Bio.PDB import PDBParser, Structure
+from Bio.PDB import PDBExceptions, PDBParser, Structure, Superimposer
+from Bio.PDB.PDBIO import PDBIO
 from tqdm import tqdm
 
 from scripts import __logger_name__
@@ -30,11 +30,11 @@ daiquiri.getLogger('py.warnings').setLevel(logging.ERROR)
 
 
 ## DEGRONOPEDIA script
- 
+
 def degronopedia_af_merge(struct_name, input_path, afold_version, output_path, zip):
     """
     DEGRONOPEDIA script to merge any AlphaFold fragments into a unique structure.
-    
+
     DEGRONOPEDIA - a web server for proteome-wide inspection of degrons
     doi: 10.1101/2022.05.19.492622
     https://degronopedia.com/degronopedia/about
@@ -71,11 +71,11 @@ def degronopedia_af_merge(struct_name, input_path, afold_version, output_path, z
     while c < how_many_pieces :
 
         struct_save_path = os.path.join(save_path, f"AF-{struct_name}-FM-model_v{afold_version}.pdb")
-        
+
         # Read reference structure
         if c == 1:
             struct_ref_path = os.path.join(input_path, f"AF-{struct_name}-F{c}-model_v{afold_version}.pdb")
-            if zip:  
+            if zip:
                 with gzip.open(f'{struct_ref_path}.gz', 'rt') as handle:
                     struct_ref = Bio_parser.get_structure("ref", handle)
             else:
@@ -87,7 +87,7 @@ def degronopedia_af_merge(struct_name, input_path, afold_version, output_path, z
 
         # Read structure to superimpose
         struct_si_path = os.path.join(input_path, f"AF-{struct_name}-F{c+1}-model_v{afold_version}.pdb")
-        if zip:  
+        if zip:
             with gzip.open(f'{struct_si_path}.gz', 'rt') as handle:
                 structure_to_superpose = Bio_parser.get_structure("ref", handle)
         else:
@@ -147,13 +147,13 @@ def degronopedia_af_merge(struct_name, input_path, afold_version, output_path, z
         io.set_structure(merged)
         io.save(struct_save_path)
 
-        # Unify models                                                                                                       
-        bashCommand1 = os.path.join("sed '", "TER", f"d' {save_path}", f"AF-{struct_name}-FM-model_v{afold_version}.pdb > {save_path}", "tmp.pdb")    
+        # Unify models
+        bashCommand1 = os.path.join("sed '", "TER", f"d' {save_path}", f"AF-{struct_name}-FM-model_v{afold_version}.pdb > {save_path}", "tmp.pdb")
         bashCommand2 = os.path.join("sed '", "MODEL", f"d' {save_path}", f"tmp.pdb > {save_path}", "tmp1.pdb")
         bashCommand3 = os.path.join("sed '", "ENDMDL", f"d' {save_path}", f"tmp1.pdb > {save_path}", "tmp2.pdb")
 
         subprocess.run(bashCommand1, check=True, text=True, shell=True)
-        subprocess.run(bashCommand2, check=True, text=True, shell=True)         
+        subprocess.run(bashCommand2, check=True, text=True, shell=True)
         subprocess.run(bashCommand3, check=True, text=True, shell=True)
 
         # Re-read the structure in Biopython and save
@@ -176,7 +176,7 @@ def degronopedia_af_merge(struct_name, input_path, afold_version, output_path, z
     subprocess.run(bashCommand7, check=True, text=True, shell=True)
 
     # Delete tmp files
-    bashCommand8 = os.path.join(f"rm {save_path}", f"tmp.pdb {save_path}", f"tmp1.pdb {save_path}", "tmp2.pdb") 
+    bashCommand8 = os.path.join(f"rm {save_path}", f"tmp.pdb {save_path}", f"tmp1.pdb {save_path}", "tmp2.pdb")
     subprocess.run(bashCommand8, check=True, text=True, shell=True)
 
 
@@ -188,17 +188,17 @@ def get_res_from_chain(pdb_path):
     """
     Get sequense of amino acid residues from the structure chain.
     """
-    
+
     # Load structure
     parser = PDBParser()
     structure = parser.get_structure("ID", pdb_path)
-    
+
     # Get seq from chain
     residues = []
     chain = structure[0]["A"]
     for residue in chain.get_residues():
         residues.append(residue.resname)
-        
+
     return residues
 
 
@@ -206,7 +206,7 @@ def get_pdb_seqres_records(lst_res):
     """
     Construct the fixed-width records of a pdb file.
     """
-    
+
     records = []
     num_residues = len(lst_res)
     record_counter = 0
@@ -214,10 +214,10 @@ def get_pdb_seqres_records(lst_res):
         start_idx = record_counter * 13
         end_idx = min(start_idx + 13, num_residues)
         residue_subset = lst_res[start_idx:end_idx]
-        record = 'SEQRES {:>3} {} {:>4}  {:52}\n'.format(record_counter + 1, "A", num_residues, ' '.join(residue_subset))
+        record = 'SEQRES {:>3} {} {:>4}  {:52}\n'.format(record_counter+1, "A", num_residues, ' '.join(residue_subset))
         records.append(record)
         record_counter += 1
-        
+
     return records
 
 
@@ -225,7 +225,7 @@ def add_refseq_record_to_pdb(path_structure):
     """
     Add the SEQREF records to the pdb file.
     """
-    
+
     # Open the PDB file and get SEQRES insert index
     with open(path_structure, 'r') as file:
         pdb_lines = file.readlines()
@@ -250,25 +250,25 @@ def get_list_fragmented_pdb(pdb_dir):
     """
     Given a directory including pdb files, return a list of tuples (Uniprot_ID, max AF_F).
     """
-    
+
     # List pdb files
     list_pdb = os.listdir(pdb_dir)
     list_pdb = [file for file in list_pdb if not file.startswith("tmp") and file.endswith(".pdb") or file.endswith(".pdb.gz")]
     list_pdb = [(file.split("-")[1], re.sub(r"\D", "", file.split("-")[2])) for file in list_pdb if file.split("-")[2][-1] != "M"]
-    
+
     # Get df with max fragment
     df = pd.DataFrame(list_pdb, columns=["Uniprot_ID", "F"])
     df["F"] = pd.to_numeric(df["F"])
     df = df.groupby("Uniprot_ID").max()
-    
+
     # Get fragmented structures as list of (Uniprot_ID AF_F) tuples
     df = df[df["F"] > 1].reset_index()
-    
+
     return list(df.to_records(index=False))
 
 
 def save_unprocessed_ids(uni_ids, filename):
-    
+
     with open(filename, 'a') as file:
         for id in uni_ids:
             file.write(id + '\n')
@@ -279,7 +279,7 @@ def save_unprocessed_ids(uni_ids, filename):
 def merge_af_fragments(input_dir, output_dir=None, af_version=4, gzip=False):
     """
     Run and parse DEGRONOPEDIA script to merge any AlphaFold fragments into a unique structure.
-    
+
     DEGRONOPEDIA - a web server for proteome-wide inspection of degrons
     doi: 10.1101/2022.05.19.492622
     https://degronopedia.com/degronopedia/about
@@ -294,51 +294,51 @@ def merge_af_fragments(input_dir, output_dir=None, af_version=4, gzip=False):
 
     fragments = get_list_fragmented_pdb(input_dir)
     if len(fragments) > 0:
-        
-        # Create dir where to move original fragmented structures    
+
+        # Create dir where to move original fragmented structures
         path_original_frag = os.path.join(output_dir, "fragmented_pdbs")
         if not os.path.exists(path_original_frag):
             os.makedirs(path_original_frag)
         checkpoint = os.path.join(path_original_frag, '.checkpoint.merge.txt')
-        
+
         if os.path.exists(checkpoint):
             logger.debug("Merge fragments already performed: Skipping...")
         else:
             # Get list of fragmented Uniprot ID and max AF-F
             not_processed = []
             for uni_id, max_f in tqdm(fragments, total=len(fragments), desc="Merging AF fragments"):
-                
+
                 processed = False
-                
+
                 try:
                     degronopedia_af_merge(uni_id, input_dir, af_version, output_dir, gzip)
                     processed = True
-                except:
+                except (PDBExceptions.PDBIOException, PDBExceptions.PDBConstructionException):
                     logger.warning(f"Could not process {uni_id} ({max_f} fragments)")
                     not_processed.append(uni_id)
-                    os.remove(os.path.join(output_dir, f"AF-{uni_id}-FM-model_v{af_version}.pdb"))
-                
+                    f_path = os.path.join(output_dir, f"AF-{uni_id}-FM-model_v{af_version}.pdb")
+                    if os.path.exists(f_path):
+                        os.remove(f_path)
                 # Move the original fragmented structures
                 for f in range(1, max_f+1):
                     file = f"AF-{uni_id}-F{f}-model_v{af_version}.pdb{zip_ext}"
                     shutil.move(os.path.join(input_dir, file), path_original_frag)
-                    
+
                 # Rename merged structure and add refseq records to pdb
                 if processed:
                     tmp_name = os.path.join(output_dir, f"AF-{uni_id}-FM-model_v{af_version}.pdb")
                     name = os.path.join(output_dir, f"AF-{uni_id}-F{max_f}M-model_v{af_version}.pdb")
                     os.rename(tmp_name, name)
                     add_refseq_record_to_pdb(name)
-            
+
             if len(not_processed) > 0:
                 logger.warning(f"Not processed: {not_processed}")
             with open(checkpoint, "w") as f:
-                    f.write('')
+                f.write('')
 
-            save_unprocessed_ids(not_processed, 
+            save_unprocessed_ids(not_processed,
                                 os.path.join(output_dir, "fragmented_pdbs", "ids_not_merged.txt"))
             logger.info("Merge of structures completed!")
-        
+
     else:
         logger.debug("Nothing to merge: Skipping...")
-    

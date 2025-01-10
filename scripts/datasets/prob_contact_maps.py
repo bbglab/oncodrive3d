@@ -1,11 +1,11 @@
 """
-Module to compute maps of probabilities of contact (pCMAPs) from 
+Module to compute maps of probabilities of contact (pCMAPs) from
 AlphaFold predicted structures and predicted aligned error (PAE).
 
-The pCMAPs is a dataframe including the probability of contact for 
-each pair of residue of a given protein. Given a threshold (10Å as 
-default) to define the contact, the probability that two residues i 
-and j are in contact is computed considering the distance between i 
+The pCMAPs is a dataframe including the probability of contact for
+each pair of residue of a given protein. Given a threshold (10Å as
+default) to define the contact, the probability that two residues i
+and j are in contact is computed considering the distance between i
 and j in the PDB structure and their predicted error in the PAE.
 """
 
@@ -45,49 +45,49 @@ def vol(r):
 
 
 def s2_minus_s1(r1, r2, d):
-    
+
     """
     Volume of S2 outside of S1
     r1: radius of S1
     r2: radius of S2
     d: distance between center of S1 and center of S2
     """
-    
+
     # S1 and S2 not in contact
-    if d > r1 + r2:      
-        return vol(r2)    
-    
+    if d > r1 + r2:
+        return vol(r2)
+
     # S1 sits inside S2
-    elif (r2 > d + r1):  
+    elif (r2 > d + r1):
         return vol(r2) - vol(r1)
-        
-    # S2 sits inside S1 
-    elif (r1 > d + r2):  
+
+    # S2 sits inside S1
+    elif (r1 > d + r2):
         return 0.
-    
+
     # Center of S2 is outside S1
-    elif d > r1:         
+    elif d > r1:
         h1 = (r2 ** 2 - (d - r1) ** 2) / (2 * d)
         h2 = r1 - h1 + r2 - d
         return vol(r2) - cap(r1, h1) - cap(r2, h2)
-    
+
     # Center of S2 is inside S1
-    elif d <= r1:         
+    elif d <= r1:
         h1 = (r2 ** 2 - (r1 - d) ** 2) / (2 * d)
         h2 = d - r1 + h1 + r2
         return cap(r2, h2) - cap(r1, h1)
-    
-    
+
+
 # Other functions
 
 def get_structure(file):
     """
     Use Bio.PDB to parse protein structure.
     """
-    
+
     id = file.split("AF-")[1].split("-model_v1")[0]
 
-    if file.endswith('.gz'):  
+    if file.endswith('.gz'):
         with gzip.open(file, 'rt') as handle:
             return PDBParser().get_structure(id=id, file=handle)[0]
     else:
@@ -99,7 +99,7 @@ def get_3to1_protein_id(protein_id):
     """
     Convert a 3 letter protein code into 1 letter.
     """
-    
+
     return protein_letters_3to1[protein_id.lower().capitalize()]
 
 
@@ -107,13 +107,13 @@ def get_dist_matrix(chain) :
     """
     Compute the distance matrix between C-alpha of a protein.
     """
-    
+
     m = np.zeros((len(chain), len(chain)), float)
-    
+
     for i, res1 in enumerate(chain) :
         for j, res2 in enumerate(chain) :
             m[i, j] = abs(res1["CA"] - res2["CA"])
-            
+
     return m
 
 
@@ -121,7 +121,7 @@ def get_contact_map(chain, distance=10):
     """
     Compute the contact map between C-alpha of a protein.
     """
-    
+
     dist_matrix = get_dist_matrix(chain)
 
     return dist_matrix < distance
@@ -129,11 +129,11 @@ def get_contact_map(chain, distance=10):
 
 def get_prob_contact(pae_value, dmap_value, distance=10):
     """
-    Get probability of contact considering the distance 
-    between residues in the predicted structure and the 
+    Get probability of contact considering the distance
+    between residues in the predicted structure and the
     Predicted Aligned Error (PAE).
     """
-    
+
     if pae_value == 0:
 
         if dmap_value < distance:
@@ -149,60 +149,60 @@ def get_prob_contact(pae_value, dmap_value, distance=10):
         p_s2_in_s1 = vol_s2_out_s1 / vol(pae_value)
 
         return 1 - p_s2_in_s1
-    
-    
+
+
 def get_prob_cmap(chain, pae, distance=10) :
     """
-    Compute the probabilities that each pair of residue in a protein are 
-    in contact taking into account the Predicted Aligned Error (PAE) and 
+    Compute the probabilities that each pair of residue in a protein are
+    in contact taking into account the Predicted Aligned Error (PAE) and
     the PDB structure predicted by AlphaFold 2
     """
-    
+
     m = np.zeros((len(chain), len(chain)), float)
-    
+
     for i, res1 in enumerate(chain):
         for j, res2 in enumerate(chain):
             d = abs(res1["CA"] - res2["CA"])
             m[i, j] = get_prob_contact(pae[i, j], d, distance)
-            
+
     return m
 
 
 def get_prob_cmaps(pdb_files, pae_path, output_path, distance=10, num_process=0):
     """
-    Given a list of path of PDB file, compute the probabilistic cmap of 
-    each PDB non-fragmented structure and save it as individual .npy file 
+    Given a list of path of PDB file, compute the probabilistic cmap of
+    each PDB non-fragmented structure and save it as individual .npy file
     in the given output path. For fragmented structures simply get cmaps.
     """
 
     # Iterate through the files and save probabilsitic cmap
     for n, file in enumerate(pdb_files):
         identifier = get_af_id_from_pdb(file)
-        
+
         # Get fragmented number
         af_f = identifier.split("-F")[1]
         if af_f.isnumeric():
             af_f = int(af_f)
-        else:   
+        else:
             af_f = int(re.sub(r"\D", "", af_f))
-                
-        # Get CMAP for fragmented structures (PAE not available yet)    
+
+        # Get CMAP for fragmented structures (PAE not available yet)
         if af_f > 1:
             try:
-                cmap = get_contact_map(get_structure(file)["A"], distance=distance)    
+                cmap = get_contact_map(get_structure(file)["A"], distance=distance)
                 np.save(os.path.join(output_path, f"{identifier}.npy"), cmap)
             except Exception as e:
                 logger.warning(f"Could not process {identifier}")
                 logger.warning(f"Error: {e}")
                 with open(os.path.join(output_path, "ids_not_processed.txt"), 'a+') as file:
                     file.write(identifier + '\n')
-                    
+
         # Get probabilistic CMAP
-        else:   
+        else:
             try:
                 pae = np.load(os.path.join(pae_path, f"{identifier}-predicted_aligned_error.npy"))
                 chain = get_structure(file)["A"]
-                prob_cmap = get_prob_cmap(chain, pae, distance=distance)    
+                prob_cmap = get_prob_cmap(chain, pae, distance=distance)
                 np.save(os.path.join(output_path, f"{identifier}.npy"), prob_cmap)
             except Exception as e:
                 logger.warning(f"Could not process {identifier}")
@@ -218,8 +218,8 @@ def get_prob_cmaps(pdb_files, pae_path, output_path, distance=10, num_process=0)
                 logger.debug(f"Process [{num_process}] completed [{n}/{len(pdb_files)}] structures...")
         elif n+1 == len(pdb_files):
             logger.debug(f"Process [{num_process}] completed!")
-         
-                
+
+
 
 def get_prob_cmaps_mp(input_pdb,
                       input_pae,
@@ -227,9 +227,9 @@ def get_prob_cmaps_mp(input_pdb,
                       distance = 10,
                       num_cores = 1):
     """
-    Given a list of path of PDB file, use multiprocessing to compute pCMAPs 
-    (maps or probabilities of contact between each residues) for each PDB 
-    non-fragmented structure and save it as individual .npy file in the given 
+    Given a list of path of PDB file, use multiprocessing to compute pCMAPs
+    (maps or probabilities of contact between each residues) for each PDB
+    non-fragmented structure and save it as individual .npy file in the given
     output path. For fragmented structures simply get cmaps.
     """
 
@@ -254,5 +254,5 @@ def get_prob_cmaps_mp(input_pdb,
     # Create a pool of processes and compute the cmaps in parallel
     logger.debug(f"Processing [{n_structures}] structures by [{len(chunks)}] processes...")
     with multiprocessing.Pool(processes = num_cores) as pool:
-        results = pool.starmap(get_prob_cmaps, 
+        results = pool.starmap(get_prob_cmaps,
                                [(chunk, input_pae, output, distance, n) for n, chunk in enumerate(chunks)])

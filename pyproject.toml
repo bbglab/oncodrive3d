@@ -1,0 +1,79 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "Oncodrive3D"
+dynamic = ["version"]
+description = "Oncodrive3D is a method designed to analyse patterns of somatic mutations across tumors to identify three-dimensional (3D) clusters of missense mutations and detect genes that are under positive selection."
+authors = [
+    { name = "BBGLab (Barcelona Biomedical Genomics Lab)", email = "bbglab@irbbarcelona.org" },    
+    { name = "Stefano Pellegrini", email = "stefano.pellegrini@irbbarcelona.org"}
+]
+
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "GNU Affero General Public License v3 or later (AGPLv3+)"}
+keywords = ["bioinformatics", "positiveselection", "driversprediction", "bbglab"]
+classifiers = ["Private :: Do Not Upload"]
+dependencies = [
+    "adjusttext==1.1.1",
+    "aiohttp>=3.11.10",
+    "bgreference==0.7",
+    "setuptools==61.2.0",
+    "bio==1.7.1",
+    "colorcet==3.0.1",
+    "daiquiri>=3.3.0",
+    "matplotlib>=3.6.2",
+    "networkx==2.7.1",
+    "pandas==1.4.2",
+    "progressbar2==4.0.0",
+    "pypdl==1.4.5",
+    "pytabix==0.0.2",
+    "scikit-learn>=1.3.0",
+    "scipy>=1.7.3",
+    "seaborn>=0.12.2",
+    "statsmodels>=0.13.2",
+    "tqdm>=4.67.1",
+    "numpy==1.26.4",
+]
+
+
+[project.urls]
+Homepage = "https://github.com/bbglab/clustering_3d"
+# Documentation = "https://oncodrive3d.readthedocs.io/"
+Repository = "https://github.com/bbglab/clustering_3d"
+Issues = "https://github.com/bbglab/clustering_3d/issues"
+
+
+[project.scripts]
+"oncodrive3D" = "scripts.main:oncodrive3D"
+"Oncodrive3D" = "scripts.main:oncodrive3D"
+"oncodrive3d" = "scripts.main:oncodrive3D"
+"Oncodrive3d" = "scripts.main:oncodrive3D"
+
+[project.optional-dependencies]
+linting = [
+    "ruff>=0.8.3",
+]
+
+[tool.hatch.version]
+path = "scripts/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["scripts"]
+
+[tool.uv]
+package = true
+
+[tool.ruff.lint]
+select = ["F"]
+ignore = ["F401"]
+
+[tool.ruff]
+line-length = 127
+
+[tool.ruff.format]
+quote-style = "single"
+indent-style = "space"
+docstring-code-format = true
