@@ -215,20 +215,20 @@ If you prefer to use Conda, replace `container` in the `-profile` argument with 
 
 > [!NOTE]
 > When using the Nextflow script, ensure that your input files are organized in the following directory structure:
-
-```plaintext
-input/
-  ├── maf/
-  │   └── <cohort>.in.maf
-  ├── vep/
-  │   └── <cohort>.vep.tsv.gz
-  └── mut_profile/
-      └── <cohort>.sig.json
-```
-
-- `maf/`: Contains mutation files with the `.in.maf` extension.
-- `vep/`: Contains VEP annotation files with the `.vep.tsv.gz` extension, which include annotated mutations with all possible transcripts.
-- `mut_profile/`: Contains mutational profile files with the `.sig.json` extension.
+> 
+> ```plaintext
+> input/
+>   ├── maf/
+>   │   └── <cohort>.in.maf
+>   ├── vep/
+>   │   └── <cohort>.vep.tsv.gz
+>   └── mut_profile/
+>       └── <cohort>.sig.json
+> ```
+> 
+> - `maf/`: Contains mutation files with the `.in.maf` extension.
+> - `vep/`: Contains VEP annotation files with the `.vep.tsv.gz` extension, which include annotated mutations with all possible transcripts.
+> - `mut_profile/`: Contains mutational profile files with the `.sig.json` extension.
 
 ---
 
