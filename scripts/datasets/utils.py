@@ -10,21 +10,17 @@ import io
 import os
 import time
 import tarfile
-from difflib import SequenceMatcher
 # from unipressed import IdMappingClient
-import sys
 
 import daiquiri
 import numpy as np
 import pandas as pd
 import requests
 from Bio import SeqIO
-from Bio.Seq import Seq
 from pypdl import Pypdl as Downloader
 import aiohttp
 
 from zipfile import ZipFile
-import subprocess
 
 from scripts import __logger_name__
 
@@ -63,7 +59,9 @@ def get_species(species):
     elif species == "mouse" or species.capitalize() == "Mus musculus":
         species = "Mus musculus"
     else:
-        raise RuntimeError(f"Failed to recognize '{species}' as species. Currently accepted ones are 'Homo sapiens' and 'Mus musculus'. Exiting..")
+        raise RuntimeError(
+            f"Failed to recognize '{species}' as species. Currently accepted ones are 'Homo sapiens' and 'Mus musculus'. Exiting.."
+            )
 
     return species
 
@@ -139,7 +137,7 @@ def download_single_file(url: str, destination: str, threads: int, proteome=None
 
     logger.debug(f'Downloading {url}')
     logger.debug(f"Downloading to {destination}")
-    dl = Downloader(timeout=aiohttp.ClientTimeout(sock_read=20))
+    dl = Downloader(timeout=aiohttp.ClientTimeout(sock_read=20), ssl=False)
     dl.start(url, destination, segments=num_connections, display=True, retries=5, clear_terminal=False)
 
 
@@ -252,7 +250,7 @@ def uniprot_to_hudo_df(uniprot_ids):
         time.sleep(1)
         df = load_df_from_url(url)
         if i % 180 == 0:
-            logger.debug(f"Waiting for UniprotKB mapping job to produce url..")
+            logger.debug("Waiting for UniprotKB mapping job to produce url..")
         i += 1
 
     return df
@@ -310,7 +308,7 @@ def get_mapping_jobid(uniprot_ids):
         time.sleep(1)
         job_id = get_response_jobid(response)
         if i % 60 == 0:
-            logger.debug(f"Requesting ID mapping job to UniprotKB for IDs..")
+            logger.debug("Requesting ID mapping job to UniprotKB for IDs..")
         i += 1
 
     return job_id
