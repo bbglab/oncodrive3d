@@ -27,12 +27,6 @@ oncodrive3d --help
 ```
 
 > [!NOTE]
-> The first time that you run Oncodrive3D building dataset step with a given reference genome, it
-> will download it from our servers. By default the downloaded datasets go to
-> `~/.bgdata`. If you want to move these datasets to another folder you have to
-> define the system environment variable `BGDATA_LOCAL` with an export command.
-
-> [!NOTE]
 > If you install a modern build tool like [uv](https://github.com/astral-sh/uv),
 > you can simply do this:
 > ```bash
@@ -45,32 +39,36 @@ oncodrive3d --help
 
 This step is required after installation or whenever you need to generate datasets for a different organism or apply a specific threshold to define amino acid contacts.
 
-Basic build:
+> [!NOTE]
+> The first time that you run Oncodrive3D building dataset step with a given reference genome, it
+> will download it from our servers. By default the downloaded datasets go to
+> `~/.bgdata`. If you want to move these datasets to another folder you have to
+> define the system environment variable `BGDATA_LOCAL` with an export command.
 
-```bash
-oncodrive3d build-datasets -o <build_folder>
 ```
+Usage: oncodrive3d build-datasets [OPTIONS]
 
-Add the `--mane` flag to include AlphaFold predicted structures corresponding to MANE Select transcripts:
+Examples:
+  Basic build:
+    oncodrive3d build-datasets -o <build_folder>
+  
+  Build with MANE Select transcripts:
+    oncodrive3d build-datasets -o <build_folder> --mane
 
-```bash
-oncodrive3d build-datasets -o <build_folder> --mane
+Options:
+  -o, --output_dir PATH           Path to the directory where the output files will be saved. 
+                                  Default: ./datasets/
+  -s, --organism PATH             Specifies the organism (`human` or `mouse`). 
+                                  Default: human
+  -m, --mane                      Use structures predicted from MANE Select transcripts (applicable to Homo 
+                                  sapiens only).
+  -d, --distance_threshold INT    Distance threshold in Ångströms for defining amino acid contacts. 
+                                  Default: 10
+  -c, --cores INT                 Number of CPU cores for computation. 
+                                  Default: All available CPU cores
+  -v, --verbose                   Enables verbose output.
+  -h, --help                      Show this message and exit.  
 ```
-
-### Command Line Options:
-
-- **-o, --output_dir <path>**: Path to the directory where the output files will be saved. *Default:* `./datasets/`.
-
-- **-s, --organism <str>**: Specifies the organism (`human` or `mouse`). *Default:* `human`.
-
-- **-m, --mane <flag: set to enable>**: Use structures predicted from MANE Select transcripts (applicable to Homo sapiens only).
-
-- **-d, --distance_threshold <int>**: Distance threshold in Ångströms for defining amino acid contacts. *Default:* `10`.
-
-- **-c, --cores <int>**: Number of CPU cores for computation. *Default:* All available CPU cores.
-
-- **-v, --verbose <flag: set to enable>**: Enables verbose output.
-
 
 ## Running 3D-clustering Analysis
 
@@ -78,11 +76,19 @@ As mention above, to better understand the format of the input files, how they c
 
 ### Input
 
-- **<input_mutations>** (`required`): Mutation file that can be either:
+- **Input mutations** (`required`): Mutation file that can be either:
    - **<input_maf>**: A Mutation Annotation Format (MAF) file annotated with consequences (e.g., by using [Ensembl Variant Effect Predictor (VEP)](https://www.ensembl.org/info/docs/tools/vep/index.html)).
    - **<input_vep>**: The unfiltered output of VEP (`<cohort>.vep.tsv.gz`) including annotations for all possible transcripts.
 
 - **<mut_profile>** (`optional`): Dictionary including the normalized frequencies of mutations (*values*) in every possible trinucleotide context (*keys*), such as 'ACA>A', 'ACC>A', and so on.
+
+---
+
+> [!NOTE] 
+> Examples of the input files are available in the [test input section of the repository](https://github.com/bbglab/oncodrive3d/tree/master/test/input).  
+Please refer to these examples to understand the expected format and structure of the input files.
+
+---
 
 ---
 
@@ -98,19 +104,47 @@ As mention above, to better understand the format of the input files, how they c
 - **\<cohort>.3d_clustering_pos.csv**: A Comma-Separated Values (CSV) file containing the results of the analysis at the level of mutated residues. Each row corresponds to a mutated position within a gene and includes detailed information for each mutational cluster.
 
 
-### Example Runs:
+### Usage:
 
-Example of basic run:
+```
+Usage: oncodrive3d build-datasets [OPTIONS]
 
-```bash
-oncodrive3d run -i <input_maf> -p <mut_profile> -d <build_folder> -C <cohort_name> -t <cancer_type>
+Examples:
+  Basic run:
+    oncodrive3d run -i <input_maf> -p <mut_profile> -d <build_folder> -C <cohort_name>
+  
+  Example of run using VEP output as input and MANE Select transcripts:
+    oncodrive3d run -i <input_vep> -p <mut_profile> -d <build_folder> -C <cohort_name> \
+                    --o3d_transcripts --use_input_symbols --mane
+
+Options:
+  -h, --help                       Show this message and exit.  
+  -i, --input_path PATH            Path to the input file (MAF or VEP output) containing the annotated 
+                                   mutations for the cohort. [required]
+  -p, --mut_profile_path PATH      Path to the JSON file specifying the cohort's mutational profile (192 
+                                   key-value pairs).
+  -o, --output_dir PATH            Path to the output directory for results. 
+                                   Default: ./output/
+  -d, --data_dir PATH              Path to the directory containing the datasets built in the building 
+                                   datasets step. 
+                                   Default: ./datasets/
+  -c, --cores INT                  Number of CPU cores to use. 
+                                   Default: All available CPU cores
+  -s, --seed INT                   Random seed for reproducibility.
+  -v, --verbose                    Enables verbose output.
+  -t, --cancer_type STR            Cancer type to include as metadata in the output file.
+  -C, --cohort STR                 Cohort name for metadata and output file naming. 
+  -P, --cmap_prob_thr FLOAT        Threshold for defining amino acid contacts based on distance on predicted 
+                                   structure and predicted aligned error (PAE). 
+                                   Default: 0.5
+  --mane                           Prioritizes MANE Select transcripts when multiple structures map to the 
+                                   same gene symbol.
+  --o3d_transcripts                Filters mutations to include only transcripts in Oncodrive3D built 
+                                   datasets (requires VEP output as input file).
+  --use_input_symbols              Update HUGO symbols in Oncodrive3D built datasets using the input file's 
+                                   entries (requires VEP output as input file).
 ```
 
-Example of run using VEP output as input and MANE Select transcripts:
-
-```bash
-oncodrive3d run -i <input_vep> -p <mut_profile> -d <build_folder> -C <cohort_name> -t <cancer_type> --o3d_transcripts --use_input_symbols --mane
-```
 
 ---
 
@@ -119,42 +153,12 @@ oncodrive3d run -i <input_vep> -p <mut_profile> -d <build_folder> -C <cohort_nam
 
 ---
 
-### Main Command Line Options:
-
-- **-i, --input_path <path (required)>**: Path to the input file (MAF or VEP output) containing the annotated mutations for the cohort.
-
-- **-p, --mut_profile_path <path>**: Path to the JSON file specifying the cohort's mutational profile (192 key-value pairs). If neither `--mut_profile_path` nor `--mutability_config_path` is provided, a uniform distribution across protein residues will be used to model neutral mutagenesis.
-
-<!-- - **-m, --mutability_config_path <path>**: Path to the mutability configuration file, which contains integrated information about the mutation profile and sequencing depth of the cohor (required only for datasets generated with high variable depth between sites, such as those produced by Duplex Sequencing technology). -->
-
-- **-o, --output_dir <path>**: Path to the output directory for results. *Default:* `./output/`.
-
-- **-d, --data_dir <path>**: Path to the directory containing the datasets built in the [building datasets](#building-datasets) step. *Default:* `./datasets/`.
-
-- **-c, --cores <int>**: Number of CPU cores to use. *Default:* All available CPU cores.
-
-- **-s, --seed <int>**: Random seed for reproducibility.
-
-- **-v, --verbose <flag: set to enable>**: Enables verbose output.
-
-- **-t, --cancer_type <str>**: Cancer type to include as metadata in the output file.
-
-- **-C, --cohort <str>**: Cohort name for metadata and output file naming. 
-
-- **-P, --cmap_prob_thr <float>**: Threshold for defining amino acid contacts based on distance on predicted structure and predicted aligned error (PAE). Default `0.5`.
-
-- **--o3d_transcripts <flag: set to enable>**: Filters mutations to include only transcripts in Oncodrive3D built datasets (requires VEP output as input file).
-
-- **--use_input_symbols <flag: set to enable>**: Update HUGO symbols in Oncodrive3D built datasets using the input file's entries (requires VEP output as input file).
-
-- **--mane <flag: set to enable>**: Prioritizes MANE Select transcripts when multiple structures map to the same gene symbol.
-
-
 ### Running With Singularity
 
-```bash
-singularity pull oncodrive3d.sif docker://spellegrini87/oncodrive3d:1.0.2                                                              # TODO: TO UPDATE
-singularity exec oncodrive3d.sif oncodrive3d run -i <input_maf> -p <mut_profile> -d <build_folder> -C <cohort_name> -t <cancer_type>
+```
+singularity pull oncodrive3d.sif docker://bbglab/oncodrive3d:latest
+singularity exec oncodrive3d.sif oncodrive3d run -i <input_maf> -p <mut_profile> \ 
+                                                 -d <build_folder> -C <cohort_name>
 ```
 
 
@@ -164,14 +168,20 @@ To verify that Oncodrive3D is installed and configured correctly, you can perfor
 
 Basic test run: 
 
-```bash
-oncodrive3d run -d <build_folder> -i ./test/input/maf/TCGA_WXS_ACC.in.maf -p ./test/input/mut_profile/TCGA_WXS_ACC.sig.json -o ./test/output/ -C TCGA_WXS_ACC
+```
+oncodrive3d run -d <build_folder> \
+                -i ./test/input/maf/TCGA_WXS_ACC.in.maf \ 
+                -p ./test/input/mut_profile/TCGA_WXS_ACC.sig.json \
+                -o ./test/output/ -C TCGA_WXS_ACC
 ```
 
 Test run using VEP output as Oncodrive3D input: 
 
-```bash
-oncodrive3d run -d <build_folder> -i ./test/input/maf/TCGA_WXS_ACC.vep.tsv.gz -p ./test/input/mut_profile/TCGA_WXS_ACC.sig.json -o ./test/output/ -C TCGA_WXS_ACC --o3d_transcripts --use_input_symbols
+```
+oncodrive3d run -d <build_folder> \
+                -i ./test/input/maf/TCGA_WXS_ACC.vep.tsv.gz \
+                -p ./test/input/mut_profile/TCGA_WXS_ACC.sig.json \
+                -o ./test/output/ -C TCGA_WXS_ACC --o3d_transcripts --use_input_symbols
 ```
 
 Check the output in the `test/output/` directory to ensure the analysis completes successfully.
@@ -197,8 +207,8 @@ Oncodrive3D can be run in parallel on multiple cohorts using [Nextflow](https://
 
 Pull the Oncodrive3D Singularity images from Docker Hub.
 
-```bash
-singularity pull build/containers/oncodrive3d.sif docker://spellegrini87/oncodrive3d:latest
+```
+singularity pull build/containers/oncodrive3d.sif docker://bbglab/oncodrive3d:latest
 ```
 
 #### Option 2: Using Conda
@@ -219,7 +229,7 @@ Replace `/path/to/conda/environment/with/oncodrive3d` with the path to your Cond
 
 Run a test to ensure that everything is set up correctly and functioning as expected:
 
-```bash
+```
 cd oncodrive3d_pipeline
 nextflow run main.nf -profile test,container --data_dir <build_folder>
 ```
@@ -252,7 +262,7 @@ If you prefer to use Conda, replace `container` in the `-profile` argument with 
 
 Example of run using VEP output as input and MANE Select transcripts:
 
-```bash
+```
 nextflow run main.nf -profile container --data_dir <build_folder> --indir <input> --vep_input true --mane true
 ```
 
