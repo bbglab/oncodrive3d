@@ -68,8 +68,8 @@ As mention above, to better understand the format of the input files, how they c
 
 ---
 
-**⚠️ Note:**  
-Oncodrive3D uses the mutational profile of the cohort to build an accurate background model. However, it’s not strictly required. If the mutational profile is not provided, the tool will use a simple uniform distribution as the background model for simulating mutations and scoring potential 3D clusters.
+> [!NOTE]
+> Oncodrive3D uses the mutational profile of the cohort to build an accurate background model. However, it’s not strictly required. If the mutational profile is not > provided, the tool will use a simple uniform distribution as the background model for simulating mutations and scoring potential 3D clusters.
 
 ---
 
@@ -96,8 +96,8 @@ oncodrive3d run -i <input_vep> -p <mut_profile> -d <build_folder> -C <cohort_nam
 
 ---
 
-**⚠️ Note:**  
-To maximize the number of matching transcripts between the input mutations and the AlphaFold predicted structures used by Oncodrive3D, it is recommended to use the unfiltered output of VEP (including all possible transcripts) as input, along with the flags `--o3d_transcripts` `--use_input_symbols` in the `oncodrive3d run` command.
+> [!NOTE]
+> To maximize the number of matching transcripts between the input mutations and the AlphaFold predicted structures used by Oncodrive3D, it is recommended to use the unfiltered output of VEP (including all possible transcripts) as input, along with the flags `--o3d_transcripts` `--use_input_symbols` in the `oncodrive3d run` command.
 
 ---
 
@@ -213,8 +213,8 @@ If you prefer to use Conda, replace `container` in the `-profile` argument with 
 
 ---
 
-**⚠️ Note:**  
-When using the Nextflow script, ensure that your input files are organized in the following directory structure:
+> [!NOTE]
+> When using the Nextflow script, ensure that your input files are organized in the following directory structure:
 
 ```plaintext
 input/
