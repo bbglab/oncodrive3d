@@ -23,21 +23,6 @@ process O3D_RUN {
     def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${cohort}"
 
-    if (!params.data_dir) {
-        error "Oncodrive3D built datasets path not provided. Please specify the path using --data_dir"
-    }
-
-    if (workflow.profile.contains('conda')) {
-        if (params.data_dir == '/path/to/conda/environment/with/oncodrive3d') {
-            error """
-            Please update 'params.conda_env' in the nextflow.config file to the actual path of your Conda environment where Oncodrive3D is installed.
-            Alternatively, you can provide the correct path as a command-line argument using:
-            
-            --conda_env <path_to_conda_environment>
-            """
-        }
-    }
-
     """
     oncodrive3D run \\
         -i ${inputs[0]} \\
