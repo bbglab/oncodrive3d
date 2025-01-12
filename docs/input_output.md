@@ -40,9 +40,6 @@ In this case:
 - The file should include all possible transcripts for each mutation without filtering.
 - The `--o3d_transcripts` and `--use_input_symbols` flags must be included when running the `oncodrive3d run` command to ensure proper processing and transcript matching with Oncodrive3D's pre-built datasets.
 
-
-If the VEP output includes header lines starting with ## (commonly found in the VEP output format), it is recommended to remove these lines to ensure compatibility with Oncodrive3D and other downstream tools. You can do this with the following command:
-
 ---
 
 > [!WARNING]
