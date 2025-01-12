@@ -64,9 +64,9 @@ Options:
                                   Default: ./datasets/
   -s, --organism PATH             Specifies the organism (`human` or `mouse`). 
                                   Default: human
-  -m, --mane                      Use structures predicted from MANE Select transcripts (applicable to Homo 
-                                  sapiens only).
-  -d, --distance_threshold INT    Distance threshold in Ångströms for defining amino acid contacts. 
+  -m, --mane                      Use structures predicted from MANE Select transcripts 
+                                  (applicable to Homo sapiens only).
+  -d, --distance_threshold INT    Distance threshold in Ångströms for defining residues contacts. 
                                   Default: 10
   -c, --cores INT                 Number of CPU cores for computation. 
                                   Default: All available CPU cores
@@ -122,14 +122,14 @@ Examples:
                     --o3d_transcripts --use_input_symbols --mane
 
 Options:
-  -i, --input_path PATH            Path to the input file (MAF or VEP output) containing the annotated 
-                                   mutations for the cohort. [required]
-  -p, --mut_profile_path PATH      Path to the JSON file specifying the cohort's mutational profile (192 
-                                   key-value pairs).
+  -i, --input_path PATH            Path to the input file (MAF or VEP output) containing the 
+                                   annotated mutations for the cohort. [required]
+  -p, --mut_profile_path PATH      Path to the JSON file specifying the cohort's mutational 
+                                   profile (192 key-value pairs).
   -o, --output_dir PATH            Path to the output directory for results. 
                                    Default: ./output/
-  -d, --data_dir PATH              Path to the directory containing the datasets built in the building 
-                                   datasets step. 
+  -d, --data_dir PATH              Path to the directory containing the datasets built in the 
+                                   building datasets step. 
                                    Default: ./datasets/
   -c, --cores INT                  Number of CPU cores to use. 
                                    Default: All available CPU cores
@@ -137,15 +137,15 @@ Options:
   -v, --verbose                    Enables verbose output.
   -t, --cancer_type STR            Cancer type to include as metadata in the output file.
   -C, --cohort STR                 Cohort name for metadata and output file naming. 
-  -P, --cmap_prob_thr FLOAT        Threshold for defining amino acid contacts based on distance on predicted 
-                                   structure and predicted aligned error (PAE). 
+  -P, --cmap_prob_thr FLOAT        Threshold for defining amino acid contacts based on distance 
+                                   on predicted structure and predicted aligned error (PAE). 
                                    Default: 0.5
-  --mane                           Prioritizes MANE Select transcripts when multiple structures map to the 
-                                   same gene symbol.
-  --o3d_transcripts                Filters mutations to include only transcripts in Oncodrive3D built 
-                                   datasets (requires VEP output as input file).
-  --use_input_symbols              Update HUGO symbols in Oncodrive3D built datasets using the input file's 
-                                   entries (requires VEP output as input file).
+  --mane                           Prioritizes MANE Select transcripts when multiple structures 
+                                   map to the same gene symbol.
+  --o3d_transcripts                Filters mutations to include only transcripts in Oncodrive3D 
+                                   built datasets (requires VEP output as input file).
+  --use_input_symbols              Update HUGO symbols in Oncodrive3D built datasets using the 
+                                   input file's entries (requires VEP output as input file).
   -h, --help                       Show this message and exit.  
 ```
 
@@ -258,15 +258,15 @@ Example of run using VEP output as input and MANE Select transcripts:
                          --vep_input true --mane true
   
 Options:
-  --indir PATH                     Path to the input directory including the subdirectories `maf` or 
-                                   `vep` and `mut_profile`. 
+  --indir PATH                     Path to the input directory including the subdirectories 
+                                   `maf` or `vep` and `mut_profile`. 
   --outdir PATH                    Path to the output directory. 
                                    Default: run_<timestamp>/
-  --cohort_pattern STR             Pattern expression to filter specific files within the input directory 
-                                   (e.g., 'TCGA*' would select only TCGA cohorts). 
+  --cohort_pattern STR             Pattern expression to filter specific files within the 
+                                   input directory (e.g., 'TCGA*' select only TCGA cohorts). 
                                    Default: *
-  --data_dir PATH                  Path to the Oncodrive3D datasets directory, which includes the files 
-                                   compiled during the building datasets step of Oncodrive3D.
+  --data_dir PATH                  Path to the Oncodrive3D datasets directory, which includes 
+                                   the files compiled during the building datasets step.
                                    Default: ${baseDir}/datasets/
   --container PATH                 Path to the Singularity image with Oncodrive3D installation. 
                                    Default: ${baseDir}/../oncodrive3d.sif
