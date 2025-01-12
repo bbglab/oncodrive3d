@@ -108,7 +108,7 @@ Please refer to these examples to understand the expected format and structure o
 - **\<cohort>.3d_clustering_pos.csv**: A Comma-Separated Values (CSV) file containing the results of the analysis at the level of mutated residues. Each row corresponds to a mutated position within a gene and includes detailed information for each mutational cluster.
 
 
-### Usage:
+### Usage
 
 ```
 Usage: oncodrive3d run [OPTIONS]
@@ -168,26 +168,13 @@ singularity exec oncodrive3d.sif oncodrive3d run -i <input_maf> -p <mut_profile>
 
 ### Testing
 
-To verify that Oncodrive3D is installed and configured correctly, you can perform a test run using the provided test input files. 
-
-Basic test run: 
+To verify that Oncodrive3D is installed and configured correctly, you can perform a test run using the provided test input files: 
 
 ```
 oncodrive3d run -d <build_folder> \
                 -i ./test/input/maf/TCGA_WXS_ACC.in.maf \ 
                 -p ./test/input/mut_profile/TCGA_WXS_ACC.sig.json \
                 -o ./test/output/ -C TCGA_WXS_ACC
-```
-
-Test run using VEP output as Oncodrive3D input: 
-
-```
-oncodrive3d run -d <build_folder> \
-                -i ./test/input/maf/TCGA_WXS_ACC.vep.tsv.gz \
-                -p ./test/input/mut_profile/TCGA_WXS_ACC.sig.json \
-                -o ./test/output/ -C TCGA_WXS_ACC \
-                --o3d_transcripts --use_input_symbols
-
 ```
 
 Check the output in the `test/output/` directory to ensure the analysis completes successfully.
@@ -271,8 +258,7 @@ Example of run using VEP output as input and MANE Select transcripts:
                          --vep_input true --mane true
   
 Options:
-  --indir PATH                     Path to the
-   input directory including the subdirectories `maf` or 
+  --indir PATH                     Path to the input directory including the subdirectories `maf` or 
                                    `vep` and `mut_profile`. 
   --outdir PATH                    Path to the output directory. 
                                    Default: run_<timestamp>/
