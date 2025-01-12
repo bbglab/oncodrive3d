@@ -74,7 +74,7 @@ Options:
 
 ## Running 3D-clustering Analysis
 
-For in depth information on on how to obtain the required input data and for comprehensive information about the output, please refer to [Input and Output Documentation](https://github.com/bbglab/oncodrive3d/tree/master/test/input).  
+For in depth information on how to obtain the required input data and for comprehensive information about the output, please refer to the [Input and Output Documentation](https://github.com/bbglab/oncodrive3d/tree/master/docs/input_and_output.md).  
 
 ### Input
 
