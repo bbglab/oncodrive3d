@@ -2,8 +2,6 @@
 
 **Oncodrive3D** is a computational method for analyzing patterns of somatic mutations across tumors. It identifies **three-dimensional (3D) clusters** of missense mutations and detects genes under **positive selection**.
 
-For detailed instructions on how to install, setup, and run the tool, how to obtain the required input data and for comprehensive information about the output, please refer to the [Oncodrive3D documentation](https://readthedocs-toy.readthedocs.io/en/latest/) (*note: the ReadTheDocs documentation is currently obsolete, under development, and requires updates to be complete*).
-
 ---
 
 ## License
@@ -66,7 +64,7 @@ Options:
                                   Default: human
   -m, --mane                      Use structures predicted from MANE Select transcripts 
                                   (applicable to Homo sapiens only).
-  -d, --distance_threshold INT    Distance threshold (Ångströms) for defining residues contacts. 
+  -d, --distance_threshold INT    Distance threshold (Å) for defining residues contacts. 
                                   Default: 10
   -c, --cores INT                 Number of CPU cores for computation. 
                                   Default: All available CPU cores
@@ -76,20 +74,20 @@ Options:
 
 ## Running 3D-clustering Analysis
 
-As mention above, to better understand the format of the input files, how they can be generated, and the in depth the description of the output files, please refer to the [Oncodrive3D documentation](https://readthedocs-toy.readthedocs.io/en/latest/) (*note: the ReadTheDocs documentation is currently obsolete, under development, and requires updates to be complete*).
+For in depth information on on how to obtain the required input data and for comprehensive information about the output, please refer to [Input and Output Documentation](https://github.com/bbglab/oncodrive3d/tree/master/test/input).  
 
 ### Input
 
-- **Input mutations** (`required`): Mutation file that can be either:
+- **Mutations file** (`required`): It can be either:
    - **<input_maf>**: A Mutation Annotation Format (MAF) file annotated with consequences (e.g., by using [Ensembl Variant Effect Predictor (VEP)](https://www.ensembl.org/info/docs/tools/vep/index.html)).
-   - **<input_vep>**: The unfiltered output of VEP (`<cohort>.vep.tsv.gz`) including annotations for all possible transcripts.
+   - **<input_vep>**: The unfiltered output of VEP including annotations for all possible transcripts.
 
 - **<mut_profile>** (`optional`): Dictionary including the normalized frequencies of mutations (*values*) in every possible trinucleotide context (*keys*), such as 'ACA>A', 'ACC>A', and so on.
 
 ---
 
 > [!NOTE] 
-> Examples of the input files are available in the [test input section of the repository](https://github.com/bbglab/oncodrive3d/tree/master/test/input).  
+> Examples of the input files are available in the [Test Input Folder](https://github.com/bbglab/oncodrive3d/tree/master/test/input).  
 Please refer to these examples to understand the expected format and structure of the input files.
 
 ---
@@ -101,7 +99,7 @@ Please refer to these examples to understand the expected format and structure o
 
 ---
 
-### Main output
+### Main Output
 
 - **\<cohort>.3d_clustering_genes.csv**: A Comma-Separated Values (CSV) file containing the results of the analysis at the gene level. Each row represents a gene, sorted from the most significant to the least significant based on the 3D clustering analysis. The table also includes genes that were not analyzed, with the reason for exclusion provided in the `status` column.
   
@@ -248,6 +246,8 @@ If you prefer to use Conda, replace `container` in the `-profile` argument with 
 > - `maf/`: Contains mutation files with the `.in.maf` extension.
 > - `vep/`: Contains VEP annotation files with the `.vep.tsv.gz` extension, which include annotated mutations with all possible transcripts.
 > - `mut_profile/`: Contains mutational profile files with the `.sig.json` extension.
+
+---
 
 ```
 Usage: nextflow run main.nf [OPTIONS]

@@ -91,8 +91,6 @@ def parse_vep_output(df,
     and select the canonical transcripts if multiple ones are present.
     """
 
-    # TO DO: check for mut ID instead of tumor sample (IF VEP OUTPUT AS INPUT)
-
     df.rename(columns={"SYMBOL": "Hugo_Symbol",
                        "Consequence": "Variant_Classification"}, inplace=True)
             
