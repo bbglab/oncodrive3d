@@ -159,3 +159,9 @@ if __name__ == '__main__':
 ```
 python3 get_regions_file.py hg38 3 > hg38_wg_regions.tsv
 ```
+
+# Ouput
+
+## Main Output
+
+## Supplementary Output

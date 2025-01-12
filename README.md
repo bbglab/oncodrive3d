@@ -20,8 +20,8 @@ pip install oncodrive3d
 You can obtain the latest code from the repository and install it for development with pip:
 
 ```bash
-git clone https://github.com/bbglab/clustering_3d.git
-cd clustering_3d
+git clone https://github.com/bbglab/oncodrive3d.git
+cd oncodrive3d
 python -m venv .venv
 .venv/bin/pip install -e .
 source .venv/bin/activate
