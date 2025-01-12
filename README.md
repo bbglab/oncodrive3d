@@ -66,7 +66,7 @@ Options:
                                   Default: human
   -m, --mane                      Use structures predicted from MANE Select transcripts 
                                   (applicable to Homo sapiens only).
-  -d, --distance_threshold INT    Distance threshold in Ångströms for defining residues contacts. 
+  -d, --distance_threshold INT    Distance threshold (Ångströms) for defining residues contacts. 
                                   Default: 10
   -c, --cores INT                 Number of CPU cores for computation. 
                                   Default: All available CPU cores
@@ -137,12 +137,12 @@ Options:
   -v, --verbose                    Enables verbose output.
   -t, --cancer_type STR            Cancer type to include as metadata in the output file.
   -C, --cohort STR                 Cohort name for metadata and output file naming. 
-  -P, --cmap_prob_thr FLOAT        Threshold for defining amino acid contacts based on distance 
+  -P, --cmap_prob_thr FLOAT        Threshold for defining residues contacts based on distance 
                                    on predicted structure and predicted aligned error (PAE). 
                                    Default: 0.5
-  --mane                           Prioritizes MANE Select transcripts when multiple structures 
-                                   map to the same gene symbol.
-  --o3d_transcripts                Filters mutations to include only transcripts in Oncodrive3D 
+  --mane                           Prioritizes MANE Select transcripts when multiple 
+                                   structures map to the same gene symbol.
+  --o3d_transcripts                Filters mutations including only transcripts in Oncodrive3D 
                                    built datasets (requires VEP output as input file).
   --use_input_symbols              Update HUGO symbols in Oncodrive3D built datasets using the 
                                    input file's entries (requires VEP output as input file).
@@ -258,24 +258,24 @@ Example of run using VEP output as input and MANE Select transcripts:
                          --vep_input true --mane true
   
 Options:
-  --indir PATH                     Path to the input directory including the subdirectories 
-                                   `maf` or `vep` and `mut_profile`. 
-  --outdir PATH                    Path to the output directory. 
-                                   Default: run_<timestamp>/
-  --cohort_pattern STR             Pattern expression to filter specific files within the 
-                                   input directory (e.g., 'TCGA*' select only TCGA cohorts). 
-                                   Default: *
-  --data_dir PATH                  Path to the Oncodrive3D datasets directory, which includes 
-                                   the files compiled during the building datasets step.
-                                   Default: ${baseDir}/datasets/
-  --container PATH                 Path to the Singularity image with Oncodrive3D installation. 
-                                   Default: ${baseDir}/../oncodrive3d.sif
-  --max_running INT                Maximum number of cohorts to process in parallel.
-                                   Default: 5
-  --cores INT                      Number of CPU cores used to process each cohort. 
-                                   Default: 10
-  --memory STR                     Amount of memory allocated for processing each cohort. 
-                                   Default: 70GB
-  --seed INT:                      Seed value for reproducibility.
-                                   Default: 128
+  --indir PATH                    Path to the input directory including the subdirectories 
+                                  `maf` or `vep` and `mut_profile`. 
+  --outdir PATH                   Path to the output directory. 
+                                  Default: run_<timestamp>/
+  --cohort_pattern STR            Pattern expression to filter specific files within the 
+                                  input directory (e.g., 'TCGA*' select only TCGA cohorts). 
+                                  Default: *
+  --data_dir PATH                 Path to the Oncodrive3D datasets directory, which includes 
+                                  the files compiled during the building datasets step.
+                                  Default: ${baseDir}/datasets/
+  --container PATH                Path to the Singularity image with Oncodrive3D installation. 
+                                  Default: ${baseDir}/../oncodrive3d.sif
+  --max_running INT               Maximum number of cohorts to process in parallel.
+                                  Default: 5
+  --cores INT                     Number of CPU cores used to process each cohort. 
+                                  Default: 10
+  --memory STR                    Amount of memory allocated for processing each cohort. 
+                                  Default: 70GB
+  --seed INT:                     Seed value for reproducibility.
+                                  Default: 128
 ```
