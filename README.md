@@ -6,6 +6,10 @@ For detailed instructions on how to install, setup, and run the tool, how to obt
 
 ---
 
+## License
+
+Oncodrive3D is available to the general public subject to certain conditions described in its [LICENSE](LICENSE).
+
 ## Installation
 
 Install via PyPI:
@@ -107,7 +111,7 @@ Please refer to these examples to understand the expected format and structure o
 ### Usage:
 
 ```
-Usage: oncodrive3d build-datasets [OPTIONS]
+Usage: oncodrive3d run [OPTIONS]
 
 Examples:
   Basic run:
@@ -118,7 +122,6 @@ Examples:
                     --o3d_transcripts --use_input_symbols --mane
 
 Options:
-  -h, --help                       Show this message and exit.  
   -i, --input_path PATH            Path to the input file (MAF or VEP output) containing the annotated 
                                    mutations for the cohort. [required]
   -p, --mut_profile_path PATH      Path to the JSON file specifying the cohort's mutational profile (192 
@@ -143,6 +146,7 @@ Options:
                                    datasets (requires VEP output as input file).
   --use_input_symbols              Update HUGO symbols in Oncodrive3D built datasets using the input file's 
                                    entries (requires VEP output as input file).
+  -h, --help                       Show this message and exit.  
 ```
 
 
@@ -181,7 +185,9 @@ Test run using VEP output as Oncodrive3D input:
 oncodrive3d run -d <build_folder> \
                 -i ./test/input/maf/TCGA_WXS_ACC.vep.tsv.gz \
                 -p ./test/input/mut_profile/TCGA_WXS_ACC.sig.json \
-                -o ./test/output/ -C TCGA_WXS_ACC --o3d_transcripts --use_input_symbols
+                -o ./test/output/ -C TCGA_WXS_ACC \
+                --o3d_transcripts --use_input_symbols
+
 ```
 
 Check the output in the `test/output/` directory to ensure the analysis completes successfully.
@@ -201,14 +207,12 @@ Oncodrive3D can be run in parallel on multiple cohorts using [Nextflow](https://
    - [Conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html)
 
 
-### Setting Up and Running Oncodrive3D with Nextflow
-
 #### Option 1: Using Singularity
 
 Pull the Oncodrive3D Singularity images from Docker Hub.
 
 ```
-singularity pull build/containers/oncodrive3d.sif docker://bbglab/oncodrive3d:latest
+singularity pull oncodrive3d.sif docker://bbglab/oncodrive3d:latest
 ```
 
 #### Option 2: Using Conda
@@ -225,7 +229,7 @@ params {
 
 Replace `/path/to/conda/environment/with/oncodrive3d` with the path to your Conda environment. Alternatively, you can provide it as a command-line argument.
 
-#### Test Run
+### Test Run
 
 Run a test to ensure that everything is set up correctly and functioning as expected:
 
@@ -237,11 +241,11 @@ nextflow run main.nf -profile test,container --data_dir <build_folder>
 Replace `<build_folder>` with the path to the Oncodrive3D datasets built in the [building datasets](#building-datasets) step.
 If you prefer to use Conda, replace `container` in the `-profile` argument with `conda`.
 
-#### Run on New Data
+### Usage
 
 ---
 
-> [!NOTE]
+> [!WARNING]
 > When using the Nextflow script, ensure that your input files are organized in the following directory structure:
 > 
 > ```plaintext
@@ -258,30 +262,34 @@ If you prefer to use Conda, replace `container` in the `-profile` argument with 
 > - `vep/`: Contains VEP annotation files with the `.vep.tsv.gz` extension, which include annotated mutations with all possible transcripts.
 > - `mut_profile/`: Contains mutational profile files with the `.sig.json` extension.
 
----
+```
+Usage: nextflow run main.nf [OPTIONS]
 
 Example of run using VEP output as input and MANE Select transcripts:
-
+  Basic run:
+    nextflow run main.nf -profile container --data_dir <build_folder> --indir <input> \
+                         --vep_input true --mane true
+  
+Options:
+  --indir PATH                     Path to the
+   input directory including the subdirectories `maf` or 
+                                   `vep` and `mut_profile`. 
+  --outdir PATH                    Path to the output directory. 
+                                   Default: run_<timestamp>/
+  --cohort_pattern STR             Pattern expression to filter specific files within the input directory 
+                                   (e.g., 'TCGA*' would select only TCGA cohorts). 
+                                   Default: *
+  --data_dir PATH                  Path to the Oncodrive3D datasets directory, which includes the files 
+                                   compiled during the building datasets step of Oncodrive3D.
+                                   Default: ${baseDir}/datasets/
+  --container PATH                 Path to the Singularity image with Oncodrive3D installation. 
+                                   Default: ${baseDir}/../oncodrive3d.sif
+  --max_running INT                Maximum number of cohorts to process in parallel.
+                                   Default: 5
+  --cores INT                      Number of CPU cores used to process each cohort. 
+                                   Default: 10
+  --memory STR                     Amount of memory allocated for processing each cohort. 
+                                   Default: 70GB
+  --seed INT:                      Seed value for reproducibility.
+                                   Default: 128
 ```
-nextflow run main.nf -profile container --data_dir <build_folder> --indir <input> --vep_input true --mane true
-```
-
-#### Main Command Line Options:
-
-- **--indir <path>**: Path to the input directory including the subdirectories ``maf`` or ``vep`` and ``mut_profile``. *Default:* ``${baseDir}/test/``
-
-- **--outdir <path>**: Path to the output directory. *Default:* ``run_<timestamp>/``
-
-- **--cohort_pattern <str>**: Pattern expression to filter specific files within the input directory (e.g., 'TCGA*' would select only TCGA cohorts). *Default:* ``*``
-
-- **--data_dir <path>**: Path to the Oncodrive3D datasets directory, which includes the files compiled during the :ref:`building datasets` step. *Default:* ``${baseDir}/datasets/``
-
-- **--container <path>**: Path to the Singularity image with Oncodrive3D installation. *Default:* ``${baseDir}/build/containers/oncodrive3d.sif``
-
-- **--max_running <int>**: Maximum number of cohorts to process in parallel . *Default:* ``5``
-
-- **--cores <int>**: Number of CPU cores used to process each cohort. *Default:* ``10``
-
-- **--memory <str>**: Amount of memory allocated for processing each cohort. *Default:* ``70GB``
-
-- **--seed <int>**: Seed value for reproducibility. **Default:** ``128``
