@@ -16,16 +16,23 @@ Oncodrive3D is available to the general public subject to certain conditions des
 
 ## Prerequisites
 
-Before you begin, ensure the following software is installed on your system:
+Before you begin, ensure **Python 3.10 or later** is installed on your system.  
+Additionally, you may need to install additional development tools. Depending on your environment,you can choose one of the following methods:
 
-- Python 3.10 or later
-- A C/C++ compiler
-
-If a C/C++ compiler is not already installed, you can install a C/C++ compiler using various tools. For example:
+If you have sudo privileges:
 
 ```bash
-pip install clang
+sudo apt install built-essential
 ```
+
+For HPC cluster environment, it is recommended to use [Conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html):
+
+```bash
+conda create -n o3d python=3.10.0
+conda activate o3d
+conda install -c conda-forge gxx gcc libxcrypt clang zlib
+```
+
 
 ## Installation
 
@@ -41,20 +48,17 @@ Alternatively, you can obtain the latest code from the repository and install it
 ```bash
 git clone https://github.com/bbglab/oncodrive3d.git
 cd oncodrive3d
-python -m venv .venv
-.venv/bin/pip install -e .
-source .venv/bin/activate
+pip install -e .
 oncodrive3d --help
 ```
 
-> [!NOTE]
-> If you install a modern build tool like [uv](https://github.com/astral-sh/uv),
-> you can simply do this:
-> ```bash
-> git clone https://github.com/bbglab/oncodrive3d.git
-> cd oncodrive3d
-> uv run oncodrive3d --help
-> ```
+Or you can use a modern build tool like [uv](https://github.com/astral-sh/uv):
+
+```bash
+git clone https://github.com/bbglab/oncodrive3d.git
+cd oncodrive3d
+uv run oncodrive3d --help
+```
 
 ## Building Datasets
 
