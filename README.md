@@ -14,7 +14,7 @@ The method leverages **AlphaFold 2-predicted protein structures** and Predicted 
 
 Oncodrive3D is available to the general public subject to certain conditions described in its [LICENSE](LICENSE).
 
-## Prerequisites
+## Requirements
 
 Before you begin, ensure **Python 3.10 or later** is installed on your system.  
 Additionally, you may need to install additional development tools. Depending on your environment,you can choose one of the following methods:
