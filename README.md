@@ -1,6 +1,8 @@
 # Oncodrive3D 
 
-**Oncodrive3D** is a computational method for analyzing patterns of somatic mutations across tumors. It identifies **three-dimensional (3D) clusters** of missense mutations and detects genes under **positive selection**.
+**Oncodrive3D** is a fast and accurate computational method designed to analyze patterns of somatic mutation across tumors, with the goal of identifying **three-dimensional (3D) clusters** of missense mutations and detecting genes under **positive selection**. 
+
+The method leverages **AlphaFold 2-predicted protein structures** and Predicted Aligned Error (PAE) to define residue contacts within the protein's 3D space. When available, it integrates **mutational profiles** to build an accurate background model of neutral mutagenesis. By applying a novel **rank-based statistical approach**, Oncodrive3D scores potential 3D clusters and computes empirical p-values."
 
 ---
 
@@ -17,7 +19,7 @@ Install via PyPI:
 pip install oncodrive3d
 ```
 
-You can obtain the latest code from the repository and install it for development with pip:
+Alternatively, you can obtain the latest code from the repository and install it for development with pip:
 
 ```bash
 git clone https://github.com/bbglab/oncodrive3d.git
@@ -72,7 +74,7 @@ Options:
   -h, --help                      Show this message and exit.  
 ```
 
-## Running 3D-clustering Analysis
+## Running 3D clustering Analysis
 
 For in depth information on how to obtain the required input data and for comprehensive information about the output, please refer to the [Input and Output Documentation](https://github.com/bbglab/oncodrive3d/tree/master/docs/input_output.md).  
 
@@ -176,8 +178,6 @@ oncodrive3d run -d <build_folder> \
 ```
 
 Check the output in the `test/output/` directory to ensure the analysis completes successfully.
-
-The provided input files also serve as examples to demonstrate the expected structure and format of the input files. Users can refer to these files when preparing their own input data for analysis.
 
 
 ## Parallel Processing on Multiple Cohorts
