@@ -19,50 +19,49 @@ Oncodrive3D is available to the general public subject to certain conditions des
 Before you begin, ensure **Python 3.10 or later** is installed on your system.  
 Additionally, you may need to install additional development tools. Depending on your environment, you can choose one of the following methods:
 
-1. If you have sudo privileges:
+- If you have sudo privileges:
 
-```bash
-sudo apt install built-essential
-```
+   ```bash
+   sudo apt install built-essential
+   ```
 
-2. For HPC cluster environment, it is recommended to use [Conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html):
+- For HPC cluster environment, it is recommended to use [Conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html):
 
-```bash
-conda create -n o3d python=3.10.0
-conda activate o3d
-conda install -c conda-forge gxx gcc libxcrypt clang zlib
-```
+   ```bash
+   conda create -n o3d python=3.10.0
+   conda activate o3d
+   conda install -c conda-forge gxx gcc libxcrypt clang zlib
+   ```
 
 
 ## Installation
 
-Install via PyPI:
+- Install via PyPI:
 
+   ```bash
+   pip install oncodrive3d
+   ```
 
-```bash
-pip install oncodrive3d
-```
+- Alternatively, you can obtain the latest code from the repository and install it for development with pip:
 
-Alternatively, you can obtain the latest code from the repository and install it for development with pip:
+   ```bash
+   git clone https://github.com/bbglab/oncodrive3d.git
+   cd oncodrive3d
+   pip install -e .
+   oncodrive3d --help
+   ```
 
-```bash
-git clone https://github.com/bbglab/oncodrive3d.git
-cd oncodrive3d
-pip install -e .
-oncodrive3d --help
-```
+- Or you can use a modern build tool like [uv](https://github.com/astral-sh/uv):
 
-Or you can use a modern build tool like [uv](https://github.com/astral-sh/uv):
-
-```bash
-git clone https://github.com/bbglab/oncodrive3d.git
-cd oncodrive3d
-uv run oncodrive3d --help
-```
+   ```bash
+   git clone https://github.com/bbglab/oncodrive3d.git
+   cd oncodrive3d
+   uv run oncodrive3d --help
+   ```
 
 ## Building Datasets
 
-This step is required after installation or whenever you need to generate datasets for a different organism or apply a specific threshold to define amino acid contacts.
+This step build the datasets necessary for Oncodrive3D to run the 3D clustering analysis. It is required once after installation or whenever you need to generate datasets for a different organism or apply a specific threshold to define amino acid contacts.
 
 > [!NOTE]
 > The first time that you run Oncodrive3D building dataset step with a given reference genome, it
@@ -208,32 +207,27 @@ Oncodrive3D can be run in parallel on multiple cohorts using [Nextflow](https://
 ### Requirements
 
 1. Install [Nextflow](https://www.nextflow.io/docs/latest/getstarted.html) (version `23.04.3` was used for testing).
-2. Install either or both:
-   - [Singularity](https://sylabs.io/guides/latest/user-guide/installation.html)
-   - [Conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html)
+2. Install and set up either or both:
+   - [Singularity](https://sylabs.io/guides/latest/user-guide/installation.html)  
+      Pull the Oncodrive3D Singularity image from Docker Hub:
 
+      ```
+      singularity pull oncodrive3d.sif docker://bbglab/oncodrive3d:latest
+      ```
 
-#### Option 1: Using Singularity
+   - [Conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html)  
+      Ensure Oncodrive3D is installed in your Conda environment and update the `params` section of the `nextflow.config` file to point to your Conda installation:
 
-Pull the Oncodrive3D Singularity image from Docker Hub:
+         ```groovy
+         params {
+            ...
+            conda_env = '/path/to/conda/environment/with/oncodrive3d' 
+            ...
+         }
+         ```
 
-```
-singularity pull oncodrive3d.sif docker://bbglab/oncodrive3d:latest
-```
+      Replace `/path/to/conda/environment/with/oncodrive3d` with the path to your Conda environment. Alternatively, you can provide it as a command-line argument.
 
-#### Option 2: Using Conda
-
-Ensure Oncodrive3D is installed in your Conda environment and update the `params` section of the `nextflow.config` file to point to your Conda installation:
-
-```groovy
-params {
-    ...
-    conda_env = '/path/to/conda/environment/with/oncodrive3d' 
-    ...
-}
-```
-
-Replace `/path/to/conda/environment/with/oncodrive3d` with the path to your Conda environment. Alternatively, you can provide it as a command-line argument.
 
 ### Test Run
 
