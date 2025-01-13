@@ -1,59 +1,16 @@
 #!/usr/bin/env python
 
-""" 
-The module includes the the main function to run an HotMAPs-inspired 
-method that uses the the canonical predicted structure stored in 
-AlphaFold db to perform 3D-clustering of mutations using simulations 
-and rank based comparison.
-
-# =============
-# EXAMPLE USAGE
-# =============
-
-# TODO Update examples with latest commands
-
-# Build datasets
-# --------------
-cd path/to/oncodrive3D
-oncodrive3D build-datasets -m -v -o datasets_mane
-
-# Run 
-# ---
-oncodrive3D run -i vep/HARTWIG_WGS_ANSC_2023.vep.tsv.gz -p mut_profile/HARTWIG_WGS_BLADDER_2023.sig.json -d /workspace/nobackup/scratch/oncodrive3d/datasets_mane_240506 -C HARTWIG_WGS_BLADDER_2023 -o /workspace/projects/clustering_3d/dev_testing/result/restructure_main -s 128 --o3d_transcripts --use_input_symbols -v --mane
-oncodrive3D run -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/vep/TCGA_WXS_BLCA.vep.tsv.gz \
-    -p /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer_202404/mut_profile/TCGA_WXS_BLCA.sig.json \
-        -d /workspace/nobackup/scratch/oncodrive3d/datasets_mane_last_real \
-            -C TCGA_WXS_BLCA \
-                -o /workspace/projects/clustering_3d/dev_testing/result/o3d/TCGA_WXS_BLCA_new_mane \
-                    -s 128 --o3d_transcripts --use_input_symbols -v --mane
-
-
-# Build annotations
-# -----------------
-# oncodrive3D build-annotations -o annotations_final -v -d /workspace/projects/clustering_3d/clustering_3d/datasets
-
-# Plot
-# ----
-# oncodrive3D plot --output_tsv --non_significant -r kidney_normal \
-    -g /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/results/TCGA_WXS_BLCA.3d_clustering_genes.tsv \
-        -p /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/results/TCGA_WXS_BLCA.3d_clustering_pos.tsv \
-            -i /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/maf/TCGA_WXS_BLCA.in.maf \
-                -o /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer/o3d_output/run_ref_trinucl/plots \
-                    -m /workspace/projects/clustering_3d/o3d_analysys/datasets/input/cancer/mut_profile/TCGA_WXS_BLCA.mutrate.json \
-                        -d /workspace/projects/clustering_3d/clustering_3d/datasets \
-                            -a /workspace/projects/clustering_3d/o3d_analysys/datasets/annotations
-    
-# Comparative plot
-# ----------------               
-oncodrive3D comparative-plot -i /workspace/projects/clustering_3d/o3d_analysys/datasets/output/normal/o3d_output/2024/ -c all_samples_raw -I /workspace/projects/clustering_3d/o3d_analysys/datasets/output/cancer_202404/o3d_output/human_raw/run_2024-05-07_17-46-44 -C TCGA_WXS_BRCA -d /workspace/nobackup/scratch/oncodrive3d/datasets_240506/ -a /workspace/nobackup/scratch/oncodrive3d/annotations_240506/ -o /workspace/projects/clustering_3d/dev_testing/result/plots -v
-
-# Associations plot
-# -----------------
-# TODO Add examples
-
-# ChimeraX plot
-# -------------
-# TODO Add examples
+"""
+Oncodrive3D is a fast and accurate computational method designed to analyze 
+patterns of somatic mutation across tumors, with the goal of identifying 
+three-dimensional (3D) clusters of missense mutations and detecting genes 
+under positive selection. The method leverages AlphaFold 2-predicted protein 
+structures and Predicted Aligned Error (PAE) to define residue contacts 
+within the protein's 3D space. When available, it also integrates mutational 
+profiles to build an accurate background model of neutral mutagenesis, which 
+is used to score potential clusters and simulate synthetic mutations. 
+By applying a novel rank-based statistical approach, Oncodrive3D scores 
+potential 3D clusters and computes empirical p-values."
 """
 
 import os
