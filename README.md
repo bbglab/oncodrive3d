@@ -17,15 +17,15 @@ Oncodrive3D is available to the general public subject to certain conditions des
 ## Requirements
 
 Before you begin, ensure **Python 3.10 or later** is installed on your system.  
-Additionally, you may need to install additional development tools. Depending on your environment,you can choose one of the following methods:
+Additionally, you may need to install additional development tools. Depending on your environment, you can choose one of the following methods:
 
-If you have sudo privileges:
+1. If you have sudo privileges:
 
 ```bash
 sudo apt install built-essential
 ```
 
-For HPC cluster environment, it is recommended to use [Conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html):
+2. For HPC cluster environment, it is recommended to use [Conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html):
 
 ```bash
 conda create -n o3d python=3.10.0
@@ -215,7 +215,7 @@ Oncodrive3D can be run in parallel on multiple cohorts using [Nextflow](https://
 
 #### Option 1: Using Singularity
 
-Pull the Oncodrive3D Singularity images from Docker Hub.
+Pull the Oncodrive3D Singularity image from Docker Hub:
 
 ```
 singularity pull oncodrive3d.sif docker://bbglab/oncodrive3d:latest
