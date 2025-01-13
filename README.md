@@ -51,8 +51,8 @@ oncodrive3d --help
 > If you install a modern build tool like [uv](https://github.com/astral-sh/uv),
 > you can simply do this:
 > ```bash
-> git clone https://github.com/bbglab/clustering_3d.git
-> cd clustering_3d
+> git clone https://github.com/bbglab/oncodrive3d.git
+> cd oncodrive3d
 > uv run oncodrive3d --help
 > ```
 
