@@ -15,7 +15,6 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "GNU Affero General Public License v3 or later (AGPLv3+)"}
 keywords = ["bioinformatics", "positiveselection", "driversprediction", "bbglab"]
-classifiers = ["Private :: Do Not Upload"]
 dependencies = [
     "adjusttext==1.1.1",
     "aiohttp>=3.11.10",
