@@ -54,10 +54,10 @@ remote_repository = \"https://bbglab.irbbarcelona.org/bgdata\"\n\
 # Pre-fetch and prepare genome data
 RUN apt-get update && apt-get install -y curl \
     && pip install bgdata bgreference \
-    && bgdata get datasets/genomereference/hg38 && bgdata get datasets/genomereference/hg19 \
-    && bgdata get datasets/genomereference/mm39 && bgdata get datasets/genomereference/mm10 \
-    && python3 -c "from bgreference import hg38, hg19; hg38(1, 1300000, 3000); hg19(1, 1300000, 3000)" \
-    && python3 -c "from bgreference import mm39, mm10; mm39(1, 1300000, 3000); mm10(1, 1300000, 3000)" \
+    && bgdata get datasets/genomereference/hg38 \
+    && bgdata get datasets/genomereference/mm39 \
+    && python3 -c "from bgreference import hg38; hg38(1, 1300000, 3000)" \
+    && python3 -c "from bgreference import mm39; mm39(1, 1300000, 3000)" \
     && rm -rf /var/lib/apt/lists/*
 
 # Set permissions for cache directory
