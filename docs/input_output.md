@@ -162,6 +162,65 @@ python3 get_regions_file.py hg38 3 > hg38_wg_regions.tsv
 
 # Ouput
 
+The `oncodrive3d run command` performs the 3D clustering analysis, generating both main and supplementary output files. The main output files include a gene-level output and a residue-level output, both summarizing the results of the analysis. The supplementary output files include the processed input files and a file including information on the genes being analysed.
+
 ## Main Output
+
+### Gene-level output
+
+CSV file (`<cohort>.3d_clustering_genes.csv`) containing the results of the analysis at the gene level. The genes (rows) are sorted by ascending order based on significance and deviation from neutrality. 
+
+It includes the following fields:
+
+1. **Gene**: HUGO symbol or identifier of the gene being analyzed.
+2. **Uniprot_ID**: Identifier for the gene's protein product in the UniProt database.
+3. **pval**:  The p-value indicating the statistical significance of the gene in the 3D clustering analysis (lowest p-value among the residues of the gene).
+4. **qval**: Adjusted p-value (q-value) to control for false discovery rate (FDR) using the Benjamini-Hochberg method.
+5. **C_gene**: Binary label indicating if the gene is detected to be significant (by default if q-value < 0.01).
+6. **C_pos**: List of protein residues or coordinate of the gene clusters.
+7. **C_label**: List of labels indicating the clump to which each cluster is grouped.
+8. **Score_obs_sim_top_vol**: 3D clustering score of the gene (normalized 3D clustering score of the residue with the lowest p-value; if multiple residues have the same lowest p-value, the maximum normalized 3D clustering score among those residues is used).
+9. **Mut_in_gene**: Number of missense mutations in the gene.
+10. **Clust_mut**: Number of missense mutations in significant clusters.
+11. **Clust_res**: Number of residues detected as significant clusters.
+12. **Mut_in_top_vol**: Number of missense mutations in the most significant cluster (in the volume of the residue with the lowest p-value).
+13. **Mut_in_top_cl_vol**: Number of missense mutations in the clusters of the most significant clump (in the volume of residues of the clump that includes the residue with the lowest p-value).
+14. **PAE_top_vol**: Weighted average predicted aligned error (PAE) between the residues in the volume of the most significant cluster.
+15. **pLDDT_top_vol**: Weighted average predicted local distance difference test (pLDDT) between the residues in the volume of the most significant cluster.
+16. **pLDDT_top_cl_vol**: Weighted average pLDDT between the residues in the volume of the most significant clump.
+17. **Pos_top_vol**: Position of the most significant cluster.
+18. **Ratio_not_in_structure**: Diagnostic field rapresenting the proportion of mutations in the input file that are mapped to positions not covered by the structure.
+19. **Ratio_WT_mismatch**: Diagnostic field rapresenting the proportion of mutations in the input file where the wild-type (WT) amino acid does not match the corresponding residue in the structural model.
+20. **Mut_zero_mut_prob**: Diagnostic field rapresenting the proportion of mutations in the input file that are assigned a mutation probability of zero. This field is relevant only when a mutability configuration file is provided as input (`-m`, `--mutability_config_path`).  
+21. **Pos_zero_mut_prob**: Diagnostic field reporting the mutated protein position with assigned a mutation probability of zero. This field is relevant only when a mutability configuration file is provided as input (`-m`, `--mutability_config_path`).  
+22. **Cancer**: Cancer type.
+23. **Cohort**: Cohort name.
+24. **Transcript_ID**: Ensembl transcript ID provided in the input file.
+25. **O3D_transcript_ID**: Ensembl trasncript ID mapped to the given gene in the Oncodrive3D built datasets.
+26. **Transcript_status**: Transcripts mapping status indicating whether the transcripts matches between the input data and the Oncodrive3D built datasets. Possible values are:
+    - `Input_missing`: The transcript is missing from the input file.
+    - `O3D_missing`: The transcript is missing from the Oncodrive3D built datasets.
+    - `Mismatch`: The transcript in the input file does not match the transcript in the Oncodrive3D built datasets.
+    - `Match`: The transcript in the input file matches the transcript in the Oncodrive3D built datasets.
+27. **Ens_Gene_ID**: Ensembl gene ID.
+28. **Status**: Processing status for 3D clustering analysis. Possible values are:
+    - `Processed`: The gene has been successfully processed, and a 3D clustering score and a p-value have been assigned.
+    - `No_mut`: The gene contains one or no mutations.
+    - `No_density`: The maximum number of mutations in the spatial volume of any residue is one or less.
+    - `No_ID_mapping`: No corresponding UniProt ID is found for the given gene in the Oncodrive3D built datasets.
+    - `Cmap_not_found`: The contact map for the gene's structural data is not available.
+    - `Mut_not_in_structure`: The proportion of mutations mapped to positions outside the boundaries of the provided PDB structure exceeds the threshold for mapping issues
+    (`--thr_mapping_issue`, default: 0.1).
+    - `WT_mismatch`: The proportion of mutations in the input file where the wild-type (WT) amino acid does not match the corresponding residue in the structural model exceeds the threshold for mapping issues (`--thr_mapping_issue`, default: 0.1).
+    - `Mut_with_zero_prob`: The proportion of mutations mapped to positions with a mutation probability of zero exceeds the threshold for mapping issues (`--thr_mapping_issue`, default: 0.1).
+    - `No_mutability`: A mutability configuration file (`-m`, `--mutability_config_path`) was provided, but accurate information on the DNA sequence of the gene is missing in the Oncodrive3D built datasets.
+    - `NA_miss_prob`: The missense probability vector computed for the protein includes NAs values.
+    - `Fragmented`: The protein structure is predicted as fragments by AlphaFold, and the analysis of fragmented structures is not enabled (`-f`, `--no_fragments`).
+
+
+### Residue-level output
+  
+CSV file (`<cohort>.3d_clustering_pos.csv`) containing the results of the analysis at the level of mutated residues. Each row corresponds to a mutated position within a gene and includes detailed information for each potential mutational cluster.
+
 
 ## Supplementary Output
