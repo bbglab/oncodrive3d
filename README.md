@@ -63,11 +63,11 @@ Additionally, you may need to install additional development tools. Depending on
 
 This step build the datasets necessary for Oncodrive3D to run the 3D clustering analysis. It is required once after installation or whenever you need to generate datasets for a different organism or apply a specific threshold to define amino acid contacts.
 
+> [!WARNING]
+> This step is highly time- and resource-intensive, requiring a significant amount of free disk space. It will download a large amount of data, including AlphaFold-predicted structures and reference genomes (if not already cached). Ensure sufficient resources are available before proceeding, as insufficient capacity may result in extended runtimes or processing failures.
+
 > [!NOTE]
-> The first time that you run Oncodrive3D building dataset step with a given reference genome, it
-> will download it from our servers. By default the downloaded datasets go to
-> `~/.bgdata`. If you want to move these datasets to another folder you have to
-> define the system environment variable `BGDATA_LOCAL` with an export command.
+> The first time that you run Oncodrive3D building dataset step with a given reference genome, it will download it from our servers. By default the downloaded datasets go to`~/.bgdata`. If you want to move these datasets to another folder you have to define the system environment variable `BGDATA_LOCAL` with an export command.
 
 ```
 Usage: oncodrive3d build-datasets [OPTIONS]
