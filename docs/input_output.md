@@ -3,15 +3,15 @@
 Oncodrive3D analyse patterns of somatic mutations at the cohort level, and relies on two primary input files:
 
 ---
-- **Input mutations** (`required`): Mutation file that can be either:
+1. **Input mutations** (`required`): Mutation file that can be either:
    - **<input_maf>**: A Mutation Annotation Format (MAF) file annotated with consequences (e.g., by using [Ensembl Variant Effect Predictor (VEP)](https://www.ensembl.org/info/docs/tools/vep/index.html)).
    - **<input_vep>**: The unfiltered output of VEP including annotations for all possible transcripts.
 
-- **<mut_profile>** (`optional`): Dictionary including the normalized frequencies of mutations (*values*) in every possible trinucleotide context (*keys*), such as 'ACA>A', 'ACC>A', and so on.
+2. **<mut_profile>** (`optional`): Dictionary including the normalized frequencies of mutations (*values*) in every possible trinucleotide context (*keys*), such as 'ACA>A', 'ACC>A', and so on.
 
 ---
 
-## Input Mutations
+## 1. Input Mutations
 
 ### MAF File
 
@@ -43,7 +43,7 @@ In this case:
 ---
 
 > [!WARNING]
-> If the VEP output includes header lines starting with ## (commonly found in the VEP output format), it is recommended to remove these lines to ensure compatibility with Oncodrive3D and other downstream tools. You can do this with the following command:
+> If the VEP output includes header lines starting with ## (commonly found in the VEP output format), it is recommended to remove these lines to ensure compatibility with Oncodrive3D. You can do this with the following command:
 > 
 > ```
 > grep -v '^##' <cohort>.vep.tsv > <cohort>.vep.tsv
@@ -51,7 +51,7 @@ In this case:
 
 ---
 
-## Mutation Profile
+## 2. Mutation Profile
 
 The mutation profile of a cohort rapresents the count or the normalized frequencies of mutations in every possible k-nucleotide (e.g., trinucleotide or pentanucleotide) contexts.
 
@@ -79,28 +79,26 @@ The mutation profile used by Oncodrive3D is a dictionary (json file) including t
 }
 ```
 
-The mutation profile can be computed using BGSignature or other bioinformatics softwares.  
-Below is an example using BGSignature:
+The mutation profile can be computed using BGSignature (detailed below) or other bioinformatics softwares.  
 
 ### Create the Mutation Profile with BGSignature
 
-**Install BGSignature**
-```
-pip install bgsignature
-```
+1. Install BGSignature:
+    ```
+    pip install bgsignature
+    ```
 
-**Get the count of trinucleotides**
-```
-bgsignature count -r <regions_file> -s 3 -g GRCh38 --cores 8 --collapse \
-                  --exclude-N -o count.gz
-```
+2. Get the count of trinucleotides:
+    ```
+    bgsignature count -r <regions_file> -s 3 -g GRCh38 --cores 8 --collapse \
+                    --exclude-N -o count.gz
+    ```
 
-**Get the frequency of mutations normalized by trinucleotide bias**
-
-```
-bgsignature normalize -m <mutations_file> -r <regions_file> --normalize count.gz \ 
-                      -s 3 -g GRCh38 --collapse --cores 8 -o <cohort>.sig.json
-```
+3. Get the frequency of mutations normalized by trinucleotide bias:
+    ```
+    bgsignature normalize -m <mutations_file> -r <regions_file> --normalize count.gz \ 
+                        -s 3 -g GRCh38 --collapse --cores 8 -o <cohort>.sig.json
+    ```
 
 To compute the mutation profile with BGSignature two main files are required:
 
@@ -113,52 +111,50 @@ To compute the mutation profile with BGSignature two main files are required:
     - `CHROMOSOME`
     - `START`
     - `END`
-    - `ELEMENT`
+    - `ELEMENT`  
+    
+    #### Create the Regions File  
 
-#### Create the Regions File
+    The regions file can be generated using BGReference. Below is an example of a Python script to create a regions file for a specified genome and k-mer size.
 
-The regions file can be generated using BGReference. Below is an example of a Python script to create a regions file for a specified genome and k-mer size.
+    1. Install BGReference:
+        ```
+        pip install bgreference
+        ```
 
-**Install BGReference**
-```
-pip install bgreference
-```
+    2. Save the following Python script as get_regions_file.py:
 
-**Python Script to Generate the Regions File**
+        ```python
+        import sys
+        from bgreference import refseq
 
-Save the following as get_regions_file.py:
-
-```python
-import sys
-from bgreference import refseq
-
-CHR = [str(i) for i in range(1, 20)] + ['X', 'Y', 'M']
+        CHR = [str(i) for i in range(1, 20)] + ['X', 'Y', 'M']
 
 
-def compute_sizes(genome, kmer):
-    sizes = []
-    for chr_ in CHR:
-        seq = refseq(genome, f"chr{chr_}", start=(1 + kmer // 2), size=None)
-        sizes.append(tuple(map(str, (chr_, 1 + kmer // 2, len(seq) - kmer // 2))))
-    return sizes
+        def compute_sizes(genome, kmer):
+            sizes = []
+            for chr_ in CHR:
+                seq = refseq(genome, f"chr{chr_}", start=(1 + kmer // 2), size=None)
+                sizes.append(tuple(map(str, (chr_, 1 + kmer // 2, len(seq) - kmer // 2))))
+            return sizes
 
 
-def write(sizes):
-    print('\t'.join(('CHROMOSOME', 'START', 'END')))
-    for s in sizes:
-        print('\t'.join(s))
+        def write(sizes):
+            print('\t'.join(('CHROMOSOME', 'START', 'END')))
+            for s in sizes:
+                print('\t'.join(s))
 
-if __name__ == '__main__':
-    genome = sys.argv[1]
-    kmer = int(sys.argv[2])
-    write(compute_sizes(genome, kmer))
-```
+        if __name__ == '__main__':
+            genome = sys.argv[1]
+            kmer = int(sys.argv[2])
+            write(compute_sizes(genome, kmer))
+        ```
 
-**Run the Script**
+    3. Run the script:
 
-```
-python3 get_regions_file.py hg38 3 > hg38_wg_regions.tsv
-```
+        ```
+        python3 get_regions_file.py hg38 3 > hg38_wg_regions.tsv
+        ```
 
 # Ouput
 
