@@ -25,7 +25,7 @@ Additionally, you may need to install additional development tools. Depending on
    sudo apt install built-essential
    ```
 
-- For HPC cluster environment, it is recommended to use [Conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html):
+- For HPC cluster environment, it is recommended to use [Conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html) (or [Mamba](https://mamba.readthedocs.io/en/latest/)):
 
    ```bash
    conda create -n o3d python=3.10.0
@@ -94,9 +94,12 @@ Options:
   -h, --help                      Show this message and exit.  
 ```
 
+For more information on the output of this step, please refer to the [Building Datasets Output Documentation](https://github.com/bbglab/oncodrive3d/tree/master/docs/build_output.md).
+
+
 ## Running 3D clustering Analysis
 
-For in depth information on how to obtain the required input data and for comprehensive information about the output, please refer to the [Input and Output Documentation](https://github.com/bbglab/oncodrive3d/tree/master/docs/input_output.md).  
+For in depth information on how to obtain the required input data and for comprehensive information about the output, please refer to the [Input and Output Documentation](https://github.com/bbglab/oncodrive3d/tree/master/docs/run_input_output.md) of the 3D clustering analysis.  
 
 ### Input
 

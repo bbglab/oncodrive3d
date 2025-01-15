@@ -6,15 +6,14 @@ The build is a pipeline that perform the following tasks:
       predicted by AlphaFold 2 from AlphaFold DB.
     - Merge the overlapping structures processed as fragments.
     - Extract AlphaFold model confidence (pLDDT).
-    - Generate a dataframe including Uniprot_ID, Hugo Symbol,
-      protein and DNA sequence.
+    - Generate a dataframe including Uniprot_ID, HUGO Symbol,
+      protein, DNA sequence, and other gene's information.
     - Download AlphaFold predicted aligned error (PAE) from
       AlphaFold DB and convert the files into npy format.
     - Use the PDB structure and PAE to create maps of
       probability of contacts (pCMAPs) for any protein of the
       downloaded proteome with available PAE.
-    - Remove unnecessary temp files (e.g., PDB structures) if
-      not specified otherwise.
+    - Remove unnecessary temp files.
 """
 
 
@@ -64,7 +63,7 @@ def build(output_datasets,
                        gzip=True)
 
     # Download PDB MANE structures
-    if species == "Homo sapiens":
+    if species == "Homo sapiens" and mane == True:
         logger.info("Downloading AlphaFold (AF) predicted structures overlap with MANE...")
         get_structures(path=os.path.join(output_datasets,"pdb_structures_mane"),
                       species=species,
@@ -114,9 +113,6 @@ def build(output_datasets,
     logger.info("Cleaning datasets...")
     clean_temp_files(path=output_datasets)
     logger.info("Datasets cleaning completed!")
-
-    # TO DO: add a step that clean up all structures not added in the sequence df
-
     logger.info("Datasets have been successfully built and are ready for analysis!")
 
 if __name__ == "__main__":
