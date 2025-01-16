@@ -8,10 +8,11 @@ import gzip
 import hashlib
 import io
 import os
-import time
 import tarfile
-# from unipressed import IdMappingClient
+import time
+from zipfile import ZipFile
 
+import logging
 import daiquiri
 import numpy as np
 import pandas as pd
@@ -19,8 +20,7 @@ import requests
 from Bio import SeqIO
 from pypdl import Pypdl as Downloader
 import aiohttp
-
-from zipfile import ZipFile
+# from unipressed import IdMappingClient
 
 from scripts import __logger_name__
 
@@ -31,7 +31,7 @@ logger = daiquiri.getLogger(__logger_name__ + ".build.utils")
 
 def rounded_up_division(num, den):
     """
-    Simply round up the result of the division.
+    Perform a division and round up the result.
     """
 
     return -(-num // den)
@@ -51,7 +51,7 @@ def get_pos_fragments(mut_gene_df):
 
 def get_species(species):
     """
-    Simply change species name to accepted format.
+    Change species name to accepted format.
     """
 
     if species == "human" or species.capitalize() == "Homo sapiens":
@@ -137,12 +137,8 @@ def download_single_file(url: str, destination: str, threads: int, proteome=None
 
     logger.debug(f'Downloading {url}')
     logger.debug(f"Downloading to {destination}")
-    dl = Downloader(timeout=aiohttp.ClientTimeout(sock_read=20), ssl=False)
-    dl.start(url, destination, segments=num_connections, display=True, retries=5, clear_terminal=False)
-
-
-    os.system("clear")
-    logger.debug('clear')
+    dl = Downloader(timeout=aiohttp.ClientTimeout(sock_read=300), ssl=False)
+    dl.start(url, destination, segments=num_connections, display=True, retries=10, clear_terminal=False)
     logger.debug('Download complete')
 
 
