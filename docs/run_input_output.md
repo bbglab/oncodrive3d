@@ -27,10 +27,10 @@ vep --dir <vep_data> -i <input_vcf> --offline --cache -o <output>.vep.tsv \
 
 The output of VEP should be filtered so that each mutation is mapped to a single transcript. Additionally, it should be parsed to conform to the MAF format and include at least the following fields:
 
-1. **Hugo_Symbol**: HUGO symbol for the gene.
-4. **Variant_Classification**: Translational effect of variant allele.
-5. **Transcript_ID**: Ensembl ID of the transcript affected by the variant.
-5. **HGVSp_Short**: The protein sequence of the variant in HGVS recommended format using 1-letter amino-acid codes.
+1. `Hugo_Symbol`: HUGO symbol for the gene.
+4. `Variant_Classification`: Translational effect of variant allele.
+5. `Transcript_ID`: Ensembl ID of the transcript affected by the variant.
+5. `HGVSp_Short`: The protein sequence of the variant in HGVS recommended format using 1-letter amino-acid codes.
 
 ### VEP File
 
@@ -158,7 +158,7 @@ The regions file can be generated using BGReference. Below is an example of a Py
 
 # Ouput
 
-The `oncodrive3d run command` performs the 3D clustering analysis, generating both main and supplementary output files. The main output files include a gene-level output and a residue-level output, both summarizing the results of the analysis. The supplementary output files include the processed input files and a file including information on the genes being analysed.
+The `oncodrive3d run command` performs the 3D clustering analysis, generating both main and supplementary output files. The main output files include a gene-level output and a residue-level output, both summarizing the results of the analysis. The supplementary output files include the processed input files and a processed file derived from the Oncodrive3D built datasets, containing information on the genes being analyzed.
 
 ## Main Output
 
@@ -168,47 +168,47 @@ CSV file (`<cohort>.3d_clustering_genes.csv`) containing the results of the anal
 
 It includes the following fields:
 
-1. **Gene**: HUGO symbol or identifier of the gene being analyzed.
-2. **Uniprot_ID**: Identifier for the gene's protein product in the UniProt database.
-3. **pval**:  The p-value indicating the statistical significance of the gene in the 3D clustering analysis (lowest p-value among the residues of the gene).
-4. **qval**: Adjusted p-value (q-value) to control for false discovery rate (FDR) using the Benjamini-Hochberg method.
-5. **C_gene**: Binary label indicating if the gene is detected to be significant (by default if q-value < 0.01).
-6. **C_pos**: List of protein positions of the gene clusters.
-7. **C_label**: List of labels indicating the clump to which each cluster is grouped.
-8. **Score_obs_sim_top_vol**: 3D clustering score of the gene (normalized 3D clustering score of the residue with the lowest p-value; if multiple residues have the same lowest p-value, the maximum normalized 3D clustering score among those residues is used).
-9. **Mut_in_gene**: Number of missense mutations in the gene.
-10. **Clust_mut**: Number of missense mutations in significant clusters.
-11. **Clust_res**: Number of residues detected as significant clusters.
-12. **Mut_in_top_vol**: Number of missense mutations in the most significant cluster (in the volume of the residue with the lowest p-value).
-13. **Mut_in_top_cl_vol**: Number of missense mutations in the clusters of the most significant clump (in the volume of residues of the clump that includes the residue with the lowest p-value).
-14. **PAE_top_vol**: Weighted average predicted aligned error (PAE) between the residues in the volume of the most significant cluster.
-15. **pLDDT_top_vol**: Weighted average predicted local distance difference test (pLDDT) between the residues in the volume of the most significant cluster.
-16. **pLDDT_top_cl_vol**: Weighted average pLDDT between the residues in the volume of the most significant clump.
-17. **Pos_top_vol**: Position of the most significant cluster.
-18. **Ratio_not_in_structure**: Diagnostic field rapresenting the proportion of mutations in the input file that are mapped to positions not covered by the structure.
-19. **Ratio_WT_mismatch**: Diagnostic field rapresenting the proportion of mutations in the input file where the wild-type (WT) amino acid does not match the corresponding residue in the structural model.
-20. **Mut_zero_mut_prob**: Diagnostic field rapresenting the proportion of mutations in the input file that are assigned a mutation probability of zero. This field is relevant only when a mutability configuration file is provided as input (`-m`, `--mutability_config_path`).  
-21. **Pos_zero_mut_prob**: Diagnostic field reporting the mutated protein position with assigned a mutation probability of zero. This field is relevant only when a mutability configuration file is provided as input (`-m`, `--mutability_config_path`).  
-22. **Cancer**: Cancer type.
-23. **Cohort**: Cohort name.
-24. **Transcript_ID**: Ensembl transcript ID provided in the input file.
-25. **O3D_transcript_ID**: Ensembl trasncript ID mapped to the given gene in the Oncodrive3D built datasets.
-26. **Transcript_status**: Transcripts mapping status indicating whether the transcript IDs matches between the input data and the Oncodrive3D built datasets. Possible values are:
+1. `Gene`: HUGO symbol or identifier of the gene being analyzed.
+2. `Uniprot_ID`: Identifier for the gene's protein product in the UniProt database.
+3. `pval`:  The p-value indicating the statistical significance of the gene in the 3D clustering analysis (lowest p-value among the residues of the gene).
+4. `qval`: Adjusted p-value (q-value) to control for false discovery rate (FDR) using the Benjamini-Hochberg method.
+5. `C_gene`: Binary label indicating if the gene is detected to be significant (by default if `q-value < 0.01`).
+6. `C_pos`: List of protein positions of the gene clusters.
+7. `C_label`: List of labels indicating the clump to which each cluster is grouped.
+8. `Pos_top_vol`: Position of the most significant cluster.
+9. `Score_obs_sim_top_vol`: 3D clustering score of the gene (normalized 3D clustering score of the residue with the lowest p-value; if multiple residues have the same lowest p-value, the maximum normalized 3D clustering score among those residues is used).
+10. `Mut_in_gene`: Number of missense mutations in the gene.
+11. `Clust_mut`: Number of missense mutations in significant clusters.
+12. `Clust_res`: Number of residues detected as significant clusters.
+13. `Mut_in_top_vol`: Number of missense mutations in the most significant cluster (in the volume of the residue with the lowest p-value).
+14. `Mut_in_top_cl_vol`: Number of missense mutations in the clusters of the most significant clump (in the volume of residues of the clump that includes the residue with the lowest p-value).
+15. `PAE_top_vol`: Weighted average predicted aligned error (PAE) between the residues in the volume of the most significant cluster.
+16. `pLDDT_top_vol`: Weighted average predicted local distance difference test (pLDDT) between the residues in the volume of the most significant cluster.
+17. `pLDDT_top_cl_vol`: Weighted average pLDDT between the residues in the volume of the most significant clump.
+18. `Ratio_not_in_structure`: Diagnostic field rapresenting the proportion of mutations in the input file that are mapped to positions not covered by the structure.
+19. `Ratio_WT_mismatch`: Diagnostic field rapresenting the proportion of mutations in the input file where the wild-type (WT) amino acid does not match the corresponding residue in the structural model.
+20. `Mut_zero_mut_prob`: Diagnostic field rapresenting the proportion of mutations in the input file that are assigned a mutation probability of zero. This field is relevant only when a mutability configuration file is provided as input (`-m`, `--mutability_config_path`).  
+21. `Pos_zero_mut_prob`: Diagnostic field reporting the mutated protein position with assigned a mutation probability of zero. This field is relevant only when a mutability configuration file is provided as input (`-m`, `--mutability_config_path`).  
+22. `Cancer`: Cancer type.
+23. `Cohort`: Cohort name.
+24. `F`: Fragment of the AlphaFold predicted structure (1 = no fragmentation, *n*M = merged from *n* fragments).
+25. `Transcript_ID`: Ensembl transcript ID provided in the input file.
+26. `O3D_transcript_ID`: Ensembl trasncript ID mapped to the given gene in the Oncodrive3D built datasets.
+27. `Transcript_status`: Transcripts mapping status indicating whether the transcript IDs matches between the input data and the Oncodrive3D built datasets. Possible values are:
     - `Input_missing`: Transcript ID is missing from the input file.
     - `O3D_missing`: Transcript ID is missing from the Oncodrive3D built datasets.
     - `Mismatch`: Transcript ID in the input file does not match the transcript ID in the Oncodrive3D built datasets.
     - `Match`: Transcript ID in the input file matches the transcript ID in the Oncodrive3D built datasets.
-27. **Ens_Gene_ID**: Ensembl gene ID.
-28. **Status**: Processing status for 3D clustering analysis. Possible values are:
+28. `Status`: Processing status for 3D clustering analysis. Possible values are:
     - `Processed`: The gene has been successfully processed, with a 3D clustering score and a p-value assigned.
     - `No_mut`: The gene contains one or no mutations.
     - `No_density`: The maximum number of mutations in the spatial volume of any residue is one or less.
     - `No_ID_mapping`: No corresponding UniProt ID is found for the given gene in the Oncodrive3D built datasets.
     - `Cmap_not_found`: The contact map for the gene's structural data is not available.
     - `Mut_not_in_structure`: The proportion of mutations mapped to positions outside the boundaries of the provided PDB structure exceeds the threshold for mapping issues
-    (`--thr_mapping_issue`, default: 0.1).
-    - `WT_mismatch`: The proportion of mutations in the input file where the wild-type amino acid does not match the corresponding residue in the structural model exceeds the threshold for mapping issues (`--thr_mapping_issue`, default: 0.1).
-    - `Mut_with_zero_prob`: The proportion of mutations mapped to positions with a mutation probability of zero exceeds the threshold for mapping issues (`--thr_mapping_issue`, default: 0.1).
+    (`--thr_mapping_issue`, default: `0.1`).
+    - `WT_mismatch`: The proportion of mutations in the input file where the wild-type amino acid does not match the corresponding residue in the structural model exceeds the threshold for mapping issues (`--thr_mapping_issue`, default: `0.1`).
+    - `Mut_with_zero_prob`: The proportion of mutations mapped to positions with a mutation probability of zero exceeds the threshold for mapping issues (`--thr_mapping_issue`, default: `0.1`).
     - `No_mutability`: A mutability configuration file (`-m`, `--mutability_config_path`) was provided, but accurate information on the DNA sequence of the gene is missing in the Oncodrive3D built datasets.
     - `NA_miss_prob`: The missense probability vector computed for the protein includes NAs values.
     - `Fragmented`: The protein structure is predicted as fragments by AlphaFold, and the analysis of fragmented structures is not enabled (`-f`, `--no_fragments`).
@@ -220,27 +220,27 @@ CSV file (`<cohort>.3d_clustering_pos.csv`) containing the results of the analys
 
 It includes the following fields:
 
-**Gene**
-**Uniprot_ID**
-**F**
-**Pos**
-**Mut_in_gene**
-**Mut_in_res**
-**Mut_in_vol**
-**Score**
-**Score_obs_sim**
-**pval**
-**C**
-**C_ext**
-**Clump**
-**Rank**
-**Mut_in_cl_vol**
-**Res_in_cl**
-**PAE_vol**
-**pLDDT_res**
-**pLDDT_vol**
-**pLDDT_cl_vol**
-**Cancer**
-**Cohort**
+1. `Gene`: HUGO symbol or identifier of the gene being analyzed.
+2. `Uniprot_ID`: Identifier for the gene's protein product in the UniProt database.
+3. `Pos`: Protein position.
+4. `Mut_in_gene`: Number of missense mutations in the gene.
+5. `Mut_in_res`: Number of missense mutations in the residue.
+6. `Mut_in_vol`: Number of missense mutations in the volume of the residue.
+7. `Score`: 3D clustering score for the residue.
+8. `Score_obs_sim`: Normalized 3D clustering score for the residue.
+9. `pval`: The p-value of the residue in the 3D clustering analysis.
+10. `C`: Binary label indicating whether the cluster at that residue is significant (1) or not (0). A cluster is marked as significant either because it meets the significance criteria directly or because it has been rescued by contributing mutations to another significant cluster.
+11. `C_ext`: Binary label indicating whether the cluster has been rescued by contributing mutations to another significant cluster (1) or if it was significant on its own (0).
+12. `Clump`: Identifier for the clump to which the cluster at that residue has been assigned.
+13. `Rank` Rank used to perform the calculation of the normalized 3D clustering score and p-values. 
+14. `Mut_in_cl_vol`: Number of missense mutations in the clusters of the clump to which the cluster has been assigned.
+15. `Res_in_cl`: Positions of the clusters of the clump to which the cluster has been assigned.
+16. `PAE_vol` Weighted average predicted aligned error (PAE) of the residues in the volume of the cluster.
+17. `pLDDT_res` Predicted local distance difference test (pLDDT) of the residue.
+18. `pLDDT_vol` Weighted average pLDDT between the residues in the volume.
+19. `pLDDT_cl_vol` pLDDT between the residues in the volume of the most significant cluster.
+20. `Cancer` Cancer type.
+21. `Cohort` Cohort name.
+
 
 ## Supplementary Output

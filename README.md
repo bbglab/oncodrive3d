@@ -126,9 +126,9 @@ Please refer to these examples to understand the expected format and structure o
 
 ### Main Output
 
-- **Gene-level output** (\<cohort>.3d_clustering_genes.csv): CSV file containing the results of the analysis at the gene level. Each row represents a gene, sorted from the most significant to the least significant based on the 3D clustering analysis. The table also includes genes that were not analyzed, with the reason for exclusion provided in the `status` column.
+- **Gene-level output**: CSV file (`\<cohort>.3d_clustering_genes.csv`) containing the results of the analysis at the gene level. Each row represents a gene, sorted from the most significant to the least significant based on the 3D clustering analysis. The table also includes genes that were not analyzed, with the reason for exclusion provided in the `status` column.
   
-- **Residue-level output** (\<cohort>.3d_clustering_pos.csv): CSV file containing the results of the analysis at the level of mutated residues. Each row corresponds to a mutated position within a gene and includes detailed information for each potential mutational cluster.
+- **Residue-level output**: CSV file (`<cohort>.3d_clustering_pos.csv`) containing the results of the analysis at the level of mutated residues. Each row corresponds to a mutated position within a gene and includes detailed information for each potential mutational cluster.
 
 
 ### Usage
@@ -271,9 +271,8 @@ If you prefer to use Conda, replace `container` in the `-profile` argument with 
 Usage: nextflow run main.nf [OPTIONS]
 
 Example of run using VEP output as input and MANE Select transcripts:
-  Basic run:
-    nextflow run main.nf -profile container --data_dir <build_folder> --indir <input> \
-                         --vep_input true --mane true
+  nextflow run main.nf -profile container --data_dir <build_folder> --indir <input> \
+                       --vep_input true --mane true
   
 Options:
   --indir PATH                    Path to the input directory including the subdirectories 
