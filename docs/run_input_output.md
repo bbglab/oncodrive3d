@@ -28,9 +28,9 @@ vep --dir <vep_data> -i <input_vcf> --offline --cache -o <output>.vep.tsv \
 The output of VEP should be filtered so that each mutation is mapped to a single transcript. Additionally, it should be parsed to conform to the MAF format and include at least the following fields:
 
 1. `Hugo_Symbol`: HUGO symbol for the gene.
-4. `Variant_Classification`: Translational effect of variant allele.
-5. `Transcript_ID`: Ensembl ID of the transcript affected by the variant.
-5. `HGVSp_Short`: The protein sequence of the variant in HGVS recommended format using 1-letter amino-acid codes.
+2. `Variant_Classification`: Translational effect of variant allele.
+3. `Transcript_ID`: Ensembl ID of the transcript affected by the variant.
+4. `HGVSp_Short`: The protein sequence of the variant in HGVS recommended format using 1-letter amino-acid codes.
 
 ### VEP File
 
