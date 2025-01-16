@@ -103,11 +103,11 @@ For in depth information on how to obtain the required input data and for compre
 
 ### Input
 
-1. **Mutations file** (`required`): It can be either:
+- **Mutations file** (`required`): It can be either:
    - **<input_maf>**: A Mutation Annotation Format (MAF) file annotated with consequences (e.g., by using [Ensembl Variant Effect Predictor (VEP)](https://www.ensembl.org/info/docs/tools/vep/index.html)).
    - **<input_vep>**: The unfiltered output of VEP including annotations for all possible transcripts.
 
-2. **<mut_profile>** (`optional`): Dictionary including the normalized frequencies of mutations (*values*) in every possible trinucleotide context (*keys*), such as 'ACA>A', 'ACC>A', and so on.
+- **<mut_profile>** (`optional`): Dictionary including the normalized frequencies of mutations (*values*) in every possible trinucleotide context (*keys*), such as 'ACA>A', 'ACC>A', and so on.
 
 ---
 
