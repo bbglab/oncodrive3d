@@ -63,7 +63,7 @@ def build(output_datasets,
                        gzip=True)
 
     # Download PDB MANE structures
-    if species == "Homo sapiens":
+    if species == "Homo sapiens" and mane == True:
         logger.info("Downloading AlphaFold (AF) predicted structures overlap with MANE...")
         get_structures(path=os.path.join(output_datasets,"pdb_structures_mane"),
                       species=species,

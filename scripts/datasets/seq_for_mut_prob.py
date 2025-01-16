@@ -683,7 +683,6 @@ def process_seq_df(seq_df,
 
     Reference_info labels:
         1 : Transcript ID, exons coord, seq DNA obtained from Proteins API
-        0 : Transcript ID retrieved from MANE and seq DNA from Ensembl
        -1 : Not available transcripts, seq DNA retrieved from Backtranseq API
     """
 
@@ -705,53 +704,18 @@ def process_seq_df(seq_df,
     else:
         raise RuntimeError(f"Failed to recognize '{organism}' as organism. Currently accepted ones are 'Homo sapiens' and 'Mus musculus'. Exiting..")
     seq_df = add_ref_dna_and_context(seq_df, genome_fun)
-    seq_df_tr = seq_df[seq_df["Reference_info"] == 1]
-    seq_df_notr = seq_df[seq_df["Reference_info"] == -1]
+    seq_df_uniprot = seq_df[seq_df["Reference_info"] == 1]
+    seq_df_not_uniprot = seq_df[seq_df["Reference_info"] == -1]
 
 
-    # Process entries not in Proteins API (Reference_info 0 & -1)
+    # Process entries not in Proteins API (Reference_info -1)
     #------------------------------------------------------------
 
-    # Retrieve transcripts from MANE metadata
-    if organism == "Homo sapiens":
-        mane_mapping = get_mane_to_af_mapping(datasets_dir,
-                                              seq_df["Uniprot_ID"].unique(),
-                                              mane_version=mane_version)
-        seq_df_notr = seq_df_notr.drop(columns=["Ens_Gene_ID", "Ens_Transcr_ID", "Chr", "Reverse_strand"])
-        seq_df_notr = seq_df_notr.merge(mane_mapping.drop(columns=["Gene", "Refseq_prot"]), on="Uniprot_ID", how="left").dropna(subset="Gene")
-
-        # Assign reference label to transcripts retrieved from MANE
-        #seq_df_natr = seq_df_notr[seq_df_notr.Ens_Transcr_ID.isna()]
-        seq_df_manetr = seq_df_notr.copy()
-        seq_df_manetr = seq_df_manetr.dropna(subset="Ens_Transcr_ID")
-        seq_df_manetr["Reference_info"] = 0
-
-        # Remove genes from weird chrs
-        if rm_weird_chr:
-            chrs_lst = [f"{i}" for i in range(1, 23)] + ['X', 'Y']
-            seq_df_manetr = seq_df_manetr[seq_df_manetr['Chr'].isna() | seq_df_manetr['Chr'].isin(chrs_lst)]
-
-        # Add DNA seq from Ensembl for structures with available transcript ID
-        logger.debug(f"Retrieving CDS DNA seq from transcript ID (Ensembl API): {len(seq_df_manetr)} structures..")
-        seq_df_manetr = get_ref_dna_from_ensembl_mp(seq_df_manetr, cores=num_cores)
-
-        # Set failed and len-mismatching entries as no-transcripts entries
-        failed_ix = seq_df_manetr.apply(lambda x: True if pd.isna(x.Seq_dna) else len(x.Seq_dna) / 3 != len(x.Seq), axis=1)
-        if sum(failed_ix) > 0:
-            seq_df_manetr_failed = seq_df_manetr[failed_ix]
-            seq_df_manetr = seq_df_manetr[~failed_ix]
-            seq_df_manetr_failed["Reference_info"] = -1
-            seq_df_manetr_failed.drop(columns=["Ens_Gene_ID", "Ens_Transcr_ID", "Reverse_strand", "Chr"])
-            seq_df_notr = pd.concat((seq_df_notr, seq_df_manetr_failed))
-    else:
-        seq_df_manetr = pd.DataFrame()
-
     # Add DNA seq from Backtranseq for any other entry
-    logger.debug(f"Retrieving CDS DNA seq for entries without available transcript ID (Backtranseq API): {len(seq_df_notr)} structures..")
-    seq_df_notr = batch_backtranseq(seq_df_notr, 500, organism=organism)
+    logger.debug(f"Retrieving CDS DNA seq for entries without available transcript ID (Backtranseq API): {len(seq_df_not_uniprot)} structures..")
+    seq_df_not_uniprot = batch_backtranseq(seq_df_not_uniprot, 500, organism=organism)
 
     # Get trinucleotide context
-    seq_df_not_uniprot = pd.concat((seq_df_manetr, seq_df_notr))
     seq_df_not_uniprot["Tri_context"] = seq_df_not_uniprot["Seq_dna"].apply(
         lambda x: ",".join(per_site_trinucleotide_context(x, no_flanks=True)))
 
@@ -760,7 +724,7 @@ def process_seq_df(seq_df,
     #---------------------
 
     # Concat the dfs, expand multiple genes associated to the same structure, keep only one structure for each gene
-    seq_df = pd.concat((seq_df_tr, seq_df_not_uniprot)).reset_index(drop=True)
+    seq_df = pd.concat((seq_df_uniprot, seq_df_not_uniprot)).reset_index(drop=True)
     logger_report = ", ".join([f"{v}: {c}" for (v, c) in zip(seq_df.Reference_info.value_counts().index,
                                                               seq_df.Reference_info.value_counts().values)])
     logger.info(f"Built of sequence dataframe completed. Retrieved {len(seq_df)} structures ({logger_report})")
