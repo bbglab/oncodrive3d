@@ -182,6 +182,7 @@ trace*
 *.log
 .nextflow*
 run_*
+!run_input_output.md
 
 # Containers
 *.def
