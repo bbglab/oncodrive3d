@@ -1,7 +1,7 @@
 process O3D_CHIMERAX_PLOT {
     tag "ChimeraX plot $cohort"
     label 'process_low'
-    
+    queue 'bigmem,normal'
     container params.container_chimerax  
     maxForks params.max_running
     publishDir "${params.outdir}/${params.outsubdir}", mode:'copy'

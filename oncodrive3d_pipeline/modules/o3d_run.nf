@@ -1,6 +1,6 @@
 process O3D_RUN {
     tag "O3D $cohort"
-    
+    queue 'bigmem,normal'
     container params.container
     cpus params.cores
     memory params.memory

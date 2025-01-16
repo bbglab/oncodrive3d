@@ -1,7 +1,7 @@
 process O3D_PLOT {
     tag "Plot $cohort"
     label 'process_low'
-    
+    queue 'bigmem,normal'
     container params.container
     maxForks params.max_running
     publishDir "${params.outdir}/${params.outsubdir}", mode:'copy'
