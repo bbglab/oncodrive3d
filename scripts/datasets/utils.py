@@ -137,7 +137,7 @@ def download_single_file(url: str, destination: str, threads: int, proteome=None
 
     logger.debug(f'Downloading {url}')
     logger.debug(f"Downloading to {destination}")
-    dl = Downloader(timeout=aiohttp.ClientTimeout(sock_read=300), ssl=False)
+    dl = Downloader(timeout=aiohttp.ClientTimeout(sock_read=400), ssl=False)
     dl.start(url, destination, segments=num_connections, display=True, retries=10, clear_terminal=False)
     logger.debug('Download complete')
 
