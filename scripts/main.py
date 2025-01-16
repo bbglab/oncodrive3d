@@ -20,16 +20,8 @@ import numpy as np
 
 from scripts import __logger_name__, __version__
 from scripts.globals import DATE, setup_logging_decorator, startup_message
-from scripts.datasets.build_datasets import build
-from scripts.run.clustering import run_clustering
-from scripts.plotting.build_annotations import get_annotations
-from scripts.plotting.plot import generate_plots, generate_comparative_plots
-from scripts.plotting.chimerax_plot import generate_chimerax_plot
-from scripts.plotting.utils import init_plot_pars, init_comp_plot_pars, parse_lst_tracks
-from scripts.run.mutability import init_mutabilities_module
 
 logger = daiquiri.getLogger(__logger_name__)
-
 
 
 @click.group(context_settings={'help_option_names': ['-h', '--help']})
@@ -77,6 +69,9 @@ def build_datasets(output_dir,
                    yes,
                    verbose):
     """"Build datasets necessary to run Oncodrive3D."""
+    
+    from scripts.datasets.build_datasets import build
+    
     startup_message(__version__, "Initializing building datasets..")
 
     logger.info(f"Current working directory: {os.getcwd()}")
@@ -90,7 +85,7 @@ def build_datasets(output_dir,
     logger.info(f"Verbose: {verbose}")
     logger.info(f'Log path: {os.path.join(output_dir, "log")}')
     logger.info("")
-
+    
     build(output_dir,
           organism,
           mane,
@@ -169,7 +164,9 @@ def run(input_path,
         mane,
         sample_info):
     """Run Oncodrive3D."""
-
+    
+    from scripts.run.clustering import run_clustering
+    
     # Initialize
     plddt_path = os.path.join(data_dir, "confidence.tsv")
     cmap_path = os.path.join(data_dir, "prob_cmaps")
@@ -275,6 +272,8 @@ def build_annotations(data_dir,
     logger.info(f"Verbose: {bool(verbose)}")
     logger.info(f'Log path: {os.path.join(output_dir, "log")}')
     logger.info("")
+    
+    from scripts.plotting.build_annotations import get_annotations
 
     get_annotations(data_dir, 
                     output_dir, 
@@ -378,6 +377,9 @@ def plot(gene_result_path,
          output_all_pos,
          verbose):
     """"Generate summary and individual gene plots for a quick interpretation of the 3D-clustering analysis."""
+
+    from scripts.plotting.plot import generate_plots
+    from scripts.plotting.utils import init_plot_pars, parse_lst_tracks
 
     startup_message(__version__, "Starting plot generation..")
     logger.info(f"O3D genes-result: {gene_result_path}")
@@ -520,6 +522,9 @@ def comparative_plot(o3d_result_dir_1,
                      verbose):
     """"Generate genes comparative plots to comprare two runs of 3D-clustering analysis."""
 
+    from scripts.plotting.plot import generate_comparative_plots
+    from scripts.plotting.utils import init_comp_plot_pars, parse_lst_tracks
+
     startup_message(__version__, "Starting plot generation..")
     logger.info(f"Oncodrive3D result A: {o3d_result_dir_1}")
     logger.info(f"Cohort B: {cohort_1}")
@@ -609,6 +614,8 @@ def chimerax_plot(output_dir,
                   chimerax_bin,
                   verbose):
     """"Generate images of structures annotated with clustering metrics."""
+
+    from scripts.plotting.chimerax_plot import generate_chimerax_plot
 
     startup_message(__version__, "Starting plot generation..")
     logger.info(f"Output dir: {output_dir}")

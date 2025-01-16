@@ -695,7 +695,7 @@ def run_clustering(input_path,
             json.dump(miss_prob_dict, json_file)
         
         # Add extra metadata
-        result_gene = result_gene.merge(seq_df_all[metadata_cols], on=["Gene", "Uniprot_ID", "F"], how="left")
+        result_gene = result_gene.drop(columns=["F"]).merge(seq_df_all[metadata_cols], on=["Gene", "Uniprot_ID"], how="left")
 
         if only_processed:
             result_gene = result_gene[result_gene["Status"] == "Processed"]
