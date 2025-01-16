@@ -11,7 +11,7 @@ Oncodrive3D analyse patterns of somatic mutations at the cohort level, and relie
 
 ---
 
-## 1. Input Mutations
+## Input Mutations
 
 ### MAF File
 
@@ -51,7 +51,7 @@ In this case:
 
 ---
 
-## 2. Mutation Profile
+## Mutation Profile
 
 The mutation profile of a cohort rapresents the count or the normalized frequencies of mutations in every possible k-nucleotide (e.g., trinucleotide or pentanucleotide) contexts.
 
@@ -235,12 +235,12 @@ It includes the following fields:
 13. `Rank` Rank used to perform the calculation of the normalized 3D clustering score and p-values. 
 14. `Mut_in_cl_vol`: Number of missense mutations in the clusters of the clump to which the cluster has been assigned.
 15. `Res_in_cl`: Positions of the clusters of the clump to which the cluster has been assigned.
-16. `PAE_vol` Weighted average predicted aligned error (PAE) of the residues in the volume of the cluster.
-17. `pLDDT_res` Predicted local distance difference test (pLDDT) of the residue.
-18. `pLDDT_vol` Weighted average pLDDT between the residues in the volume.
-19. `pLDDT_cl_vol` pLDDT between the residues in the volume of the most significant cluster.
-20. `Cancer` Cancer type.
-21. `Cohort` Cohort name.
+16. `PAE_vol`: Weighted average predicted aligned error (PAE) of the residues in the volume of the cluster.
+17. `pLDDT_res`: Predicted local distance difference test (pLDDT) of the residue.
+18. `pLDDT_vol`: Weighted average pLDDT between the residues in the volume.
+19. `pLDDT_cl_vol`: pLDDT between the residues in the volume of the most significant cluster.
+20. `Cancer`: Cancer type.
+21. `Cohort`: Cohort name.
 
 
 ## Supplementary Output
