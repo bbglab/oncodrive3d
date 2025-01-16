@@ -695,7 +695,7 @@ def run_clustering(input_path,
             json.dump(miss_prob_dict, json_file)
         
         # Add extra metadata
-        result_gene = result_gene.merge(seq_df_all[metadata_cols], on=["Gene", "Uniprot_ID"], how="left")
+        result_gene = result_gene.merge(seq_df_all[metadata_cols], on=["Gene", "Uniprot_ID", "F"], how="left")
 
         if only_processed:
             result_gene = result_gene[result_gene["Status"] == "Processed"]
@@ -710,7 +710,7 @@ def run_clustering(input_path,
                                                             'Samples_in_top_vol', 
                                                             'Samples_in_top_cl_vol'] if col in result_gene.columns], inplace=True)   
             if no_fragments:
-                result_gene = result_gene.drop(columns=[col for col in ["F", "Mut_in_top_F", "Top_F"] if col in result_gene.columns])
+                result_gene = result_gene.drop(columns=[col for col in ["Mut_in_top_F", "Top_F"] if col in result_gene.columns])
             empty_result_pos(sample_info).to_csv(output_path_pos, index=False)
             result_gene.to_csv(output_path_genes, index=False)
 
@@ -723,10 +723,10 @@ def run_clustering(input_path,
             result_pos["Cohort"] = cohort
             if not sample_info:
                 result_pos.drop(columns=[col for col in ['Tot_samples', 
-                                                            'Samples_in_vol', 
-                                                            'Samples_in_cl_vol'] if col in result_gene.columns], inplace=True) 
+                                                         'Samples_in_vol', 
+                                                         'Samples_in_cl_vol'] if col in result_gene.columns], inplace=True) 
             result_pos = result_pos.sort_values(["Gene", "pval", "Score_obs_sim"], ascending=[True, True, False]).reset_index(drop=True)
-            result_pos.to_csv(output_path_pos, index=False)
+            result_pos.drop(columns=["F"], errors="ignore").to_csv(output_path_pos, index=False)
 
             # Get gene global pval, qval, and clustering annotations and save gene-level result
             result_gene = get_final_gene_result(result_pos, result_gene, alpha, sample_info)
@@ -736,7 +736,7 @@ def run_clustering(input_path,
                                                           'Samples_in_top_vol', 
                                                           'Samples_in_top_cl_vol'] if col in result_gene.columns], inplace=True)   
             if no_fragments:
-                result_gene.drop(columns=[col for col in ["F", "Mut_in_top_F", "Top_F"] if col in result_gene.columns], inplace=True)
+                result_gene.drop(columns=[col for col in ["Mut_in_top_F", "Top_F"] if col in result_gene.columns], inplace=True)
             with np.printoptions(linewidth=10000):
                 result_gene.to_csv(output_path_genes, index=False)
 

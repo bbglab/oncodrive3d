@@ -265,56 +265,6 @@ def get_samples_info(mut_gene_df, cmap):
     return pos_barcodes
 
 
-# def get_unique_pos_in_contact(lst_pos, cmap):                                                     # ----> TO TEST <----
-#     """
-#     Identify unique positions in contact with given ones.
-#     """
-#     # Adjust indices for 0-based indexing
-#     indices = np.array(lst_pos) - 1
-    
-#     # Use advanced indexing to extract rows from cmap based on indices
-#     contact_positions = cmap[indices, :]
-    
-#     # Find all positions where contact exists, adjust for 1-based indexing
-#     return np.unique(np.where(contact_positions)[1] + 1)
-
-
-# def add_samples_info(mut_gene_df, result_pos_df, samples_info, cmap, pae=None):                   # ----> TO TEST <----
-#     """
-#     Add information about the ratio of unique samples in the volume of 
-#     each mutated residue and in each detected community (meta-cluster).
-#     """
-    
-#     # Merge samples information by position
-#     result_pos_df = result_pos_df.merge(samples_info.drop(columns=["Barcode"]), on="Pos", how="outer")
-    
-#     if result_pos_df["Cluster"].notna().any():
-#         # Compute unique positions in contact for each cluster
-#         community_pos = result_pos_df.groupby("Cluster")["Pos"].agg(list)
-#         community_contact_pos = community_pos.apply(lambda positions: get_unique_pos_in_contact(positions, cmap))
-        
-#         # Compute metrics for each community
-#         def community_metrics(positions):
-#             in_contact = mut_gene_df['Pos'].isin(positions)
-#             samples = mut_gene_df.loc[in_contact, 'Tumor_Sample_Barcode'].unique()
-#             mutations = in_contact.sum()
-#             confidence = mut_gene_df.loc[in_contact, 'Confidence'].mean() if pae else np.nan
-            
-#             return pd.Series({
-#                 "Mut_in_cl_vol": mutations,
-#                 "Samples_in_cl_vol": len(samples),
-#                 "Res_in_cl": len(positions),
-#                 "pLDDT_cl_vol": confidence
-#             })
-        
-#         metrics = community_contact_pos.apply(community_metrics)
-#         result_pos_df = result_pos_df.join(metrics, on="Cluster", how="left")
-#     else:
-#         result_pos_df[["Samples_in_cl_vol", "Mut_in_cl_vol", "Res_in_cl", "pLDDT_cl_vol"]] = np.nan
-    
-#     return result_pos_df
-
-
 def get_unique_pos_in_contact(lst_pos, cmap):
     """
     Given a list of position and a contact map, return a numpy 
@@ -440,6 +390,7 @@ def sort_cols(result_gene):
             'C_gene', 
             'C_pos', 
             'C_label',
+            'Pos_top_vol',
             'Score_obs_sim_top_vol',   
             'Mut_in_gene', 
             'Clust_mut',
@@ -452,8 +403,6 @@ def sort_cols(result_gene):
             "PAE_top_vol", 
             "pLDDT_top_vol", 
             "pLDDT_top_cl_vol",
-            'Pos_top_vol',
-            'F', 
             'Ratio_not_in_structure',
             'Ratio_WT_mismatch',
             'Mut_zero_mut_prob',
@@ -461,12 +410,13 @@ def sort_cols(result_gene):
             'Ratio_mut_zero_prob',
             'Cancer', 
             'Cohort',
+            'F', 
             'Transcript_ID',
             'O3D_transcript_ID',
             'Transcript_status',
-            'Ens_Gene_ID', 
-            'HGNC_ID',
-            'Refseq_prot',
+            # 'HGNC_ID',
+            # 'Refseq_prot',
+            # 'Ens_Gene_ID'
             'Status']
 
     return result_gene[[col for col in cols if col in result_gene.columns]]
@@ -479,7 +429,6 @@ def empty_result_pos(sample_info=False):
     
     cols = ['Gene', 
             'Uniprot_ID', 
-            'F', 
             'Pos', 
             'Mut_in_gene', 
             'Mut_in_res',
