@@ -64,7 +64,7 @@ Additionally, you may need to install additional development tools. Depending on
 This step build the datasets necessary for Oncodrive3D to run the 3D clustering analysis. It is required once after installation or whenever you need to generate datasets for a different organism or apply a specific threshold to define amino acid contacts.
 
 > [!WARNING]
-> This step is highly time- and resource-intensive, requiring a significant amount of free disk space. It will download a large amount of data, including AlphaFold-predicted structures and reference genomes (if not already cached). Ensure sufficient resources are available before proceeding, as insufficient capacity may result in extended runtimes or processing failures.
+> This step is highly time- and resource-intensive, requiring a significant amount of free disk space and computational power. It will download and process a large amount of data. Ensure sufficient resources are available before proceeding, as insufficient capacity may result in extended runtimes or processing failures.
 
 > [!NOTE]
 > The first time that you run Oncodrive3D building dataset step with a given reference genome, it will download it from our servers. By default the downloaded datasets go to`~/.bgdata`. If you want to move these datasets to another folder you have to define the system environment variable `BGDATA_LOCAL` with an export command.
@@ -205,51 +205,15 @@ Check the output in the `test/output/` directory to ensure the analysis complete
 
 ## Parallel Processing on Multiple Cohorts
 
-Oncodrive3D can be run in parallel on multiple cohorts using [Nextflow](https://www.nextflow.io/). This approach enables efficient, reproducible and scalable analysis across datasets.
-
-### Requirements
-
-1. Install [Nextflow](https://www.nextflow.io/docs/latest/getstarted.html) (version `23.04.3` was used for testing).
-2. Install and set up either or both:
-   - [Singularity](https://sylabs.io/guides/latest/user-guide/installation.html)  
-      Pull the Oncodrive3D Singularity image from Docker Hub:
-
-      ```
-      singularity pull oncodrive3d.sif docker://bbglab/oncodrive3d:latest
-      ```
-
-   - [Conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html)  
-      Ensure Oncodrive3D is installed in your Conda environment and update the `params` section of the `nextflow.config` file to point to your Conda installation:
-
-         ```groovy
-         params {
-            ...
-            conda_env = '/path/to/conda/environment/with/oncodrive3d' 
-            ...
-         }
-         ```
-
-      Replace `/path/to/conda/environment/with/oncodrive3d` with the path to your Conda environment. Alternatively, you can provide it as a command-line argument.
-
-
-### Test Run
-
-Run a test to ensure that everything is set up correctly and functioning as expected:
-
-```
-cd oncodrive3d_pipeline
-nextflow run main.nf -profile test,container --data_dir <build_folder>
-```
-
-Replace `<build_folder>` with the path to the Oncodrive3D datasets built in the [building datasets](#building-datasets) step.
-If you prefer to use Conda, replace `container` in the `-profile` argument with `conda`.
+This repository provides a [Nextflow](https://www.nextflow.io/) pipeline to run Oncodrive3D in parallel across multiple cohorts, enabling efficient, reproducible and scalable analysis across datasets.  
+For more information, refer to the [Oncodrive3D Pipeline](https://github.com/bbglab/oncodrive3d/tree/master/oncodrive3d_pipeline/) documentation.
 
 ### Usage
 
 ---
 
 > [!WARNING]
-> When using the Nextflow script, ensure that your input files are organized in the following directory structure:
+> When using the Nextflow script, ensure that your input files are organized in the following directory structure (you only need either the `maf/` or `vep/` directory):
 > 
 > ```plaintext
 > input/
