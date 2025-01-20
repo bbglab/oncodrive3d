@@ -69,7 +69,7 @@ def get_structures(path: str,
         if species == "Homo sapiens":
             proteome = f"mane_overlap_v{af_version}"
         else:
-            raise RuntimeError(f"Structures with MANE transcripts overlap are available only for 'Homo sapiens'. Exiting...")
+            raise RuntimeError("Structures with MANE transcripts overlap are available only for 'Homo sapiens'. Exiting...")
     else:
         if species == "Homo sapiens":
             proteome = f"UP000005640_9606_HUMAN_v{af_version}"

@@ -588,7 +588,7 @@ def parse_lst_tracks(lst, plot_type):
         invalid_tracks = list(np.array(lst)[np.where(is_valid)])
         logger.error(f"One or more track names for {plot_type} plot are not accepted: {invalid_tracks}")
         logger.error(f"Available track names are: {available_tracks}")
-        logger.error(f"Exiting..")
+        logger.error("Exiting..")
         sys.exit(1)
         
     return lst

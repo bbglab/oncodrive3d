@@ -153,7 +153,7 @@ def summary_plot(gene_result,
     if title: 
         fig.suptitle(f"{title} summary", fontsize=14)
     else:
-        fig.suptitle(f"O3D analysis summary", fontsize=14)
+        fig.suptitle("O3D analysis summary", fontsize=14)
     xticks_labels = [ r'$\mathbf{*}$ ' + gene if gene_result.loc[gene_result["Gene"] == gene, "C_gene"].values[0] == 1 else gene for gene in gene_result.Gene]
     axes[len(axes)-1].set_xticklabels(xticks_labels, rotation=45, rotation_mode="anchor", ha='right', fontsize=12)
     plt.xticks(rotation=45, rotation_mode="anchor", ha='right', fontsize=12)

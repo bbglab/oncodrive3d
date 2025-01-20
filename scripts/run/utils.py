@@ -197,7 +197,7 @@ def parse_maf_input(input_path, seq_df=None, use_o3d_transcripts=False, use_inpu
     """
 
     # Load, parse from VEP and update seq_df if needed
-    logger.info(f"Reading input mutations file..")
+    logger.info("Reading input mutations file..")
     maf = read_input(input_path)
     logger.debug(f"Processing [{len(maf)}] total mutations..")
     maf, seq_df = parse_vep_output(maf, seq_df, use_o3d_transcripts, use_input_symbols, mane)

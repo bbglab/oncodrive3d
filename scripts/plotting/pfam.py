@@ -59,7 +59,7 @@ def get_pfam(seq_df, output_tsv, organism):
                 url_query = 'http://jan2024.archive.ensembl.org/biomart/martservice?query='
                 query = f'<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE Query><Query  virtualSchemaName = "default" formatter = "TSV" header = "0" uniqueRows = "0" count = "" datasetConfigVersion = "0.6" ><Dataset name = "{ensembl_gene_dataset}" interface = "default" ><Attribute name = "ensembl_gene_id" /><Attribute name = "ensembl_transcript_id" /><Attribute name = "pfam_start" /><Attribute name = "pfam_end" /><Attribute name = "pfam" /></Dataset></Query>'
                 url = url_query + query
-                command = [f"wget", "-q", "-O", "pfam_coordinates.tsv", url]
+                command = ["wget", "-q", "-O", "pfam_coordinates.tsv", url]
                 subprocess.run(command)
                 pfam = pd.read_csv("pfam_coordinates.tsv", sep="\t", header=None)
                 pfam.columns = ["Ens_Gene_ID", "Ens_Transcr_ID", "Pfam_start", "Pfam_end", "Pfam_ID"]

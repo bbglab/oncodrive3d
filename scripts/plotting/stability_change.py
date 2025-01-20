@@ -173,12 +173,12 @@ def parse_ddg_rasp(input_path, output_path, threads=1):
             pool.map(parse_ddg_rasp_worker, args_list) 
         if len(lst_files) > 50:
             os.system('clear')
-            logger.debug(f"clear")
-        logger.debug(f"DDG succesfully converted into json files...")
+            logger.debug("clear")
+        logger.debug("DDG succesfully converted into json files...")
     else:
-        logger.debug(f"DDG not found: Skipping...")
+        logger.debug("DDG not found: Skipping...")
         
     # Remove the original folder
     logger.debug(f"Deleting {input_path}")
     rm_dir(input_path)
-    logger.info(f"Parsing of DDG completed!")
+    logger.info("Parsing of DDG completed!")
