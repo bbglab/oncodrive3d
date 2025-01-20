@@ -241,7 +241,7 @@ Example of run using VEP output as input and MANE Select transcripts:
   
 Options:
   --indir PATH                    Path to the input directory including the subdirectories 
-                                  `maf` or `vep` and `mut_profile`. 
+                                  `maf/` or `vep/` and `mut_profile/`. 
   --outdir PATH                   Path to the output directory. 
                                   Default: run_<timestamp>/
   --cohort_pattern STR            Pattern expression to filter specific files within the 
@@ -258,6 +258,12 @@ Options:
                                   Default: 10
   --memory STR                    Amount of memory allocated for processing each cohort. 
                                   Default: 70GB
+  --vep_input BOOL                Use `vep/` subdir as input and select transcripts matching 
+                                  the Ensembl transcript IDs in Oncodrive3D built datasets. 
+                                  Default: false
+  --mane BOOL                     Prioritize structures corresponding to MANE transcrips if 
+                                  multiple structures are associated to the same gene.
+                                  Default: false
   --seed INT:                     Seed value for reproducibility.
                                   Default: 128
 ```

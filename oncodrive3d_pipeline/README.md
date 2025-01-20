@@ -87,6 +87,12 @@ Options:
                                   Default: 10
   --memory STR                    Amount of memory allocated for processing each cohort. 
                                   Default: 70GB
+  --vep_input BOLEAN              Use `vep/` subdir as input and select transcripts matching 
+                                  the Ensembl transcript IDs in Oncodrive3D built datasets. 
+                                  Default: false
+  --mane                          Prioritize structures corresponding to MANE transcrips if 
+                                  multiple structures are associated to the same gene.
+                                  Default: false
   --seed INT:                     Seed value for reproducibility.
                                   Default: 128
 ```
