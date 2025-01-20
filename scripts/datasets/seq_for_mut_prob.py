@@ -1,12 +1,18 @@
 """
-Module to generate a pandas dataframe including identifiers mapped to protein and DNA sequences.
+Module to generate a pandas dataframe including identifiers 
+mapped to protein and DNA sequences.
 
-The functions are used to extract all protein sequences of PDB structures in a given directory; 
-use EMBOSS backtranseq back translate proteins sequences into DNA; generate a dataframe including HUGO symbol, 
-Uniprot_ID, protein, and DNA sequences. This dataframe is required to get the probability of each residue to mutate 
-(missense mutation) based on the mutation profile (mutation rate in 96 trinucleotide contexts) of the cohort.
-The per-residue missense mutation probability of each protein is then used to get the probability of a 
-certain volume to be hit by a missense mutation.
+The functions are used to extract all protein sequences of 
+PDB structures in a given directory; use EMBOSS backtranseq 
+to back translate proteins sequences into DNA; generate a 
+dataframe including HUGO symbol, Uniprot_ID, protein, and 
+DNA sequences. This dataframe is required to get the 
+probability of each residue to mutate (missense mutation) 
+based on the mutation profile (mutation rate in 96 
+trinucleotide contexts) of the cohort. The per-residue 
+missense mutation probability of each protein is then used 
+to get the probability of a certain volume to be hit by a 
+missense mutation.
 """
 
 
