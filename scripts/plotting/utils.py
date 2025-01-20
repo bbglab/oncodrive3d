@@ -518,7 +518,7 @@ def save_annotated_result(pos_result,
     cols = ["Gene", "Uniprot_ID", "F", "Ens_Gene_ID", "Ens_Transcr_ID", 
             "Pos", "Res", "pLDDT_res", "SSE", "pACC", "DDG",
             "Domain", "Ptm", "Membrane", "Site"]
-    annot_pos_result = pos_result.drop(columns=["F", "pLDDT_res"]).merge(
+    annot_pos_result = pos_result.drop(columns=["F", "pLDDT_res"], errors="ignore").merge(
         annot_pos_result[[col for col in cols if col in annot_pos_result.columns]],
         how="right", on=["Gene", "Uniprot_ID", "Pos"])
     annot_pos_result = annot_pos_result.sort_values(["Gene", "Pos"])
