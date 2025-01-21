@@ -1750,7 +1750,7 @@ def expand_uniprot_feat_rows(df):
                          for pos in range(begin, end + 1)]
         expanded_list.extend(expanded_data)
     expanded_df = pd.DataFrame(expanded_list)
-    
+
     return expanded_df
 
     
@@ -1853,16 +1853,16 @@ def uni_log_reg_all_genes(df_annotated, uni_feat_df):
 
     results_lst = []
     df_gene_lst = []
-    
+
     for uni_id in df_annotated.Uniprot_ID.unique():
     
         # Process each gene individually
-        uni_feat_df_gene = get_uni_feat_for_odds(uni_id=uni_id, uni_feat_df=uni_feat_df)
-        
         df_gene = df_annotated[df_annotated["Uniprot_ID"] == uni_id].reset_index(drop=True)
         gene = df_gene.Gene.unique()[0]
         
-        df_gene = df_gene.merge(uni_feat_df_gene, on=["Uniprot_ID", "Pos"], how="left")
+        if len(uni_feat_df) > 0:
+            uni_feat_df_gene = get_uni_feat_for_odds(uni_id=uni_id, uni_feat_df=uni_feat_df)
+            df_gene = df_gene.merge(uni_feat_df_gene, on=["Uniprot_ID", "Pos"], how="left")
         target_cols = df_gene.drop(columns=["Pos", "C", "Uniprot_ID", "Gene"]).columns.values
     
         y_data = df_gene["C"]
@@ -1974,7 +1974,7 @@ def volcano_plot(logreg_results,
     plt.axhline(y=-np.log10(0.01), color='lightgrey', linestyle='--', zorder=0)
     plt.axvline(x=0, color='lightgrey', linestyle='--', zorder=0)
     plt.legend(ncol=1 if len(genes) < 20 else 2)
-    plt.suptitle(f"{cohort} - Residues' cluster status and annotations associations", y=0.93)    
+    plt.suptitle(f"{cohort}\nCluster-annotations associations", y=0.9505)    
 
     if save_plot and output_dir:
         filename = f"{cohort}.volcano_plot.png"
@@ -2076,7 +2076,7 @@ def volcano_plot_each_gene(logreg_results,
     
     fig.supxlabel('Log odds')
     fig.supylabel('-log10(p-value)')
-    plt.suptitle(f"{cohort} - Residues' cluster status and annotations associations")
+    plt.suptitle(f"{cohort}\nCluster-annotations associations")
 
     if save_plot and output_dir:
         filename = f"{cohort}.volcano_plot_gene.png"
@@ -2162,7 +2162,7 @@ def log_odds_plot(logreg_results,
         else:
             ax.remove()
         
-    plt.suptitle(f"{cohort} - Residues' cluster status and annotations associations", y=1)
+    plt.suptitle(f"{cohort}\nCluster-annotations associations\n", y=1.0405)
     if nrows == 1:
         fig.supxlabel('Log odds', y=-0.015)
         plt.subplots_adjust(top=0.868)
@@ -2337,7 +2337,6 @@ def generate_plots(gene_result_path,
                                                                         lst_genes)
         
         if c_genes_only == False or (c_genes_only and n_genes > 1):
-        
             pos_result_annotated, uni_feat_processed = genes_plots(gene_result, 
                                                                     pos_result, 
                                                                     seq_df,
@@ -2355,7 +2354,7 @@ def generate_plots(gene_result_path,
                                                                     show_plot=show_plot,
                                                                     c_ext=c_ext,
                                                                     title=title)
-            
+
             # Associations plots     
             if plot_associations and len(pos_result_annotated) > 0:        
                 pos_result_annotated_uni_feat = associations_plots(pos_result_annotated, 
@@ -2366,7 +2365,6 @@ def generate_plots(gene_result_path,
                                                                 cohort)
                 pos_result_annotated = pos_result_annotated.merge(
                     pos_result_annotated_uni_feat.fillna(0), how="left", on=["Uniprot_ID", "Pos"])
-                
             
             # Save annotations
             if save_csv and pos_result_annotated is not None:
@@ -2377,7 +2375,6 @@ def generate_plots(gene_result_path,
                                     output_dir, 
                                     cohort, 
                                     include_all_pos)
-                
             logger.info("Plotting completed!")
         else:
             logger.warning("There aren't any significant genes to plot!")
