@@ -1,20 +1,29 @@
-import pandas as pd
-import daiquiri
-import logging
-import numpy as np
-from matplotlib import pyplot as plt
-import seaborn as sns
 import os
 import json
-import colorcet as cc
 import warnings
+import logging
+
+import numpy as np
+import pandas as pd
+from matplotlib import pyplot as plt
+import seaborn as sns
+import colorcet as cc
 from sklearn.preprocessing import StandardScaler
 import statsmodels.api as sm
 from statsmodels.tools.sm_exceptions import ConvergenceWarning
+from statsmodels.stats.multitest import multipletests
 from adjustText import adjust_text
 from matplotlib.axes._axes import Axes
-from scripts.plotting.utils import get_broad_consequence, save_annotated_result
-from scripts.plotting.utils import get_enriched_result, filter_o3d_result, subset_genes_and_ids, load_o3d_result
+import daiquiri
+
+from scripts.plotting.utils import (
+    get_broad_consequence,
+    save_annotated_result,
+    get_enriched_result,
+    filter_o3d_result,
+    subset_genes_and_ids,
+    load_o3d_result
+)
 
 from scripts import __logger_name__
 
@@ -1840,10 +1849,23 @@ def uni_log_reg(df, labels):
                 p_value = np.nan
                 coeff = np.nan
                 std_err = np.nan
-
         results[col] = {'p_value': p_value, 'log_odds': coeff, 'std_err': std_err}
 
     return pd.DataFrame(results)
+
+
+def fdr_uni_logreg(result):
+    """
+    Apply false discovery rate using Benjamini-Hochberg method.
+    """
+
+    result = result.T
+    p_values= result["p_value"].dropna()
+    q_values = multipletests(p_values, alpha=0.05, method='fdr_bh', is_sorted=False)[1]   
+    q_values = pd.Series(q_values, index=p_values.index)
+    result.insert(1, "q_value", q_values)
+
+    return result.T
 
 
 def uni_log_reg_all_genes(df_annotated, uni_feat_df):
@@ -1871,11 +1893,12 @@ def uni_log_reg_all_genes(df_annotated, uni_feat_df):
         
         if y_data.nunique() > 1:
             results_gene = uni_log_reg(X_data, y_data)
+            results_gene = fdr_uni_logreg(results_gene)
             results_gene["Gene"] = gene
             results_gene["Uniprot_ID"] = uni_id
             
         else:
-            results_gene = pd.DataFrame(np.nan, index=["p_value", "log_odds", "std_err"], columns=target_cols)
+            results_gene = pd.DataFrame(np.nan, index=["p_value", "q_value", "log_odds", "std_err"], columns=target_cols)
             results_gene["Gene"] = gene
             results_gene["Uniprot_ID"] = uni_id
             
@@ -1913,7 +1936,8 @@ def volcano_plot(logreg_results,
                  save_plot=True,
                  show_plot=False,
                  output_dir=None,
-                 cohort="o3d_run"):
+                 cohort="o3d_run",
+                 use_fdr=True):
     """
     Volcano plot all genes.
     """
@@ -1931,7 +1955,7 @@ def volcano_plot(logreg_results,
     for i, gene in enumerate(genes):
         gene_results = logreg_results[logreg_results["Gene"] == gene].drop(columns=["Gene", "Uniprot_ID"]).dropna(axis=1)
         gene_logodds = gene_results.loc["log_odds", :]
-        gene_pvals = gene_results.loc["p_value", :]
+        gene_pvals = gene_results.loc["q_value" if use_fdr else "p_value", :]
         gene_logpvals = -np.log10(gene_pvals)
     
         # Volcano plot
@@ -1996,7 +2020,8 @@ def volcano_plot_each_gene(logreg_results,
                            save_plot=True,
                            show_plot=False,
                            output_dir=None,
-                           cohort="o3d_run"):
+                           cohort="o3d_run",
+                           use_fdr=True):
     """
     Volcano plot of individual genes.
     """
@@ -2037,7 +2062,7 @@ def volcano_plot_each_gene(logreg_results,
             gene = genes[i]
             gene_results = logreg_results[logreg_results["Gene"] == gene].drop(columns=["Gene", "Uniprot_ID"]).dropna(axis=1)
             gene_logodds = gene_results.loc["log_odds", :]
-            gene_pvals = gene_results.loc["p_value", :]
+            gene_pvals = gene_results.loc["q_value" if use_fdr else "p_value", :]
             gene_logpvals = -np.log10(gene_pvals)
         
             # Volcano plot
@@ -2093,7 +2118,8 @@ def log_odds_plot(logreg_results,
                   save_plot=True,
                   show_plot=False,
                   output_dir=None,
-                  cohort="o3d_run"):
+                  cohort="o3d_run",
+                  use_fdr=True):
     """
     Log odds plot.
     """
@@ -2132,7 +2158,7 @@ def log_odds_plot(logreg_results,
             gene = genes[i]
             gene_results = logreg_results[logreg_results["Gene"] == gene].drop(columns=["Gene", "Uniprot_ID"])
             gene_logodds = gene_results.loc["log_odds", :]
-            gene_pvals = gene_results.loc["p_value", :]
+            gene_pvals = gene_results.loc["q_value" if use_fdr else "p_value", :]
             gene_stderr = gene_results.loc["std_err", :]
         
             # Get 95% confidence interval
@@ -2186,7 +2212,8 @@ def associations_plots(df_annotated,
                        output_dir,
                        plot_pars,
                        miss_prob_dict,
-                       cohort="o3d_run"):
+                       cohort="o3d_run",
+                       use_fdr=True):
     """
     Generate volcano plots and log odds plot to look for associations 
     between cluster status and annotated features.
@@ -2208,7 +2235,9 @@ def associations_plots(df_annotated,
 
     # Perform univariate log reg
     logreg_results, df_annotated_uni_feat = uni_log_reg_all_genes(df_annotated, uni_feat_processed_expanded)
-    logreg_results = rename_columns(logreg_results)
+    logreg_results = rename_columns(logreg_results)    
+    output_logreg_result = os.path.join(output_dir, f"{cohort}.logreg_result.tsv")
+    logreg_results.reset_index().rename(columns={"index": "Metric"}).to_csv(output_logreg_result, index=False, sep="\t")
 
     # Plots
     genes = logreg_results[~logreg_results.drop(columns=["Gene", "Uniprot_ID"]).isna().all(axis=1)].Gene.unique()
@@ -2219,15 +2248,18 @@ def associations_plots(df_annotated,
         log_odds_plot(logreg_results, 
                       output_dir=output_dir_associations_plots, 
                       cohort=cohort,
+                      use_fdr=use_fdr,
                       fsize=(plot_pars["log_odds_fsize_x"], plot_pars["log_odds_fsize_y"]))
         volcano_plot(logreg_results, 
                      top_n=plot_pars["volcano_top_n"], 
-                     output_dir=output_dir_associations_plots, 
+                     output_dir=output_dir_associations_plots,
+                     use_fdr=use_fdr, 
                      cohort=cohort,
                      fsize=(plot_pars["volcano_fsize_x"], plot_pars["volcano_fsize_y"]))
         volcano_plot_each_gene(logreg_results, 
                                output_dir=output_dir_associations_plots, 
                                cohort=cohort,
+                               use_fdr=use_fdr,
                                fsize=(plot_pars["volcano_subplots_fsize_x"], plot_pars["volcano_subplots_fsize_y"]))
     else:
         logger.debug("There aren't any relationship to plot: Skipping associations plots..")
@@ -2261,7 +2293,8 @@ def generate_plots(gene_result_path,
                    include_all_pos=False,
                    c_ext=True,
                    title=None,
-                   plot_associations=True):
+                   plot_associations=True,
+                   use_fdr=True):
     
     # Load data tracks
     # ================
@@ -2358,11 +2391,12 @@ def generate_plots(gene_result_path,
             # Associations plots     
             if plot_associations and len(pos_result_annotated) > 0:        
                 pos_result_annotated_uni_feat = associations_plots(pos_result_annotated, 
-                                                                uni_feat_processed, 
-                                                                output_dir,
-                                                                plot_pars,
-                                                                miss_prob_dict,
-                                                                cohort)
+                                                                   uni_feat_processed, 
+                                                                   output_dir,
+                                                                   plot_pars,
+                                                                   miss_prob_dict,
+                                                                   cohort,
+                                                                   use_fdr)
                 pos_result_annotated = pos_result_annotated.merge(
                     pos_result_annotated_uni_feat.fillna(0), how="left", on=["Uniprot_ID", "Pos"])
             

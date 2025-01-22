@@ -308,8 +308,8 @@ def build_annotations(data_dir,
               help="Path to output directory where to save plots")
 @click.option("-c", "--cohort", 
               help="Cohort name", type=str, required=True)
-@click.option("--title",                                                                              ## Might be redundant
-              help="Plot title", type=str)
+@click.option("--fdr",                                                                             
+              help="Show p-values as BH FDR corrected", type=str)
 @click.option("--maf_for_nonmiss_path", type=click.Path(exists=True), 
               help="Path to input mutations file including non-missense mutations")
 @click.option("--lst_summary_tracks", type=str,
@@ -351,7 +351,7 @@ def plot(gene_result_path,
          annotations_dir,
          output_dir,
          cohort,
-         title,
+         fdr,
          maf_for_nonmiss_path,
          lst_summary_tracks,
          lst_summary_hratios,
@@ -391,24 +391,24 @@ def plot(gene_result_path,
     logger.info(f"O3D annotations: {annotations_dir}")
     logger.info(f"Output: {output_dir}")
     logger.info(f"Cohort: {cohort}")
-    logger.info(f"Title: {title}")
-    logger.info(f"Input mutations including non-missense: {maf_for_nonmiss_path}")
+    logger.info(f"Use FDR: {fdr}")
+    logger.info(f"Input mutations including non-missense: {maf_for_nonmiss_path}")     
     logger.info(f"Custom summary plot tracks: {lst_summary_tracks}")
-    logger.info(f"Custom summary plot h-ratios: {lst_summary_hratios}")
-    logger.info(f"Custom gene plots tracks: {lst_gene_tracks}")
-    logger.info(f"Custom gene plots h-ratios: {lst_gene_hratios}")
-    logger.info(f"Summary plot fsize_x (dynamically adjusted): {summary_fsize_x}")
-    logger.info(f"Summary plot fsize_y: {summary_fsize_y}")
-    logger.info(f"Gene plots fsize_x: {gene_fsize_x}")
-    logger.info(f"Gene plots fsize_y: {gene_fsize_y}")
-    logger.info(f"Volcano plot fsize_x: {volcano_fsize_x}")
-    logger.info(f"Volcano plot fsize_y: {volcano_fsize_y}")
-    logger.info(f"Volcano subplot fsize_x (dynamically adjusted): {volcano_subplots_fsize_x}")
-    logger.info(f"Volcano subplot fsize_y (dynamically adjusted): {volcano_subplots_fsize_y}")
-    logger.info(f"Log odds plot fsize_x (dynamically adjusted): {log_odds_fsize_x}")
-    logger.info(f"Log odds plot fsize_y (dynamically adjusted): {log_odds_fsize_y}")
+    logger.debug(f"Custom summary plot h-ratios: {lst_summary_hratios}")
+    logger.debug(f"Custom gene plots tracks: {lst_gene_tracks}")
+    logger.debug(f"Custom gene plots h-ratios: {lst_gene_hratios}")
+    logger.debug(f"Summary plot fsize_x (dynamically adjusted): {summary_fsize_x}")
+    logger.debug(f"Summary plot fsize_y: {summary_fsize_y}")
+    logger.debug(f"Gene plots fsize_x: {gene_fsize_x}")
+    logger.debug(f"Gene plots fsize_y: {gene_fsize_y}")
+    logger.debug(f"Volcano plot fsize_x: {volcano_fsize_x}")
+    logger.debug(f"Volcano plot fsize_y: {volcano_fsize_y}")
+    logger.debug(f"Volcano subplot fsize_x (dynamically adjusted): {volcano_subplots_fsize_x}")
+    logger.debug(f"Volcano subplot fsize_y (dynamically adjusted): {volcano_subplots_fsize_y}")
+    logger.debug(f"Log odds plot fsize_x (dynamically adjusted): {log_odds_fsize_x}")
+    logger.debug(f"Log odds plot fsize_y (dynamically adjusted): {log_odds_fsize_y}")
     logger.info(f"Summary plot score alpha: {summary_alpha}")
-    logger.info(f"Threshold for clashing feat: {dist_thr}")
+    logger.debug(f"Threshold for clashing feat: {dist_thr}")
     logger.info(f"Subset of genes: {genes}")
     logger.info(f"Gene plots for significant genes only: {bool(c_genes_only)}")
     logger.info(f"Max number of genes to plot: {max_n_genes}")
@@ -457,7 +457,8 @@ def plot(gene_result_path,
                   show_plot=False,
                   save_csv=output_csv,
                   include_all_pos=output_all_pos,
-                  title=title)
+                  title=cohort,
+                  use_fdr=fdr)
 
 
 
