@@ -12,7 +12,6 @@ logger = daiquiri.getLogger(__logger_name__ + ".plotting.pfam")
 logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
 
 
-
 def add_pfam_metadata(pfam, seq_df):
     """
     Add Ensembl transcript and gene info and rename cols to

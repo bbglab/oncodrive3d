@@ -11,6 +11,7 @@ import numpy as np
 import daiquiri
 
 from scripts import __logger_name__
+
 logger = daiquiri.getLogger(__logger_name__ + ".plotting.chimerax_plot")
 
 

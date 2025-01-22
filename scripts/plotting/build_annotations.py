@@ -17,7 +17,6 @@ logger = daiquiri.getLogger(__logger_name__ + ".plotting.build")
 logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
 
 
-
 # =================
 # BUILD ANNOTATIONS 
 # ================= 

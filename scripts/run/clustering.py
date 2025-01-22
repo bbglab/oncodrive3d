@@ -2,16 +2,16 @@
 Contains functions to perform the 3D clustering of missense mutations.
 """
 
-import multiprocessing
 import os
 import json
-import daiquiri
-import networkx.algorithms.community as nx_comm
+import multiprocessing
+
 import numpy as np
 import pandas as pd
+import daiquiri
+import networkx.algorithms.community as nx_comm
 
 from scripts import __logger_name__
-
 from scripts.run.communities import get_community_index_nx, get_network
 from scripts.run.pvalues import get_final_gene_result
 from scripts.run.miss_mut_prob import get_miss_mut_prob_dict, mut_rate_vec_to_dict, get_unif_gene_miss_prob

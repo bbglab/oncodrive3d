@@ -19,7 +19,6 @@ logger = daiquiri.getLogger(__logger_name__ + ".plotting.stability_change")
 logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
 
 
-
 # ===============================
 # Stability change upon mutations
 # ===============================

@@ -39,7 +39,7 @@ def oncodrive3D():
 # =============================================================================
 
 @oncodrive3D.command(context_settings=dict(help_option_names=['-h', '--help']),
-                     help="Build datasets - Required once after installation.")
+                     help="Build datasets - Required (once) after installation.")
 @click.option("-o", "--output_dir", 
               help="Directory where to save the files", type=str, default='datasets')
 @click.option("-s", "--organism", type=click.Choice(["Homo sapiens", 'human', "Mus musculus", 'mouse']), 
@@ -466,7 +466,7 @@ def plot(gene_result_path,
 # =============================================================================
 
 @oncodrive3D.command(context_settings=dict(help_option_names=['-h', '--help']),
-               help="Generate 3D plots using CHimeraX.")
+               help="Generate 3D plots using ChimeraX.")
 @click.option("-o", "--output_dir", 
               help="Directory where to save the plots", type=str, required=True)
 @click.option("-g", "--gene_result_path", 

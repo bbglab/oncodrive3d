@@ -16,7 +16,6 @@ logger = daiquiri.getLogger(__logger_name__ + ".plotting.utils")
 logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
 
 
-
 def get_species(species):
     """
     Simply change species name to accepted format.

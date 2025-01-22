@@ -11,19 +11,18 @@ and j in the PDB structure and their predicted error in the PAE.
 
 
 import gzip
-import daiquiri
-import multiprocessing
 import os
 import re
+import multiprocessing
 from math import pi
 
+import daiquiri
 import numpy as np
 from Bio.Data.IUPACData import protein_letters_3to1
 from Bio.PDB.PDBParser import PDBParser
 
 from scripts import __logger_name__
-from scripts.datasets.utils import (get_af_id_from_pdb,
-                                    get_pdb_path_list_from_dir)
+from scripts.datasets.utils import get_af_id_from_pdb, get_pdb_path_list_from_dir
 
 logger = daiquiri.getLogger(__logger_name__ + ".build.prob_contact_maps")
 

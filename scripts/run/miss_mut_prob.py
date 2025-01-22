@@ -9,8 +9,8 @@ from itertools import product
 import daiquiri
 import numpy as np
 
-from scripts.run.mutability import Mutabilities
 from scripts import __logger_name__
+from scripts.run.mutability import Mutabilities
 
 logger = daiquiri.getLogger(__logger_name__ + ".run.miss_mut_prob")
 

@@ -16,7 +16,6 @@ logger = daiquiri.getLogger(__logger_name__ + ".plotting.pdb_tool")
 logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
 
 
-
 # ========
 # PDB_Tool
 # ========

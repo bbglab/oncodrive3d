@@ -10,7 +10,6 @@ from scripts import __logger_name__
 from scripts.datasets.utils import calculate_hash, download_single_file, extract_tar_file, assert_proteome_integrity, CHECKSUM
 
 logger = daiquiri.getLogger(__logger_name__ + ".build.AF-pdb")
-
 logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
 
 

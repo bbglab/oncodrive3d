@@ -2,13 +2,14 @@
 Contains function to assign clustering anomaly score and perform simulations
 """
 
+from decimal import Decimal, getcontext
+from functools import reduce
+import operator
+
 import daiquiri
 import numpy as np
 import pandas as pd
 from scipy import stats
-from decimal import Decimal, getcontext
-from functools import reduce
-import operator
 
 from scripts import __logger_name__
 

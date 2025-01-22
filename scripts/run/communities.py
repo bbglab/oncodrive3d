@@ -2,8 +2,8 @@
 Contains function to initialize a network for communities detection.
 """
 
-import networkx as nx
 import numpy as np
+import networkx as nx
 
 
 def get_network(nodes, mut_count_v, cmap):

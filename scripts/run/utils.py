@@ -1,12 +1,12 @@
 import re
-
-import daiquiri
-import numpy as np
-import pandas as pd
 import subprocess
 import io
 import gzip
 import sys
+
+import daiquiri
+import numpy as np
+import pandas as pd
 
 from scripts import __logger_name__
 

@@ -34,6 +34,7 @@ from scripts.globals import clean_dir, clean_temp_files
 
 logger = daiquiri.getLogger(__logger_name__ + ".build")
 
+
 def build(output_datasets,
           organism,
           mane,

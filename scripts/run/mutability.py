@@ -14,15 +14,13 @@ from typing import List
 
 import tabix
 
-# TODO uncomment these lines to make sure that the logger and everything is working
-
 from scripts import __logger_name__
-# from oncodrivefml.reference import get_ref_triplet
 
 logger = logging.getLogger(__logger_name__ + ".run.mutability")
 
-transcribe = {"A":"T", "C":"G", "G":"C", "T":"A"}
 
+transcribe = {"A":"T", "C":"G", "G":"C", "T":"A"}
+mutabilities_reader = None
 MutabilityValue = namedtuple('MutabilityValue', ['ref', 'alt', 'value'])
 """
 Tuple that contains the reference, the alteration, the mutability value
@@ -32,8 +30,6 @@ Parameters:
     alt (str): altered base
     value (float): mutability value of that substitution
 """
-
-mutabilities_reader = None
 
 
 class ReaderError(Exception):
@@ -45,6 +41,7 @@ class ReaderError(Exception):
 class ReaderGetError(ReaderError):
     def __init__(self, chr, start, end):
         self.message = 'Error reading chr: {} start: {} end: {}'.format(chr, start, end)
+
 
 class MutabilityTabixReader:
 
@@ -141,7 +138,7 @@ class Mutabilities(object):
         self.gene_length = gene_len
         self.reverse = True if float(gene_reverse_strand) == 1.0 else False
 
-        # mutability configuration
+        # Mutability configuration
         self.conf_file = config['file']
         self.conf_chr = config['chr']
         self.conf_chr_prefix = config['chr_prefix']
@@ -151,7 +148,7 @@ class Mutabilities(object):
         self.conf_element = config['element'] if 'element' in config.keys() else None
         self.conf_extra = config['extra'] if 'extra' in config.keys() else None
 
-        # mutabilities to load
+        # Mutabilities to load
         self.mutabilities_by_pos = defaultdict(dict)
 
 
@@ -209,23 +206,11 @@ class Mutabilities(object):
                             # every row is a site
 
                             mutability, ref, alt, pos = row
-                            # print(mutability, ref, alt, pos, sep = "\t")
-
-                            # TODO decide if we want to do this check or not,
-                            # I would say it is fine as it is now without the check
-
-                            # ref_triplet = get_ref_triplet(region['CHROMOSOME'], pos - 1)
-                            # ref = ref_triplet[1] if ref is None else ref
-                            # if ref_triplet[1] != ref:
-                            #     logger.warning("Background mismatch at position %d at '%s'", pos, self.element)
-
-
                             # if the current position is different from the previous
                             # update the cdna position accordingly to the strand
                             # and also update the value of prev_pos
                             if pos != prev_pos:
                                 cdna_pos += update_pos
-                                # print("changing position", pos, prev_pos, cdna_pos)
                                 
                                 # if it is not the first position of an exon and
                                 # the current position is not the one right after/before the previous position,
@@ -233,7 +218,6 @@ class Mutabilities(object):
                                 # then
                                 # add a dictionary with all the alts and probability equals to 0,
                                 # if there are more mutabilities of the consecutive positions missing, keep adding 0s
-
                                 if pos != region[start]:
                                     expected_previous_pos = pos - 1
                                     # print(pos, prev_pos, expected_previous_pos)
@@ -253,14 +237,11 @@ class Mutabilities(object):
 
                             # add the mutability
                             self.mutabilities_by_pos[cdna_pos][alt] = mutability
-                            # print(mutability, ref, alt, pos, cdna_pos, sep = "\t")
-
-                        # segment_starting_pos = cdna_pos if not self.reverse else cdna_pos + segment_len
-                        # print(self.chromosome, region[start], region[end], self.element, segment_len, cdna_pos, prev_pos, starting_cdna_pos, update_pos)
-
+                            
                         ##
                         #   IMPORTANT: filling step
                         ##
+                        
                         # check that all the positions at the end have been filled
                         # otherwise add 0s to them
                         if not self.reverse:
@@ -273,9 +254,6 @@ class Mutabilities(object):
                                 for altt in "ACGT":
                                     self.mutabilities_by_pos[cdna_pos][altt] = 0
                                 cdna_pos -= 1
-
-                        # print(self.chromosome, region[start], region[end], self.element, segment_len, cdna_pos, prev_pos, starting_cdna_pos, update_pos)
-                        # print("\n")
 
                         # this is to get the cdna position pointer
                         # back to the biggest cdna position annotated so far

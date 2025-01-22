@@ -32,7 +32,6 @@ logger = daiquiri.getLogger(__logger_name__ + ".plotting.plot")
 logging.getLogger('matplotlib.font_manager').setLevel(logging.WARNING)
 
 
-
 # Summary plots
 # =============
 
