@@ -10,9 +10,6 @@ The method leverages **AlphaFold 2-predicted protein structures** and Predicted 
 
 ---
 
-## License
-
-Oncodrive3D is available to the general public subject to certain conditions described in its [LICENSE](LICENSE).
 
 ## Requirements
 
@@ -267,3 +264,12 @@ Options:
   --seed INT:                     Seed value for reproducibility.
                                   Default: 128
 ```
+
+
+## License
+
+Oncodrive3D is available to the general public subject to certain conditions described in its [LICENSE](LICENSE).
+
+
+## Citation 
+If you use Oncodrive3D in your research, please cite the original paper: [Oncodrive3D: Fast and accurate detection of structural clusters of somatic mutations under positive selection](https://www.biorxiv.org/content/10.1101/2025.01.11.632354v2).
