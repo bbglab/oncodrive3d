@@ -1,12 +1,13 @@
-import json
 import os
+import json
 import time
 
 import requests
 import numpy as np
-import daiquiri
 import pandas as pd
 from tqdm import tqdm
+import daiquiri
+
 from scripts import __logger_name__
 
 logger = daiquiri.getLogger(__logger_name__ + ".plotting.uniprot_feat")

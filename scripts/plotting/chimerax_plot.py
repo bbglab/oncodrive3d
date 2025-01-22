@@ -2,11 +2,12 @@
 Use ChimeraX to generate 3D structures colored by metrics
 """
 
-import pandas as pd   
-import numpy as np
 import os 
 import subprocess
 import math
+
+import pandas as pd   
+import numpy as np
 import daiquiri
 
 from scripts import __logger_name__

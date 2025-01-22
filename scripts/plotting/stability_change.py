@@ -1,14 +1,14 @@
-import logging
 import os
-
-import daiquiri
-import pandas as pd
-import numpy as np
+import json
+import logging
 import re
 import glob
-from progressbar import progressbar
 from multiprocessing import Pool
-import json
+
+import pandas as pd
+import numpy as np
+from progressbar import progressbar
+import daiquiri
 
 from scripts import __logger_name__
 from scripts.datasets.utils import download_single_file, extract_zip_file

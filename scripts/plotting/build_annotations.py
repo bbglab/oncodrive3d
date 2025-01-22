@@ -1,13 +1,12 @@
-import logging
 import os
-import pandas as pd
+import logging
 
 import daiquiri
+import pandas as pd
 
 from scripts import __logger_name__
 from scripts.globals import copy_dir
-from scripts.plotting.utils import clean_annot_dir
-from scripts.plotting.utils import get_species
+from scripts.plotting.utils import clean_annot_dir, get_species
 from scripts.plotting.stability_change import download_stability_change, parse_ddg_rasp
 from scripts.plotting.pdb_tool import run_pdb_tool, parse_pdb_tool
 from scripts.plotting.pfam import get_pfam

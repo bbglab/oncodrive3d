@@ -1,13 +1,13 @@
-import logging
 import os
-
-import daiquiri
+import logging
 import subprocess
-import pandas as pd
-import numpy as np
 import re
 import shutil
+
+import numpy as np
+import pandas as pd
 from tqdm import tqdm
+import daiquiri
 
 from scripts import __logger_name__
 
