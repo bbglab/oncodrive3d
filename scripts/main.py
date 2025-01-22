@@ -4,13 +4,7 @@
 Oncodrive3D is a fast and accurate computational method designed to analyze 
 patterns of somatic mutation across tumors, with the goal of identifying 
 three-dimensional (3D) clusters of missense mutations and detecting genes 
-under positive selection. The method leverages AlphaFold 2-predicted protein 
-structures and Predicted Aligned Error (PAE) to define residue contacts 
-within the protein's 3D space. When available, it also integrates mutational 
-profiles to build an accurate background model of neutral mutagenesis, which 
-is used to score potential clusters and simulate synthetic mutations. 
-By applying a novel rank-based statistical approach, Oncodrive3D scores 
-potential 3D clusters and computes empirical p-values."
+under positive selection. 
 """
 
 import os
