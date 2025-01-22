@@ -6,7 +6,6 @@ process O3D_PLOT {
     maxForks params.max_running
     publishDir "${params.outdir}/${params.outsubdir}", mode:'copy'
 
-    // conda "bioconda::oncodrive3d"                                                                                  // TODO: Update and test
     // container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?       // TODO: Update and test
     //     'https://depot.galaxyproject.org/singularity/oncodrive3d--py39hbf8eff0_0' :
     //     'quay.io/biocontainers/oncodrive3d--py39hbf8eff0_0' }"
@@ -17,11 +16,12 @@ process O3D_PLOT {
     output:
     tuple val(cohort), path("**.summary_plot.png"), optional: true, emit: summary_plot
     tuple val(cohort), path("**.genes_plots/**.png"), optional: true, emit: genes_plot
-    // tuple val(cohort), path("**.associations_plots/**.logodds_plot.png"), optional: true, emit: logodds_plot
-    // tuple val(cohort), path("**.associations_plots/**.volcano_plot.png"), optional: true, emit: volcano_plot
-    // tuple val(cohort), path("**.associations_plots/**.volcano_plot_gene.png"), optional: true, emit: volcano_plot_gene
+    tuple val(cohort), path("**.associations_plots/**.logodds_plot.png"), optional: true, emit: logodds_plot
+    tuple val(cohort), path("**.associations_plots/**.volcano_plot.png"), optional: true, emit: volcano_plot
+    tuple val(cohort), path("**.associations_plots/**.volcano_plot_gene.png"), optional: true, emit: volcano_plot_gene
     tuple val(cohort), path("**.3d_clustering_pos.annotated.csv"), optional: true, emit: pos_annotated_csv
-    tuple val(cohort), path("**.uniprot_feat.tsv"), optional: true, emit: uniprot_feat_csv
+    tuple val(cohort), path("**.uniprot_feat.tsv"), optional: true, emit: uniprot_feat_tsv
+    tuple val(cohort), path("**.logreg_result.tsv"), optional: true, emit: logreg_tsv
     path "**.log", emit: log
 
     script:
@@ -38,7 +38,6 @@ process O3D_PLOT {
         -a ${params.annotations_dir} \\
         -o $prefix \\
         -c $cohort \\
-        --title $cohort \\
         --output_csv \\
         ${params.verbose ? '-v' : ''} \\
         $args

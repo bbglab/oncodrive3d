@@ -2238,6 +2238,7 @@ def associations_plots(df_annotated,
     logreg_results = rename_columns(logreg_results)    
     output_logreg_result = os.path.join(output_dir, f"{cohort}.logreg_result.tsv")
     logreg_results.reset_index().rename(columns={"index": "Metric"}).to_csv(output_logreg_result, index=False, sep="\t")
+    logger.info(f"Saved univariate logistic regression result to {output_logreg_result}")
 
     # Plots
     genes = logreg_results[~logreg_results.drop(columns=["Gene", "Uniprot_ID"]).isna().all(axis=1)].Gene.unique()
