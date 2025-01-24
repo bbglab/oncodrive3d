@@ -50,8 +50,7 @@ def get_pfam(seq_df, output_tsv, organism):
         logger.error(f"Invalid organism: {organism}. Expected 'Homo sapiens' or 'Mus musculus'.")
         raise ValueError(f"Invalid organism: {organism}. Must be 'Homo sapiens' or 'Mus musculus'.")
 
-    while status != "PASS":
-        if i < 5:
+    while status != "PASS" and i < 10:
             try:
                 # Pfam coordinates
                 logger.debug("Downloading and parsing Pfam coordinates...")
@@ -89,5 +88,6 @@ def get_pfam(seq_df, output_tsv, organism):
                 logger.warning(f"Error while downloading Pfam: {e}")
                 logger.warning("Retrying download...")
                 i += 1
-        else:
-            logger.error(f'Download Pfam: {status}')
+                
+    if status == "FAIL":
+        logger.error(f'Download Pfam: {status}')
