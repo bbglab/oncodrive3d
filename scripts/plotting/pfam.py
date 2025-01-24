@@ -65,7 +65,7 @@ def get_pfam(seq_df, output_tsv, organism):
 
                 # ID database
                 logger.debug("Downloading and parsing Pfam ID database...")
-                url = "https://ftp.ebi.ac.uk/pub/databases/Pfam/current_release/database_files/pfamA.txt.gz"
+                url = "https://ftp.ebi.ac.uk/pub/databases/Pfam/releases/Pfam37.0/database_files/pfamA.txt.gz"
                 command = ["wget", "-q", "-O", "pfam_id.tsv.gz", url]
                 subprocess.run(command)
                 pfam_id = pd.read_csv("pfam_id.tsv.gz", compression='gzip', sep='\t', header=None).iloc[:,[0,1,3]]

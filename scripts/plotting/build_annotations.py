@@ -91,7 +91,7 @@ def get_annotations(data_dir,
     
 
 if __name__ == "__main__":
-    get_annotations(data_dir = "/workspace/nobackup/scratch/oncodrive3d/datasets",
-                    output_dir = "/workspace/nobackup/scratch/oncodrive3d/annotations",
+    get_annotations(data_dir = "./datasets",
+                    output_dir = "./annotations",
                     organism = "Homo sapiens",
                     cores = 4)
