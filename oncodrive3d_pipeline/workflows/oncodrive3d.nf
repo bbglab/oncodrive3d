@@ -29,8 +29,6 @@ workflow ONCODRIVE3D {
     ChimeraX plots     : ${params.chimerax_plot}
     Seed               : ${params.seed}
     Verbose            : ${params.verbose}
-    Container          : ${params.container}
-    Container ChimeraX : ${params.container_chimerax}
     Profile            : ${workflow.profile}
     """
     .stripIndent()

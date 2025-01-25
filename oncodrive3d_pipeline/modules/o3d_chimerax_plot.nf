@@ -2,14 +2,9 @@ process O3D_CHIMERAX_PLOT {
     tag "ChimeraX plot $cohort"
     label 'process_low'
     queue 'bigmem,normal'
-    container params.container_chimerax  
     maxForks params.max_running
     publishDir "${params.outdir}/${params.outsubdir}", mode:'copy'
-
-    // conda "bioconda::oncodrive3d"                                                                                 // TODO: Update and test
-    // container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?      // TODO: Update and test
-    //     'https://depot.galaxyproject.org/singularity/oncodrive3d--py39hbf8eff0_0' :
-    //     'quay.io/biocontainers/oncodrive3d--py39hbf8eff0_0' }"
+    container 'docker.io/spellegrini87/oncodrive3d_chimerax:latest'
 
     input:
     tuple val(cohort), path(inputs), path(genes_csv), path(pos_csv), path(mutations_csv), path(miss_prob_json), path(seq_df_tsv)

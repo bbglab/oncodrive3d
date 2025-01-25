@@ -7,12 +7,6 @@ This pipeline enables running Oncodrive3D in parallel across multiple cohorts us
 1. Install [Nextflow](https://www.nextflow.io/docs/latest/getstarted.html) (version `23.04.3` was used for testing).
 2. Install and set up either or both:
    - [Singularity](https://sylabs.io/guides/latest/user-guide/installation.html)  
-      Pull the Oncodrive3D Singularity image from Docker Hub:
-
-      ```
-      singularity pull oncodrive3d.sif docker://bbglab/oncodrive3d:latest
-      ```
-
    - [Conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html)  
       Ensure Oncodrive3D is installed in your Conda environment and update the `params` section of the `nextflow.config` file to point to your Conda installation:
 
@@ -79,8 +73,6 @@ Options:
   --data_dir PATH                 Path to the Oncodrive3D datasets directory, which includes 
                                   the files compiled during the building datasets step.
                                   Default: ${baseDir}/datasets/
-  --container PATH                Path to the Singularity image with Oncodrive3D installation. 
-                                  Default: ${baseDir}/../oncodrive3d.sif
   --max_running INT               Maximum number of cohorts to process in parallel.
                                   Default: 5
   --cores INT                     Number of CPU cores used to process each cohort. 

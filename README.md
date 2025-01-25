@@ -247,8 +247,6 @@ Options:
   --data_dir PATH                 Path to the Oncodrive3D datasets directory, which includes 
                                   the files compiled during the building datasets step.
                                   Default: ${baseDir}/datasets/
-  --container PATH                Path to the Singularity image with Oncodrive3D installation. 
-                                  Default: ${baseDir}/../oncodrive3d.sif
   --max_running INT               Maximum number of cohorts to process in parallel.
                                   Default: 5
   --cores INT                     Number of CPU cores used to process each cohort. 

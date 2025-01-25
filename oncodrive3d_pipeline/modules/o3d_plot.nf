@@ -2,13 +2,9 @@ process O3D_PLOT {
     tag "Plot $cohort"
     label 'process_low'
     queue 'bigmem,normal'
-    container params.container
     maxForks params.max_running
     publishDir "${params.outdir}/${params.outsubdir}", mode:'copy'
-
-    // container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?       // TODO: Update and test
-    //     'https://depot.galaxyproject.org/singularity/oncodrive3d--py39hbf8eff0_0' :
-    //     'quay.io/biocontainers/oncodrive3d--py39hbf8eff0_0' }"
+    container 'docker.io/bbglab/oncodrive3d:latest'
 
     input:
     tuple val(cohort), path(inputs), path(genes_csv), path(pos_csv), path(mutations_csv), path(miss_prob_json), path(seq_df_tsv)

@@ -1,16 +1,11 @@
 process O3D_RUN {
     tag "O3D $cohort"
     queue 'bigmem,normal'
-    container params.container
     cpus params.cores
     memory params.memory
     maxForks params.max_running
     publishDir "${params.outdir}/${params.outsubdir}", mode:'copy'
-
-    // conda "bioconda::oncodrive3d"                                                                                    // TODO: Update and test
-    // container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?         // TODO: Update and test
-    //     'https://depot.galaxyproject.org/singularity/oncodrive3d--py39hbf8eff0_0' :
-    //     'quay.io/biocontainers/oncodrive3d--py39hbf8eff0_0' }"
+    container 'docker.io/bbglab/oncodrive3d:latest'
 
     input:
     tuple val(cohort), path(inputs)

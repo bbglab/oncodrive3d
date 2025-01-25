@@ -18,38 +18,6 @@ def validatePaths(params) {
         }
     }
 
-    // Validate Oncodrive3D Singularity image
-    if (workflow.containerEngine == 'singularity') {
-        def imagePath = file(params.container)
-        if (!imagePath.exists()) {
-            error """
-            \u001B[31mERROR: The specified Oncodrive3D Singularity image does not exist:
-            ${params.container}
-
-            Please provide the path to the Oncodrive3D Singularity image. 
-            You can update 'params.container' in the 'nextflow.config' file or provide it as a command-line argument: 
-
-            nextflow run main.nf --container <singularity_image>\u001B[0m
-            """
-        }
-    }
-
-    // Validate Oncodrive3D with ChimeraX Singularity image
-    if (params.chimerax_plot == true) {
-        def image_chimeraxPath = file(params.container_chimerax)
-        if (!image_chimeraxPath.exists() || !image_chimeraxPath.isDirectory()) {
-            error """
-            \u001B[31mERROR: The specified ChimeraX Singularity image does not exist:
-            ${params.container_chimerax}
-
-            Please provide the path to the ChimeraX Singularity image. 
-            You can update 'params.container_chimerax' in the 'nextflow.config' file or provide it as a command-line argument: 
-
-            nextflow run main.nf --container_chimerax <singularity_image>\u001B[0m
-            """
-        }
-    }
-
     // Validate Oncodrive3D datasets path
     def dataPath = file(params.data_dir)
     if (!dataPath.exists() || !dataPath.isDirectory()) {
