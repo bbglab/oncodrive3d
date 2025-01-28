@@ -29,7 +29,7 @@ Run a test to ensure that everything is set up correctly and functioning as expe
 nextflow run main.nf -profile test,container --data_dir <build_folder>
 ```
 
-Replace `<build_folder>` with the path to the Oncodrive3D datasets built in the [building datasets](#building-datasets) step.
+Replace `<build_folder>` with the path to the Oncodrive3D datasets built in the [building datasets](../README.md#building-datasets) step.
 If you prefer to use Conda, replace `container` in the `-profile` argument with `conda`.
 
 ## Usage
