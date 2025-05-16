@@ -247,9 +247,9 @@ def clustering_3d(gene,
     # Probability that the volume of each residue can be hit by a missense mut
     vol_missense_mut_prob = np.dot(cmap, gene_miss_prob)
     
-    
+        
     ## Get observed and ranked simulated scores (loglik+_LFC)
-    
+
     # Get the observed mut count and densities 
     count = mut_gene_df.Pos.value_counts()       
     mut_count_v = np.zeros(len(cmap))
@@ -261,12 +261,11 @@ def clustering_3d(gene,
     # Do not process if there isn't any density larger than 1
     if max(density_m[0][mutated_pos-1]) <= 1:                       
         result_gene_df["Status"] = "No_density"
-        return None, result_gene_df
-    
+
     # Inialize result df 
     result_pos_df = pd.DataFrame({"Pos" : mutated_pos, "Mut_in_vol" : density_m[0, mutated_pos-1].astype(int)})
 
-    # Get the ranked simulated score
+    # Get the NOT ranked simulated score
     sim_anomaly = get_sim_anomaly_score(len(mut_gene_df), 
                                         cmap, 
                                         gene_miss_prob,
@@ -274,20 +273,22 @@ def clustering_3d(gene,
                                         num_iteration=num_iteration,
                                         seed=seed) 
 
-    # Get ranked observed score (loglik+_LFC) 
-    no_mut_pos = len(result_pos_df)
-    sim_anomaly = sim_anomaly.iloc[:no_mut_pos,:].reset_index()
+
+    # Get NOT ranked observed score (loglik+_LFC) 
+    ix_mut_pos = result_pos_df.Pos.values - 1
+    sim_anomaly = sim_anomaly.iloc[ix_mut_pos,:].reset_index()
 
     result_pos_df["Score"] = get_anomaly_score(result_pos_df["Mut_in_vol"], 
-                                                     len(mut_gene_df), 
-                                                     vol_missense_mut_prob[result_pos_df["Pos"]-1])
+                                                        len(mut_gene_df), 
+                                                        vol_missense_mut_prob[result_pos_df["Pos"]-1])
     if np.isinf(result_pos_df.Score).any():
         logger.debug(f"Detected inf observed score in gene {gene} ({uniprot_id}-F{af_f}): Recomputing with higher precision..")
         result_pos_df = recompute_inf_score(result_pos_df, len(mut_gene_df), vol_missense_mut_prob[result_pos_df["Pos"]-1])
-    
+        
+        
     mut_in_res = count.rename("Mut_in_res").reset_index().rename(columns={"index" : "Pos"})
-    result_pos_df = mut_in_res.merge(result_pos_df, on = "Pos", how = "outer")                          
-    result_pos_df = result_pos_df.sort_values("Score", ascending=False).reset_index(drop=True)
+    mut_in_res = mut_in_res.sort_values("Pos").reset_index(drop=True)
+    result_pos_df = result_pos_df.merge(mut_in_res, on = "Pos", how = "outer")   
 
 
     ## Compute p-val and assign hits
@@ -298,14 +299,14 @@ def clustering_3d(gene,
 
     # Ratio observed and simulated anomaly scores 
     # (used to break the tie in p-values gene sorting)
-    result_pos_df["Score_obs_sim"] = sim_anomaly.apply(lambda x: result_pos_df["Score"].values[int(x["index"])] / np.mean(x[1:]), axis=1) 
+    result_pos_df["Score_obs_sim"] = sim_anomaly.apply(lambda x: result_pos_df[result_pos_df["Pos"] == int(x["index"])+1].Score.values[0] / np.mean(x[1:]), axis=1) 
 
     # Empirical p-val
-    result_pos_df["pval"] = sim_anomaly.apply(lambda x: sum(x[1:] >= result_pos_df["Score"].values[int(x["index"])]) / len(x[1:]), axis=1)
+    result_pos_df["pval"] = sim_anomaly.apply(lambda x: sum(x[1:] >= result_pos_df[result_pos_df["Pos"] == int(x["index"])+1].Score.values[0]) / len(x[1:]), axis=1)
 
     # Assign hits
     result_pos_df["C"] = [int(i) for i in result_pos_df["pval"] < alpha]       
-    
+
     # Select extended significant hits
     pos_hits = result_pos_df[result_pos_df["C"] == 1].Pos
     neigh_pos_hits = list(set([pos for p in pos_hits.values for pos in list(np.where(cmap[p - 1])[0] + 1)]))
@@ -313,7 +314,7 @@ def clustering_3d(gene,
     result_pos_df["C_ext"] = result_pos_df.apply(lambda x: 1 if (x["C"] == 0) & (x["Pos"] in pos_hits_extended)
                                                     else 0 if (x["C"] == 1) else np.nan, axis=1)
     result_pos_df["C"] = result_pos_df.apply(lambda x: 1 if (x["C"] == 1) | (x["C_ext"] == 1) else 0, axis=1)
-    pos_hits = result_pos_df[result_pos_df["C"] == 1].Pos  
+    pos_hits = result_pos_df[result_pos_df["C"] == 1].Pos 
 
     
     ## Communities detection

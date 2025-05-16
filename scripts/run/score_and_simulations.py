@@ -151,6 +151,6 @@ def get_sim_anomaly_score(mut_count,
     
     # Compute the ranked score of the densities obtained at each iteration
     # sign is used to sort in descending order
-    loglik_plus = -np.sort(-get_anomaly_score(density_sim, mut_count, vol_missense_mut_prob))
+    loglik_plus = get_anomaly_score(density_sim, mut_count, vol_missense_mut_prob)
     
     return pd.DataFrame(loglik_plus).T
