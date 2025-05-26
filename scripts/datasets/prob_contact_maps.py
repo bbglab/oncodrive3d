@@ -162,7 +162,7 @@ def get_prob_cmap(chain, pae, distance=10) :
     for i, res1 in enumerate(chain):
         for j, res2 in enumerate(chain):
             d = abs(res1["CA"] - res2["CA"])
-            m[i, j] = get_prob_contact(pae[i, j], d, distance)
+            m[i, j] = get_prob_contact(pae[j, i], d, distance)
 
     return m
 
