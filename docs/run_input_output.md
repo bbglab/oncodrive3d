@@ -176,7 +176,7 @@ It includes the following fields:
 - **C_pos**: List of protein positions of the gene clusters.
 - **C_label**: List of labels indicating the clump to which each cluster is grouped.
 - **Pos_top_vol**: Position of the most significant cluster.
-- **Score_obs_sim_top_vol**: 3D clustering score of the gene (normalized 3D clustering score of the residue with the lowest p-value; if multiple residues have the same lowest p-value, the maximum normalized 3D clustering score among those residues is used).
+- **Score_obs_sim_top_vol**: 3D clustering score of the gene (rescaled 3D clustering score of the residue with the lowest p-value; if multiple residues have the same lowest p-value, the maximum rescaled 3D clustering score among those residues is used).
 - **Mut_in_gene**: Number of missense mutations in the gene.
 - **Clust_mut**: Number of missense mutations in significant clusters.
 - **Clust_res**: Number of residues detected as significant clusters.
@@ -227,12 +227,12 @@ It includes the following fields:
 - **Mut_in_res**: Number of missense mutations in the residue.
 - **Mut_in_vol**: Number of missense mutations in the volume of the residue.
 - **Score**: 3D clustering score for the residue.
-- **Score_obs_sim**: Normalized 3D clustering score for the residue.
+- **Score_obs_sim**: Rescaled 3D clustering score for the residue.
 - **pval**: The p-value of the residue in the 3D clustering analysis.
 - **C**: Binary label indicating whether the cluster at that residue is significant (1) or not (0). A cluster is marked as significant either because it meets the significance criteria directly or because it has been rescued by contributing mutations to another significant cluster.
 - **C_ext**: Binary label indicating whether the cluster has been rescued by contributing mutations to another significant cluster (1) or if it was significant on its own (0).
 - **Clump**: Identifier for the clump to which the cluster at that residue has been assigned.
-- **Rank**: Rank used to perform the calculation of the normalized 3D clustering score and p-values. 
+- **Rank**: Rank used to perform the calculation of the 3D clustering score and p-values. 
 - **Mut_in_cl_vol**: Number of missense mutations in the clusters of the clump to which the cluster has been assigned.
 - **Res_in_cl**: Positions of the clusters of the clump to which the cluster has been assigned.
 - **PAE_vol**: Weighted average predicted aligned error (PAE) of the residues in the volume of the cluster.

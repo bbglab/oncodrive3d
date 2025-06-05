@@ -162,7 +162,7 @@ def get_prob_cmap(chain, pae, distance=10) :
     for i, res1 in enumerate(chain):
         for j, res2 in enumerate(chain):
             d = abs(res1["CA"] - res2["CA"])
-            m[i, j] = get_prob_contact(pae[i, j], d, distance)
+            m[i, j] = get_prob_contact(pae[j, i], d, distance)
 
     return m
 
@@ -199,10 +199,16 @@ def get_prob_cmaps(pdb_files, pae_path, output_path, distance=10, num_process=0)
         # Get probabilistic CMAP
         else:
             try:
-                pae = np.load(os.path.join(pae_path, f"{identifier}-predicted_aligned_error.npy"))
+                pae_path_id = os.path.join(pae_path, f"{identifier}-predicted_aligned_error.npy")
                 chain = get_structure(file)["A"]
-                prob_cmap = get_prob_cmap(chain, pae, distance=distance)
-                np.save(os.path.join(output_path, f"{identifier}.npy"), prob_cmap)
+                if os.path.exists(pae_path_id):
+                    pae = np.load(pae_path_id)
+                    prob_cmap = get_prob_cmap(chain, pae, distance=distance)
+                    np.save(os.path.join(output_path, f"{identifier}.npy"), prob_cmap)
+                else:
+                    logger.warning(f"Processing cMAP without PAE for {identifier}")
+                    cmap = get_contact_map(chain, distance=distance)
+                    np.save(os.path.join(output_path, f"{identifier}.npy"), cmap)
             except Exception as e:
                 logger.warning(f"Could not process {identifier}")
                 logger.warning(f"Error: {e}")
