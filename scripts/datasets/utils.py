@@ -425,7 +425,7 @@ def copy_custom_pdbs(
         accession = parts[0]
         fragment = parts[1]  # may be numeric or alphanumeric
 
-        new_name = f'AF-{accession}-{fragment}-model_v{model_version}.pdb.gz'
+        new_name = f'AF-{accession}-{fragment}-model_v{af_version}.pdb.gz'
 
         src_path = os.path.join(src_dir, fname)
         dst_path = os.path.join(dst_dir, new_name)
@@ -433,4 +433,4 @@ def copy_custom_pdbs(
         with open(src_path, 'rb') as fin, gzip.open(dst_path, 'wb') as fout:
             shutil.copyfileobj(fin, fout)
 
-        logger.debug(f'Copied and gzipped: {src_path} -> {dst_path}')
+        logger.debug(f'Copied and gzipped: {fname} -> {new_name}')
