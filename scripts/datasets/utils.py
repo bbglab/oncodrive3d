@@ -10,6 +10,7 @@ import io
 import os
 import tarfile
 import time
+import shutil
 from zipfile import ZipFile
 
 import logging
@@ -392,3 +393,44 @@ def uniprot_to_hugo(uniprot_ids, hugo_as_keys=False, batch_size=5000):
 #         result_dict = convert_dict_hugo_to_uniprot(result_dict)
 
 #     return result_dict
+
+
+def copy_custom_pdbs(
+    src_dir: str,
+    dst_dir: str,
+    af_version: int = 4
+    ) -> None:
+    """
+    Copy all .pdb files from src_dir to dst_dir, renaming and gzipping them.
+
+    For each file ending in .pdb in src_dir:
+      - Extract the accession (text before the first dot)
+      - Parse the fragment code from the segment after the accession (e.g. '1' -> 'F1', '22M' -> 'F22M')
+      - Rename to AF-{ACCESSION}-{FRAGMENT}-model_v{MODEL_VERSION}.pdb.gz
+      - Copy and gzip into dst_dir
+    """
+    
+    # Ensure destination directory exists
+    os.makedirs(dst_dir, exist_ok=True)
+
+    for fname in os.listdir(src_dir):
+        if not fname.endswith('.pdb'):
+            continue
+
+        parts = fname.split('.')  # e.g. [ACCESSION, fragment_code, 'alphafold', 'pdb']
+        if len(parts) < 4:
+            logger.warning(f"Skipping unexpected filename format: {fname}")
+            continue
+
+        accession = parts[0]
+        fragment = parts[1]  # may be numeric or alphanumeric
+
+        new_name = f'AF-{accession}-{fragment}-model_v{model_version}.pdb.gz'
+
+        src_path = os.path.join(src_dir, fname)
+        dst_path = os.path.join(dst_dir, new_name)
+
+        with open(src_path, 'rb') as fin, gzip.open(dst_path, 'wb') as fout:
+            shutil.copyfileobj(fin, fout)
+
+        logger.debug(f'Copied and gzipped: {src_path} -> {dst_path}')

@@ -40,7 +40,11 @@ def oncodrive3D():
               help="Organism name", default="Homo sapiens")
 @click.option("-m", "--mane", 
               help="Use structures predicted from MANE Select transcripts (Homo sapiens only)", is_flag=True)
-@click.option("-M", "--mane_version", default=1.3, 
+@click.option("-M", "--mane_only", 
+              help="Use only structures predicted from MANE Select transcripts", is_flag=True)
+@click.option("-C", "--custom_pdb_dir", 
+              help="Load custom structures from directory (overwriting existing ones)")
+@click.option("-j", "--mane_version", default=1.3, 
               help="Version of the MANE Select release from NCBI")
 @click.option("-d", "--distance_threshold", type=click.INT, default=10,
               help="Distance threshold (Å) to define contact between amino acids")
@@ -56,6 +60,8 @@ def oncodrive3D():
 def build_datasets(output_dir,
                    organism,
                    mane,
+                   mane_only,
+                   custom_pdb_dir,
                    distance_threshold,
                    cores, 
                    af_version,
@@ -72,6 +78,8 @@ def build_datasets(output_dir,
     logger.info(f"Build folder path: {output_dir}")
     logger.info(f"Organism: {organism}")
     logger.info(f"MANE Select: {mane}")
+    logger.info(f"MANE Select only: {mane_only}")
+    logger.info(f"Custom PDB directory: {custom_pdb_dir}")
     logger.info(f"Distance threshold: {distance_threshold}Å")
     logger.info(f"CPU cores: {cores}")
     logger.info(f"AlphaFold version: {af_version}")
@@ -83,6 +91,8 @@ def build_datasets(output_dir,
     build(output_dir,
           organism,
           mane,
+          mane_only,
+          custom_pdb_dir,
           distance_threshold,
           cores,
           af_version,

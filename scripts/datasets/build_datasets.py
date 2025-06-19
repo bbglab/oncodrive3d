@@ -29,7 +29,7 @@ from scripts.datasets.model_confidence import get_confidence
 from scripts.datasets.parse_pae import parse_pae
 from scripts.datasets.prob_contact_maps import get_prob_cmaps_mp
 from scripts.datasets.seq_for_mut_prob import get_seq_df
-from scripts.datasets.utils import get_species
+from scripts.datasets.utils import get_species, copy_custom_pdbs
 from scripts.globals import clean_dir, clean_temp_files
 
 logger = daiquiri.getLogger(__logger_name__ + ".build")
@@ -38,6 +38,8 @@ logger = daiquiri.getLogger(__logger_name__ + ".build")
 def build(output_datasets,
           organism,
           mane,
+          mane_only,
+          custom_pdb_dir,
           distance_threshold,
           num_cores,
           af_version,
@@ -51,20 +53,21 @@ def build(output_datasets,
 
     # Download PDB structures
     species = get_species(organism)
-    logger.info("Downloading AlphaFold (AF) predicted structures...")
-    get_structures(path=os.path.join(output_datasets,"pdb_structures"),
-                   species=species,
-                   af_version=str(af_version),
-                   threads=num_cores)
-    logger.info("Download of structures completed!")
+    if not mane_only:
+      logger.info("Downloading AlphaFold (AF) predicted structures...")
+      get_structures(path=os.path.join(output_datasets,"pdb_structures"),
+                    species=species,
+                    af_version=str(af_version),
+                    threads=num_cores)
+      logger.info("Download of structures completed!")
 
-    # Merge fragmented structures
-    logger.info("Merging fragmented structures...")
-    merge_af_fragments(input_dir=os.path.join(output_datasets,"pdb_structures"),
-                       gzip=True)
+      # Merge fragmented structures
+      logger.info("Merging fragmented structures...")
+      merge_af_fragments(input_dir=os.path.join(output_datasets,"pdb_structures"),
+                        gzip=True)
 
     # Download PDB MANE structures
-    if species == "Homo sapiens" and mane == True:
+    if species == "Homo sapiens" and (mane or mane_only):
         logger.info("Downloading AlphaFold (AF) predicted structures overlap with MANE...")
         get_structures(path=os.path.join(output_datasets,"pdb_structures_mane"),
                       species=species,
@@ -72,7 +75,20 @@ def build(output_datasets,
                       threads=num_cores)
         mv_mane_pdb(output_datasets, "pdb_structures", "pdb_structures_mane")
         logger.info("Download of MANE structures completed!")
-
+        
+    # Copy custom PDB structures
+    if custom_pdb_dir is not None:
+      logger.info("Copying custom PDB structures...")
+      if os.path.exists(custom_pdb_dir):
+        copy_custom_pdbs(
+          src_dir=custom_pdb_dir,
+          dst_dir=os.path.join(output_datasets,"pdb_structures"), 
+          af_version=int(af_version)
+          )
+      else:
+          logger.error(f"Custom PDB directory does not exist: {custom_pdb_dir}")
+          raise FileNotFoundError(f"Custom PDB directory not found: {custom_pdb_dir}")
+    
     # Create df including genes and proteins sequences & Hugo to Uniprot_ID mapping
     logger.info("Generating dataframe for genes and proteins sequences...")
     seq_df = get_seq_df(datasets_dir=output_datasets,

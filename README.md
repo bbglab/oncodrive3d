@@ -83,6 +83,9 @@ Options:
                                   Default: human
   -m, --mane                      Use structures predicted from MANE Select transcripts 
                                   (applicable to Homo sapiens only).
+  -M, --mane_only                 Use only structures predicted from MANE Select transcripts
+                                  (applicable to Homo sapiens only).
+  -C, --custom_pdb_dir            Load custom structures from directory (overwriting existing ones).
   -d, --distance_threshold INT    Distance threshold (Å) for defining residues contacts. 
                                   Default: 10
   -c, --cores INT                 Number of CPU cores for computation. 
