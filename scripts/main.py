@@ -43,7 +43,9 @@ def oncodrive3D():
 @click.option("-M", "--mane_only", 
               help="Use only structures predicted from MANE Select transcripts", is_flag=True)
 @click.option("-C", "--custom_pdb_dir", 
-              help="Load custom structures from directory (overwriting existing ones)")
+              help="Directory where to load custom PDB structures (overwriting existing ones)")
+@click.option("-f", "--custom_fasta_dir", 
+              help="Directory where to extract sequence info from FASTA and add it as SEQRES to the custom PDB structures")
 @click.option("-j", "--mane_version", default=1.3, 
               help="Version of the MANE Select release from NCBI")
 @click.option("-d", "--distance_threshold", type=click.INT, default=10,
@@ -62,6 +64,7 @@ def build_datasets(output_dir,
                    mane,
                    mane_only,
                    custom_pdb_dir,
+                   custom_fasta_dir,
                    distance_threshold,
                    cores, 
                    af_version,
@@ -80,6 +83,7 @@ def build_datasets(output_dir,
     logger.info(f"MANE Select: {mane}")
     logger.info(f"MANE Select only: {mane_only}")
     logger.info(f"Custom PDB directory: {custom_pdb_dir}")
+    logger.info(f"Custom FASTA directory: {custom_fasta_dir}")
     logger.info(f"Distance threshold: {distance_threshold}Å")
     logger.info(f"CPU cores: {cores}")
     logger.info(f"AlphaFold version: {af_version}")
@@ -93,6 +97,7 @@ def build_datasets(output_dir,
           mane,
           mane_only,
           custom_pdb_dir,
+          custom_fasta_dir,
           distance_threshold,
           cores,
           af_version,
