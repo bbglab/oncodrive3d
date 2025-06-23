@@ -425,7 +425,7 @@ def copy_custom_pdbs(
         accession = parts[0]
         fragment = parts[1]  # may be numeric or alphanumeric
 
-        new_name = f'AF-{accession}-{fragment}-model_v{af_version}.pdb.gz'
+        new_name = f'AF-{accession}-F{fragment}-model_v{af_version}.pdb.gz'
 
         src_path = os.path.join(src_dir, fname)
         dst_path = os.path.join(dst_dir, new_name)
