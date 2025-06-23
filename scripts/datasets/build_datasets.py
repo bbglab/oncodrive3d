@@ -87,7 +87,7 @@ def build(output_datasets,
     if custom_pdb_dir is not None:
       logger.info("Copying custom PDB structures...")
       if os.path.exists(custom_pdb_dir):
-        custom_pdb.copy_custom_pdbs(
+        copy_and_parse_custom_pdbs(
           src_dir=custom_pdb_dir,
           dst_dir=os.path.join(output_datasets,"pdb_structures"), 
           af_version=int(af_version),
