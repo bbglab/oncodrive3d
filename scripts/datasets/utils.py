@@ -10,6 +10,7 @@ import io
 import os
 import tarfile
 import time
+import shutil
 from zipfile import ZipFile
 
 import logging

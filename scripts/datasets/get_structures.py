@@ -22,8 +22,8 @@ def mv_mane_pdb(path_datasets, pdb_dir, mane_pdb_dir) -> None:
 
     path_pdb = os.path.join(path_datasets, pdb_dir)
     path_mane_pdb = os.path.join(path_datasets, mane_pdb_dir)
-    if not os.path.exists(path_mane_pdb):
-        os.makedirs(path_mane_pdb)
+    for path in (path_pdb, path_mane_pdb):
+        os.makedirs(path, exist_ok=True)
 
     # Move MANE structures
     for filename in [file for file in os.listdir(path_mane_pdb) if file.endswith(".pdb.gz") or file.endswith(".pdb")]:
