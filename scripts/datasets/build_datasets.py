@@ -123,7 +123,8 @@ def build(output_datasets,
       input_dir=os.path.join(output_datasets,"pdb_structures"),
       output_dir=os.path.join(output_datasets,"pae"),
       num_cores=num_cores,
-      af_version=str(af_version)
+      af_version=str(af_version),
+      custom_pdb_dir=custom_pdb_dir
       )
 
     # Parse PAE
