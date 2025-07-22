@@ -8,8 +8,9 @@ The method leverages **AlphaFold 2-predicted protein structures** and Predicted 
 [![docker](https://img.shields.io/docker/v/bbglab/oncodrive3d?logo=docker)](https://hub.docker.com/r/bbglab/oncodrive3d)
 [![PyPI - Version](https://img.shields.io/pypi/v/oncodrive3d?logo=pypi)](https://pypi.org/project/Oncodrive3D/)
 
----
+![Graphical abstract of Oncodrive3D](docs/images/graphical_abstract.png "Oncodrive3D")
 
+---
 
 ## Requirements
 
