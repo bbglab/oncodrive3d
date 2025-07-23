@@ -117,12 +117,21 @@ def copy_and_parse_custom_pdbs(
         logger.debug(f'Copied and gzipped: {fname} -> {new_name}')
         
         # Optionally add SEQRES records
-        if fasta_dir is not None:
+        if fasta_dir:
             fasta_path = os.path.join(fasta_dir, f"{accession}.fasta")
-            seq = parse_fasta_to_three_letter(fasta_path)
-            add_seqres_to_pdb(dst_path, seq)
-            logger.debug(f'Inserted SEQRES records into: {new_name}')
+
+            if os.path.isfile(fasta_path):
+                try:
+                    seq = parse_fasta_to_three_letter(fasta_path)
+                    if not seq:
+                        logger.warning("Parsed empty sequence from %s; skipping SEQRES insertion", fasta_path)
+                    else:
+                        add_seqres_to_pdb(dst_path, seq)
+                        logger.debug("Inserted SEQRES records into: %s", dst_path)
+                except Exception as e:
+                    logger.error("Failed to parse FASTA or insert SEQRES for %s: %s", fasta_path, e)
+            else:
+                logger.warning("FASTA file not found for accession %s: %s", accession, fasta_path)
+
         else:
-            logger.warning(f'FASTA not found for custom accession {accession}: {fasta_path}')
-        
-        
+            logger.warning("No fasta_dir provided; skipping SEQRES insertion for accession %s", accession)
