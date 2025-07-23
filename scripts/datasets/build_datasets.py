@@ -57,7 +57,9 @@ def build(output_datasets,
 
     # Download PDB structures
     species = get_species(organism)
-    if not mane_only:
+    if mane_only:
+      mane = True
+    else:
       logger.info("Downloading AlphaFold (AF) predicted structures...")
       get_structures(
         path=os.path.join(output_datasets,"pdb_structures"),
@@ -72,7 +74,7 @@ def build(output_datasets,
       merge_af_fragments(input_dir=os.path.join(output_datasets,"pdb_structures"), gzip=True)
 
     # Download PDB MANE structures
-    if species == "Homo sapiens" and (mane or mane_only):
+    if species == "Homo sapiens" and mane:
         logger.info("Downloading AlphaFold (AF) predicted structures overlap with MANE...")
         get_structures(
           path=os.path.join(output_datasets,"pdb_structures_mane"),

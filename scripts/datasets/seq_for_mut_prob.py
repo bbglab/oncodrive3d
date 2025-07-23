@@ -678,9 +678,7 @@ def process_seq_df(seq_df,
                    organism,
                    uniprot_to_gene_dict,
                    ens_canonical_transcripts_lst,
-                   num_cores=1,
-                   rm_weird_chr=False,
-                   mane_version=1.3):
+                   num_cores=1):
     """
     Retrieve DNA sequence and tri-nucleotide context
     for each structure in the initialized dataframe
@@ -823,7 +821,6 @@ def get_seq_df(datasets_dir,
                organism = "Homo sapiens",
                mane=False,
                num_cores=1,
-               rm_weird_chr=False,
                mane_version=1.3):
     """
     Generate a dataframe including IDs mapping information, the protein
@@ -840,21 +837,21 @@ def get_seq_df(datasets_dir,
     https://www.ebi.ac.uk/jdispatcher/st/emboss_backtranseq
     """
 
-    # region Initialization
-    #===============
-
     # Load Uniprot ID to HUGO and MANE to AF mapping
     pdb_dir = os.path.join(datasets_dir, "pdb_structures")
     uniprot_ids = os.listdir(pdb_dir)
     uniprot_ids = [uni_id.split("-")[1] for uni_id in list(set(uniprot_ids)) if ".pdb" in uni_id]
     logger.debug("Retrieving Uniprot ID to HUGO symbol mapping information..")
     uniprot_to_gene_dict = uniprot_to_hugo(uniprot_ids)
+    
+    # ---
     # # Workaround if the direct request to UniprotKB stops working (it has happened temporarily)
     # if all(pd.isna(k) for k in uniprot_to_gene_dict.keys()):
     #     logger.warning(f"Failed to retrieve Uniprot ID to HUGO symbol mapping directly from UniprotKB.")
     #     logger.warning(f"Retrying using Unipressed API client (only first HUGO symbol entry will be mapped)..")
     #     uniprot_to_gene_dict = uniprot_to_hugo_pressed(uniprot_ids)
-
+    # ---
+    
     # Get biomart metadata and canonical transcript IDs
     ens_canonical_transcripts_lst = get_biomart_metadata(datasets_dir, uniprot_ids)
 
@@ -879,10 +876,6 @@ def get_seq_df(datasets_dir,
                                 rm_weird_chr,
                                 mane_version=mane_version)
 
-
-    # # Filter out non-standard chromosomes
-    # chr_lst = [str(i) for i in range(1, 23)] + ['X', 'Y', 'M']
-    # seq_df = seq_df[seq_df.Chr.isin(chr_lst) | seq_df.Chr.isna()].reset_index(drop=True)
 
     # Save
     seq_df_cols = ['Gene', 'HGNC_ID', 'Ens_Gene_ID',
