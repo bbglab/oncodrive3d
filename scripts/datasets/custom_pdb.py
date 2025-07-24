@@ -37,21 +37,6 @@ def get_pdb_seqres_records(lst_res):
     return records
 
 
-def parse_fasta_to_three_letter(path_fasta):
-    """
-    Parse a FASTA file and return a list of three-letter residue codes.
-
-    :param path_fasta: Path to FASTA file containing single-letter sequence
-    :return: List of three-letter codes or raises KeyError on unknown letter
-    """
-    seq = ''
-    with open(path_fasta) as fh:
-        for line in fh:
-            if line.startswith('>'): continue
-            seq += line.strip()
-    return [one_to_three_res_map[aa] for aa in seq]
-
-
 def add_seqres_to_pdb(path_pdb: str, residues: list) -> None:
     """
     Insert SEQRES records at the very top of a PDB file (supports gzipped and plain).
@@ -84,16 +69,34 @@ def copy_and_parse_custom_pdbs(
     src_dir: str,
     dst_dir: str,
     af_version: int = 4,
-    fasta_dir: str = None
+    custom_mane_metadata_path: str = None
     ) -> None:
     """
     Copy all .pdb files from src_dir to dst_dir, renaming and gzipping them.
-    Optionally add residues information (SEQRES) from fasta file. 
+    Optionally add residues information (SEQRES) from samplesheet. 
     """
     
     # Ensure destination directory exists
     os.makedirs(dst_dir, exist_ok=True)
+    
+    # Handle metadata
+    if custom_mane_metadata_path and os.path.isfile(custom_mane_metadata_path):
+        samplesheet_df = pd.read_csv(custom_mane_metadata_path)
+    else:
+        if not custom_mane_metadata_path:
+            logger.warning(
+                "No samplesheet path provided; skipping SEQRES insertion for accession %s",
+                accession
+            )
+        else:
+            logger.warning(
+                "samplesheet not found at '%s'; skipping SEQRES insertion for accession %s",
+                custom_mane_metadata_path,
+                accession
+            )
+        samplesheet_df = None
 
+    # Copy and gzip pdb and optionally add REFSEQ
     for fname in os.listdir(src_dir):
         if not fname.endswith('.pdb'):
             continue
@@ -117,21 +120,11 @@ def copy_and_parse_custom_pdbs(
         logger.debug(f'Copied and gzipped: {fname} -> {new_name}')
         
         # Optionally add SEQRES records
-        if fasta_dir:
-            fasta_path = os.path.join(fasta_dir, f"{accession}.fasta")
-
-            if os.path.isfile(fasta_path):
-                try:
-                    seq = parse_fasta_to_three_letter(fasta_path)
-                    if not seq:
-                        logger.warning("Parsed empty sequence from %s; skipping SEQRES insertion", fasta_path)
-                    else:
-                        add_seqres_to_pdb(dst_path, seq)
-                        logger.debug("Inserted SEQRES records into: %s", dst_path)
-                except Exception as e:
-                    logger.error("Failed to parse FASTA or insert SEQRES for %s: %s", fasta_path, e)
-            else:
-                logger.warning("FASTA file not found for accession %s: %s", accession, fasta_path)
-
-        else:
-            logger.warning("No fasta_dir provided; skipping SEQRES insertion for accession %s", accession)
+        if samplesheet_df:
+            if accession not in samplesheet_df["sequence"].values:
+                logger.warning("Accession %s not in samplesheet %s", accession, custom_mane_metadata_path)
+                continue
+            seq = samplesheet_df[samplesheet_df["sequence"] == accession].refseq[0]
+            seq = [one_to_three_res_map[aa] for aa in seq]
+            add_seqres_to_pdb(dst_path, seq)
+            logger.debug("Inserted SEQRES records into: %s", dst_path)
