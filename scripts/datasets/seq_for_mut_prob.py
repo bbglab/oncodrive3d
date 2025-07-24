@@ -490,9 +490,56 @@ def select_uni_id(ids_tuple, all_ids):
     return np.nan
 
 
-def get_mane_to_af_mapping(datasets_dir, downloaded_uniprot_ids, include_not_af=False, mane_version=1.0):
+def load_custom_ens_prot_ids(path):
     """
-    Get a dataframe to map genes, MANE transcript IDs, and protein structures.
+    Read a CSV of custom PDB metadata and return a list of version‑stripped
+    Ensembl Protein IDs.
+    """
+    if not os.path.isfile(path):
+        logger.error(f"Custom PDB metadata path does not exist: {path!r}")
+        raise FileNotFoundError(f"Custom PDB metadata not found: {path!r}")
+    df = pd.read_csv(path)
+    ids = (
+        df["Ens_Prot_ID"]
+        .astype(str)
+        .str.split(".", n=1)
+        .str[0]
+        .unique()
+        .tolist()
+        )
+    
+    return ids
+
+
+def get_mane_to_af_mapping(
+    datasets_dir, 
+    downloaded_uniprot_ids, 
+    include_not_af=False, 
+    mane_version=1.4,
+    custom_mane_metadata_path=None):
+    """
+    Get a dataframe to map genes, MANE transcript IDs, and AlphaFold structures.
+    If custom_mane_metadata_path is provided, the Ensembl protein IDs within the 
+    dataframe will be used to overwrite the `Uniprot_ID` column (version stripped).
+
+    Parameters
+    ----------
+    datasets_dir : str
+        Root folder where MANE and UniProt files live.
+    downloaded_uniprot_ids : set
+        UniProt accessions already downloaded locally (used to pick among multiples).
+    include_not_af : bool, default False
+        If True, also return MANE entries without AlphaFold models.
+    mane_version : float, default 1.4
+        Which MANE release to fetch.
+    custom_mane_metadata_path : str, optional
+        If provided, these Ensembl protein IDs will be used to overwrite
+        the `Uniprot_ID` column (version stripped) for those entries.
+
+    Returns
+    -------
+    pandas.DataFrame or (DataFrame, DataFrame)
+        The merged mapping (and, if `include_not_af`, a second DF of missing entries in AF).
     """
 
     mane_to_af = pd.read_csv(os.path.join(datasets_dir, "mane_refseq_prot_to_alphafold.csv"))
@@ -501,15 +548,34 @@ def get_mane_to_af_mapping(datasets_dir, downloaded_uniprot_ids, include_not_af=
     path_mane_summary = os.path.join(datasets_dir, "mane_summary.txt.gz")
     if not os.path.exists(path_mane_summary):
         download_mane_summary(path_mane_summary, mane_version)
-    mane = pd.read_csv(path_mane_summary, compression='gzip', sep="\t").dropna(subset=["symbol", "HGNC_ID"])
-    mane = mane.rename(columns={"symbol" : "Gene",
-                                "RefSeq_prot" : "Refseq_prot",
-                                "Ensembl_Gene" : "Ens_Gene_ID",
-                                "Ensembl_nuc" : "Ens_Transcr_ID",
-                                "GRCh38_chr" : "Chr",
-                                "chr_strand" : "Reverse_strand"})
-    mane = mane[["Gene", "Refseq_prot", "Ens_Gene_ID", "Ens_Transcr_ID", "Chr", "Reverse_strand"]]
-    mane_mapping = mane_to_af.merge(mane, how="left", on="Refseq_prot").dropna()
+
+    mane_summary = pd.read_csv(
+        path_mane_summary, 
+        compression='gzip', 
+        sep="\t"
+        ).dropna(subset=["symbol", "HGNC_ID"])
+    
+    mane_summary = mane_summary.rename(columns={
+        "symbol" : "Gene",
+        "RefSeq_prot" : "Refseq_prot",
+        "Ensembl_Gene" : "Ens_Gene_ID",
+        "Ensembl_prot" : "Ens_Prot_ID",
+        "Ensembl_nuc" : "Ens_Transcr_ID",
+        "GRCh38_chr" : "Chr",
+        "chr_strand" : "Reverse_strand"
+        })
+    mane_summary = mane_summary[[
+        "Gene", 
+        "HGNC_ID", 
+        "Ens_Gene_ID", 
+        "Ens_Prot_ID", 
+        "Refseq_prot", 
+        "Ens_Transcr_ID", 
+        "Chr", 
+        "Reverse_strand"
+        ]]
+    
+    mane_mapping = mane_to_af.merge(mane_summary, how="left", on="Refseq_prot").dropna()
     mane_mapping.Reverse_strand = mane_mapping.Reverse_strand.map({"+" : 0, "-" : 1})
     mane_mapping.Ens_Gene_ID = mane_mapping.Ens_Gene_ID.apply(lambda x: x.split(".")[0])
     mane_mapping.Ens_Transcr_ID = mane_mapping.Ens_Transcr_ID.apply(lambda x: x.split(".")[0])
@@ -520,9 +586,16 @@ def get_mane_to_af_mapping(datasets_dir, downloaded_uniprot_ids, include_not_af=
                                             else x.Uniprot_ID, axis=1)
     mane_mapping = mane_mapping.reset_index(drop=True)
 
+    # Override Uniprot_ID with Ens_Prot_ID for the custom PDB structures
+    if custom_mane_metadata_path is not None:
+        custom_ids = load_custom_ens_prot_ids(custom_mane_metadata_path)
+        base_ens = mane_mapping["Ens_Prot_ID"].str.split(".", n=1).str[0]
+        mask = base_ens.isin(custom_ids)
+        mane_mapping.loc[mask, "Uniprot_ID"] = base_ens[mask]
+
+    # Also return a dataframe with entries not in AF
     if include_not_af:
         mane_not_af = mane[~mane.Gene.isin(mane_mapping.Gene)].reset_index(drop=True)
-
         return mane_mapping, mane_not_af
 
     else:
@@ -571,14 +644,8 @@ def get_biomart_metadata(datasets_dir, uniprot_ids):
     biomart_df = pd.concat((biomart_uniprotkb, biomart_uniprot)).reset_index(drop=True)
 
     # Output
-    # (ATM this is only used to get Ensembl canonical transcript
-    #  but, in the future, it could be used to add extra info such as
-    #  HGNC, and any other features we want from biomart)
     biomart_df.to_csv(os.path.join(datasets_dir, "biomart_metadata.tsv"), sep="\t", index=False)
     ens_canonical_transcripts = biomart_df.Ens_Transcr_ID[biomart_df["Ens_Canonical"] == 1].unique()
-    # gene_ids = biomart_df[["Gene", "HGNC_ID"]]
-    # gene_ids_syn = biomart_df[["Gene_synonym", "HGNC_ID"]].rename(columns={"Gene_synonym" : "Gene"})
-    # gene_ids = pd.concat((gene_ids, gene_ids_syn)).sort_values("HGNC_ID").reset_index(drop=True).drop_duplicates()
 
     return ens_canonical_transcripts
 
@@ -742,27 +809,32 @@ def process_seq_df_mane(seq_df,
                         datasets_dir,
                         uniprot_to_gene_dict,
                         ens_canonical_transcripts_lst,
+                        custom_mane_metadata_path=None,
                         num_cores=1,
-                        mane_version=1.3):
+                        mane_version=1.4):
     """
     Retrieve DNA sequence and tri-nucleotide context
     for each structure in the initialized dataframe
     prioritizing MANE associated structures and metadata.
 
     Reference_info labels:
-        1 : Transcript ID, exons coord, seq DNA obtained from Proteins API
-        0 : Transcript ID retrieved from MANE and seq DNA from Ensembl
-       -1 : Not available transcripts, seq DNA retrieved from Backtranseq API
+        1  : Transcript ID, exons coord, seq DNA obtained from Proteins API
+        0  : Transcript ID retrieved from MANE and seq DNA from Ensembl
+        -1 : Not available transcripts, seq DNA retrieved from Backtranseq API
     """
 
-    mane_mapping, mane_mapping_not_af = get_mane_to_af_mapping(datasets_dir,
-                                                               seq_df["Uniprot_ID"].unique(),
-                                                               include_not_af=True,
-                                                               mane_version=mane_version)
+    mane_mapping, mane_mapping_not_af = get_mane_to_af_mapping(
+        datasets_dir,
+        seq_df["Uniprot_ID"].unique(),
+        include_not_af=True,
+        mane_version=mane_version,
+        custom_mane_metadata_path=custom_mane_metadata_path
+        )
     seq_df_mane = seq_df[seq_df.Uniprot_ID.isin(mane_mapping.Uniprot_ID)].reset_index(drop=True)
     seq_df_nomane = seq_df[~seq_df.Uniprot_ID.isin(mane_mapping.Uniprot_ID)].reset_index(drop=True)
 
     # Seq df MANE
+    # -----------
     seq_df_mane = seq_df_mane.drop(columns=["Gene"]).merge(mane_mapping, how="left", on="Uniprot_ID")
     seq_df_mane["Reference_info"] = 0
 
@@ -775,12 +847,14 @@ def process_seq_df_mane(seq_df,
     if sum(failed_ix) > 0:
         seq_df_mane_failed = seq_df_mane[failed_ix]
         seq_df_mane = seq_df_mane[~failed_ix]
-        seq_df_mane_failed = seq_df_mane_failed.drop(columns=["Ens_Gene_ID", "Ens_Transcr_ID", "Reverse_strand",
-                                                              "Chr", "Refseq_prot", "Reference_info", "Seq_dna"])
+        seq_df_mane_failed = seq_df_mane_failed.drop(columns=[
+            "Ens_Gene_ID", "Ens_Transcr_ID", "Reverse_strand",
+            "Chr", "Refseq_prot", "Reference_info", "Seq_dna"
+            ])
         seq_df_nomane = pd.concat((seq_df_nomane, seq_df_mane_failed))
 
-
     # Seq df not MANE
+    # ---------------
     seq_df_nomane = add_extra_genes_to_seq_df(seq_df_nomane, uniprot_to_gene_dict)         # Filter out genes with NA
     seq_df_nomane = seq_df_nomane[seq_df_nomane.Gene.isin(mane_mapping_not_af.Gene)]       # Filter out genes that are not in MANE list
 
@@ -820,8 +894,9 @@ def get_seq_df(datasets_dir,
                output_seq_df,
                organism = "Homo sapiens",
                mane=False,
+               custom_mane_metadata_path=None,
                num_cores=1,
-               mane_version=1.3):
+               mane_version=1.4):
     """
     Generate a dataframe including IDs mapping information, the protein
     sequence, the DNA sequence and its tri-nucleotide context, which is
@@ -864,6 +939,7 @@ def get_seq_df(datasets_dir,
                                     datasets_dir,
                                     uniprot_to_gene_dict,
                                     ens_canonical_transcripts_lst,
+                                    custom_mane_metadata_path,
                                     num_cores,
                                     mane_version=mane_version)
     else:
@@ -890,10 +966,10 @@ def get_seq_df(datasets_dir,
 
 
 if __name__ == "__main__":
-    OUTPUT_DS = 'test/output_datasets'
-    get_seq_df(datasets_dir=OUTPUT_DS,
-                output_seq_df=os.path.join(OUTPUT_DS, "seq_for_mut_prob.tsv"),
+    DATASETS_DIR = 'oncodrive3d_pipeline/datasets_mane_260723_mane_missing'
+    get_seq_df(datasets_dir=DATASETS_DIR,
+                output_seq_df=os.path.join(DATASETS_DIR, "seq_for_mut_prob.tsv"),
                 organism="Homo sapiens",
                 mane=True,
                 num_cores=8,
-                mane_version=1.3)
+                mane_version=1.4)
