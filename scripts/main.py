@@ -76,7 +76,9 @@ def build_datasets(output_dir,
     from scripts.datasets.build_datasets import build
     
     startup_message(__version__, "Initializing building datasets..")
-
+    if mane_only:
+        mane = True
+    
     logger.info(f"Current working directory: {os.getcwd()}")
     logger.info(f"Build folder path: {output_dir}")
     logger.info(f"Organism: {organism}")

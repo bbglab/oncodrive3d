@@ -57,9 +57,7 @@ def build(output_datasets,
 
     # Download PDB structures
     species = get_species(organism)
-    if mane_only:
-      mane = True
-    else:
+    if not mane_only:
       logger.info("Downloading AlphaFold (AF) predicted structures...")
       get_structures(
         path=os.path.join(output_datasets,"pdb_structures"),
@@ -115,7 +113,8 @@ def build(output_datasets,
       organism=species,
       mane=mane,
       num_cores=num_cores,
-      mane_version=mane_version
+      mane_version=mane_version,
+      custom_mane_metadata_path=custom_mane_metadata_path
       )
     logger.info("Generation of sequences dataframe completed!")
 
@@ -161,7 +160,7 @@ def build(output_datasets,
 
 if __name__ == "__main__":
     build(
-      output_datasets="/data/bbg/nobackup/scratch/oncodrive3d/tests/datasets_mane_240725_mane_missing_dev",
+      output_datasets="/data/bbg/nobackup/scratch/oncodrive3d/tests/datasets_mane_250725_mane_missing_dev",
       organism="Homo sapiens",
       mane=False,
       mane_only=True,

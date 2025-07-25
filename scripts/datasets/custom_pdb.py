@@ -2,6 +2,7 @@ import os
 import gzip
 import shutil
 import daiquiri
+import pandas as pd
 
 from scripts import __logger_name__
 
@@ -120,11 +121,11 @@ def copy_and_parse_custom_pdbs(
         logger.debug(f'Copied and gzipped: {fname} -> {new_name}')
         
         # Optionally add SEQRES records
-        if samplesheet_df:
+        if samplesheet_df is not None:
             if accession not in samplesheet_df["sequence"].values:
                 logger.warning("Accession %s not in samplesheet %s", accession, custom_mane_metadata_path)
                 continue
-            seq = samplesheet_df[samplesheet_df["sequence"] == accession].refseq[0]
+            seq = samplesheet_df[samplesheet_df["sequence"] == accession].refseq.values[0]
             seq = [one_to_three_res_map[aa] for aa in seq]
             add_seqres_to_pdb(dst_path, seq)
             logger.debug("Inserted SEQRES records into: %s", dst_path)

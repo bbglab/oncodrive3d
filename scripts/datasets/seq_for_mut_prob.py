@@ -460,7 +460,7 @@ def add_extra_genes_to_seq_df(seq_df, uniprot_to_gene_dict):
     return seq_df
 
 
-def download_mane_summary(path_to_file, v=1.3, max_attempts=15):
+def download_mane_summary(path_to_file, v=1.3, max_attempts=15, cores=1):
     """
     Download the summary.txt of the MANE release from NCBI.
     """
@@ -469,25 +469,38 @@ def download_mane_summary(path_to_file, v=1.3, max_attempts=15):
     attempts = 0
 
     while not os.path.exists(path_to_file):
-        download_single_file(mane_summary_url, path_to_file, threads=1)
+        download_single_file(mane_summary_url, path_to_file, threads=cores)
         attempts += 1
         if attempts >= max_attempts:
             raise RuntimeError(f"Failed to download MANE summary file after {max_attempts} attempts. Exiting..")
         time.sleep(5)
 
 
-def select_uni_id(ids_tuple, all_ids):
+def select_uni_id(df, uniprot_ids):
     """
-    Return the first Uniprot ID present in the list of IDs
-    (list of structures available). If no ID of the tuple
-    maps a downloaded structure, return NA.
+    For each row in `df`, normalize its 'Uniprot_ID' field—whether a single ID string
+    or a semicolon-separated list—by selecting the first ID that exists in `available_ids`.
+    If no IDs match, returns NaN for that row.
     """
+    
+    if sum(df.Uniprot_ID.str.split(";").apply(lambda x: len(x)) > 1) == 0:
+        return df
+        
+    out = df.copy()
+    
+    def pick_first(uid_val):
 
-    for uni_id in ids_tuple:
-        if uni_id in all_ids:
-            return uni_id
+        if pd.isna(uid_val):
+            return np.nan
+        
+        # Split on ';' always: single IDs become a single-element list
+        ids = str(uid_val).split(';')
+        
+        # Return first match or NaN
+        return next((uid for uid in ids if uid in set(uniprot_ids)), np.nan)
 
-    return np.nan
+    out['Uniprot_ID'] = out['Uniprot_ID'].apply(pick_first)
+    return out
 
 
 def load_custom_ens_prot_ids(path):
@@ -500,7 +513,7 @@ def load_custom_ens_prot_ids(path):
         raise FileNotFoundError(f"Custom PDB metadata not found: {path!r}")
     df = pd.read_csv(path)
     ids = (
-        df["Ens_Prot_ID"]
+        df["sequence"]
         .astype(str)
         .str.split(".", n=1)
         .str[0]
@@ -513,10 +526,12 @@ def load_custom_ens_prot_ids(path):
 
 def get_mane_to_af_mapping(
     datasets_dir, 
-    downloaded_uniprot_ids, 
+    uniprot_ids, 
     include_not_af=False, 
     mane_version=1.4,
-    custom_mane_metadata_path=None):
+    custom_mane_metadata_path=None, 
+    cores=1
+    ):
     """
     Get a dataframe to map genes, MANE transcript IDs, and AlphaFold structures.
     If custom_mane_metadata_path is provided, the Ensembl protein IDs within the 
@@ -526,7 +541,7 @@ def get_mane_to_af_mapping(
     ----------
     datasets_dir : str
         Root folder where MANE and UniProt files live.
-    downloaded_uniprot_ids : set
+    uniprot_ids : set
         UniProt accessions already downloaded locally (used to pick among multiples).
     include_not_af : bool, default False
         If True, also return MANE entries without AlphaFold models.
@@ -547,13 +562,9 @@ def get_mane_to_af_mapping(
                                             "uniprot_accession" : "Uniprot_ID"}).drop(columns=["alphafold"])
     path_mane_summary = os.path.join(datasets_dir, "mane_summary.txt.gz")
     if not os.path.exists(path_mane_summary):
-        download_mane_summary(path_mane_summary, mane_version)
+        download_mane_summary(path_mane_summary, mane_version, cores)
 
-    mane_summary = pd.read_csv(
-        path_mane_summary, 
-        compression='gzip', 
-        sep="\t"
-        ).dropna(subset=["symbol", "HGNC_ID"])
+    mane_summary = pd.read_csv(path_mane_summary, compression='gzip', sep="\t")
     
     mane_summary = mane_summary.rename(columns={
         "symbol" : "Gene",
@@ -575,16 +586,10 @@ def get_mane_to_af_mapping(
         "Reverse_strand"
         ]]
     
-    mane_mapping = mane_to_af.merge(mane_summary, how="left", on="Refseq_prot").dropna()
+    mane_mapping = mane_summary.merge(mane_to_af, how="left", on="Refseq_prot")
     mane_mapping.Reverse_strand = mane_mapping.Reverse_strand.map({"+" : 0, "-" : 1})
     mane_mapping.Ens_Gene_ID = mane_mapping.Ens_Gene_ID.apply(lambda x: x.split(".")[0])
     mane_mapping.Ens_Transcr_ID = mane_mapping.Ens_Transcr_ID.apply(lambda x: x.split(".")[0])
-
-    # Select first Uniprot ID if multiple ones are present
-    mane_mapping["Uniprot_ID"] = mane_mapping.apply(lambda x:
-                                            select_uni_id(x.Uniprot_ID.split(";"), downloaded_uniprot_ids) if len(x.Uniprot_ID.split(";")) > 1
-                                            else x.Uniprot_ID, axis=1)
-    mane_mapping = mane_mapping.reset_index(drop=True)
 
     # Override Uniprot_ID with Ens_Prot_ID for the custom PDB structures
     if custom_mane_metadata_path is not None:
@@ -593,13 +598,35 @@ def get_mane_to_af_mapping(
         mask = base_ens.isin(custom_ids)
         mane_mapping.loc[mask, "Uniprot_ID"] = base_ens[mask]
 
+    # Select available Uniprot ID, fist one if multiple are present
+    mane_mapping = mane_mapping.dropna(subset=["Uniprot_ID"]).reset_index(drop=True)
+    mane_mapping = select_uni_id(mane_mapping, uniprot_ids)
+    mane_mapping = mane_mapping[mane_mapping["Uniprot_ID"].isin(uniprot_ids)]
+
     # Also return a dataframe with entries not in AF
     if include_not_af:
-        mane_not_af = mane[~mane.Gene.isin(mane_mapping.Gene)].reset_index(drop=True)
+        mane_not_af = mane_summary[~mane_summary.Gene.isin(mane_mapping.Gene)].reset_index(drop=True)
         return mane_mapping, mane_not_af
 
     else:
         return mane_mapping
+
+
+# def download_biomart_metadata(path_to_file, max_attempts=15, cores=8):
+#     """
+#         Query biomart to get the list of transcript corresponding to the downloaded
+#     structures (a few structures are missing) and other information.
+#     """
+
+#     url = 'http://jan2024.archive.ensembl.org/biomart/martservice?query=<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE Query><Query virtualSchemaName="default" formatter="TSV" header="0" uniqueRows="0" count="" datasetConfigVersion="0.6"><Dataset name="hsapiens_gene_ensembl" interface="default"><Attribute name="ensembl_gene_id"/><Attribute name="ensembl_transcript_id"/><Attribute name="transcript_is_canonical"/><Attribute name="external_gene_name"/><Attribute name="external_gene_source"/><Attribute name="hgnc_id"/><Attribute name="uniprot_gn_id"/><Attribute name="uniprotswissprot"/><Attribute name="external_synonym"/></Dataset></Query>'
+#     attempts = 0
+
+#     while not os.path.exists(path_to_file):
+#         download_single_file(url, path_to_file, threads=cores)
+#         attempts += 1
+#         if attempts >= max_attempts:
+#             raise RuntimeError(f"Failed to download MANE summary file after {max_attempts} attempts. Exiting..")
+#         time.sleep(5)
 
 
 def download_biomart_metadata(path_to_file):
@@ -607,10 +634,6 @@ def download_biomart_metadata(path_to_file):
     Query biomart to get the list of transcript corresponding to the downloaded
     structures (a few structures are missing) and other information.
     """
-
-    # command = f"""
-    # wget -O {path_to_file} 'http://jan2024.archive.ensembl.org/biomart/martservice?query=<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE Query><Query virtualSchemaName="default" formatter="TSV" header="0" uniqueRows="0" count="" datasetConfigVersion="0.6"><Dataset name="hsapiens_gene_ensembl" interface="default"><Attribute name="ensembl_gene_id"/><Attribute name="ensembl_transcript_id"/><Attribute name="transcript_is_canonical"/><Attribute name="external_gene_name"/><Attribute name="external_gene_source"/><Attribute name="hgnc_id"/><Attribute name="uniprot_gn_id"/><Attribute name="uniprotswissprot"/></Dataset></Query>'
-    # """
 
     command = f"""
     wget -O {path_to_file} 'http://jan2024.archive.ensembl.org/biomart/martservice?query=<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE Query><Query virtualSchemaName="default" formatter="TSV" header="0" uniqueRows="0" count="" datasetConfigVersion="0.6"><Dataset name="hsapiens_gene_ensembl" interface="default"><Attribute name="ensembl_gene_id"/><Attribute name="ensembl_transcript_id"/><Attribute name="transcript_is_canonical"/><Attribute name="external_gene_name"/><Attribute name="external_gene_source"/><Attribute name="hgnc_id"/><Attribute name="uniprot_gn_id"/><Attribute name="uniprotswissprot"/><Attribute name="external_synonym"/></Dataset></Query>'
@@ -625,29 +648,40 @@ def get_biomart_metadata(datasets_dir, uniprot_ids):
     HGNC IDs, Uniprot IDs, and other useful information.
     """
 
-    download_biomart_metadata(os.path.join(datasets_dir, "biomart_metadata.tsv"))
+    try:
+        path_biomart_metadata = os.path.join(datasets_dir, "biomart_metadata.tsv")
+        if not os.path.exists(path_biomart_metadata):
+            download_biomart_metadata(path_biomart_metadata)
 
-    # Parse
-    biomart_df = pd.read_csv(os.path.join(datasets_dir, "biomart_metadata.tsv"), sep="\t", header=None)
-    biomart_df.columns= ["Ens_Gene_ID", "Ens_Transcr_ID", "Ens_Canonical", "Gene", "Gene_source", "HGNC_ID", "Uniprot_ID", "UniprotKB_ID", "Gene_synonym"]
-    biomart_df = biomart_df.dropna(subset=["Uniprot_ID", "UniprotKB_ID"], how='all')
-    biomart_df = biomart_df[biomart_df["Gene_source"] == "HGNC Symbol"].drop(columns=["Gene_source"])
-    biomart_df.reset_index(inplace=True, drop=True)
+        # Parse
+        biomart_df = pd.read_csv(path_biomart_metadata, sep="\t", header=None, low_memory=False)
+        biomart_df.columns = ["Ens_Gene_ID", "Ens_Transcr_ID", "Ens_Canonical", "Gene", "Gene_source", "HGNC_ID", "Uniprot_ID", "UniprotKB_ID", "Gene_synonym"]
+        biomart_df = biomart_df.dropna(subset=["Uniprot_ID", "UniprotKB_ID"], how='all')
+        biomart_df = biomart_df[biomart_df["Gene_source"] == "HGNC Symbol"].drop(columns=["Gene_source"])
+        biomart_df.reset_index(inplace=True, drop=True)
 
-    # Filter
-    uniprot_ids = pd.Series(uniprot_ids)
-    uniprot_kb_ids = uniprot_ids[(uniprot_ids.isin(biomart_df.UniprotKB_ID))]
-    uniprot_notkb_ids = uniprot_ids[~(uniprot_ids.isin(biomart_df.UniprotKB_ID)) & (uniprot_ids.isin(biomart_df.Uniprot_ID))]
-    biomart_uniprotkb = biomart_df[biomart_df.UniprotKB_ID.isin(uniprot_kb_ids)].drop(
-        columns=["Uniprot_ID"]).rename(columns={"UniprotKB_ID" : "Uniprot_ID"}).drop_duplicates()
-    biomart_uniprot = biomart_df[biomart_df.Uniprot_ID.isin(uniprot_notkb_ids)].drop(columns=["UniprotKB_ID"]).drop_duplicates()
-    biomart_df = pd.concat((biomart_uniprotkb, biomart_uniprot)).reset_index(drop=True)
+        # Filter
+        uniprot_ids = pd.Series(uniprot_ids)
+        uniprot_kb_ids = uniprot_ids[(uniprot_ids.isin(biomart_df.UniprotKB_ID))]
+        uniprot_notkb_ids = uniprot_ids[~(uniprot_ids.isin(biomart_df.UniprotKB_ID)) & (uniprot_ids.isin(biomart_df.Uniprot_ID))]
+        biomart_uniprotkb = biomart_df[biomart_df.UniprotKB_ID.isin(uniprot_kb_ids)].drop(
+            columns=["Uniprot_ID"]).rename(columns={"UniprotKB_ID" : "Uniprot_ID"}).drop_duplicates()
+        biomart_uniprot = biomart_df[biomart_df.Uniprot_ID.isin(uniprot_notkb_ids)].drop(columns=["UniprotKB_ID"]).drop_duplicates()
+        biomart_df = pd.concat((biomart_uniprotkb, biomart_uniprot)).reset_index(drop=True)
 
-    # Output
-    biomart_df.to_csv(os.path.join(datasets_dir, "biomart_metadata.tsv"), sep="\t", index=False)
-    ens_canonical_transcripts = biomart_df.Ens_Transcr_ID[biomart_df["Ens_Canonical"] == 1].unique()
+        # Output
+        biomart_df.to_csv(path_biomart_metadata, sep="\t", index=False)
+        canonical_transcripts = biomart_df.Ens_Transcr_ID[biomart_df["Ens_Canonical"] == 1].unique()
 
-    return ens_canonical_transcripts
+    except Exception as e:
+        logger.warning(
+            "Metadata from BioMart could not be downloaded; transcript IDs will not be prioritized by canonical.  Error was: %s",
+            e,
+            exc_info=True
+        )
+        canonical_transcripts = []
+
+    return canonical_transcripts
 
 
 def get_ref_dna_from_ensembl(transcript_id):
@@ -740,6 +774,45 @@ def drop_gene_duplicates(df):
     return df
 
 
+# def mane_ensprot_to_hugo(
+#     ens_prot_ids,
+#     datasets_dir,
+#     prot_col='Ensembl_prot',
+#     hugo_col='symbol',
+#     strip_version=True
+#     ):
+#     """
+#     Generate a mapping from Ensembl protein IDs to gene symbols.
+#     """
+    
+#     # Load MANE summary
+#     path_mane_summary = os.path.join(datasets_dir, "mane_summary.txt.gz")
+#     if not os.path.exists(path_mane_summary):
+#         download_mane_summary(path_mane_summary, mane_version)
+#     mane_summary = pd.read_csv(path_mane_summary, compression='gzip', sep="\t").dropna(
+#         subset=["symbol", prot_col]
+#         )
+    
+#     # Remove suffix
+#     if strip_version:
+#         mane_summary[prot_col] = mane_summary[prot_col].str.replace(r'\.\d+$', '', regex=True)
+
+#     # Filter and select only the two columns we need
+#     sel = mane_summary.loc[mane_summary[prot_col].isin(ens_prot_ids),[prot_col, hugo_col]]
+
+#     return dict(zip(sel[prot_col], sel[hugo_col]))
+
+
+def mane_uniprot_to_hugo(uniprot_ids, mane_mapping):
+    """
+    Generate a mapping from Uniprot IDs to Hugo Symbols for MANE 
+    transcripts associated structures.
+    """
+    
+    sel = mane_mapping.loc[mane_mapping["Uniprot_ID"].isin(uniprot_ids),["Uniprot_ID", "Gene"]]
+    return dict(zip(sel["Uniprot_ID"], sel["Gene"]))
+
+
 def process_seq_df(seq_df,
                    datasets_dir,
                    organism,
@@ -808,6 +881,8 @@ def process_seq_df(seq_df,
 def process_seq_df_mane(seq_df,
                         datasets_dir,
                         uniprot_to_gene_dict,
+                        mane_mapping,
+                        mane_mapping_not_af,
                         ens_canonical_transcripts_lst,
                         custom_mane_metadata_path=None,
                         num_cores=1,
@@ -823,13 +898,6 @@ def process_seq_df_mane(seq_df,
         -1 : Not available transcripts, seq DNA retrieved from Backtranseq API
     """
 
-    mane_mapping, mane_mapping_not_af = get_mane_to_af_mapping(
-        datasets_dir,
-        seq_df["Uniprot_ID"].unique(),
-        include_not_af=True,
-        mane_version=mane_version,
-        custom_mane_metadata_path=custom_mane_metadata_path
-        )
     seq_df_mane = seq_df[seq_df.Uniprot_ID.isin(mane_mapping.Uniprot_ID)].reset_index(drop=True)
     seq_df_nomane = seq_df[~seq_df.Uniprot_ID.isin(mane_mapping.Uniprot_ID)].reset_index(drop=True)
 
@@ -848,8 +916,13 @@ def process_seq_df_mane(seq_df,
         seq_df_mane_failed = seq_df_mane[failed_ix]
         seq_df_mane = seq_df_mane[~failed_ix]
         seq_df_mane_failed = seq_df_mane_failed.drop(columns=[
-            "Ens_Gene_ID", "Ens_Transcr_ID", "Reverse_strand",
-            "Chr", "Refseq_prot", "Reference_info", "Seq_dna"
+            "Ens_Gene_ID",  
+            "Ens_Transcr_ID", 
+            "Reverse_strand",
+            "Chr", 
+            "Refseq_prot", 
+            "Reference_info", 
+            "Seq_dna"
             ])
         seq_df_nomane = pd.concat((seq_df_nomane, seq_df_mane_failed))
 
@@ -917,7 +990,28 @@ def get_seq_df(datasets_dir,
     uniprot_ids = os.listdir(pdb_dir)
     uniprot_ids = [uni_id.split("-")[1] for uni_id in list(set(uniprot_ids)) if ".pdb" in uni_id]
     logger.debug("Retrieving Uniprot ID to HUGO symbol mapping information..")
-    uniprot_to_gene_dict = uniprot_to_hugo(uniprot_ids)
+    
+    if mane:
+        mane_mapping, mane_mapping_not_af = get_mane_to_af_mapping(
+            datasets_dir,
+            uniprot_ids,
+            include_not_af=True,
+            mane_version=mane_version,
+            custom_mane_metadata_path=custom_mane_metadata_path,
+            cores=num_cores
+            )
+        
+        uniprot_to_gene_dict = dict(zip(mane_mapping["Uniprot_ID"], mane_mapping["Gene"]))
+        missing_uni_ids = list(set(uniprot_ids) - set(mane_mapping.Uniprot_ID))
+        uniprot_to_gene_dict = uniprot_to_gene_dict | uniprot_to_hugo(missing_uni_ids)
+    else:
+        uniprot_to_gene_dict = uniprot_to_hugo(uniprot_ids)
+    
+    # # Check for Ensembl Protein IDs (custom predicted structures)
+    # ens_prot_ids = [uni_id for uni_id in uniprot_ids if uni_id.startswith("ENSP")]
+    # if ens_prot_ids:
+    #     ensprot_to_gene_dict = mane_ensprot_to_hugo(ens_prot_ids, datasets_dir)
+    #     uniprot_to_gene_dict = uniprot_to_gene_dict | ensprot_to_gene_dict
     
     # ---
     # # Workaround if the direct request to UniprotKB stops working (it has happened temporarily)
@@ -938,6 +1032,8 @@ def get_seq_df(datasets_dir,
         seq_df = process_seq_df_mane(seq_df,
                                     datasets_dir,
                                     uniprot_to_gene_dict,
+                                    mane_mapping, 
+                                    mane_mapping_not_af,
                                     ens_canonical_transcripts_lst,
                                     custom_mane_metadata_path,
                                     num_cores,
@@ -966,10 +1062,13 @@ def get_seq_df(datasets_dir,
 
 
 if __name__ == "__main__":
-    DATASETS_DIR = 'oncodrive3d_pipeline/datasets_mane_260723_mane_missing'
-    get_seq_df(datasets_dir=DATASETS_DIR,
-                output_seq_df=os.path.join(DATASETS_DIR, "seq_for_mut_prob.tsv"),
-                organism="Homo sapiens",
-                mane=True,
-                num_cores=8,
-                mane_version=1.4)
+    output_datasets = '/data/bbg/nobackup/scratch/oncodrive3d/tests/datasets_mane_240725_mane_missing_dev'
+    get_seq_df(
+    datasets_dir=output_datasets,
+    output_seq_df=os.path.join(output_datasets, "seq_for_mut_prob.tsv"),
+    organism='Homo sapiens',
+    mane=True,
+    num_cores=8,
+    mane_version=1.4,
+    custom_mane_metadata_path="/data/bbg/nobackup/scratch/oncodrive3d/mane_missing/data/250724-no_fragments/af_predictions/previously_pred/samplesheet.csv"
+    )
