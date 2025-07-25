@@ -2,17 +2,12 @@
 Module to generate a pandas dataframe including identifiers 
 mapped to protein and DNA sequences.
 
-The functions are used to extract all protein sequences of 
-PDB structures in a given directory; use EMBOSS backtranseq 
-to back translate proteins sequences into DNA; generate a 
-dataframe including HUGO symbol, Uniprot_ID, protein, and 
-DNA sequences. This dataframe is required to get the 
-probability of each residue to mutate (missense mutation) 
-based on the mutation profile (mutation rate in 96 
-trinucleotide contexts) of the cohort. The per-residue 
-missense mutation probability of each protein is then used 
-to get the probability of a certain volume to be hit by a 
-missense mutation.
+This dataframe is required to get the probability of each 
+residue to mutate (missense mutation) based on the mutation 
+profile (mutation rate in 96 trinucleotide contexts) of the 
+cohort. The per-residue missense mutation probability of 
+each protein is then used to get the probability of a 
+certain volume to be hit by a missense mutation.
 """
 
 
@@ -774,35 +769,6 @@ def drop_gene_duplicates(df):
     return df
 
 
-# def mane_ensprot_to_hugo(
-#     ens_prot_ids,
-#     datasets_dir,
-#     prot_col='Ensembl_prot',
-#     hugo_col='symbol',
-#     strip_version=True
-#     ):
-#     """
-#     Generate a mapping from Ensembl protein IDs to gene symbols.
-#     """
-    
-#     # Load MANE summary
-#     path_mane_summary = os.path.join(datasets_dir, "mane_summary.txt.gz")
-#     if not os.path.exists(path_mane_summary):
-#         download_mane_summary(path_mane_summary, mane_version)
-#     mane_summary = pd.read_csv(path_mane_summary, compression='gzip', sep="\t").dropna(
-#         subset=["symbol", prot_col]
-#         )
-    
-#     # Remove suffix
-#     if strip_version:
-#         mane_summary[prot_col] = mane_summary[prot_col].str.replace(r'\.\d+$', '', regex=True)
-
-#     # Filter and select only the two columns we need
-#     sel = mane_summary.loc[mane_summary[prot_col].isin(ens_prot_ids),[prot_col, hugo_col]]
-
-#     return dict(zip(sel[prot_col], sel[hugo_col]))
-
-
 def mane_uniprot_to_hugo(uniprot_ids, mane_mapping):
     """
     Generate a mapping from Uniprot IDs to Hugo Symbols for MANE 
@@ -1006,12 +972,6 @@ def get_seq_df(datasets_dir,
         uniprot_to_gene_dict = uniprot_to_gene_dict | uniprot_to_hugo(missing_uni_ids)
     else:
         uniprot_to_gene_dict = uniprot_to_hugo(uniprot_ids)
-    
-    # # Check for Ensembl Protein IDs (custom predicted structures)
-    # ens_prot_ids = [uni_id for uni_id in uniprot_ids if uni_id.startswith("ENSP")]
-    # if ens_prot_ids:
-    #     ensprot_to_gene_dict = mane_ensprot_to_hugo(ens_prot_ids, datasets_dir)
-    #     uniprot_to_gene_dict = uniprot_to_gene_dict | ensprot_to_gene_dict
     
     # ---
     # # Workaround if the direct request to UniprotKB stops working (it has happened temporarily)
