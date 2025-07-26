@@ -1005,9 +1005,7 @@ def get_seq_df(datasets_dir,
                                 uniprot_to_gene_dict,
                                 ens_canonical_transcripts_lst,
                                 num_cores,
-                                rm_weird_chr,
                                 mane_version=mane_version)
-
 
     # Save
     seq_df_cols = ['Gene', 'HGNC_ID', 'Ens_Gene_ID',
