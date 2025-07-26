@@ -43,7 +43,7 @@ def build(output_datasets,
           mane,
           mane_only,
           custom_pdb_dir,
-          custom_fasta_dir,
+          custom_mane_metadata_path,
           distance_threshold,
           num_cores,
           af_version,
@@ -57,9 +57,7 @@ def build(output_datasets,
 
     # Download PDB structures
     species = get_species(organism)
-    if mane_only:
-      mane = True
-    else:
+    if not mane_only:
       logger.info("Downloading AlphaFold (AF) predicted structures...")
       get_structures(
         path=os.path.join(output_datasets,"pdb_structures"),
@@ -87,13 +85,21 @@ def build(output_datasets,
         
     # Copy custom PDB structures and optinally add SEQRES
     if custom_pdb_dir is not None:
+      if custom_mane_metadata_path is None:
+        logger.error(
+          "custom_mane_metadata_path must be provided when custom_pdb_dir is specified"
+          )
+        raise ValueError(
+          "Both custom_pdb_dir and custom_mane_metadata_path must be provided together"
+          )
+      
       logger.info("Copying custom PDB structures...")
       if os.path.exists(custom_pdb_dir):
         copy_and_parse_custom_pdbs(
           src_dir=custom_pdb_dir,
           dst_dir=os.path.join(output_datasets,"pdb_structures"), 
           af_version=int(af_version),
-          fasta_dir=custom_fasta_dir
+          custom_mane_metadata_path=custom_mane_metadata_path
           )
       else:
           logger.error(f"Custom PDB directory does not exist: {custom_pdb_dir}")
@@ -107,7 +113,8 @@ def build(output_datasets,
       organism=species,
       mane=mane,
       num_cores=num_cores,
-      mane_version=mane_version
+      mane_version=mane_version,
+      custom_mane_metadata_path=custom_mane_metadata_path
       )
     logger.info("Generation of sequences dataframe completed!")
 
@@ -153,11 +160,14 @@ def build(output_datasets,
 
 if __name__ == "__main__":
     build(
-      output_datasets="/workspace/nobackup/scratch/oncodrive3d/datasets_mane",
+      output_datasets="/data/bbg/nobackup/scratch/oncodrive3d/tests/datasets_mane_250725_mane_missing_dev",
       organism="Homo sapiens",
-      mane=True,
+      mane=False,
+      mane_only=True,
+      custom_pdb_dir="/data/bbg/nobackup/scratch/oncodrive3d/mane_missing/data/250724-no_fragments/af_predictions/previously_pred",
+      custom_mane_metadata_path="/data/bbg/nobackup/scratch/oncodrive3d/mane_missing/data/250724-no_fragments/af_predictions/previously_pred/samplesheet.csv",
       distance_threshold=10,
       num_cores=8,
       af_version=4,
-      mane_version=1.3
+      mane_version=1.4
       )

@@ -80,13 +80,13 @@ def get_pae(
         logger.debug("PAE already downloaded: Skipping...")
         return
     
-    # Do not download PAE of custom provided structures
-    if custom_pdb_dir is not None:
-        custom_uniprot_ids = [fname.split('.')[0] for fname in os.listdir(custom_pdb_dir) if fname.endswith('.pdb')]
-
     pdb_files = [file for file in os.listdir(input_dir) if file.startswith("AF-") and file.endswith(f"-model_v{af_version}.pdb.gz")]
     uniprot_ids = [pdb_file.split("-")[1] for pdb_file in pdb_files]
-    uniprot_ids = [uni_id for uni_id in uniprot_ids if uni_id not in custom_uniprot_ids]
+    
+    # Do not download PAE for custom provided structures
+    if custom_pdb_dir is not None:
+        custom_uniprot_ids = [fname.split('.')[0] for fname in os.listdir(custom_pdb_dir) if fname.endswith('.pdb')]
+        uniprot_ids = [uni_id for uni_id in uniprot_ids if uni_id not in custom_uniprot_ids]
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=num_cores) as executor:
         tasks = [executor.submit(download_pae, uniprot_id, af_version, output_dir) for uniprot_id in uniprot_ids]
