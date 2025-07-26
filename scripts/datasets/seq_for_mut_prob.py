@@ -557,7 +557,7 @@ def get_mane_to_af_mapping(
                                             "uniprot_accession" : "Uniprot_ID"}).drop(columns=["alphafold"])
     path_mane_summary = os.path.join(datasets_dir, "mane_summary.txt.gz")
     if not os.path.exists(path_mane_summary):
-        download_mane_summary(path_mane_summary, mane_version, cores)
+        download_mane_summary(path_mane_summary, mane_version, cores=cores)
 
     mane_summary = pd.read_csv(path_mane_summary, compression='gzip', sep="\t")
     
