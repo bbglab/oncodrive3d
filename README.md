@@ -86,7 +86,10 @@ Options:
                                   (applicable to Homo sapiens only).
   -M, --mane_only                 Use only structures predicted from MANE Select transcripts
                                   (applicable to Homo sapiens only).
-  -C, --custom_pdb_dir            Load custom structures from directory (overwriting existing ones).
+  -C, --custom_mane_pdb_dir       Path to directory containing custom MANE PDB structures.
+                                  Default: None
+  -f, --custom_mane_metadata_path Path to a dataframe (typically a samplesheet.csv) including 
+                                  Ensembl IDs and sequences of the custom pdbs.
   -d, --distance_threshold INT    Distance threshold (Å) for defining residues contacts. 
                                   Default: 10
   -c, --cores INT                 Number of CPU cores for computation. 
@@ -96,6 +99,25 @@ Options:
 ```
 
 For more information on the output of this step, please refer to the [Building Datasets Output Documentation](https://github.com/bbglab/oncodrive3d/tree/master/docs/build_output.md).
+
+> [!TIP]
+> ### Increasing MANE Structural Coverage
+> To maximize structural coverage of **MANE Select transcripts**, you can predict missing structures locally and integrate them into Oncodrive3D using:
+>
+> - `tools/preprocessing/prepare_samplesheet.py`: a standalone utility that:
+>   - Retrieve the full MANE entries from NCBI.
+>   - Identifies proteins missing from the AlphaFold MANE dataset.
+>   - Generates:
+>     - A `samplesheet.csv` with Ensembl protein IDs, FASTA paths, and optional sequences.
+>     - Individual FASTA files for each missing protein.
+>
+> - `--custom_mane_pdb_dir`: use this to provide your own predicted PDB structures (e.g., from [nf-core/proteinfold](https://nf-co.re/proteinfold/1.0.0/)).
+>
+> - `--custom_mane_metadata_path`: path to the corresponding `samplesheet.csv`, which must include:
+>   - `sequence`: Ensembl protein ID (required)
+>   - `refseq`: amino acid sequence (used to inject sequence into PDB if missing)
+>
+
 
 
 ## Running 3D clustering Analysis
