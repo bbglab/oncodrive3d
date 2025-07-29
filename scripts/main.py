@@ -42,11 +42,11 @@ def oncodrive3D():
               help="Use structures predicted from MANE Select transcripts (Homo sapiens only)", is_flag=True)
 @click.option("-M", "--mane_only", 
               help="Use only structures predicted from MANE Select transcripts", is_flag=True)
-@click.option("-C", "--custom_pdb_dir", 
-              help="Directory where to load custom PDB structures (overwriting existing ones)")
-@click.option("-f", "--custom_fasta_dir", 
-              help="Directory where to extract sequence info from FASTA and add it as SEQRES to the custom PDB structures")
-@click.option("-j", "--mane_version", default=1.3, 
+@click.option("-C", "--custom_mane_pdb_dir", 
+              help="Directory where to load custom MANE PDB structures (overwriting existing ones)")
+@click.option("-f", "--custom_mane_metadata_path", 
+              help="Path to a dataframe including the Ensembl Protein ID and the amino acid sequence of the custom MANE PDB structures")
+@click.option("-j", "--mane_version", default=1.4, 
               help="Version of the MANE Select release from NCBI")
 @click.option("-d", "--distance_threshold", type=click.INT, default=10,
               help="Distance threshold (Å) to define contact between amino acids")
@@ -63,8 +63,8 @@ def build_datasets(output_dir,
                    organism,
                    mane,
                    mane_only,
-                   custom_pdb_dir,
-                   custom_fasta_dir,
+                   custom_mane_pdb_dir,
+                   custom_mane_metadata_path,
                    distance_threshold,
                    cores, 
                    af_version,
@@ -76,14 +76,16 @@ def build_datasets(output_dir,
     from scripts.datasets.build_datasets import build
     
     startup_message(__version__, "Initializing building datasets..")
-
+    if mane_only:
+        mane = True
+    
     logger.info(f"Current working directory: {os.getcwd()}")
     logger.info(f"Build folder path: {output_dir}")
     logger.info(f"Organism: {organism}")
     logger.info(f"MANE Select: {mane}")
     logger.info(f"MANE Select only: {mane_only}")
-    logger.info(f"Custom PDB directory: {custom_pdb_dir}")
-    logger.info(f"Custom FASTA directory: {custom_fasta_dir}")
+    logger.info(f"Custom MANE PDB directory: {custom_mane_pdb_dir}")
+    logger.info(f"Custom MANE PDB metadata path: {custom_mane_metadata_path}")
     logger.info(f"Distance threshold: {distance_threshold}Å")
     logger.info(f"CPU cores: {cores}")
     logger.info(f"AlphaFold version: {af_version}")
@@ -92,16 +94,18 @@ def build_datasets(output_dir,
     logger.info(f'Log path: {os.path.join(output_dir, "log")}')
     logger.info("")
     
-    build(output_dir,
-          organism,
-          mane,
-          mane_only,
-          custom_pdb_dir,
-          custom_fasta_dir,
-          distance_threshold,
-          cores,
-          af_version,
-          mane_version)
+    build(
+        output_dir,
+        organism,
+        mane,
+        mane_only,
+        custom_mane_pdb_dir,
+        custom_mane_metadata_path,
+        distance_threshold,
+        cores,
+        af_version,
+        mane_version
+        )
 
 
 

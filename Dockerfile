@@ -19,7 +19,7 @@ RUN mkdir -p /root/.cache/uv \
     && uv build
 
 # Second stage: Runtime image
-FROM python:3.10-buster AS runtime-stage
+FROM python:3.10.18-bookworm AS runtime-stage
 
 # Set environment variables
 ENV BGDATA_LOCAL="/bgdatacache" \
