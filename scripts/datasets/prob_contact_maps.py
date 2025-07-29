@@ -206,7 +206,7 @@ def get_prob_cmaps(pdb_files, pae_path, output_path, distance=10, num_process=0)
                     prob_cmap = get_prob_cmap(chain, pae, distance=distance)
                     np.save(os.path.join(output_path, f"{identifier}.npy"), prob_cmap)
                 else:
-                    logger.warning(f"Processing cMAP without PAE for {identifier}")
+                    logger.debug(f"Processing cMAP without PAE for {identifier}")
                     cmap = get_contact_map(chain, distance=distance)
                     np.save(os.path.join(output_path, f"{identifier}.npy"), cmap)
             except Exception as e:
