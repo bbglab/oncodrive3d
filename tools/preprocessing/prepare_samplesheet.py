@@ -175,7 +175,7 @@ class ManeSamplesheetBuilder:
         # Save
         sheet = self._add_refseq(sheet)
         sheet.to_csv(self.samplesheet_path, index=False)
-        print(f"Wrote samplesheet to {self.samplesheet_path!r}")
+        print(f"Wrote samplesheet to {self.samplesheet_path}")
         
         return sheet
 
@@ -222,13 +222,13 @@ def main(datasets_dir, output_dir, mane_version, no_fragments, cores):
     # Log the parameters
     print("Running with parameters:")
     for name, val in {
-        "datasets_dir": datasets_dir,
-        "output_dir": output_dir,
-        "mane_version": mane_version,
-        "no_fragments": no_fragments,
-        "cores": cores
+        "datasets_dir   ": datasets_dir,
+        "output_dir     ": output_dir,
+        "mane_version   ": mane_version,
+        "no_fragments   ": no_fragments,
+        "cores          ": cores
         }.items():
-        print("  %s = %r", name, val)
+        print(f"{name} = {val}")
 
     builder = ManeSamplesheetBuilder(
         datasets_dir=datasets_dir,
@@ -236,24 +236,17 @@ def main(datasets_dir, output_dir, mane_version, no_fragments, cores):
         mane_version=mane_version,
         no_fragments=no_fragments
     )
-    builder = ManeSamplesheetBuilder(
-        datasets_dir=args.datasets_dir,
-        output_dir=args.output_dir,
-        mane_version=args.mane_version,
-        no_fragments=args.no_fragments,
-        cores=cores
-    )
     builder.build()
     
 
 if __name__ == "__main__":
-    # main()
+    main()
     
-    # For debugging
-    builder = ManeSamplesheetBuilder(
-        datasets_dir="/data/bbg/nobackup/scratch/oncodrive3d/datasets_mane_240506/",
-        output_dir="/data/bbg/nobackup/scratch/oncodrive3d/mane_missing/data/250724-no_fragments",
-        cores=len(os.sched_getaffinity(0)),
-        no_fragments=True
-        )
-    builder.build()
+    # # For debugging
+    # builder = ManeSamplesheetBuilder(
+    #     datasets_dir="/data/bbg/nobackup/scratch/oncodrive3d/datasets_mane_240506/",
+    #     output_dir="/data/bbg/nobackup/scratch/oncodrive3d/mane_missing/data/250728-all_proteins",
+    #     cores=len(os.sched_getaffinity(0)),
+    #     no_fragments=True
+    #     )
+    # builder.build()
