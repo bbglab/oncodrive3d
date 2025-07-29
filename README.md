@@ -112,7 +112,7 @@ For more information on the output of this step, please refer to the [Building D
 >     - A `samplesheet.csv` with Ensembl protein IDs, FASTA paths, and optional sequences.
 >     - Individual FASTA files for each missing protein.
 >
-> - `--custom_mane_pdb_dir`: use this to provide your own predicted PDB structures (e.g., from [nf-core/proteinfold](https://nf-co.re/proteinfold/1.0.0/)).
+> - `--custom_mane_pdb_dir`: use this to provide your own predicted PDB structures (e.g., from [nf-core/proteinfold](https://nf-co.re/proteinfold/1.1.1/)).
 >
 > - `--custom_mane_metadata_path`: path to the corresponding `samplesheet.csv`, which must include:
 >   - `sequence`: Ensembl protein ID (required)
