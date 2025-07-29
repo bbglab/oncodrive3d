@@ -138,7 +138,7 @@ def copy_and_parse_custom_pdbs(
                     if not pd.isna(seq):
                         logger.debug(f"SEQRES record already present in the structure: {new_name}")
                     else:
-                        logger.warning(f"SEQRES record not in samplesheet and could not extract it from the structure: {new_name}")
+                        logger.warning(f"SEQRES not found in samplesheet and its extraction from structure failed: {new_name}")
                 except Exception as e:
-                    logger.warning(f"SEQRES record not in samplesheet and could not extract it from the structure: {new_name}")
+                    logger.warning(f"SEQRES not found in samplesheet and its extraction from structure failed: {new_name}")
                     logger.warning(f"Exception captured: {e}")
