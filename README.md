@@ -90,6 +90,7 @@ Options:
                                   Default: None
   -f, --custom_mane_metadata_path Path to a dataframe (typically a samplesheet.csv) including 
                                   Ensembl IDs and sequences of the custom pdbs.
+                                  Default: None
   -d, --distance_threshold INT    Distance threshold (Å) for defining residues contacts. 
                                   Default: 10
   -c, --cores INT                 Number of CPU cores for computation. 
