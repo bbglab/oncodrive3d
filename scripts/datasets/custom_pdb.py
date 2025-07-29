@@ -126,6 +126,15 @@ def copy_and_parse_custom_pdbs(
                 logger.warning("Accession %s not in samplesheet %s", accession, custom_mane_metadata_path)
                 continue
             seq = samplesheet_df[samplesheet_df["sequence"] == accession].refseq.values[0]
-            seq = [one_to_three_res_map[aa] for aa in seq]
-            add_seqres_to_pdb(dst_path, seq)
-            logger.debug("Inserted SEQRES records into: %s", dst_path)
+            
+            if not np.isnan(seq):
+                seq = [one_to_three_res_map[aa] for aa in seq]
+                add_seqres_to_pdb(path_pdb=dst_path, residues=seq)
+                logger.debug("Inserted SEQRES records into: %s", dst_path)
+            else:
+                try:
+                    seq = "".join(list(get_seq_from_pdb(dst_path)))
+                    logger.debug("SEQRES record already present in the structure: %s", dst_path)
+                except Exception as e:
+                    logger.warning("SEQRES record not in samplesheet and not already in the structure")
+                    logger.warning(f"Exception captured: {e}")
