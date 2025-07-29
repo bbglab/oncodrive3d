@@ -3,6 +3,7 @@ import gzip
 import shutil
 import daiquiri
 import pandas as pd
+from scripts.datasets.utils import get_seq_from_pdb
 
 from scripts import __logger_name__
 
@@ -127,14 +128,17 @@ def copy_and_parse_custom_pdbs(
                 continue
             seq = samplesheet_df[samplesheet_df["sequence"] == accession].refseq.values[0]
             
-            if not np.isnan(seq):
+            if not pd.isna(seq):
                 seq = [one_to_three_res_map[aa] for aa in seq]
                 add_seqres_to_pdb(path_pdb=dst_path, residues=seq)
-                logger.debug("Inserted SEQRES records into: %s", dst_path)
+                logger.debug(f"Inserted SEQRES records into: {new_name}")
             else:
                 try:
                     seq = "".join(list(get_seq_from_pdb(dst_path)))
-                    logger.debug("SEQRES record already present in the structure: %s", dst_path)
+                    if not pd.isna(seq):
+                        logger.debug(f"SEQRES record already present in the structure: {new_name}")
+                    else:
+                        logger.warning(f"SEQRES record not in samplesheet and could not extract it from the structure: {new_name}")
                 except Exception as e:
-                    logger.warning("SEQRES record not in samplesheet and not already in the structure")
+                    logger.warning(f"SEQRES record not in samplesheet and could not extract it from the structure: {new_name}")
                     logger.warning(f"Exception captured: {e}")
