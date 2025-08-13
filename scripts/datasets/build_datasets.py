@@ -160,12 +160,12 @@ def build(output_datasets,
 
 if __name__ == "__main__":
     build(
-      output_datasets="/data/bbg/nobackup/scratch/oncodrive3d/tests/datasets_mane_250725_mane_missing_dev",
+      output_datasets="/data/bbg/nobackup/scratch/oncodrive3d/mane_missing/oncodrive3d/datasets/datasets-mane_only-mane_custom-250729",
       organism="Homo sapiens",
       mane=False,
       mane_only=True,
-      custom_pdb_dir="/data/bbg/nobackup/scratch/oncodrive3d/mane_missing/data/250724-no_fragments/af_predictions/previously_pred",
-      custom_mane_metadata_path="/data/bbg/nobackup/scratch/oncodrive3d/mane_missing/data/250724-no_fragments/af_predictions/previously_pred/samplesheet.csv",
+      custom_pdb_dir="/data/bbg/nobackup/scratch/oncodrive3d/mane_missing/data/250724-no_fragments/all_pdbs-pred_and_retrieved/pdbs",
+      custom_mane_metadata_path="/data/bbg/nobackup/scratch/oncodrive3d/mane_missing/data/250724-no_fragments/all_pdbs-pred_and_retrieved/samplesheet.csv",
       distance_threshold=10,
       num_cores=8,
       af_version=4,

@@ -145,7 +145,7 @@ class ManeSamplesheetBuilder:
         self.fasta_dir.mkdir(exist_ok=True, parents=True)
 
         if self.no_fragments:
-            df = df[df["length"] < 2400].reset_index(drop=True)
+            df = df[df["length"] <= 2700].reset_index(drop=True)
 
         # Build fasta paths and write files
         fasta_paths = []
