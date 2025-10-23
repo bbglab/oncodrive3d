@@ -297,4 +297,4 @@ Oncodrive3D is available to the general public subject to certain conditions des
 
 
 ## Citation 
-If you use Oncodrive3D in your research, please cite the original paper: [Oncodrive3D: Fast and accurate detection of structural clusters of somatic mutations under positive selection](https://www.biorxiv.org/content/10.1101/2025.01.11.632354v3).
+If you use Oncodrive3D in your research, please cite the original paper: [Oncodrive3D: fast and accurate detection of structural clusters of somatic mutations under positive selection](https://academic.oup.com/nar/article/53/15/gkaf776/8234003).
