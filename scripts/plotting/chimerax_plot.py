@@ -181,10 +181,9 @@ def generate_chimerax_plot(output_dir,
                              "Logscore_obs_sim"]], on="Pos", how="left")
 
             uni_id, f = seq_df[seq_df["Gene"] == gene][["Uniprot_ID", "F"]].values[0]
-            pdb_path = os.path.join(datasets_dir, "pdb_structures", f"AF-{uni_id}-F{f}-model_v{af_version}.pdb")
-            if not os.path.exists(pdb_path):
-                pdb_gz_path = f"{pdb_path}.gz"
-                pdb_path = pdb_gz_path if os.path.exists(pdb_gz_path) else pdb_path
+            pdb_path_base = os.path.join(datasets_dir, "pdb_structures", f"AF-{uni_id}-F{f}-model_v{af_version}.pdb")
+            pdb_candidates = [pdb_path_base, f"{pdb_path_base}.gz"]
+            pdb_path = next((candidate for candidate in pdb_candidates if os.path.exists(candidate)), None)
             
             labels = {"mutres" : "Mutations in residue ", 
                       "mutvol" : "Mutations in volume ",
@@ -200,7 +199,7 @@ def generate_chimerax_plot(output_dir,
                     logger.debug(f"Fragmented protein processing {fragmented_proteins}: Skipping {gene} ({uni_id}-F{f})..")
                     continue
                 
-            if os.path.exists(pdb_path):
+            if pdb_path:
                 
                 for attribute in ["mutres", "mutvol", "score", "logscore"]:
                     
@@ -252,6 +251,6 @@ def generate_chimerax_plot(output_dir,
                         logger.debug(chimerax_command)
                         
             else:
-                logger.warning(f"PDB path missing: {pdb_path}")
+                logger.warning(f"Structure not found for {uni_id}-F{f} (AlphaFold v{af_version}). Tried: {', '.join(pdb_candidates)}")
     else:
         logger.info("Nothing to plot!")
