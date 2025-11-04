@@ -142,7 +142,8 @@ def generate_chimerax_plot(output_dir,
                             cluster_ext,
                             fragmented_proteins,
                             transparent_bg,
-                            chimerax_bin):
+                            chimerax_bin,
+                            af_version):
 
     seq_df = pd.read_csv(seq_df_path, sep="\t")
     gene_result = pd.read_csv(gene_result_path)
@@ -180,7 +181,10 @@ def generate_chimerax_plot(output_dir,
                              "Logscore_obs_sim"]], on="Pos", how="left")
 
             uni_id, f = seq_df[seq_df["Gene"] == gene][["Uniprot_ID", "F"]].values[0]
-            pdb_path = os.path.join(datasets_dir, "pdb_structures", f"AF-{uni_id}-F{f}-model_v4.pdb")
+            pdb_path = os.path.join(datasets_dir, "pdb_structures", f"AF-{uni_id}-F{f}-model_v{af_version}.pdb")
+            if not os.path.exists(pdb_path):
+                pdb_gz_path = f"{pdb_path}.gz"
+                pdb_path = pdb_gz_path if os.path.exists(pdb_gz_path) else pdb_path
             
             labels = {"mutres" : "Mutations in residue ", 
                       "mutvol" : "Mutations in volume ",
