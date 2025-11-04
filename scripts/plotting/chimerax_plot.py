@@ -251,6 +251,7 @@ def generate_chimerax_plot(output_dir,
                         logger.debug(chimerax_command)
                         
             else:
-                logger.warning(f"Structure not found for {uni_id}-F{f} (AlphaFold v{af_version}). Tried: {', '.join(pdb_candidates)}")
+                tried_files = ', '.join(os.path.basename(path) for path in pdb_candidates)
+                logger.warning(f"Structure not found for {uni_id}-F{f} (AlphaFold v{af_version}). Tried: {tried_files}")
     else:
         logger.info("Nothing to plot!")
