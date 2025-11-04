@@ -66,6 +66,8 @@ def get_structures(path: str,
     # Select proteome
     if mane:
         if species == "Homo sapiens":
+            if str(af_version) not in {"3", "4"}:
+                raise RuntimeError("AlphaFold MANE overlaps are available only for versions 3 or 4. Please set --af_version to 3 or 4 when using --mane/--mane_only.")
             proteome = f"mane_overlap_v{af_version}"
         else:
             raise RuntimeError("Structures with MANE transcripts overlap are available only for 'Homo sapiens'. Exiting...")
@@ -78,7 +80,7 @@ def get_structures(path: str,
             raise RuntimeError(f"Failed to recognize '{species}' as organism. Currently accepted ones are 'Homo sapiens' and 'Mus musculus'. Exiting...")
 
     logger.debug(f"Proteome to download: {proteome}")
-    af_url = f"https://ftp.ebi.ac.uk/pub/databases/alphafold/latest/{proteome}.tar"
+    af_url = f"https://ftp.ebi.ac.uk/pub/databases/alphafold/v{af_version}/{proteome}.tar"
     file_path = os.path.join(path, f"{proteome}.tar")
 
     try:
