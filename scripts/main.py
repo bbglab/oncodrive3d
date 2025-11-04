@@ -52,7 +52,7 @@ def oncodrive3D():
               help="Distance threshold (Å) to define contact between amino acids")
 @click.option("-c", "--cores", type=click.IntRange(min=1, max=len(os.sched_getaffinity(0)), clamp=False), default=len(os.sched_getaffinity(0)),
               help="Number of cores to use in the computation")
-@click.option("--af_version", type=click.IntRange(min=1, max=4, clamp=False), default=4,
+@click.option("--af_version", type=click.IntRange(min=1, clamp=False), default=4,
               help="Version of AlphaFold 2 predictions")
 @click.option("-y", "--yes", 
               help="No interaction", is_flag=True)
@@ -498,6 +498,8 @@ def plot(gene_result_path,
 @click.option("--fragmented_proteins", help="Include fragmented proteins", is_flag=True)
 @click.option("--transparent_bg", help="Set background as transparent", type=str, is_flag=True)
 @click.option("--chimerax_bin", help="Path to chimerax installation", type=str, default="/usr/bin/chimerax")
+@click.option("--af_version", type=click.IntRange(min=1, clamp=False), default=4,
+              help="Version of AlphaFold 2 predictions used for structures")
 @click.option("-v", "--verbose", help="Verbose", is_flag=True)
 @setup_logging_decorator
 def chimerax_plot(output_dir,
@@ -512,6 +514,7 @@ def chimerax_plot(output_dir,
                   fragmented_proteins,
                   transparent_bg,
                   chimerax_bin,
+                  af_version,
                   verbose):
     """"Generate images of structures annotated with clustering metrics."""
 
@@ -529,6 +532,7 @@ def chimerax_plot(output_dir,
     logger.info(f"Cluster extended: {cluster_ext}")
     logger.info(f"Fragmented proteins: {fragmented_proteins}")
     logger.info(f"Transparent background: {transparent_bg}")
+    logger.info(f"AlphaFold version: {af_version}")
     logger.info(f"Verbose: {bool(verbose)}")
     logger.info(f'Log path: {os.path.join(output_dir, "log")}')
     logger.info("")
@@ -544,7 +548,8 @@ def chimerax_plot(output_dir,
                         cluster_ext,
                         fragmented_proteins,
                         transparent_bg,
-                        chimerax_bin)
+                        chimerax_bin,
+                        af_version)
 
 if __name__ == "__main__":
     oncodrive3D()
