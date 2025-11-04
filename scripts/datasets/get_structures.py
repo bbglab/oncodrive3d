@@ -67,7 +67,7 @@ def get_structures(path: str,
     if mane:
         if species == "Homo sapiens":
             if str(af_version) not in {"3", "4"}:
-                raise RuntimeError("AlphaFold MANE overlaps are available only for versions 3 or 4. Please set --af_version to 3 or 4 when using --mane/--mane_only.")
+                raise RuntimeError("AlphaFold MANE overlaps are available only for versions 3 or 4. When using --mane or --mane_only, please set --af_version to 3 or 4.")
             proteome = f"mane_overlap_v{af_version}"
         else:
             raise RuntimeError("Structures with MANE transcripts overlap are available only for 'Homo sapiens'. Exiting...")
