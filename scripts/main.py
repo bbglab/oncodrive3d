@@ -153,8 +153,6 @@ def build_datasets(output_dir,
               help="Update HUGO symbols in Oncodrive3D built datasets by using input file entries. Only if input file (--i) is a raw VEP output")
 @click.option("--mane", is_flag=True,
               help="If multiple structures are associated to the same HUGO symbol in the input file, use the MANE ones.")
-@click.option("--sample_info", is_flag=True,
-              help="Include sample information in position-level result (currently unavailable).")                  # TODO: enable sample info in output
 @setup_logging_decorator
 def run(input_path,
         mut_profile_path,
@@ -174,8 +172,7 @@ def run(input_path,
         thr_mapping_issue,
         o3d_transcripts,
         use_input_symbols,
-        mane,
-        sample_info):
+        mane):
     """Run Oncodrive3D."""
     
     from scripts.run.clustering import run_clustering
@@ -215,7 +212,6 @@ def run(input_path,
     logger.info(f"Filter input by Oncodrive3D transcripts: {o3d_transcripts}")
     logger.info(f"Use HUGO symbols of input file: {use_input_symbols}")
     logger.info(f"Prioritize MANE transcripts when using input HUGO symbols: {mane}")
-    logger.info(f"Include sample informations in output: {sample_info}")
     logger.info(f"Verbose: {verbose}")
     logger.info(f'Log path: {os.path.join(output_dir, "log")}')
     logger.info("")
@@ -241,8 +237,7 @@ def run(input_path,
                     thr_mapping_issue,
                     o3d_transcripts,
                     use_input_symbols,
-                    mane,
-                    sample_info)
+                    mane)
 
                
 
