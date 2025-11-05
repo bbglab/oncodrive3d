@@ -67,6 +67,9 @@ This step build the datasets necessary for Oncodrive3D to run the 3D clustering 
 > [!NOTE]
 > The first time that you run Oncodrive3D building dataset step with a given reference genome, it will download it from our servers. By default the downloaded datasets go to`~/.bgdata`. If you want to move these datasets to another folder you have to define the system environment variable `BGDATA_LOCAL` with an export command.
 
+> [!NOTE]
+> Human datasets built with the default settings pull canonical transcript metadata from the January 2024 Ensembl archive (release 111 / GENCODE v45). For maximum compatibility, annotate your input variants with the same Ensembl/Gencode release or supply the unfiltered VEP output together with `--o3d_transcripts --use_input_symbols`.
+
 ```
 Usage: oncodrive3d build-datasets [OPTIONS]
 
@@ -86,7 +89,7 @@ Options:
                                   (applicable to Homo sapiens only).
   -M, --mane_only                 Use only structures predicted from MANE Select transcripts
                                   (applicable to Homo sapiens only).
-  -C, --custom_mane_pdb_dir       Path to directory containing custom MANE PDB structures.
+  -C, --custom_mane_pdb_dir PATH  Path to directory containing custom MANE PDB structures.
                                   Default: None
   -f, --custom_mane_metadata_path Path to a dataframe (typically a samplesheet.csv) including 
                                   Ensembl IDs and sequences of the custom pdbs.
@@ -95,6 +98,9 @@ Options:
                                   Default: 10
   -c, --cores INT                 Number of CPU cores for computation. 
                                   Default: All available CPU cores
+  --af_version INT                Version of the AlphaFold Protein Structure Database release.
+                                  Default: 4
+  -y, --yes                       Run without interactive prompts.
   -v, --verbose                   Enables verbose output.
   -h, --help                      Show this message and exit.  
 ```
@@ -173,17 +179,31 @@ Options:
                                    annotated mutations for the cohort. [required]
   -p, --mut_profile_path PATH      Path to the JSON file specifying the cohort's mutational 
                                    profile (192 key-value pairs).
+  -m, --mutability_config_path PATH
+                                   Path to the JSON file with information on mutability, used when
+                                   mutation calls originate from cohorts with highly heterogeneous
+                                   sequencing depth across sites.
   -o, --output_dir PATH            Path to the output directory for results. 
                                    Default: ./output/
   -d, --data_dir PATH              Path to the directory containing the datasets built in the 
                                    building datasets step. 
                                    Default: ./datasets/
+  -n, --n_iterations INT           Number of densities to be simulated.
+                                   Default: 10000
+  -a, --alpha FLOAT                Significance threshold for residue and gene p-values.
+                                   Default: 0.01
   -c, --cores INT                  Number of CPU cores to use. 
                                    Default: All available CPU cores
   -s, --seed INT                   Random seed for reproducibility.
   -v, --verbose                    Enables verbose output.
   -t, --cancer_type STR            Cancer type to include as metadata in the output file.
   -C, --cohort STR                 Cohort name for metadata and output file naming. 
+  --no_fragments                   Disable processing of fragmented (AF-F) proteins.
+  --only_processed                 Include only processed genes in the output.
+  --thr_mapping_issue FLOAT        Threshold for the ratio of mutations with mapping issues 
+                                   (out of structure, WT mismatch, zero mutability). A value 
+                                   of 1 disables filtering mismatching mutations.
+                                   Default: 0.1
   -P, --cmap_prob_thr FLOAT        Threshold for defining residues contacts based on distance 
                                    on predicted structure and predicted aligned error (PAE). 
                                    Default: 0.5

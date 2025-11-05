@@ -490,7 +490,7 @@ def run_clustering(input_path,
                     o3d_transcripts,
                     use_input_symbols,
                     mane,
-                    sample_info):
+                    sample_info=False):
     """
     Main function to lunch the 3D clustering analysis.
     """
