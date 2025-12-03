@@ -87,4 +87,27 @@ Options:
                                   Default: false
   --seed INT                      Seed value for reproducibility.
                                   Default: 128
+  --plot BOOL                     Generate summary/gene plots (requires annotations_dir).
+                                  Default: false
+  --chimerax_plot BOOL            Generate ChimeraX snapshots.
+                                  Default: false
+  --run_extra_args STR            Extra CLI args forwarded to `oncodrive3d run`
+                                  (e.g., "--mutability_config_path /path/to/mut.json").
+                                  Default: ""
 ```
+
+### Optional modules
+
+- `--plot true` – runs the same plotting workflow described in [docs/annotations_plotting.md](../docs/annotations_plotting.md). Requires a pre-built annotations folder (`--annotations_dir`) generated via `oncodrive3d build-annotations`. The pipeline publishes summary plots, per-gene panels, annotated CSVs, UniProt feature tables, and association plots under `${outdir}/${outsubdir}/`.
+- `--chimerax_plot true` – submits the optional `oncodrive3d chimerax-plot` step for each processed cohort (see [docs/annotations_plotting.md#chimerax-3d-snapshots](../docs/annotations_plotting.md#chimerax-3d-snapshots)). Ensure the `chimerax` binary is accessible inside the container/Conda env or set `process.ext.args` for `O3D_CHIMERAX_PLOT` (in `nextflow.config`) to include `--chimerax_bin /path/to/ChimeraX` if you need a custom location.
+
+### Mutability-aware runs
+
+The pipeline expects a mutational profile JSON (`mut_profile/<cohort>.sig.json`) for every cohort. To supply an additional mutability configuration (e.g., for heterogeneous-depth cohorts), pass the CLI flag through `--run_extra_args`, for example:
+
+```
+nextflow run main.nf \
+  --run_extra_args "--mutability_config_path /path/to/mutability.json --thr_mapping_issue 0.2"
+```
+
+Oncodrive3D prioritizes `--mutability_config_path` over the mutational profile, so the provided `.sig.json` file can be a generic profile if one is not available; it will be ignored once mutability is enabled. Refer to [docs/mutability.md](../docs/mutability.md) for details on preparing the config and TSV.
