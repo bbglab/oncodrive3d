@@ -203,7 +203,7 @@ class ManeSamplesheetBuilder:
     "--no-fragments",
     is_flag=True,
     default=False,
-    help="Drop any sequences ≥2400 aa from the samplesheet"
+    help="Drop any sequences ≥2700 aa from the samplesheet"
 )
 @click.option(
     "-c", "--cores",
