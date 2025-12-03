@@ -63,6 +63,8 @@ This step build the datasets necessary for Oncodrive3D to run the 3D clustering 
 
 > [!WARNING]
 > This step is highly time- and resource-intensive, requiring a significant amount of free disk space and computational power. It will download and process a large amount of data. Ensure sufficient resources are available before proceeding, as insufficient capacity may result in extended runtimes or processing failures.
+>
+> Reliable internet access is required because AlphaFold structures, Ensembl annotations, Pfam files, and other resources are downloaded on demand during the build.
 
 > [!NOTE]
 > The first time that you run Oncodrive3D building dataset step with a given reference genome, it will download it from our servers. By default the downloaded datasets go to`~/.bgdata`. If you want to move these datasets to another folder you have to define the system environment variable `BGDATA_LOCAL` with an export command.

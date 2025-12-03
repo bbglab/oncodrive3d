@@ -1,6 +1,6 @@
 # MANE Preprocessing Toolkit
 
-These tools are provided for users that want to run Oncodrive3D using only structures associated to MANE Select transcripts while still covering as many proteins as possible. Infact, AlphaFold database MANE download bundle does not yet contain structures for every MANE Select transcript. Oncodrive3D relies on that bundle when building its datasets, so missing structures translate into genes that cannot be analyzed. The scripts in `tools/preprocessing/` close this gap:
+These tools are provided for users that want to run Oncodrive3D using only structures associated to MANE Select transcripts while still covering as many proteins as possible. Infact, AlphaFold database MANE download bundle does not yet contain structures for every MANE Select transcript. Oncodrive3D relies on that bundle when building its datasets, so missing structures translate into genes that cannot be analyzed. The scripts in `tools/preprocessing/` close this gap.  
 
 - `prepare_samplesheet.py` scans the full MANE release and emits `samplesheet.csv` plus per-ENSP FASTAs for every MANE structure that is absent from the AlphaFold MANE download.
 - `update_samplesheet_and_structures.py` removes the MANE entries already covered by the AlphaFold canonical bundle, reuses those canonical structures when available, and folds nf-core predictions into the custom bundle while pruning fulfilled entries from the next proteinfold run.
@@ -12,6 +12,8 @@ Together they allow to iteratively update the MANE structures and feed them back
 Run `oncodrive3d build-datasets --mane_only` to generate the MANE mapping files consumed by `prepare_samplesheet.py`. If you plan to reuse canonical structures, run a separate `oncodrive3d build-datasets --mane` (or default `oncodrive3d build-datasets`) so you also have the AlphaFold canonical bundle whose `pdb_structures/` matching the missing MANE structures can be retrieved by the tools.
 
 After running the tools and predicting the missing structures using the nf-core/proteinfold pipeline, rerun `oncodrive3d build-datasets --mane_only --custom_mane_pdb_dir ... --custom_mane_metadata_path ...` to inject the curated bundle into the final MANE-only datasets.
+
+_Note: both scripts reach external services, so they must run from an environment with internet access._
 
 ## Tool overview
 
