@@ -109,7 +109,7 @@ For more information on the output of this step, please refer to the [Building D
 
 > [!TIP]
 > ### Increasing MANE Structural Coverage
-> To maximize structural coverage of **MANE Select transcripts**, you can predict missing structures locally and integrate them into Oncodrive3D using:
+> To maximize structural coverage of **MANE Select transcripts**, you can [predict missing structures locally and integrate them into Oncodrive3D](tools/preprocessing/README.md) using:
 >
 > - `tools/preprocessing/prepare_samplesheet.py`: a standalone utility that:
 >   - Retrieve the full MANE entries from NCBI.
@@ -118,12 +118,16 @@ For more information on the output of this step, please refer to the [Building D
 >     - A `samplesheet.csv` with Ensembl protein IDs, FASTA paths, and optional sequences.
 >     - Individual FASTA files for each missing protein.
 >
-> - `--custom_mane_pdb_dir`: use this to provide your own predicted PDB structures (e.g., from [nf-core/proteinfold](https://nf-co.re/proteinfold/1.1.1/)).
+> - `tools/preprocessing/update_samplesheet_and_structures.py`: takes the samplesheet folder produced above and:
+>   - Reuses canonical AlphaFold structures when possible to shrink the nf-core input.
+>   - Ingests nf-core/proteinfold predictions and keeps the `missing/` set up to date.
+>   - Generates a `final_bundle/samplesheet.csv` plus `final_bundle/pdbs/`, ready to be passed to `oncodrive3d build-datasets --mane_only` via `--custom_mane_metadata_path` and `--custom_mane_pdb_dir`.
 >
-> - `--custom_mane_metadata_path`: path to the corresponding `samplesheet.csv`, which must include:
->   - `sequence`: Ensembl protein ID (required)
->   - `refseq`: amino acid sequence (used to inject sequence into PDB if missing)
+> - When invoking `oncodrive3d build-datasets`, supply:
+>   - `--custom_mane_pdb_dir`: use this to provide your own predicted PDB structures (e.g., from [nf-core/proteinfold](https://nf-co.re/proteinfold/1.1.1/) or `final_bundle/pdbs/` produced by `update_samplesheet_and_structures.py`).
+>   - `--custom_mane_metadata_path`: path to the corresponding `samplesheet.csv` (e.g., `final_bundle/samplesheet.csv`).
 >
+> See the documentation of [MANE Preprocessing Toolkit](tools/preprocessing/README.md) for the full workflow to expand coverage of the MANE associated structures.
 
 
 
