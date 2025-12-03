@@ -3,7 +3,10 @@
 MANE maintenance CLI for Oncodrive3D.
 
 Example:
-    python tools/o3d_mane_maintenance.py --samplesheet-folder data
+    python tools/update_samplesheet_and_structures.py \
+        --samplesheet-folder data/251202 \
+        --predicted-dir /path/to/nfcore/pdbs \
+        --canonical-dir /path/to/af_canonical_pdbs
 """
 from __future__ import annotations
 
@@ -42,7 +45,6 @@ class PipelinePaths:
     """Resolved filesystem locations for all inputs/outputs of the workflow."""
     samplesheet_path: Path
     fasta_dir: Path
-    predicted_raw_dir: Path
     predicted_bundle_dir: Path
     predicted_pdb_dir: Path
     missing_dir: Path
@@ -55,7 +57,7 @@ class PipelinePaths:
     canonical_pdb_dir: Optional[Path]
     mane_missing_path: Optional[Path]
     mane_summary_path: Path
-    cgc_list_path: Path
+    cgc_list_path: Optional[Path]
 
 
 def load_config(config_path: Path) -> dict:
@@ -88,6 +90,7 @@ def build_paths(
     config_path: Path,
     path_config: dict,
     samplesheet_folder: str,
+    canonical_dir: Optional[Path],
 ) -> PipelinePaths:
     """Resolve all filesystem paths for the selected environment and samplesheet."""
     repo_root = config_path.parent
@@ -122,25 +125,32 @@ def build_paths(
 
     samplesheet_path = resolve(path_config["samplesheet_relpath"])
     fasta_dir = resolve(path_config["fasta_relpath"])
-    predicted_raw_dir = resolve(path_config["predicted_dir"])
     predicted_bundle_dir = resolve(path_config["predicted_relpath"])
     missing_dir = resolve(path_config["missing_relpath"])
     retrieved_dir = resolve(path_config["retrieved_relpath"])
     final_bundle_dir = resolve(path_config["final_bundle_relpath"])
-    canonical_pdb_dir = resolve(path_config.get("canonical_path"))
+    canonical_pdb_dir = None
+    if canonical_dir:
+        canonical_pdb_dir = canonical_dir.resolve()
+        if not canonical_pdb_dir.exists():
+            raise FileNotFoundError(f"--canonical-dir not found: {canonical_pdb_dir}")
     mane_missing_path = resolve(path_config.get("mane_missing_path"))
     mane_summary_path = resolve(path_config.get("mane_summary_path"))
     cgc_list_path = resolve(path_config.get("cgc_list_path"))
+
+    if not canonical_dir:
+        canonical_pdb_dir = None
 
     required = {
         "samplesheet": samplesheet_path,
         "fasta_dir": fasta_dir,
         "mane_summary_path": mane_summary_path,
-        "cgc_list_path": cgc_list_path,
     }
     for label, path in required.items():
         if path is None or not path.exists():
             raise FileNotFoundError(f"Required path for {label} not found: {path}")
+    if cgc_list_path and not cgc_list_path.exists():
+        raise FileNotFoundError(f"Required path for cgc_list_path not found: {cgc_list_path}")
 
     predicted_pdb_dir = predicted_bundle_dir / "pdbs"
     missing_fasta_dir = missing_dir / "fasta"
@@ -161,7 +171,6 @@ def build_paths(
     paths = PipelinePaths(
         samplesheet_path=samplesheet_path,
         fasta_dir=fasta_dir,
-        predicted_raw_dir=predicted_raw_dir,
         predicted_bundle_dir=predicted_bundle_dir,
         predicted_pdb_dir=predicted_pdb_dir,
         missing_dir=missing_dir,
@@ -466,6 +475,12 @@ def reuse_canonical_structures(
         return pd.DataFrame()
 
     canonical_index = index_canonical_pdbs(paths.canonical_pdb_dir, settings.max_workers)
+    if canonical_index.empty:
+        print(
+            f"[ERROR] No canonical PDB files found in {paths.canonical_pdb_dir}. "
+            "Verify --canonical-dir points to the AlphaFold DB download."
+        )
+        return pd.DataFrame()
     print(f"Indexed {len(canonical_index):,} canonical PDB files")
 
     mane_missing_df = pd.read_csv(paths.mane_missing_path)
@@ -512,12 +527,22 @@ def reuse_canonical_structures(
     return retrieved_df
 
 
-def run_pipeline(paths: PipelinePaths, settings: Settings) -> None:
+def run_pipeline(
+    paths: PipelinePaths,
+    settings: Settings,
+    predicted_raw_dir: Optional[Path],
+    canonical_dir: Optional[Path],
+) -> None:
     """Execute the MANE maintenance workflow end-to-end."""
     samplesheet = pd.read_csv(paths.samplesheet_path)
     print(f"Loaded {len(samplesheet):,} samples from {paths.samplesheet_path}")
 
-    sync_predicted_bundle(paths.predicted_raw_dir, paths.predicted_bundle_dir)
+    if predicted_raw_dir:
+        if not predicted_raw_dir.exists():
+            raise FileNotFoundError(f"--predicted-dir not found: {predicted_raw_dir}")
+        sync_predicted_bundle(predicted_raw_dir, paths.predicted_bundle_dir)
+    else:
+        print("[INFO] No --predicted-dir supplied; skipping nf-core sync and using existing predicted bundle.")
 
     predicted_ids = list_predicted_sequences(paths.predicted_pdb_dir)
     print(f"Found {len(predicted_ids):,} predicted ENSP structures in {paths.predicted_pdb_dir}")
@@ -535,9 +560,13 @@ def run_pipeline(paths: PipelinePaths, settings: Settings) -> None:
     else:
         samplesheet_missing = samplesheet_missing.iloc[0:0].copy()
 
-    retrieved_df = reuse_canonical_structures(samplesheet_missing, paths, settings)
-    if not retrieved_df.empty:
-        print("Canonical reuse completed.")
+    retrieved_df = pd.DataFrame()
+    if settings.enable_canonical_reuse:
+        retrieved_df = reuse_canonical_structures(samplesheet_missing, paths, settings)
+        if retrieved_df.empty:
+            print("[INFO] Skipping canonical reuse because no PDBs were harvested.")
+    else:
+        print("[INFO] No canonical directory provided; skipping canonical reuse.")
 
     annotated_missing_df = annotate_missing_with_cgc(
         paths.missing_samplesheet_path,
@@ -558,7 +587,16 @@ def run_pipeline(paths: PipelinePaths, settings: Settings) -> None:
     if settings.filter_long_sequences and not removed_long_df.empty:
         print(f"Long sequences recorded at {paths.missing_dir / 'samplesheet_removed_long.csv'}")
 
-    bundles_to_merge = [paths.predicted_bundle_dir, paths.retrieved_dir]
+    bundles_to_merge = []
+    if paths.predicted_pdb_dir.exists() and any(paths.predicted_pdb_dir.glob("*.pdb*")):
+        bundles_to_merge.append(paths.predicted_bundle_dir)
+    if paths.retrieved_pdb_dir.exists() and any(paths.retrieved_pdb_dir.glob("*.pdb*")):
+        bundles_to_merge.append(paths.retrieved_dir)
+
+    if not bundles_to_merge:
+        print("[INFO] No predicted/retrieved bundles available; skipping final merge.")
+        return
+
     merge_structure_bundles(bundles_to_merge, paths.final_bundle_dir)
     print(f"Final bundle written to {paths.final_bundle_dir}")
 
@@ -567,17 +605,23 @@ def run_pipeline(paths: PipelinePaths, settings: Settings) -> None:
 @click.option("--samplesheet-folder", required=True, help="Folder containing the MANE samplesheet/fasta bundle created by Oncodrive3D.")
 @click.option("--config-path", default="config.yaml", type=click.Path(path_type=Path), show_default=True)
 @click.option(
+    "--predicted-dir",
+    type=click.Path(path_type=Path),
+    default=None,
+    help="Directory with nf-core/proteinfold predicted ENSP PDBs to sync (optional).",
+)
+@click.option(
+    "--canonical-dir",
+    type=click.Path(path_type=Path),
+    default=None,
+    help="Directory containing the AlphaFold DB canonical PDBs (optional, enables reuse).",
+)
+@click.option(
     "--max-workers",
     type=click.IntRange(1, AVAILABLE_WORKERS),
     default=AVAILABLE_WORKERS,
     show_default=True,
-    help="Parallel workers for canonical indexing and other CPU-bound steps.",
-)
-@click.option(
-    "--enable-canonical-reuse/--disable-canonical-reuse",
-    default=True,
-    show_default=True,
-    help="Reuse AlphaFold canonical MANE structures when available.",
+    help="Parallel workers.",
 )
 @click.option(
     "--filter-long-sequences/--no-filter-long-sequences",
@@ -595,22 +639,32 @@ def run_pipeline(paths: PipelinePaths, settings: Settings) -> None:
 def cli(
     samplesheet_folder: str,
     config_path: Path,
+    predicted_dir: Optional[Path],
+    canonical_dir: Optional[Path],
     max_workers: int,
-    enable_canonical_reuse: bool,
     filter_long_sequences: bool,
     max_sequence_length: int,
 ) -> None:
     """CLI wrapper around the MANE maintenance workflow."""
+    if not predicted_dir and not canonical_dir:
+        raise click.UsageError("Provide at least --predicted-dir or --canonical-dir so there is work to perform.")
+
     config = load_config(config_path)
     _, path_config = detect_environment(config)
-    paths = build_paths(config, config_path, path_config, samplesheet_folder)
+    paths = build_paths(
+        config,
+        config_path,
+        path_config,
+        samplesheet_folder,
+        canonical_dir=canonical_dir,
+    )
     settings = Settings(
-        enable_canonical_reuse=enable_canonical_reuse,
+        enable_canonical_reuse=bool(paths.canonical_pdb_dir),
         max_workers=max_workers,
         filter_long_sequences=filter_long_sequences,
         max_sequence_length=max_sequence_length,
     )
-    run_pipeline(paths, settings)
+    run_pipeline(paths, settings, predicted_dir, canonical_dir)
 
 
 if __name__ == "__main__":
