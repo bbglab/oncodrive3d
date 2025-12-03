@@ -1,6 +1,11 @@
 # Annotation Build & Plotting Workflow
 
-Oncodrive3D ships with a plotting pipeline that turns the clustering results into analysis-ready visualizations and enriched tables. Its goal is threefold: (1) help you interpret **why** a gene or residue achieved a significant 3D-clustering signal by overlaying structural/functional context, (2) highlight diagnostic cues that reveal whether a signal looks biologically plausible or could be an artifact, and (3) provide downstream-analysis assets such as summary panels, per-gene tracks, volcano/log-odds association charts, and annotated CSVs to guide follow-up experiments or reporting. To keep the runtime reasonable, structural and functional annotations are generated once per dataset via `oncodrive3d build-annotations`, then reused by `oncodrive3d plot` for any cohort.
+Oncodrive3D ships with a plotting pipeline that turns the clustering results into analysis-ready visualizations and enriched tables. Its goal is threefold: 
+1. help you interpret **why** a gene or residue achieved a significant 3D-clustering signal by overlaying structural/functional context, 
+2. highlight diagnostic cues that reveal whether a signal looks biologically plausible or could be an artifact,
+3. provide downstream-analysis assets such as summary panels, per-gene tracks, volcano/log-odds association charts, and annotated CSVs to guide follow-up experiments or reporting. 
+
+To keep the runtime reasonable, structural and functional annotations are generated once per dataset via `oncodrive3d build-annotations`, then reused by `oncodrive3d plot` for any cohort.
 
 This document describes the prerequisites, the intermediate files that are produced, and how to customize the plots.
 
