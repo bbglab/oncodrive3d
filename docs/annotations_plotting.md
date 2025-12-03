@@ -82,12 +82,12 @@ oncodrive3d plot \
 
 Key options:
 
-- `--lst_summary_tracks` / `--lst_gene_tracks` – comma-separated track names; defaults cover the most common layouts. Matching `--lst_*_hratios` let you tweak relative heights.
-- `--maf_for_nonmiss_path` – optional MAF including non-missense mutations to populate the “nonmiss_count” track.
-- `--genes` – restrict plotting to specific gene symbols.
-- `--c_genes_only` – plot only significant genes (`C_gene == 1`) unless disabled.
-- `--volcano_top_n`, `--summary_fsize_*`, `--gene_fsize_*` – control aesthetics of the volcano/log-odds plots and per-gene panels.
-- `--output_csv` / `--output_all_pos` – export annotated CSVs, optionally including non-mutated residues.
+- `--maf_path` / `--maf_for_nonmiss_path` – `--maf_path` must point to the processed missense-only TSV created by `oncodrive3d run`; `--maf_for_nonmiss_path` is optional and enables the non-missense track if you provide the original MAF.
+- `--miss_prob_path` / `--seq_df_path` – these files (`<cohort>.miss_prob.processed.json` and `<cohort>.seq_df.processed.tsv`) must come from the same run; they carry the per-residue missense probabilities and mapping metadata needed for plotting.
+- `--lst_summary_tracks` / `--lst_gene_tracks` – comma-separated lists of track names. If you pass custom lists, match them with `--lst_*_hratios` to redistribute vertical space.
+- `--genes` / `--c_genes_only` / `--max_n_genes` – jointly control which genes are rendered. Use `--genes` for explicit symbols, `--c_genes_only` to keep only significant hits, and `--max_n_genes` to cap the total.
+- `--volcano_top_n`, `--summary_fsize_*`, `--gene_fsize_*` – resize summary/association plots; `--volcano_top_n` sets how many associations are annotated in the cohort-level volcano.
+- `--output_csv` / `--output_all_pos` – write the annotated position-level CSV; include non-mutated residues only when `--output_all_pos` is set.
 
 During execution (`scripts/plotting/plot.py`):
 
@@ -95,7 +95,7 @@ During execution (`scripts/plotting/plot.py`):
 2. A **summary plot** shows per-gene mutation counts, cluster residues, and score distributions.
 3. **Per-gene plots** combine multiple tracks: observed vs expected mutation counts, missense probabilities, clustering scores, PAE/pLDDT, ΔΔG, Pfam/UniProt annotations, PTMs, membrane regions, motifs, etc. Tracks that are not available for a gene are automatically removed.
 4. Annotated tables are built by merging the positional results with disorder (pLDDT), PDB features, transcript metadata, and UniProt domains. They are saved as `<cohort>.3d_clustering_pos.annotated.csv` plus `<cohort>.uniprot_feat.tsv`.
-5. **Association plots** (Optional) – see the “Association Analyses” section below for details on how the logistic-regression statistics are generated and visualized (volcano, per-gene volcano, and log-odds panels).
+5. **Association plots** (optional) – see the “Association Analyses” section below for details on how the logistic-regression statistics are generated and visualized (volcano, per-gene volcano, and log-odds panels).
 
 ---
 
@@ -111,6 +111,34 @@ The optional association module quantifies how strongly specific annotations tra
    - Log-odds strip charts with 95% confidence intervals to visualize effect sizes.
 
 Only raw p-values are provided; apply your preferred multiple-testing correction (e.g., BH-FDR) before drawing conclusions about specific features.
+
+---
+
+### ChimeraX 3D Snapshots
+
+For interactive-ready 3D views, Oncodrive3D exposes a separate `oncodrive3d chimerax-plot` command. It takes the same gene/position-level CSVs produced by `oncodrive3d run`, plus the datasets directory (for AlphaFold structures) and the processed sequence dataframe, and renders PNG snapshots together with `.defattr` files under `<output_dir>/<cohort>.chimerax/`. Each snapshot shows the AlphaFold model with significant clusters highlighted, optional extended clusters, pLDDT coloring, and sample counts. Provide the path to your ChimeraX installation via `--chimerax_bin` or rely on the default `/usr/bin/chimerax`. The Nextflow pipeline exposes the same functionality through the `chimerax_plot` flag.
+
+Example:
+
+```bash
+oncodrive3d chimerax-plot \
+  --gene_result_path output/COHORT/COHORT.3d_clustering_genes.csv \
+  --pos_result_path output/COHORT/COHORT.3d_clustering_pos.csv \
+  --datasets_dir /path/to/datasets \
+  --seq_df_path output/COHORT/COHORT.seq_df.processed.tsv \
+  --output_dir plots/COHORT \
+  --cohort COHORT \
+  --chimerax_bin /opt/ChimeraX/bin/ChimeraX \
+  --max_n_genes 20 \
+  --pixel_size 0.1 \
+  --cluster_ext
+```
+
+- `--seq_df_path` – must point to the processed sequence dataframe (`<cohort>.seq_df.processed.tsv`), which provides transcript IDs, fragments, and mappings needed to overlay residues on structures.
+- `--chimerax_bin` – path to the ChimeraX executable; override this if ChimeraX is installed outside `/usr/bin/chimerax`.
+- `--pixel_size` – controls image resolution (smaller values produce larger images); default `0.08`.
+- `--cluster_ext` / `--fragmented_proteins` – toggles to display extended clusters (mutations that help rescue significance) and to keep AlphaFold-fragmented proteins, respectively.
+- `--transparent_bg` – render PNGs with a transparent background (handy for figure overlays).
 
 ---
 
