@@ -230,15 +230,15 @@ Options:
 ### Handling Heterogeneous Sequencing Depth
 
 Oncodrive3D can ingest **site-specific mutability tables** when a single mutational profile is not representative of the cohort (e.g., mutation calling performed on highly heterogeneous-depth datasets such as ultra depth **Duplex sequencing** panels commonly used in normal tissue analysis). Provide an indexed TSV describing per-site mutability together with a JSON config via `--mutability_config_path`. The run automatically switches from trinucleotide rates to per-position probabilities and tracks additional diagnostics (`Mut_zero_mut_prob`, `Pos_zero_mut_prob`, status `Mut_with_zero_prob/No_mutability`).  
-> [!NOTE] 
-> Please see the [Mutability-aware runs guide](docs/mutability.md) for the expected file formats, config schema, and troubleshooting tips.
+
+Please see the [Mutability-aware runs guide](docs/mutability.md) for the expected file formats, config schema, and troubleshooting tips.
 
 
 ### Building Annotations & Plotting
 
 High-quality plots and enriched tables require a one-time `oncodrive3d build-annotations` step that retrieves AlphaFold structural features (secondary structure, surface accessibility), Pfam domains, UniProt features, and optional stability change predictions. Afterwards, `oncodrive3d plot` combines the run outputs with those annotations to create cohort summaries, per-gene multi-track panels, annotated CSVs, and association analyses between clusters and features.  
-> [!NOTE] 
-> Please refer to [Annotation & plotting workflow](docs/annotations_plotting.md) for prerequisites, command examples, and output descriptions.
+
+Please refer to [Annotation & plotting workflow](docs/annotations_plotting.md) for prerequisites, command examples, and output descriptions.
 
 ---
 
