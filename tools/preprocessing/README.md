@@ -188,7 +188,8 @@ After each run, `<samplesheet_folder>` contains:
    python -m tools.preprocessing.update_samplesheet_and_structures \
      --samplesheet-folder <path/to/mane_missing-date> \
      --mane-dataset-dir   <path/to/o3d_datasets-mane_only-date> \
-     --canonical-dir      <path/to/o3d_datasets-date>
+     --canonical-dir      <path/to/o3d_datasets-date> \
+     --cgc-list-path      <path/to/cgc_list>            # (optional, use to sort the list)
    ```
 
 4. **Predict remaining structures**
@@ -201,7 +202,8 @@ After each run, `<samplesheet_folder>` contains:
      --samplesheet-folder <path/to/mane_missing-date> \
      --mane-dataset-dir   <path/to/o3d_datasets-mane_only-date> \
      --canonical-dir      <path/to/o3d_datasets-date> \
-     --predicted-dir      <path/to/predicted/pdbs> # (what nf-core/proteinfold produces).
+     --predicted-dir      <path/to/predicted/pdbs>      # (what nf-core/proteinfold produces)
+     --cgc-list-path      <path/to/cgc_list>            # (optional, use to sort the list)
    ```
 
 6. **Rebuild MANE-only datasets with the final bundle**
