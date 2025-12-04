@@ -118,9 +118,6 @@ def build_paths(
     mane_missing_path = mane_dataset_dir / "mane_missing.csv"
     mane_summary_path = mane_dataset_dir / "mane_summary.txt.gz"
 
-    if not canonical_dir:
-        canonical_pdb_dir = None
-
     required = {
         "samplesheet": samplesheet_path,
         "fasta_dir": fasta_dir,
