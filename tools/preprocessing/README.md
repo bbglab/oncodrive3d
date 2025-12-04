@@ -1,6 +1,6 @@
 # MANE Preprocessing Toolkit
 
-These tools are provided for users that want to run Oncodrive3D using only structures associated to MANE Select transcripts while still covering as many proteins as possible. Infact, AlphaFold database MANE download bundle does not yet contain structures for every MANE Select transcript. Oncodrive3D relies on that bundle when building its datasets, so missing structures translate into genes that cannot be analyzed. The scripts in `tools/preprocessing/` close this gap.  
+These tools are provided for users that want to run Oncodrive3D using only structures associated to MANE Select transcripts while still covering as many proteins as possible. In fact, AlphaFold database MANE download bundle does not yet contain structures for every MANE Select transcript. Oncodrive3D relies on that bundle when building its datasets, so missing structures translate into genes that cannot be analyzed. The scripts in `tools/preprocessing/` close this gap.  
 
 - `prepare_samplesheet.py` scans the full MANE release and emits `samplesheet.csv` plus per-ENSP FASTAs for every MANE structure that is absent from the AlphaFold MANE download.
 - `update_samplesheet_and_structures.py` removes the MANE entries already covered by the AlphaFold canonical bundle, reuses those canonical structures when available, and folds nf-core predictions into the custom bundle while pruning fulfilled entries from the next proteinfold run.
