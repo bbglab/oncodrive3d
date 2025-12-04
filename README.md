@@ -10,8 +10,6 @@ The method leverages **AlphaFold 2-predicted protein structures** and Predicted 
 
 ![Graphical abstract of Oncodrive3D](docs/images/graphical_abstract.png "Oncodrive3D")
 
----
-
 ## Requirements
 
 Before you begin, ensure **Python 3.10 or later** is installed on your system.  
@@ -145,20 +143,12 @@ For in depth information on how to obtain the required input data and for compre
 
 - **<mut_profile>** (`optional`): Dictionary including the normalized frequencies of mutations (*values*) in every possible trinucleotide context (*keys*), such as 'ACA>A', 'ACC>A', and so on.
 
----
-
 > [!NOTE] 
 > Examples of the input files are available in the [Test Input Folder](https://github.com/bbglab/oncodrive3d/tree/master/test/input).  
 Please refer to these examples to understand the expected format and structure of the input files.
 
----
-
----
-
 > [!NOTE]
 > Oncodrive3D uses the mutational profile of the cohort to build an accurate background model. However, it’s not strictly required. If the mutational profile is not provided, the tool will use a simple uniform distribution as the background model for simulating mutations and scoring potential 3D clusters.
-
----
 
 ### Main Output
 
@@ -222,8 +212,6 @@ Options:
   -h, --help                       Show this message and exit.  
 ```
 
----
-
 > [!NOTE]
 > To maximize the number of matching transcripts between the input mutations and the AlphaFold predicted structures used by Oncodrive3D, it is recommended to use the unfiltered output of VEP (including all possible transcripts) as input, along with the flags `--o3d_transcripts` `--use_input_symbols` in the `oncodrive3d run` command.
 
@@ -233,15 +221,6 @@ Oncodrive3D can ingest **site-specific mutability tables** when a single mutatio
 
 Please see the [Mutability-aware runs guide](docs/mutability.md) for the expected file formats, config schema, and troubleshooting tips.
 
-
-### Building Annotations & Plotting
-
-High-quality plots and enriched tables require a one-time `oncodrive3d build-annotations` step that retrieves AlphaFold structural features (secondary structure, surface accessibility), Pfam domains, UniProt features, and optional stability change predictions. Afterwards, `oncodrive3d plot` combines the run outputs with those annotations to create cohort summaries, per-gene multi-track panels, annotated CSVs, and association analyses between clusters and features.  
-
-Please refer to [Annotation & plotting workflow](docs/annotations_plotting.md) for prerequisites, command examples, and output descriptions.
-
----
-
 ### Running With Singularity
 
 ```
@@ -249,7 +228,6 @@ singularity pull oncodrive3d.sif docker://bbglab/oncodrive3d:latest
 singularity exec oncodrive3d.sif oncodrive3d run -i <input_maf> -p <mut_profile> \ 
                                                  -d <build_folder> -C <cohort_name>
 ```
-
 
 ### Testing
 
@@ -264,6 +242,11 @@ oncodrive3d run -d <build_folder> \
 
 Check the output in the `test/output/` directory to ensure the analysis completes successfully.
 
+## Building Annotations & Plotting
+
+Oncodrive3D ships with an optional plotting pipeline: run `oncodrive3d build-annotations` once to cache structural/functional tracks, then use `oncodrive3d plot` and/or `chimerax-plot` to generate plots and tables that help interpret the clustering signal and distinguish real biology from artifacts.  
+
+Please refer to [Annotation & plotting workflow](docs/annotations_plotting.md) for prerequisites, command examples, and output descriptions.
 
 ## Parallel Processing on Multiple Cohorts
 
@@ -291,8 +274,6 @@ For more information, refer to the [Oncodrive3D Pipeline](https://github.com/bbg
 > - `maf/`: Contains mutation files with the `.in.maf` extension.
 > - `vep/`: Contains VEP annotation files with the `.vep.tsv.gz` extension, which include annotated mutations with all possible transcripts.
 > - `mut_profile/`: Contains mutational profile files with the `.sig.json` extension.
-
----
 
 ```
 Usage: nextflow run main.nf [OPTIONS]
