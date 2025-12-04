@@ -63,6 +63,8 @@ This step build the datasets necessary for Oncodrive3D to run the 3D clustering 
 
 > [!WARNING]
 > This step is highly time- and resource-intensive, requiring a significant amount of free disk space and computational power. It will download and process a large amount of data. Ensure sufficient resources are available before proceeding, as insufficient capacity may result in extended runtimes or processing failures.
+>
+> Reliable internet access is required because AlphaFold structures, Ensembl annotations, Pfam files, and other resources are downloaded on demand during the build.
 
 > [!NOTE]
 > The first time that you run Oncodrive3D building dataset step with a given reference genome, it will download it from our servers. By default the downloaded datasets go to`~/.bgdata`. If you want to move these datasets to another folder you have to define the system environment variable `BGDATA_LOCAL` with an export command.
@@ -109,7 +111,7 @@ For more information on the output of this step, please refer to the [Building D
 
 > [!TIP]
 > ### Increasing MANE Structural Coverage
-> To maximize structural coverage of **MANE Select transcripts**, you can predict missing structures locally and integrate them into Oncodrive3D using:
+> To maximize structural coverage of **MANE Select transcripts**, you can [predict missing structures locally and integrate them into Oncodrive3D](tools/preprocessing/README.md) using:
 >
 > - `tools/preprocessing/prepare_samplesheet.py`: a standalone utility that:
 >   - Retrieve the full MANE entries from NCBI.
@@ -118,12 +120,16 @@ For more information on the output of this step, please refer to the [Building D
 >     - A `samplesheet.csv` with Ensembl protein IDs, FASTA paths, and optional sequences.
 >     - Individual FASTA files for each missing protein.
 >
-> - `--custom_mane_pdb_dir`: use this to provide your own predicted PDB structures (e.g., from [nf-core/proteinfold](https://nf-co.re/proteinfold/1.1.1/)).
+> - `tools/preprocessing/update_samplesheet_and_structures.py`: takes the samplesheet folder produced above and:
+>   - Reuses canonical AlphaFold structures when possible to shrink the nf-core input.
+>   - Ingests nf-core/proteinfold predictions and keeps the `missing/` set up to date.
+>   - Generates a `final_bundle/samplesheet.csv` plus `final_bundle/pdbs/`, ready to be passed to `oncodrive3d build-datasets --mane_only` via `--custom_mane_metadata_path` and `--custom_mane_pdb_dir`.
 >
-> - `--custom_mane_metadata_path`: path to the corresponding `samplesheet.csv`, which must include:
->   - `sequence`: Ensembl protein ID (required)
->   - `refseq`: amino acid sequence (used to inject sequence into PDB if missing)
+> - When invoking `oncodrive3d build-datasets`, supply:
+>   - `--custom_mane_pdb_dir`: use this to provide your own predicted PDB structures (e.g., from [nf-core/proteinfold](https://nf-co.re/proteinfold/1.1.1/) or `final_bundle/pdbs/` produced by `update_samplesheet_and_structures.py`).
+>   - `--custom_mane_metadata_path`: path to the corresponding `samplesheet.csv` (e.g., `final_bundle/samplesheet.csv`).
 >
+> See the documentation of [MANE Preprocessing Toolkit](tools/preprocessing/README.md) for the full workflow to expand coverage of the MANE associated structures.
 
 
 
@@ -216,11 +222,23 @@ Options:
   -h, --help                       Show this message and exit.  
 ```
 
-
 ---
 
 > [!NOTE]
 > To maximize the number of matching transcripts between the input mutations and the AlphaFold predicted structures used by Oncodrive3D, it is recommended to use the unfiltered output of VEP (including all possible transcripts) as input, along with the flags `--o3d_transcripts` `--use_input_symbols` in the `oncodrive3d run` command.
+
+### Handling Heterogeneous Sequencing Depth
+
+Oncodrive3D can ingest **site-specific mutability tables** when a single mutational profile is not representative of the cohort (e.g., mutation calling performed on highly heterogeneous-depth datasets such as ultra depth **Duplex sequencing** panels commonly used in normal tissue analysis). Provide an indexed TSV describing per-site mutability together with a JSON config via `--mutability_config_path`. The run automatically switches from trinucleotide rates to per-position probabilities and tracks additional diagnostics (`Mut_zero_mut_prob`, `Pos_zero_mut_prob`, status `Mut_with_zero_prob/No_mutability`).  
+
+Please see the [Mutability-aware runs guide](docs/mutability.md) for the expected file formats, config schema, and troubleshooting tips.
+
+
+### Building Annotations & Plotting
+
+High-quality plots and enriched tables require a one-time `oncodrive3d build-annotations` step that retrieves AlphaFold structural features (secondary structure, surface accessibility), Pfam domains, UniProt features, and optional stability change predictions. Afterwards, `oncodrive3d plot` combines the run outputs with those annotations to create cohort summaries, per-gene multi-track panels, annotated CSVs, and association analyses between clusters and features.  
+
+Please refer to [Annotation & plotting workflow](docs/annotations_plotting.md) for prerequisites, command examples, and output descriptions.
 
 ---
 
