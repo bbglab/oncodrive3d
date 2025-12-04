@@ -13,8 +13,8 @@ Run `oncodrive3d build-datasets --mane_only` to generate the MANE mapping files 
 
 After running the tools and predicting the missing structures using the nf-core/proteinfold pipeline, rerun `oncodrive3d build-datasets --mane_only --custom_mane_pdb_dir ... --custom_mane_metadata_path ...` to inject the curated bundle into the final MANE-only datasets.
 
-_Notes:_ 
-- _Both scripts reach external services, so they must run from an environment with internet access._
+> [!NOTE]
+> Both scripts reach external services, so they must run from an environment with internet access.
 
 ## Tool overview
 
