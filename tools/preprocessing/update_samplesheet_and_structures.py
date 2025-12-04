@@ -67,23 +67,9 @@ def load_config(config_path: Path) -> dict:
         return yaml.safe_load(fh)
 
 
-def detect_environment(config: dict) -> tuple[str, dict]:
-    """Detect whether we are running on the cluster or locally and select paths."""
-    hostname = socket.gethostname()
-    irb_prefix = config["workspace"].get("irb_hostname_prefix", "irb")
-    bbg_prefix = config["workspace"].get("bbg_hostname_prefix", "bbg")
-    if hostname.startswith(irb_prefix):
-        env_key = "cluster"
-        workspace_key = "workspace_root_irb"
-    elif hostname.startswith(bbg_prefix):
-        env_key = "cluster"
-        workspace_key = "workspace_root_bbg"
-    else:
-        env_key = "local"
-        workspace_key = None
-    path_config = config["paths"][env_key].copy()
-    path_config["_workspace_key"] = workspace_key
-    return env_key, path_config
+def select_paths(config: dict) -> dict:
+    """Return the path template section from the config (single 'paths' block)."""
+    return config["paths"].copy()
 
 
 def build_paths(
@@ -96,35 +82,24 @@ def build_paths(
     cgc_list_path: Optional[Path],
 ) -> PipelinePaths:
     """Resolve all filesystem paths for the selected environment and samplesheet."""
-    repo_root = config_path.parent
-    workspace_key = path_config.pop("_workspace_key")
-    workspace_root: Path
-    if workspace_key:
-        workspace_value = path_config.get(workspace_key)
-        if not workspace_value:
-            raise KeyError(f"Missing workspace path for key: {workspace_key}")
-        workspace_root = Path(workspace_value)
-    else:
-        workspace_root = Path(path_config.get("workspace_root", repo_root))
+    samplesheet_root = Path(samplesheet_folder).expanduser().resolve()
+    if not samplesheet_root.exists():
+        raise FileNotFoundError(f"--samplesheet-folder not found: {samplesheet_root}")
 
-    format_kwargs = {
-        "samplesheet_folder": samplesheet_folder,
-        "WORKSPACE": str(workspace_root),
-    }
+    format_kwargs = {"samplesheet_folder": str(samplesheet_root)}
 
     def resolve(value: str | Path | None) -> Optional[Path]:
-        """Format a template path and make it absolute relative to workspace_root."""
+        """Format a template path and ensure it is absolute."""
         if value is None:
             return None
         if isinstance(value, Path):
             path_str = str(value)
         else:
             path_str = value
-        resolved = path_str.format(**format_kwargs)
-        path = Path(resolved)
-        if not path.is_absolute():
-            path = workspace_root / path
-        return path
+        resolved = Path(path_str.format(**format_kwargs)).expanduser()
+        if not resolved.is_absolute():
+            resolved = (samplesheet_root / resolved).resolve()
+        return resolved
 
     samplesheet_path = resolve(path_config["samplesheet_relpath"])
     fasta_dir = resolve(path_config["fasta_relpath"])
@@ -673,7 +648,7 @@ def cli(
         raise click.UsageError("Provide at least --predicted-dir or --canonical-dir so there is work to perform.")
 
     config = load_config(config_path)
-    _, path_config = detect_environment(config)
+    path_config = select_paths(config)
     mane_dataset_dir = mane_dataset_dir.resolve()
     if not mane_dataset_dir.exists():
         raise FileNotFoundError(f"--mane-dataset-dir not found: {mane_dataset_dir}")

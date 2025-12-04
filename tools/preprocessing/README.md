@@ -85,11 +85,12 @@ Non-runtime paths still live in `config.yaml`:
 
 | Field | Description |
 | --- | --- |
-| `paths.<env>.predicted_dir` | Absolute path to the nf-core/proteinfold run output (predicted ENSP PDBs from nf-core). |
-| `paths.<env>.predicted_relpath` | Folder (relative to `--samplesheet-folder`) where the copied predicted ENSP bundle lives (default `predicted/`). |
-| `paths.<env>.missing_relpath` | Folder (relative) that will hold `missing/samplesheet.csv` and `missing/fasta/` for the next nf-core proteinfold run (default `missing/`). |
-| `paths.<env>.retrieved_relpath` | Folder (relative) where canonical structures reused from the AlphaFold DB canonical PDBs are stored (default `retrieved/`). |
-| `paths.<env>.final_bundle_relpath` | Folder (relative) containing the merged `pdbs/` + `samplesheet.csv` to be passed to `oncodrive3d build-datasets` (default `final_bundle/`). |
+| `paths.samplesheet_relpath` | Template for the samplesheet file (default `{samplesheet_folder}/samplesheet.csv`). |
+| `paths.fasta_relpath` | Template for the FASTA directory (default `{samplesheet_folder}/fasta`). |
+| `paths.missing_relpath` | Template for the next nf-core batch inputs (default `{samplesheet_folder}/missing`). |
+| `paths.predicted_relpath` | Template for the nf-core predictions bundle (default `{samplesheet_folder}/predicted`). |
+| `paths.retrieved_relpath` | Template for canonical reuse outputs (default `{samplesheet_folder}/retrieved`). |
+| `paths.final_bundle_relpath` | Template for the merged bundle passed to `oncodrive3d build-datasets` (default `{samplesheet_folder}/final_bundle`). |
 | `--mane-dataset-dir` (CLI) | Absolute path to the MANE-only dataset built via `oncodrive3d build-datasets --mane_only`. The tool looks for `mane_missing.csv` and `mane_summary.txt.gz` inside this directory. |
 | `--cgc-list-path` (CLI) | Absolute path to the Cancer Gene Census TSV (optional; only needed for CGC prioritisation). Download available from the CGC website (registration required). |
 
@@ -104,8 +105,8 @@ python -m tools.preprocessing.update_samplesheet_and_structures \
 
 Arguments:
 
-- `--samplesheet-folder` (**required**): Folder created by `prepare_samplesheet.py` (contains `samplesheet.csv` + `fasta/`).
-- `--config-path`: YAML with path templates for your local/cluster environments (default `config.yaml`).
+- `--samplesheet-folder` (**required**): Absolute path to the folder created by `prepare_samplesheet.py` (contains `samplesheet.csv` + `fasta/`).
+- `--config-path`: YAML with path templates describing where to place predicted/missing/retrieved bundles relative to `--samplesheet-folder` (default `config.yaml`).
 - `--predicted-dir`: Directory containing nf-core/proteinfold PDBs to ingest; omit it if you only want to reuse AF canonical structures in this pass.
 - `--canonical-dir`: Directory with the AlphaFold canonical PDBs (typically `<build_folder>/pdb_structures` from `oncodrive3d build-datasets --mane` or the default build). Required to reuse canonical structures; `--mane_only` builds alone do not download these files.
 - `--max-workers`: Parallel workers for canonical indexing (default = all cores).
