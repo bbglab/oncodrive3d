@@ -109,9 +109,12 @@ def build_paths(
     final_bundle_dir = resolve(path_config["final_bundle_relpath"])
     canonical_pdb_dir = None
     if canonical_dir:
-        canonical_pdb_dir = canonical_dir.resolve()
+        canonical_root = canonical_dir.resolve()
+        if not canonical_root.exists():
+            raise FileNotFoundError(f"--canonical-dir not found: {canonical_root}")
+        canonical_pdb_dir = canonical_root / "pdb_structures"
         if not canonical_pdb_dir.exists():
-            raise FileNotFoundError(f"--canonical-dir not found: {canonical_pdb_dir}")
+            raise FileNotFoundError(f"Expected pdb_structures/ inside --canonical-dir: {canonical_pdb_dir}")
     mane_missing_path = mane_dataset_dir / "mane_missing.csv"
     mane_summary_path = mane_dataset_dir / "mane_summary.txt.gz"
 
@@ -121,7 +124,6 @@ def build_paths(
     required = {
         "samplesheet": samplesheet_path,
         "fasta_dir": fasta_dir,
-        "mane_dataset_dir": mane_dataset_dir,
         "mane_dataset_dir": mane_dataset_dir,
         "mane_summary_path": mane_summary_path,
         "mane_missing_path": mane_missing_path,

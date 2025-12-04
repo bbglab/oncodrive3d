@@ -9,7 +9,7 @@ Together they allow to iteratively update the MANE structures and feed them back
 
 ## Prerequisites
 
-Run `oncodrive3d build-datasets --mane_only` to generate the MANE mapping files consumed by `prepare_samplesheet.py`. If you plan to reuse canonical structures, run a separate `oncodrive3d build-datasets --mane` (or default `oncodrive3d build-datasets`) so you also have the AlphaFold canonical bundle whose `pdb_structures/` matching the missing MANE structures can be retrieved by the tools.
+Run `oncodrive3d build-datasets --mane_only` to generate the MANE mapping files consumed by `prepare_samplesheet.py`. If you plan to reuse canonical structures, run a separate `oncodrive3d build-datasets` (or `oncodrive3d build-datasets --mane`) so you also have the AlphaFold canonical bundle whose `pdb_structures/` matching the missing MANE structures can be retrieved by the tools.
 
 After running the tools and predicting the missing structures using the nf-core/proteinfold pipeline, rerun `oncodrive3d build-datasets --mane_only --custom_mane_pdb_dir ... --custom_mane_metadata_path ...` to inject the curated bundle into the final MANE-only datasets.
 
@@ -91,14 +91,13 @@ Non-runtime paths still live in `config.yaml`:
 | `paths.predicted_relpath` | Template for the nf-core predictions bundle (default `{samplesheet_folder}/predicted`). |
 | `paths.retrieved_relpath` | Template for canonical reuse outputs (default `{samplesheet_folder}/retrieved`). |
 | `paths.final_bundle_relpath` | Template for the merged bundle passed to `oncodrive3d build-datasets` (default `{samplesheet_folder}/final_bundle`). |
-| `--mane-dataset-dir` (CLI) | Absolute path to the MANE-only dataset built via `oncodrive3d build-datasets --mane_only`. The tool looks for `mane_missing.csv` and `mane_summary.txt.gz` inside this directory. |
-| `--cgc-list-path` (CLI) | Absolute path to the Cancer Gene Census TSV (optional; only needed for CGC prioritisation). Download available from the CGC website (registration required). |
 
 ### Usage
 
 ```bash
 python -m tools.preprocessing.update_samplesheet_and_structures \
     --samplesheet-folder /path/to/mane_missing/data \
+    --mane-dataset-dir /path/to/mane_only_dataset \
     [--predicted-dir   /path/to/nfcore/pdbs] \
     [--canonical-dir   /path/to/af_canonical_pdbs]
 ```
@@ -106,13 +105,15 @@ python -m tools.preprocessing.update_samplesheet_and_structures \
 Arguments:
 
 - `--samplesheet-folder` (**required**): Absolute path to the folder created by `prepare_samplesheet.py` (contains `samplesheet.csv` + `fasta/`).
-- `--config-path`: YAML with path templates describing where to place predicted/missing/retrieved bundles relative to `--samplesheet-folder` (default `config.yaml`).
-- `--predicted-dir`: Directory containing nf-core/proteinfold PDBs to ingest; omit it if you only want to reuse AF canonical structures in this pass.
-- `--canonical-dir`: Directory with the AlphaFold canonical PDBs (typically `<build_folder>/pdb_structures` from `oncodrive3d build-datasets --mane` or the default build). Required to reuse canonical structures; `--mane_only` builds alone do not download these files.
+- `--mane-dataset-dir` (**required**): Path to the MANE-only dataset built via `oncodrive3d build-datasets --mane_only`.
+- `--canonical-dir`: Path to the dataset including Uniprot canonical structures built via `oncodrive3d build-datasets` or `oncodrive3d build-datasets --mane`.
+- `--predicted-dir`: Path to the directory containing nf-core/proteinfold PDBs to ingest; omit it if you only want to reuse AF canonical structures in this pass.
+- `--cgc-list-path`: Path to the Cancer Gene Census TSV (optional; only needed for CGC prioritisation). Download available from the CGC website (registration required).
 - `--max-workers`: Parallel workers for canonical indexing (default = all cores).
 - `--enable-canonical-reuse/--disable-canonical-reuse`: Toggle canonical harvesting (enabled by default when `--canonical-dir` is provided).
 - `--filter-long-sequences/--no-filter-long-sequences`: Whether to drop long proteins from the nf-core input (default enabled).
 - `--max-sequence-length`: Length cutoff applied when filtering (default `2700` residues).
+- `--config-path`: YAML with path templates describing where to place predicted/missing/retrieved bundles relative to `--samplesheet-folder` (default `config.yaml`).
 
 > [!NOTE]
 > Provide at least one of `--predicted-dir` or `--canonical-dir`; otherwise the script has nothing to consume.
