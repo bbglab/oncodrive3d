@@ -98,8 +98,8 @@ Non-runtime paths still live in `config.yaml`:
 python -m tools.preprocessing.update_samplesheet_and_structures \
     --samplesheet-folder /path/to/mane_missing/data \
     --mane-dataset-dir /path/to/mane_only_dataset \
-    [--predicted-dir   /path/to/nfcore/pdbs] \
-    [--canonical-dir   /path/to/af_canonical_pdbs]
+    [--canonical-dir   /path/to/af_canonical_pdbs] \
+    [--predicted-dir   /path/to/nfcore/pdbs]
 ```
 
 Arguments:
@@ -151,9 +151,64 @@ After each run, `<samplesheet_folder>` contains:
 
 ## End-to-end loop
 
-0. **Bootstrap the datasets** – run `oncodrive3d build-datasets --mane_only` to generate the MANE-only baseline and mapping files, and run `oncodrive3d build-datasets --mane` (or a default `build-datasets`) if you also wish to retrieve structures from the canonical AlphaFold download (recommended).
+0. **Initialize the datasets** – run `oncodrive3d build-datasets --mane_only` to generate the MANE-only baseline and mapping files, and run `oncodrive3d build-datasets --mane` (or a default `build-datasets`) if you also wish to retrieve structures from the canonical AlphaFold download (recommended).
 1. **Prepare the missing set** – run `prepare_samplesheet.py`.
 2. **Harvest canonical matches (optional)** – invoke `update_samplesheet_and_structures.py` with `--canonical-dir` to reuse any AlphaFold canonical structures and shrink the missing set before prediction.
 3. **Predict the remaining structures** – run nf-core/proteinfold on `missing/samplesheet.csv` + `missing/fasta/`.
 4. **Ingest predictions** – re-run `update_samplesheet_and_structures.py` with `--predicted-dir` (and optionally `--canonical-dir` again) to fold new PDBs into `predicted/` and refresh the missing set.
 5. **Rebuild Oncodrive3D datasets** – point `oncodrive3d build-datasets --mane_only` at `final_bundle/pdbs` (`--custom_mane_pdb_dir`) and `final_bundle/samplesheet.csv` (`--custom_mane_metadata_path`) so every subsequent `oncodrive3d run` benefits from the extended MANE coverage.
+
+### Example
+
+1. **Initialize datasets**
+   ```bash
+   # Activate the main O3D environment
+   source .venv/bin/activate
+
+   # Build O3D datasets
+   oncodrive3d build-datasets --mane_only   --output_dir <path/to/o3d_datasets-mane_only-date>
+   oncodrive3d build-datasets               --output_dir <path/to/o3d_datasets-date>
+   ```
+
+2. **Prepare missing set**
+   ```bash
+   # Activate tools environment
+   cd tools/preprocessing
+   source .venv/bin/activate
+
+   # Init the MANE missing structures
+   python -m tools.preprocessing.prepare_samplesheet \
+     --mane-dataset-dir <path/to/o3d_datasets-mane_only-date> \
+     --output-dir       <path/to/mane_missing-date>
+   ```
+
+3. **Harvest canonical matches (first iteration, optional but recommended)**
+   ```bash
+   # Retrieve MANE missing structures overlapping sequences of canonical ones
+   python -m tools.preprocessing.update_samplesheet_and_structures \
+     --samplesheet-folder <path/to/mane_missing-date> \
+     --mane-dataset-dir   <path/to/o3d_datasets-mane_only-date> \
+     --canonical-dir      <path/to/o3d_datasets-date>
+   ```
+
+4. **Predict remaining structures**
+   - Feed `<path/to/mane_missing-date>/missing/{samplesheet.csv,fasta/}` to nf-core/proteinfold.
+
+5. **Ingest predictions + canonical reuse**
+   ```bash
+   # Merge retrieved + predicted structures into a final_bundle
+   python -m tools.preprocessing.update_samplesheet_and_structures \
+     --samplesheet-folder <path/to/mane_missing-date> \
+     --mane-dataset-dir   <path/to/o3d_datasets-mane_only-date> \
+     --canonical-dir      <path/to/o3d_datasets-date> \
+     --predicted-dir      <path/to/predicted/pdbs> # (what nf-core/proteinfold produces).
+   ```
+
+6. **Rebuild MANE-only datasets with the final bundle**
+   ```bash
+   # Build a new MANE only datasets providing the added structures in the final bundle
+   oncodrive3d build-datasets --mane_only \
+     --custom_mane_pdb_dir          <path/to/mane_missing-date>/final_bundle/pdbs \
+     --custom_mane_metadata_path    <path/to/mane_missing-date>/final_bundle/samplesheet.csv \
+     --output_dir                   <path/to/mane_missing-new_date>
+   ```
