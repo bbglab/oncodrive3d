@@ -214,7 +214,7 @@ class ManeSamplesheetBuilder:
 )
 def main(mane_dataset_dir, output_dir, mane_version, no_fragments, cores):
     """
-    Build a nf‑core/proteinfold samplesheet by downloading MANE FASTA,
+    Build a nf-core/proteinfold samplesheet by downloading MANE FASTA,
     filtering out existing AF entries, writing per‑protein FASTAs,
     and emitting a samplesheet.csv.
     """
