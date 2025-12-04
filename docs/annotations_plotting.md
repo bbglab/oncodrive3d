@@ -31,6 +31,14 @@ oncodrive3d build-annotations \
   --output_dir /path/to/annotations
 ```
 
+Key options:
+
+- `--data_dir` (**required**) – the Oncodrive3D datasets folder built via `oncodrive3d build-datasets`; annotations pull AlphaFold PDBs and metadata from here.
+- `--output_dir` – target directory for the annotation bundle (defaults to `annotations/`; cleaned at each run unless `--yes`).
+- `--ddg_dir` – point to precomputed RaSP ΔΔG predictions to skip the download step (mandatory for mouse because only human RaSP files are hosted).
+- `--organism` – select the species recipe (human or mouse) so the correct external resources are queried.
+- `--cores` / `--yes` – control parallelism and disable confirmation prompts when overwriting an existing `output_dir`.
+
 What happens internally (`scripts/plotting/build_annotations.py` and helpers):
 
 1. **Cleanup** – the target directory is emptied (except for `log/`) unless `--yes` is provided.
@@ -87,8 +95,12 @@ oncodrive3d plot \
 
 Key options:
 
+- `--gene_result_path`, `--pos_result_path` (**required**) – paths to `<cohort>.3d_clustering_genes.csv` and `<cohort>.3d_clustering_pos.csv` from the same run.
 - `--maf_path` / `--maf_for_nonmiss_path` – `--maf_path` must point to the processed missense-only TSV created by `oncodrive3d run`; `--maf_for_nonmiss_path` is optional and enables the non-missense track if you provide the original MAF.
 - `--miss_prob_path` / `--seq_df_path` – these files (`<cohort>.miss_prob.processed.json` and `<cohort>.seq_df.processed.tsv`) must come from the same run; they carry the per-residue missense probabilities and mapping metadata needed for plotting.
+- `--datasets_dir` / `--annotations_dir` (**required**) – the dataset folder used during the run and the annotation bundle produced by `build-annotations`; mismatched directories cause missing-track errors.
+- `--output_dir` / `--cohort` – where plots/CSVs are written and which cohort label is printed on them.
+- `--fdr` – pass the column name with BH-FDR–adjusted p-values to display corrected values in the plots; defaults to raw `pvalue`.
 - `--lst_summary_tracks` / `--lst_gene_tracks` – comma-separated lists of track names. If you pass custom lists, match them with `--lst_*_hratios` to redistribute vertical space.
 - `--genes` / `--c_genes_only` / `--max_n_genes` – jointly control which genes are rendered. Use `--genes` for explicit symbols, `--c_genes_only` to keep only significant hits, and `--max_n_genes` to cap the total.
 - `--volcano_top_n`, `--summary_fsize_*`, `--gene_fsize_*` – resize summary/association plots; `--volcano_top_n` sets how many associations are annotated in the cohort-level volcano.
@@ -139,11 +151,15 @@ oncodrive3d chimerax-plot \
   --cluster_ext
 ```
 
+- `--gene_result_path`, `--pos_result_path` (**required**) – gene- and residue-level CSVs from the same run; both are needed to highlight clusters.
 - `--seq_df_path` – must point to the processed sequence dataframe (`<cohort>.seq_df.processed.tsv`), which provides transcript IDs, fragments, and mappings needed to overlay residues on structures.
+- `--datasets_dir` / `--output_dir` – dataset directory supplying AlphaFold models to load in ChimeraX and the destination for PNG/attribute outputs.
+- `--cohort` / `--max_n_genes` – label snapshots and cap the number of genes displayed.
 - `--chimerax_bin` – path to the ChimeraX executable; override this if ChimeraX is installed outside `/usr/bin/chimerax`.
 - `--pixel_size` – controls image resolution (smaller values produce larger images); default `0.08`.
 - `--cluster_ext` / `--fragmented_proteins` – toggles to display extended clusters (mutations that help rescue significance) and to keep AlphaFold-fragmented proteins, respectively.
 - `--transparent_bg` – render PNGs with a transparent background (handy for figure overlays).
+- `--af_version` – specify which AlphaFold build (release tag) your datasets use so the script picks the right structure names (default `4`).
 
 ---
 
