@@ -106,7 +106,7 @@ Arguments:
 
 - `--samplesheet-folder` (**required**): Absolute path to the folder created by `prepare_samplesheet.py` (contains `samplesheet.csv` + `fasta/`).
 - `--mane-dataset-dir` (**required**): Path to the MANE-only dataset built via `oncodrive3d build-datasets --mane_only`.
-- `--canonical-dir`: Path to the dataset including Uniprot canonical structures built via `oncodrive3d build-datasets` or `oncodrive3d build-datasets --mane`.
+- `--canonical-dir`: Path to the dataset including UniProt canonical structures built via `oncodrive3d build-datasets` or `oncodrive3d build-datasets --mane`.
 - `--predicted-dir`: Path to the directory containing nf-core/proteinfold PDBs to ingest; omit it if you only want to reuse AF canonical structures in this pass.
 - `--cgc-list-path`: Path to the Cancer Gene Census TSV (optional; only needed for CGC prioritisation). Download available from the CGC website (registration required).
 - `--max-workers`: Parallel workers for canonical indexing (default = all cores).
