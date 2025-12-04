@@ -13,7 +13,8 @@ Run `oncodrive3d build-datasets --mane_only` to generate the MANE mapping files 
 
 After running the tools and predicting the missing structures using the nf-core/proteinfold pipeline, rerun `oncodrive3d build-datasets --mane_only --custom_mane_pdb_dir ... --custom_mane_metadata_path ...` to inject the curated bundle into the final MANE-only datasets.
 
-_Note: both scripts reach external services, so they must run from an environment with internet access._
+_Notes:_ 
+- _Both scripts reach external services, so they must run from an environment with internet access._
 
 ## Tool overview
 
@@ -93,7 +94,8 @@ Non-runtime paths still live in `config.yaml`:
 | `paths.<env>.mane_summary_path` | Absolute path to the MANE summary file used to map ENSP ↔ gene symbols. Downloaded automatically during `oncodrive3d build-datasets --mane` or default (see prerequisites). |
 | `paths.<env>.cgc_list_path` | Absolute path to the Cancer Gene Census TSV (optional; only needed for CGC prioritisation). Download available from the CGC website (registration required). |
 
-Runtime arguments override or complement the config file; `config.yaml` no longer stores `samplesheet_folder` or runtime flags.
+> [!WARNING]
+> The provided `config.yaml` contains examples for a developer local nachine and clusters used by the BBGLab; customize or replace it with paths that exist on your local machine/cluster before running the pipeline.
 
 ### Usage
 
