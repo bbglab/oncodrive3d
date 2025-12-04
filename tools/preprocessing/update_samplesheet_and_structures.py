@@ -55,7 +55,8 @@ class PipelinePaths:
     final_bundle_dir: Path
     final_pdb_dir: Path
     canonical_pdb_dir: Optional[Path]
-    mane_missing_path: Optional[Path]
+    mane_dataset_dir: Path
+    mane_missing_path: Path
     mane_summary_path: Path
     cgc_list_path: Optional[Path]
 
@@ -66,23 +67,9 @@ def load_config(config_path: Path) -> dict:
         return yaml.safe_load(fh)
 
 
-def detect_environment(config: dict) -> tuple[str, dict]:
-    """Detect whether we are running on the cluster or locally and select paths."""
-    hostname = socket.gethostname()
-    irb_prefix = config["workspace"].get("irb_hostname_prefix", "irb")
-    bbg_prefix = config["workspace"].get("bbg_hostname_prefix", "bbg")
-    if hostname.startswith(irb_prefix):
-        env_key = "cluster"
-        workspace_key = "workspace_root_irb"
-    elif hostname.startswith(bbg_prefix):
-        env_key = "cluster"
-        workspace_key = "workspace_root_bbg"
-    else:
-        env_key = "local"
-        workspace_key = None
-    path_config = config["paths"][env_key].copy()
-    path_config["_workspace_key"] = workspace_key
-    return env_key, path_config
+def select_paths(config: dict) -> dict:
+    """Return the path template section from the config (single 'paths' block)."""
+    return config["paths"].copy()
 
 
 def build_paths(
@@ -91,37 +78,28 @@ def build_paths(
     path_config: dict,
     samplesheet_folder: str,
     canonical_dir: Optional[Path],
+    mane_dataset_dir: Path,
+    cgc_list_path: Optional[Path],
 ) -> PipelinePaths:
     """Resolve all filesystem paths for the selected environment and samplesheet."""
-    repo_root = config_path.parent
-    workspace_key = path_config.pop("_workspace_key")
-    workspace_root: Path
-    if workspace_key:
-        workspace_value = path_config.get(workspace_key)
-        if not workspace_value:
-            raise KeyError(f"Missing workspace path for key: {workspace_key}")
-        workspace_root = Path(workspace_value)
-    else:
-        workspace_root = Path(path_config.get("workspace_root", repo_root))
+    samplesheet_root = Path(samplesheet_folder).expanduser().resolve()
+    if not samplesheet_root.exists():
+        raise FileNotFoundError(f"--samplesheet-folder not found: {samplesheet_root}")
 
-    format_kwargs = {
-        "samplesheet_folder": samplesheet_folder,
-        "WORKSPACE": str(workspace_root),
-    }
+    format_kwargs = {"samplesheet_folder": str(samplesheet_root)}
 
     def resolve(value: str | Path | None) -> Optional[Path]:
-        """Format a template path and make it absolute relative to workspace_root."""
+        """Format a template path and ensure it is absolute."""
         if value is None:
             return None
         if isinstance(value, Path):
             path_str = str(value)
         else:
             path_str = value
-        resolved = path_str.format(**format_kwargs)
-        path = Path(resolved)
-        if not path.is_absolute():
-            path = workspace_root / path
-        return path
+        resolved = Path(path_str.format(**format_kwargs)).expanduser()
+        if not resolved.is_absolute():
+            resolved = (samplesheet_root / resolved).resolve()
+        return resolved
 
     samplesheet_path = resolve(path_config["samplesheet_relpath"])
     fasta_dir = resolve(path_config["fasta_relpath"])
@@ -131,26 +109,25 @@ def build_paths(
     final_bundle_dir = resolve(path_config["final_bundle_relpath"])
     canonical_pdb_dir = None
     if canonical_dir:
-        canonical_pdb_dir = canonical_dir.resolve()
+        canonical_root = canonical_dir.resolve()
+        if not canonical_root.exists():
+            raise FileNotFoundError(f"--canonical-dir not found: {canonical_root}")
+        canonical_pdb_dir = canonical_root / "pdb_structures"
         if not canonical_pdb_dir.exists():
-            raise FileNotFoundError(f"--canonical-dir not found: {canonical_pdb_dir}")
-    mane_missing_path = resolve(path_config.get("mane_missing_path"))
-    mane_summary_path = resolve(path_config.get("mane_summary_path"))
-    cgc_list_path = resolve(path_config.get("cgc_list_path"))
-
-    if not canonical_dir:
-        canonical_pdb_dir = None
+            raise FileNotFoundError(f"Expected pdb_structures/ inside --canonical-dir: {canonical_pdb_dir}")
+    mane_missing_path = mane_dataset_dir / "mane_missing.csv"
+    mane_summary_path = mane_dataset_dir / "mane_summary.txt.gz"
 
     required = {
         "samplesheet": samplesheet_path,
         "fasta_dir": fasta_dir,
+        "mane_dataset_dir": mane_dataset_dir,
         "mane_summary_path": mane_summary_path,
+        "mane_missing_path": mane_missing_path,
     }
     for label, path in required.items():
         if path is None or not path.exists():
             raise FileNotFoundError(f"Required path for {label} not found: {path}")
-    if cgc_list_path and not cgc_list_path.exists():
-        raise FileNotFoundError(f"Required path for cgc_list_path not found: {cgc_list_path}")
 
     predicted_pdb_dir = predicted_bundle_dir / "pdbs"
     missing_fasta_dir = missing_dir / "fasta"
@@ -181,6 +158,7 @@ def build_paths(
         final_bundle_dir=final_bundle_dir,
         final_pdb_dir=final_pdb_dir,
         canonical_pdb_dir=canonical_pdb_dir,
+        mane_dataset_dir=mane_dataset_dir,
         mane_missing_path=mane_missing_path,
         mane_summary_path=mane_summary_path,
         cgc_list_path=cgc_list_path,
@@ -602,8 +580,25 @@ def run_pipeline(
 
 
 @click.command(context_settings={"help_option_names": ["-h", "--help"]})
-@click.option("--samplesheet-folder", required=True, help="Folder containing the MANE samplesheet/fasta bundle created by Oncodrive3D.")
-@click.option("--config-path", default="config.yaml", type=click.Path(path_type=Path), show_default=True)
+@click.option(
+    "--samplesheet-folder", 
+    required=True, 
+    help="Folder containing the MANE samplesheet/fasta bundle created by tools/preprocessing/prepare_samplesheet.py."
+)
+@click.option(
+    "--config-path", default="config.yaml", type=click.Path(path_type=Path), show_default=True)
+@click.option(
+    "--mane-dataset-dir", 
+    required=True, 
+    type=click.Path(path_type=Path), 
+    help="MANE-only dataset built by `oncodrive3d build-datasets --mane_only`."
+)
+@click.option(
+    "--cgc-list-path", 
+    type=click.Path(path_type=Path), 
+    default=None, 
+    help="Cancer Gene Census TSV (optional)."
+)
 @click.option(
     "--predicted-dir",
     type=click.Path(path_type=Path),
@@ -639,6 +634,8 @@ def run_pipeline(
 def cli(
     samplesheet_folder: str,
     config_path: Path,
+    mane_dataset_dir: Path,
+    cgc_list_path: Optional[Path],
     predicted_dir: Optional[Path],
     canonical_dir: Optional[Path],
     max_workers: int,
@@ -650,13 +647,22 @@ def cli(
         raise click.UsageError("Provide at least --predicted-dir or --canonical-dir so there is work to perform.")
 
     config = load_config(config_path)
-    _, path_config = detect_environment(config)
+    path_config = select_paths(config)
+    mane_dataset_dir = mane_dataset_dir.resolve()
+    if not mane_dataset_dir.exists():
+        raise FileNotFoundError(f"--mane-dataset-dir not found: {mane_dataset_dir}")
+    if cgc_list_path:
+        cgc_list_path = Path(cgc_list_path).resolve()
+        if not cgc_list_path.exists():
+            raise FileNotFoundError(f"--cgc-list-path not found: {cgc_list_path}")
     paths = build_paths(
         config,
         config_path,
         path_config,
         samplesheet_folder,
         canonical_dir=canonical_dir,
+        mane_dataset_dir=mane_dataset_dir,
+        cgc_list_path=cgc_list_path,
     )
     settings = Settings(
         enable_canonical_reuse=bool(paths.canonical_pdb_dir),

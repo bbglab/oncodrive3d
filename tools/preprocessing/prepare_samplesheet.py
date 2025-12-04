@@ -7,7 +7,7 @@ samplesheet.csv for downstream nf-core AlphaFold pipeline.
 
 Example usage:
     python -m tools.preprocessing.prepare_samplesheet \
-        --datasets-dir  /data/bbg/nobackup/scratch/oncodrive3d/datasets_mane_240506/ \
+        --mane-dataset-dir  /data/bbg/nobackup/scratch/oncodrive3d/datasets_mane_240506/ \
         --output-dir    /data/bbg/nobackup/scratch/oncodrive3d/mane_missing/data
 """
 
@@ -31,14 +31,14 @@ class ManeSamplesheetBuilder:
 
     def __init__(
         self,
-        datasets_dir: str,
+        mane_dataset_dir: str,
         output_dir: str,
         mane_version: str = "1.4",
         max_attempts: int = 15,
         no_fragments: bool = True,
         cores: int = 1,
     ):
-        self.datasets_dir = Path(datasets_dir)
+        self.mane_dataset_dir = Path(mane_dataset_dir)
         self.output_dir = Path(output_dir)
         self.mane_version = mane_version
         self.max_attempts = max_attempts
@@ -108,8 +108,8 @@ class ManeSamplesheetBuilder:
         and return a DataFrame with 'refseq_prot' and
         version‐stripped 'Ensembl_prot'.
         """
-        map_csv = self.datasets_dir / "mane_refseq_prot_to_alphafold.csv"
-        sum_gz   = self.datasets_dir / "mane_summary.txt.gz"
+        map_csv = self.mane_dataset_dir / "mane_refseq_prot_to_alphafold.csv"
+        sum_gz   = self.mane_dataset_dir / "mane_summary.txt.gz"
 
         df_map = pd.read_csv(map_csv)
         self.df_mane_summary = (
@@ -182,10 +182,10 @@ class ManeSamplesheetBuilder:
 
 @click.command(context_settings={"help_option_names": ["-h", "--help"]})
 @click.option(
-    "--datasets-dir", "-d",
-    required=True,         # This could be optional if we download mane_refseq_prot_to_alphafold.csv from AlphaFold DB and mane_summary.txt.gz from ncbi
+    "--mane-dataset-dir", "-d",
+    required=True,
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
-    help="Path to Oncodrive3D datasets or folder containing AF‑MANE mapping (mane_refseq_prot_to_alphafold.csv) and summary (mane_summary.txt.gz) files"
+    help="MANE-only dataset built by `oncodrive3d build-datasets --mane_only`."
 )
 @click.option(
     "--output-dir", "-o",
@@ -212,9 +212,9 @@ class ManeSamplesheetBuilder:
     show_default=True,
     help="Number of cores to use in the computation"
 )
-def main(datasets_dir, output_dir, mane_version, no_fragments, cores):
+def main(mane_dataset_dir, output_dir, mane_version, no_fragments, cores):
     """
-    Build a nf‑core AlphaFold samplesheet by downloading MANE FASTA,
+    Build a nf-core/proteinfold samplesheet by downloading MANE FASTA,
     filtering out existing AF entries, writing per‑protein FASTAs,
     and emitting a samplesheet.csv.
     """
@@ -222,7 +222,7 @@ def main(datasets_dir, output_dir, mane_version, no_fragments, cores):
     # Log the parameters
     print("Running with parameters:")
     for name, val in {
-        "datasets_dir   ": datasets_dir,
+        "mane_dataset_dir": mane_dataset_dir,
         "output_dir     ": output_dir,
         "mane_version   ": mane_version,
         "no_fragments   ": no_fragments,
@@ -231,7 +231,7 @@ def main(datasets_dir, output_dir, mane_version, no_fragments, cores):
         print(f"{name} = {val}")
 
     builder = ManeSamplesheetBuilder(
-        datasets_dir=datasets_dir,
+        mane_dataset_dir=mane_dataset_dir,
         output_dir=output_dir,
         mane_version=mane_version,
         no_fragments=no_fragments
@@ -241,12 +241,3 @@ def main(datasets_dir, output_dir, mane_version, no_fragments, cores):
 
 if __name__ == "__main__":
     main()
-    
-    # # For debugging
-    # builder = ManeSamplesheetBuilder(
-    #     datasets_dir="/data/bbg/nobackup/scratch/oncodrive3d/datasets_mane_240506/",
-    #     output_dir="/data/bbg/nobackup/scratch/oncodrive3d/mane_missing/data/250728-all_proteins",
-    #     cores=len(os.sched_getaffinity(0)),
-    #     no_fragments=True
-    #     )
-    # builder.build()

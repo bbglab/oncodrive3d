@@ -1,0 +1,7 @@
+paths:
+  samplesheet_relpath: "{samplesheet_folder}/samplesheet.csv"
+  fasta_relpath: "{samplesheet_folder}/fasta"
+  missing_relpath: "{samplesheet_folder}/missing"
+  predicted_relpath: "{samplesheet_folder}/predicted"
+  retrieved_relpath: "{samplesheet_folder}/retrieved"
+  final_bundle_relpath: "{samplesheet_folder}/final_bundle"

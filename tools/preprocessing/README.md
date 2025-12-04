@@ -9,12 +9,12 @@ Together they allow to iteratively update the MANE structures and feed them back
 
 ## Prerequisites
 
-Run `oncodrive3d build-datasets --mane_only` to generate the MANE mapping files consumed by `prepare_samplesheet.py`. If you plan to reuse canonical structures, run a separate `oncodrive3d build-datasets --mane` (or default `oncodrive3d build-datasets`) so you also have the AlphaFold canonical bundle whose `pdb_structures/` matching the missing MANE structures can be retrieved by the tools.
+Run `oncodrive3d build-datasets --mane_only` to generate the MANE mapping files consumed by `prepare_samplesheet.py`. If you plan to reuse canonical structures, run a separate `oncodrive3d build-datasets` (or `oncodrive3d build-datasets --mane`) so you also have the AlphaFold canonical bundle whose `pdb_structures/` matching the missing MANE structures can be retrieved by the tools.
 
 After running the tools and predicting the missing structures using the nf-core/proteinfold pipeline, rerun `oncodrive3d build-datasets --mane_only --custom_mane_pdb_dir ... --custom_mane_metadata_path ...` to inject the curated bundle into the final MANE-only datasets.
 
-_Notes:_ 
-- _Both scripts reach external services, so they must run from an environment with internet access._
+> [!NOTE]
+> Both scripts reach external services, so they must run from an environment with internet access.
 
 ## Tool overview
 
@@ -44,13 +44,13 @@ Download the requested MANE protein FASTA from NCBI and materialize FASTA files 
 
 ```bash
 python -m tools.preprocessing.prepare_samplesheet \
-    --datasets-dir /path/to/o3d_mane_only_dataset \
+    --mane-dataset-dir /path/to/o3d_mane_only_dataset \
     --output-dir   /path/to/mane_missing/data
 ```
 
 Key options:
 
-- `--datasets-dir/-d` (**required**): Directory with the AlphaFold MANE mapping files produced by `oncodrive3d build-datasets`.
+- `--mane-dataset-dir/-d` (**required**): Directory with the MANE-only dataset (`oncodrive3d build-datasets --mane_only`) containing `mane_refseq_prot_to_alphafold.csv` and `mane_summary.txt.gz`.
 - `--output-dir/-o` (**required**): Destination folder holding the downloaded FASTA, the per-ENSP FASTAs, and `samplesheet.csv`.
 - `--mane-version/-v`: Release to download from NCBI (default `1.4`).
 - `--no-fragments`: Drop proteins longer than 2,700 aa (enabled by default when instantiating the builder; pass `--no-fragments/--no-no-fragments` to toggle).
@@ -85,37 +85,35 @@ Non-runtime paths still live in `config.yaml`:
 
 | Field | Description |
 | --- | --- |
-| `paths.<env>.predicted_dir` | Absolute path to the nf-core/proteinfold run output (predicted ENSP PDBs from nf-core). |
-| `paths.<env>.predicted_relpath` | Folder (relative to `--samplesheet-folder`) where the copied predicted ENSP bundle lives (default `predicted/`). |
-| `paths.<env>.missing_relpath` | Folder (relative) that will hold `missing/samplesheet.csv` and `missing/fasta/` for the next nf-core proteinfold run (default `missing/`). |
-| `paths.<env>.retrieved_relpath` | Folder (relative) where canonical structures reused from the AlphaFold DB canonical PDBs are stored (default `retrieved/`). |
-| `paths.<env>.final_bundle_relpath` | Folder (relative) containing the merged `pdbs/` + `samplesheet.csv` to be passed to `oncodrive3d build-datasets` (default `final_bundle/`). |
-| `paths.<env>.mane_missing_path` | Absolute path to `mane_missing.csv` (UniProt ↔ RefSeq mapping used for canonical reuse). Produced when running `oncodrive3d build-datasets --mane` or default (see prerequisites). |
-| `paths.<env>.mane_summary_path` | Absolute path to the MANE summary file used to map ENSP ↔ gene symbols. Downloaded automatically during `oncodrive3d build-datasets --mane` or default (see prerequisites). |
-| `paths.<env>.cgc_list_path` | Absolute path to the Cancer Gene Census TSV (optional; only needed for CGC prioritisation). Download available from the CGC website (registration required). |
-
-> [!WARNING]
-> The provided `config.yaml` contains examples for a developer local nachine and clusters used by the BBGLab; customize or replace it with paths that exist on your local machine/cluster before running the pipeline.
+| `paths.samplesheet_relpath` | Template for the samplesheet file (default `{samplesheet_folder}/samplesheet.csv`). |
+| `paths.fasta_relpath` | Template for the FASTA directory (default `{samplesheet_folder}/fasta`). |
+| `paths.missing_relpath` | Template for the next nf-core batch inputs (default `{samplesheet_folder}/missing`). |
+| `paths.predicted_relpath` | Template for the nf-core predictions bundle (default `{samplesheet_folder}/predicted`). |
+| `paths.retrieved_relpath` | Template for canonical reuse outputs (default `{samplesheet_folder}/retrieved`). |
+| `paths.final_bundle_relpath` | Template for the merged bundle passed to `oncodrive3d build-datasets` (default `{samplesheet_folder}/final_bundle`). |
 
 ### Usage
 
 ```bash
 python -m tools.preprocessing.update_samplesheet_and_structures \
     --samplesheet-folder /path/to/mane_missing/data \
-    [--predicted-dir   /path/to/nfcore/pdbs] \
-    [--canonical-dir   /path/to/af_canonical_pdbs]
+    --mane-dataset-dir /path/to/mane_only_dataset \
+    [--canonical-dir   /path/to/af_canonical_pdbs] \
+    [--predicted-dir   /path/to/nfcore/pdbs]
 ```
 
 Arguments:
 
-- `--samplesheet-folder` (**required**): Folder created by `prepare_samplesheet.py` (contains `samplesheet.csv` + `fasta/`).
-- `--config-path`: YAML with path templates for your local/cluster environments (default `config.yaml`).
-- `--predicted-dir`: Directory containing nf-core/proteinfold PDBs to ingest; omit it if you only want to reuse AF canonical structures in this pass.
-- `--canonical-dir`: Directory with the AlphaFold canonical PDBs (typically `<build_folder>/pdb_structures` from `oncodrive3d build-datasets --mane` or the default build). Required to reuse canonical structures; `--mane_only` builds alone do not download these files.
+- `--samplesheet-folder` (**required**): Absolute path to the folder created by `prepare_samplesheet.py` (contains `samplesheet.csv` + `fasta/`).
+- `--mane-dataset-dir` (**required**): Path to the MANE-only dataset built via `oncodrive3d build-datasets --mane_only`.
+- `--canonical-dir`: Path to the dataset including UniProt canonical structures built via `oncodrive3d build-datasets` or `oncodrive3d build-datasets --mane`.
+- `--predicted-dir`: Path to the directory containing nf-core/proteinfold PDBs to ingest; omit it if you only want to reuse AF canonical structures in this pass.
+- `--cgc-list-path`: Path to the Cancer Gene Census TSV (optional; only needed for CGC prioritisation). Download available from the CGC website (registration required).
 - `--max-workers`: Parallel workers for canonical indexing (default = all cores).
 - `--enable-canonical-reuse/--disable-canonical-reuse`: Toggle canonical harvesting (enabled by default when `--canonical-dir` is provided).
 - `--filter-long-sequences/--no-filter-long-sequences`: Whether to drop long proteins from the nf-core input (default enabled).
 - `--max-sequence-length`: Length cutoff applied when filtering (default `2700` residues).
+- `--config-path`: YAML with path templates describing where to place predicted/missing/retrieved bundles relative to `--samplesheet-folder` (default `config.yaml`).
 
 > [!NOTE]
 > Provide at least one of `--predicted-dir` or `--canonical-dir`; otherwise the script has nothing to consume.
@@ -153,9 +151,66 @@ After each run, `<samplesheet_folder>` contains:
 
 ## End-to-end loop
 
-0. **Bootstrap the datasets** – run `oncodrive3d build-datasets --mane_only` to generate the MANE-only baseline and mapping files, and run `oncodrive3d build-datasets --mane` (or a default `build-datasets`) if you also wish to retrieve structures from the canonical AlphaFold download (recommended).
+0. **Initialize the datasets** – run `oncodrive3d build-datasets --mane_only` to generate the MANE-only baseline and mapping files, and run `oncodrive3d build-datasets --mane` (or a default `build-datasets`) if you also wish to retrieve structures from the canonical AlphaFold download (recommended).
 1. **Prepare the missing set** – run `prepare_samplesheet.py`.
 2. **Harvest canonical matches (optional)** – invoke `update_samplesheet_and_structures.py` with `--canonical-dir` to reuse any AlphaFold canonical structures and shrink the missing set before prediction.
 3. **Predict the remaining structures** – run nf-core/proteinfold on `missing/samplesheet.csv` + `missing/fasta/`.
 4. **Ingest predictions** – re-run `update_samplesheet_and_structures.py` with `--predicted-dir` (and optionally `--canonical-dir` again) to fold new PDBs into `predicted/` and refresh the missing set.
 5. **Rebuild Oncodrive3D datasets** – point `oncodrive3d build-datasets --mane_only` at `final_bundle/pdbs` (`--custom_mane_pdb_dir`) and `final_bundle/samplesheet.csv` (`--custom_mane_metadata_path`) so every subsequent `oncodrive3d run` benefits from the extended MANE coverage.
+
+### Example
+
+1. **Initialize datasets**
+   ```bash
+   # Activate the main O3D environment
+   source .venv/bin/activate
+
+   # Build O3D datasets
+   oncodrive3d build-datasets --mane_only   --output_dir <path/to/o3d_datasets-mane_only-date>
+   oncodrive3d build-datasets               --output_dir <path/to/o3d_datasets-date>
+   ```
+
+2. **Prepare missing set**
+   ```bash
+   # Activate tools environment
+   cd tools/preprocessing
+   source .venv/bin/activate
+
+   # Init the MANE missing structures
+   python -m tools.preprocessing.prepare_samplesheet \
+     --mane-dataset-dir <path/to/o3d_datasets-mane_only-date> \
+     --output-dir       <path/to/mane_missing-date>
+   ```
+
+3. **Harvest canonical matches (first iteration, optional but recommended)**
+   ```bash
+   # Retrieve MANE missing structures overlapping sequences of canonical ones
+   python -m tools.preprocessing.update_samplesheet_and_structures \
+     --samplesheet-folder <path/to/mane_missing-date> \
+     --mane-dataset-dir   <path/to/o3d_datasets-mane_only-date> \
+     --canonical-dir      <path/to/o3d_datasets-date> \
+     --cgc-list-path      <path/to/cgc_list>            # (optional, use to sort the list)
+   ```
+
+4. **Predict remaining structures**
+   - Feed `<path/to/mane_missing-date>/missing/{samplesheet.csv,fasta/}` to nf-core/proteinfold.
+
+5. **Ingest predictions + canonical reuse**
+   ```bash
+   # Merge retrieved + predicted structures into a final_bundle
+   python -m tools.preprocessing.update_samplesheet_and_structures \
+     --samplesheet-folder <path/to/mane_missing-date> \
+     --mane-dataset-dir   <path/to/o3d_datasets-mane_only-date> \
+     --canonical-dir      <path/to/o3d_datasets-date> \
+     --predicted-dir      <path/to/predicted/pdbs>      # (what nf-core/proteinfold produces)
+     --cgc-list-path      <path/to/cgc_list>            # (optional, use to sort the list)
+   ```
+
+6. **Rebuild MANE-only datasets with the final bundle**
+   ```bash
+   # Build a new MANE only datasets providing the added structures in the final bundle
+   oncodrive3d build-datasets --mane_only \
+     --custom_mane_pdb_dir          <path/to/mane_missing-date>/final_bundle/pdbs \
+     --custom_mane_metadata_path    <path/to/mane_missing-date>/final_bundle/samplesheet.csv \
+     --output_dir                   <path/to/mane_missing-new_date>
+   ```
