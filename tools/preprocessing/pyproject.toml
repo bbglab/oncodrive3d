@@ -8,4 +8,5 @@ dependencies = [
     "biopython",
     "pyyaml",
     "click",
+    "daiquiri"
 ]

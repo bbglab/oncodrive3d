@@ -44,13 +44,13 @@ Download the requested MANE protein FASTA from NCBI and materialize FASTA files 
 
 ```bash
 python -m tools.preprocessing.prepare_samplesheet \
-    --datasets-dir /path/to/o3d_mane_only_dataset \
+    --mane-dataset-dir /path/to/o3d_mane_only_dataset \
     --output-dir   /path/to/mane_missing/data
 ```
 
 Key options:
 
-- `--datasets-dir/-d` (**required**): Directory with the AlphaFold MANE mapping files produced by `oncodrive3d build-datasets`.
+- `--mane-dataset-dir/-d` (**required**): Directory with the MANE-only dataset (`oncodrive3d build-datasets --mane_only`) containing `mane_refseq_prot_to_alphafold.csv` and `mane_summary.txt.gz`.
 - `--output-dir/-o` (**required**): Destination folder holding the downloaded FASTA, the per-ENSP FASTAs, and `samplesheet.csv`.
 - `--mane-version/-v`: Release to download from NCBI (default `1.4`).
 - `--no-fragments`: Drop proteins longer than 2,700 aa (enabled by default when instantiating the builder; pass `--no-fragments/--no-no-fragments` to toggle).
@@ -90,12 +90,8 @@ Non-runtime paths still live in `config.yaml`:
 | `paths.<env>.missing_relpath` | Folder (relative) that will hold `missing/samplesheet.csv` and `missing/fasta/` for the next nf-core proteinfold run (default `missing/`). |
 | `paths.<env>.retrieved_relpath` | Folder (relative) where canonical structures reused from the AlphaFold DB canonical PDBs are stored (default `retrieved/`). |
 | `paths.<env>.final_bundle_relpath` | Folder (relative) containing the merged `pdbs/` + `samplesheet.csv` to be passed to `oncodrive3d build-datasets` (default `final_bundle/`). |
-| `paths.<env>.mane_missing_path` | Absolute path to `mane_missing.csv` (UniProt ↔ RefSeq mapping used for canonical reuse). Produced when running `oncodrive3d build-datasets --mane` or default (see prerequisites). |
-| `paths.<env>.mane_summary_path` | Absolute path to the MANE summary file used to map ENSP ↔ gene symbols. Downloaded automatically during `oncodrive3d build-datasets --mane` or default (see prerequisites). |
-| `paths.<env>.cgc_list_path` | Absolute path to the Cancer Gene Census TSV (optional; only needed for CGC prioritisation). Download available from the CGC website (registration required). |
-
-> [!WARNING]
-> The provided `config.yaml` contains examples for a developer local nachine and clusters used by the BBGLab; customize or replace it with paths that exist on your local machine/cluster before running the pipeline.
+| `--mane-dataset-dir` (CLI) | Absolute path to the MANE-only dataset built via `oncodrive3d build-datasets --mane_only`. The tool looks for `mane_missing.csv` and `mane_summary.txt.gz` inside this directory. |
+| `--cgc-list-path` (CLI) | Absolute path to the Cancer Gene Census TSV (optional; only needed for CGC prioritisation). Download available from the CGC website (registration required). |
 
 ### Usage
 
