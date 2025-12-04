@@ -8,9 +8,9 @@ dependencies = [
     "biopython",
     "pyyaml",
     "click",
-    "daiquiri",
-    "numpy",
+    "daiquiri>=3.3.0",
+    "numpy==1.26.4",
     "requests",
-    "aiohttp",
-    "pypdl"
+    "aiohttp>=3.11.10",
+    "pypdl==1.4.5"
 ]
