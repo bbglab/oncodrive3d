@@ -3,27 +3,10 @@
 These tools are provided for users that want to run Oncodrive3D using only structures associated to MANE Select transcripts while still covering as many proteins as possible. In fact, AlphaFold database MANE download bundle does not yet contain structures for every MANE Select transcript. Oncodrive3D relies on that bundle when building its datasets, so missing structures translate into genes that cannot be analyzed. The scripts in `tools/preprocessing/` close this gap.  
 
 - `prepare_samplesheet.py` scans the full MANE release and emits `samplesheet.csv` plus per-ENSP FASTAs for every MANE structure that is absent from the AlphaFold MANE download.
-- `update_samplesheet_and_structures.py` removes the MANE entries already covered by the AlphaFold canonical bundle, reuses those canonical structures when available, and folds nf-core predictions into the custom bundle while pruning fulfilled entries from the next proteinfold run.
+- `update_samplesheet_and_structures.py` removes the MANE entries already covered by the AlphaFold canonical bundle (if provided), reuses those canonical structures when available, and copy nf-core predictions into the custom bundle while pruning fulfilled entries from the next proteinfold run input files (the `samplesheet.tsv` and the corresponding `fasta/`).
 
 Together they allow to iteratively update the MANE structures and feed them back into `oncodrive3d build-datasets --custom_mane_pdb_dir <path/to/final_bundle/pdbs> --custom_mane_metadata_path  <path/to/final_bundle/samplesheet.csv>`.
-
-## Prerequisites
-
-Run `oncodrive3d build-datasets --mane_only` to generate the MANE mapping files consumed by `prepare_samplesheet.py`. If you plan to reuse canonical structures, run a separate `oncodrive3d build-datasets` (or `oncodrive3d build-datasets --mane`) so you also have the AlphaFold canonical bundle whose `pdb_structures/` matching the missing MANE structures can be retrieved by the tools.
-
-After running the tools and predicting the missing structures using the nf-core/proteinfold pipeline, rerun `oncodrive3d build-datasets --mane_only --custom_mane_pdb_dir ... --custom_mane_metadata_path ...` to inject the curated bundle into the final MANE-only datasets.
-
-> [!NOTE]
-> Both scripts reach external services, so they must run from an environment with internet access.
-
-## Tool overview
-
-| Script | Goal | When to run | Key outputs |
-| --- | --- | --- | --- |
-| `prepare_samplesheet.py` | Detect MANE ENSPs missing from the AlphaFold download and produce the FASTA + samplesheet inputs for nf-core/proteinfold. | Whenever there is the need to refresh the missing-set PDBs. | `MANE.GRCh38.vX.Y.ensembl_protein.faa.gz`, `fasta/*.fasta`, `samplesheet.csv`. |
-| `update_samplesheet_and_structures.py` | Reuse canonical AlphaFold structures, sync nf-core predictions, and maintain the final custom MANE bundle + updated missing set. | After preparing the samplesheet, before and/or after nf-core runs. | `retrieved/`, `predicted/`, `final_bundle/`, refreshed `missing/` tree. |
-
----
+If you want to see the whole process in context, jump to the [Example](#example) under [End-to-end loop](#end-to-end-loop).
 
 ## Installation
 Requires:
@@ -78,7 +61,8 @@ Feed these files to `update_samplesheet_and_structures.py` and/or directly into 
 
 ## `update_samplesheet_and_structures.py`
 
-`tools/update_samplesheet_and_structures.py` automates the maintenance loop once you have a MANE missing set. It removes entries already satisfied by the AlphaFold canonical download, reuses those canonical structures whenever possible, and can be run before nf-core/proteinfold (to harvest/prune) and after nf-core completes (to ingest predictions and refresh the remaining missing set).
+### Purpose
+Automates the maintenance loop once you have a MANE missing set. It removes entries already satisfied by the AlphaFold canonical bundle, reuses those canonical structures whenever possible, and can be run before nf-core/proteinfold (to harvest/prune) and after nf-core completes (to ingest predictions and refresh the remaining missing set).
 
 ### Configuration inputs
 Non-runtime paths still live in `config.yaml`:
