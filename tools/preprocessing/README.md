@@ -11,7 +11,7 @@ If you want to see the whole process in context, jump to the [Example](#example)
 ## Installation
 Requires:
 - Python 3.10+
-- Oncodrive3D datasets built as described in the prerequisites (a `--mane_only` run for the MANE-only baseline plus, if needed, a standard `--mane` or default run for the canonical bundle). These builds supply `mane_refseq_prot_to_alphafold.csv`, `mane_summary.txt.gz`, `mane_missing.csv`, and (optionally) the canonical PDB bundle.
+- Oncodrive3D datasets built (a `--mane_only` run for the MANE-only baseline plus, if needed, a standard `--mane` or default run for the canonical bundle). These builds supply `mane_refseq_prot_to_alphafold.csv`, `mane_summary.txt.gz`, `mane_missing.csv`, and (optionally) the canonical AlphaFold PDB bundle.
 
 ```bash
 uv sync
