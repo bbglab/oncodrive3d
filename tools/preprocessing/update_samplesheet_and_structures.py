@@ -38,6 +38,7 @@ class Settings:
     max_workers: int
     filter_long_sequences: bool
     max_sequence_length: int
+    include_metadata: bool
 
 
 @dataclass
@@ -55,6 +56,7 @@ class PipelinePaths:
     final_bundle_dir: Path
     final_pdb_dir: Path
     canonical_pdb_dir: Optional[Path]
+    canonical_seq_path: Optional[Path]
     mane_dataset_dir: Path
     mane_missing_path: Path
     mane_summary_path: Path
@@ -108,6 +110,7 @@ def build_paths(
     retrieved_dir = resolve(path_config["retrieved_relpath"])
     final_bundle_dir = resolve(path_config["final_bundle_relpath"])
     canonical_pdb_dir = None
+    canonical_seq_path = None
     if canonical_dir:
         canonical_root = canonical_dir.resolve()
         if not canonical_root.exists():
@@ -115,6 +118,9 @@ def build_paths(
         canonical_pdb_dir = canonical_root / "pdb_structures"
         if not canonical_pdb_dir.exists():
             raise FileNotFoundError(f"Expected pdb_structures/ inside --canonical-dir: {canonical_pdb_dir}")
+        canonical_seq_path = canonical_root / "seq_for_mut_prob.tsv"
+        if not canonical_seq_path.exists():
+            raise FileNotFoundError(f"Expected seq_for_mut_prob.tsv inside --canonical-dir: {canonical_seq_path}")
     mane_missing_path = mane_dataset_dir / "mane_missing.csv"
     mane_summary_path = mane_dataset_dir / "mane_summary.txt.gz"
 
@@ -158,6 +164,7 @@ def build_paths(
         final_bundle_dir=final_bundle_dir,
         final_pdb_dir=final_pdb_dir,
         canonical_pdb_dir=canonical_pdb_dir,
+        canonical_seq_path=canonical_seq_path,
         mane_dataset_dir=mane_dataset_dir,
         mane_missing_path=mane_missing_path,
         mane_summary_path=mane_summary_path,
@@ -228,7 +235,11 @@ def index_canonical_pdbs(pdb_dir: Path, max_workers: int) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def merge_structure_bundles(bundle_dirs: Iterable[Path], output_dir: Path) -> pd.DataFrame:
+def merge_structure_bundles(
+    bundle_dirs: Iterable[Path],
+    output_dir: Path,
+    metadata_map: Optional[pd.DataFrame] = None,
+) -> pd.DataFrame:
     """Merge multiple ENSP bundles into a single `output_dir` with deduplicated samplesheet."""
     output_dir = ensure_dir(output_dir)
     target_pdb_dir = ensure_dir(output_dir / "pdbs")
@@ -246,19 +257,24 @@ def merge_structure_bundles(bundle_dirs: Iterable[Path], output_dir: Path) -> pd
     if not merged:
         raise RuntimeError("No valid bundles provided for merging.")
     combined = pd.concat(merged, ignore_index=True).drop_duplicates(subset=["sequence"])
+    combined = attach_metadata(combined, metadata_map)
     combined.to_csv(output_dir / "samplesheet.csv", index=False)
     print(f"Merged {len(merged)} bundles → {len(combined)} unique ENSP entries")
     return combined
 
 
-def sync_predicted_bundle(src_dir: Path, bundle_dir: Path) -> pd.DataFrame:
+def sync_predicted_bundle(
+    src_dir: Path,
+    bundle_dir: Path,
+    metadata_map: Optional[pd.DataFrame] = None,
+) -> pd.DataFrame:
     """Copy nf-core outputs from src_dir into the curated bundle layout and emit samplesheet."""
     src_dir = Path(src_dir)
     bundle_dir = ensure_dir(bundle_dir)
     if not src_dir.exists():
         raise FileNotFoundError(f"predicted_dir not found: {src_dir}")
     if src_dir.resolve() == bundle_dir.resolve():
-        print(f"[INFO] predicted_dir already points to {bundle_dir}. Skipping sync.")
+        print(f"Predicted_dir already points to {bundle_dir}. Skipping sync.")
         samplesheet_path = bundle_dir / "samplesheet.csv"
         if samplesheet_path.exists():
             return pd.read_csv(samplesheet_path)
@@ -276,6 +292,7 @@ def sync_predicted_bundle(src_dir: Path, bundle_dir: Path) -> pd.DataFrame:
         return pd.DataFrame()
 
     df = pd.DataFrame(records).drop_duplicates().sort_values("sequence")
+    df = attach_metadata(df, metadata_map)
     df.to_csv(bundle_dir / "samplesheet.csv", index=False)
     print(f"Synced {len(df)} predicted structures → {bundle_dir}")
     return df
@@ -287,7 +304,7 @@ def prune_missing_bundle(missing_dir: Path, sequences: set[str]) -> None:
         return
     samplesheet_file = missing_dir / "samplesheet.csv"
     if not samplesheet_file.exists():
-        print(f"[INFO] Missing samplesheet for pruning: {samplesheet_file}")
+        print(f"Missing samplesheet for pruning: {samplesheet_file}")
         return
     df = pd.read_csv(samplesheet_file)
     mask = df["sequence"].isin(sequences)
@@ -308,7 +325,7 @@ def prune_missing_bundle(missing_dir: Path, sequences: set[str]) -> None:
 def load_cgc_symbols(cgc_path: Optional[Path]) -> set[str]:
     """Return the set of CGC gene symbols (and synonyms) if the file exists."""
     if not cgc_path or not cgc_path.exists():
-        print("[INFO] CGC list not provided; CGC prioritisation disabled.")
+        print("CGC list not provided; CGC prioritisation disabled.")
         return set()
     df = pd.read_csv(cgc_path, sep="\t")
     symbols = set(df.get("Gene Symbol", pd.Series(dtype=str)).dropna().str.strip())
@@ -318,63 +335,11 @@ def load_cgc_symbols(cgc_path: Optional[Path]) -> set[str]:
     return {sym for sym in symbols if sym}
 
 
-def compute_fasta_lengths(fasta_paths: pd.Series) -> pd.Series:
-    """Compute sequence lengths for each FASTA file path."""
-    lengths = []
-    for path_str in fasta_paths.fillna(""):
-        path = Path(path_str)
-        if not path.exists():
-            print(f"[WARNING] FASTA file missing for {path}")
-            lengths.append(pd.NA)
-            continue
-        length = 0
-        with path.open() as handle:
-            for line in handle:
-                if line.startswith(">"):
-                    continue
-                length += len(line.strip())
-        lengths.append(length)
-    return pd.Series(lengths, index=fasta_paths.index, dtype="Int64")
-
-
-def filter_long_sequences(df: pd.DataFrame, missing_dir: Path, max_len: int) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Drop ENSPs whose FASTA length exceeds max_len and log the removed entries."""
-    if "length" not in df.columns:
-        return df, pd.DataFrame()
-    mask = df["length"].fillna(-1) > max_len
-    if not mask.any():
-        return df, pd.DataFrame()
-    kept = df[~mask].copy()
-    removed = df[mask].copy()
-
-    removed_clean = removed.drop(columns=["symbol", "CGC", "length"], errors="ignore")
-    removed_path = missing_dir / "samplesheet_removed_long.csv"
-    removed_clean.to_csv(removed_path, index=False)
-
-    fasta_dir = missing_dir / "fasta"
-    for seq in removed["sequence"].unique():
-        fasta_path = fasta_dir / f"{seq}.fasta"
-        if fasta_path.exists():
-            fasta_path.unlink()
-        else:
-            print(f"[WARNING] FASTA file to remove not found: {fasta_path}")
-
-    print(f"Removed {len(removed_clean)} entries longer than {max_len} residues")
-    return kept, removed_clean
-
-
-def annotate_missing_with_cgc(
-    missing_sheet: Path,
-    cgc_path: Optional[Path],
+def prepare_annotation_maps(
     mane_summary_path: Path,
-) -> pd.DataFrame:
-    """Annotate the missing samplesheet with CGC tags and computed lengths."""
-    missing_df = pd.read_csv(missing_sheet)
-    if missing_df.empty:
-        print("[INFO] No entries left in missing samplesheet.")
-        return missing_df
-
-    cgc_symbols = load_cgc_symbols(cgc_path)
+    cgc_path: Optional[Path],
+) -> tuple[pd.DataFrame, pd.DataFrame, set[str]]:
+    """Build lookup tables that map ENSP/RefSeq identifiers to symbols and CGC flags."""
     mane_summary = pd.read_table(mane_summary_path)
 
     column_aliases = {
@@ -396,25 +361,207 @@ def annotate_missing_with_cgc(
 
     mane_summary = mane_summary.rename(columns=rename_map)
     annotations = mane_summary[["ensembl_prot", "refseq_prot", "symbol"]].drop_duplicates()
+    cgc_symbols = load_cgc_symbols(cgc_path)
     annotations["CGC"] = annotations["symbol"].isin(cgc_symbols).astype(int)
 
     seq_map = annotations.dropna(subset=["ensembl_prot"]).set_index("ensembl_prot")
     refseq_map = annotations.dropna(subset=["refseq_prot"]).set_index("refseq_prot")
+    return seq_map[["symbol", "CGC"]], refseq_map[["symbol", "CGC"]], cgc_symbols
 
-    missing_df["symbol"] = missing_df["sequence"].map(seq_map["symbol"] if not seq_map.empty else pd.Series(dtype=str))
-    if "refseq_prot" in missing_df.columns:
-        missing_df["symbol"] = missing_df["symbol"].fillna(
-            missing_df["refseq_prot"].map(refseq_map["symbol"] if not refseq_map.empty else pd.Series(dtype=str))
+
+def attach_symbol_and_cgc(
+    df: pd.DataFrame,
+    seq_map: pd.DataFrame,
+    refseq_map: pd.DataFrame,
+) -> pd.DataFrame:
+    """Annotate `df` with symbol/CGC columns using the provided lookup tables."""
+    annotated = df.copy()
+    if not seq_map.empty:
+        annotated["symbol"] = annotated["sequence"].map(seq_map["symbol"])
+        annotated["CGC"] = annotated["sequence"].map(seq_map["CGC"])
+    else:
+        annotated["symbol"] = pd.Series("", index=annotated.index)
+        annotated["CGC"] = pd.Series(0, index=annotated.index, dtype="Int64")
+
+    if "refseq_prot" in annotated.columns and not refseq_map.empty:
+        annotated["symbol"] = annotated["symbol"].fillna(annotated["refseq_prot"].map(refseq_map["symbol"]))
+        annotated["CGC"] = annotated["CGC"].fillna(annotated["refseq_prot"].map(refseq_map["CGC"]))
+
+    annotated["symbol"] = annotated["symbol"].fillna("")
+    annotated["CGC"] = annotated["CGC"].fillna(0).astype(int)
+    return annotated
+
+
+def build_metadata_map(
+    samplesheet: pd.DataFrame,
+    fasta_dir: Path,
+    mane_summary_path: Path,
+    cgc_path: Optional[Path],
+) -> pd.DataFrame:
+    """Return a dataframe with one row per sequence containing symbol/CGC/length metadata."""
+    if samplesheet.empty:
+        return pd.DataFrame(columns=["sequence", "symbol", "CGC", "length"])
+
+    seq_map, refseq_map, _ = prepare_annotation_maps(mane_summary_path, cgc_path)
+    metadata = samplesheet[["sequence"]].drop_duplicates().copy()
+
+    if "refseq_prot" in samplesheet.columns:
+        refseq_lookup = (
+            samplesheet.dropna(subset=["refseq_prot"])
+            .drop_duplicates(subset=["sequence"])
+            .set_index("sequence")["refseq_prot"]
         )
+        metadata["refseq_prot"] = metadata["sequence"].map(refseq_lookup)
 
-    missing_df["CGC"] = missing_df["sequence"].map(seq_map["CGC"] if not seq_map.empty else pd.Series(dtype=int))
-    if "refseq_prot" in missing_df.columns:
-        missing_df["CGC"] = missing_df["CGC"].fillna(
-            missing_df["refseq_prot"].map(refseq_map["CGC"] if not refseq_map.empty else pd.Series(dtype=int))
-        )
+    metadata = attach_symbol_and_cgc(metadata, seq_map, refseq_map)
 
-    missing_df["CGC"] = missing_df["CGC"].fillna(0).astype(int)
-    missing_df["symbol"] = missing_df["symbol"].fillna("")
+    fasta_paths = metadata["sequence"].map(lambda seq: (fasta_dir / f"{seq}.fasta").as_posix())
+    metadata["length"] = compute_fasta_lengths(pd.Series(fasta_paths.values, index=metadata.index))
+    metadata = metadata.drop(columns=["refseq_prot"], errors="ignore")
+    return metadata
+
+
+def attach_metadata(df: pd.DataFrame, metadata_map: Optional[pd.DataFrame]) -> pd.DataFrame:
+    """Merge symbol/CGC/length metadata into df when available."""
+    if metadata_map is None or df.empty:
+        return df
+    columns = ["sequence", "symbol", "CGC", "length"]
+    metadata = metadata_map[columns].drop_duplicates(subset=["sequence"])
+    return (
+        df.drop(columns=["symbol", "CGC", "length"], errors="ignore")
+        .merge(metadata, on="sequence", how="left")
+    )
+
+
+def compute_fasta_lengths(fasta_paths: pd.Series) -> pd.Series:
+    """Compute sequence lengths for each FASTA file path."""
+    lengths = []
+    for path_str in fasta_paths.fillna(""):
+        path = Path(path_str)
+        if not path.exists():
+            print(f"[WARNING] FASTA file missing for {path}")
+            lengths.append(pd.NA)
+            continue
+        length = 0
+        with path.open() as handle:
+            for line in handle:
+                if line.startswith(">"):
+                    continue
+                length += len(line.strip())
+        lengths.append(length)
+    return pd.Series(lengths, index=fasta_paths.index, dtype="Int64")
+
+
+def read_fasta_sequence(fasta_path: Path) -> str:
+    """Return the amino-acid sequence stored in a FASTA file."""
+    if not fasta_path.exists():
+        return ""
+    residues = []
+    with fasta_path.open() as handle:
+        for line in handle:
+            if line.startswith(">"):
+                continue
+            residues.append(line.strip())
+    return "".join(residues)
+
+
+def build_missing_sequence_index(samplesheet_missing: pd.DataFrame, fasta_dir: Path) -> pd.DataFrame:
+    """Load amino-acid sequences for each missing ENSP from the FASTA store."""
+    records = []
+    for _, row in samplesheet_missing.iterrows():
+        seq_id = row["sequence"]
+        fasta_hint = row.get("fasta") if isinstance(row, pd.Series) else None
+        seq_path = None
+        if isinstance(fasta_hint, str) and fasta_hint:
+            seq_path = Path(fasta_hint)
+        elif fasta_hint is not None and pd.notna(fasta_hint):
+            seq_path = Path(str(fasta_hint))
+        candidates = []
+        if seq_path and seq_path.exists():
+            candidates.append(seq_path)
+        candidates.append(fasta_dir / f"{seq_id}.fasta")
+        sequence = ""
+        for candidate in candidates:
+            if candidate.exists():
+                sequence = read_fasta_sequence(candidate)
+                if sequence:
+                    break
+        if not sequence:
+            print(f"[WARNING] Unable to load FASTA sequence for {seq_id}")
+            continue
+        records.append({"sequence": seq_id, "aa_sequence": sequence})
+    return pd.DataFrame(records)
+
+
+def load_canonical_sequence_index(seq_path: Path) -> pd.DataFrame:
+    """Load the canonical UniProt fragment sequences from seq_for_mut_prob.tsv."""
+    seq_df = pd.read_table(seq_path, usecols=["Uniprot_ID", "F", "Seq"])
+    seq_df = seq_df.rename(
+        columns={
+            "Uniprot_ID": "uniprot_id",
+            "F": "fragment",
+            "Seq": "aa_sequence",
+        }
+    )
+    seq_df["fragment"] = seq_df["fragment"].astype(str).str.replace(r"^F", "", regex=True)
+    seq_df["aa_sequence"] = seq_df["aa_sequence"].astype(str).str.strip()
+    seq_df = seq_df.replace({"aa_sequence": {"": pd.NA}}).dropna(subset=["uniprot_id", "fragment", "aa_sequence"])
+    return seq_df
+
+
+def filter_long_sequences(
+    df: pd.DataFrame,
+    missing_dir: Path,
+    max_len: int,
+    include_metadata: bool = False,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Drop ENSPs whose FASTA length exceeds max_len and log the removed entries."""
+    if "length" not in df.columns:
+        return df, pd.DataFrame()
+    mask = df["length"].fillna(-1) > max_len
+    if not mask.any():
+        return df, pd.DataFrame()
+    kept = df[~mask].copy()
+    removed = df[mask].copy()
+
+    if include_metadata:
+        removed_clean = removed.copy()
+    else:
+        removed_clean = removed.drop(columns=["symbol", "CGC", "length"], errors="ignore")
+    removed_path = missing_dir / "samplesheet_removed_long.csv"
+    removed_clean.to_csv(removed_path, index=False)
+
+    fasta_dir = missing_dir / "fasta"
+    for seq in removed["sequence"].unique():
+        fasta_path = fasta_dir / f"{seq}.fasta"
+        if fasta_path.exists():
+            fasta_path.unlink()
+        else:
+            print(f"[WARNING] FASTA file to remove not found: {fasta_path}")
+
+    print(f"Removed {len(removed_clean)} entries longer than {max_len} residues")
+    return kept, removed_clean
+
+
+def annotate_missing_with_cgc(
+    missing_sheet: Path,
+    cgc_path: Optional[Path],
+    mane_summary_path: Path,
+    metadata_map: Optional[pd.DataFrame] = None,
+) -> pd.DataFrame:
+    """Annotate the missing samplesheet with CGC tags and computed lengths."""
+    missing_df = pd.read_csv(missing_sheet)
+    if missing_df.empty:
+        print("No entries left in missing samplesheet.")
+        return missing_df
+
+    seq_map, refseq_map, cgc_symbols = prepare_annotation_maps(mane_summary_path, cgc_path)
+    if metadata_map is not None:
+        missing_df = attach_metadata(missing_df, metadata_map)
+        missing_df["symbol"] = missing_df["symbol"].fillna("")
+        missing_df["CGC"] = missing_df["CGC"].fillna(0).astype(int)
+    else:
+        missing_df = attach_symbol_and_cgc(missing_df, seq_map, refseq_map)
 
     if "fasta" in missing_df.columns:
         missing_df["length"] = compute_fasta_lengths(missing_df["fasta"])
@@ -436,6 +583,7 @@ def reuse_canonical_structures(
     samplesheet_missing: pd.DataFrame,
     paths: PipelinePaths,
     settings: Settings,
+    metadata_map: Optional[pd.DataFrame] = None,
 ) -> pd.DataFrame:
     """Copy canonical MANE structures for matching ENSPs and prune them from the missing set."""
     if not settings.enable_canonical_reuse:
@@ -444,38 +592,38 @@ def reuse_canonical_structures(
     if not paths.canonical_pdb_dir or not paths.canonical_pdb_dir.exists():
         print("Canonical PDB directory not found. Skipping reuse.")
         return pd.DataFrame()
-    if not paths.mane_missing_path or not paths.mane_missing_path.exists():
-        print("mane_missing.csv not found. Skipping reuse.")
-        return pd.DataFrame()
-
-    if "refseq_prot" not in samplesheet_missing.columns:
-        print("[INFO] Missing refseq_prot column; cannot perform canonical reuse.")
-        return pd.DataFrame()
 
     canonical_index = index_canonical_pdbs(paths.canonical_pdb_dir, settings.max_workers)
     if canonical_index.empty:
         print(
-            f"[ERROR] No canonical PDB files found in {paths.canonical_pdb_dir}. "
+            f"[WARNING] No canonical PDB files found in {paths.canonical_pdb_dir}. "
             "Verify --canonical-dir points to the AlphaFold DB download."
         )
         return pd.DataFrame()
     print(f"Indexed {len(canonical_index):,} canonical PDB files")
 
-    mane_missing_df = pd.read_csv(paths.mane_missing_path)
-    rename_map = {}
-    if "uniprot_accession(s)" in mane_missing_df.columns:
-        rename_map["uniprot_accession(s)"] = "uniprot_id"
-    if "RefSeq_prot" in mane_missing_df.columns:
-        rename_map["RefSeq_prot"] = "refseq_prot"
-    mane_missing_df = mane_missing_df.rename(columns=rename_map)
-    if not {"uniprot_id", "refseq_prot"}.issubset(mane_missing_df.columns):
-        print("[INFO] Cannot map UniProt↔RefSeq from mane_missing.csv. Skipping reuse.")
+    if not paths.canonical_seq_path or not paths.canonical_seq_path.exists():
+        print("seq_for_mut_prob.tsv not found in canonical directory. Skipping reuse.")
         return pd.DataFrame()
-    mane_missing_df = mane_missing_df[["uniprot_id", "refseq_prot"]].dropna().drop_duplicates()
 
-    canonical_with_refseq = canonical_index.merge(mane_missing_df, on="uniprot_id", how="left").dropna(subset=["refseq_prot"])
-    retrievable = samplesheet_missing.merge(canonical_with_refseq, on="refseq_prot", how="inner")
-    print(f"Canonical structures available for {len(retrievable):,} ENSP entries")
+    canonical_seq_df = load_canonical_sequence_index(paths.canonical_seq_path)
+    canonical_with_seq = canonical_index.merge(canonical_seq_df, on=["uniprot_id", "fragment"], how="inner")
+    if canonical_with_seq.empty:
+        print("No canonical sequences matched the indexed PDBs.")
+        return pd.DataFrame()
+
+    missing_seq_df = build_missing_sequence_index(samplesheet_missing, paths.fasta_dir)
+    if missing_seq_df.empty:
+        print("Could not load sequences for the missing set; skipping canonical reuse.")
+        return pd.DataFrame()
+
+    retrievable = missing_seq_df.merge(
+        canonical_with_seq[["aa_sequence", "path", "fragment", "uniprot_id"]],
+        on="aa_sequence",
+        how="inner",
+    )
+    retrievable = retrievable.drop_duplicates(subset=["sequence"])
+    print(f"Canonical structures available via sequence match for {len(retrievable):,} ENSP entries")
 
     retrieved_records = []
     ensure_dir(paths.retrieved_pdb_dir)
@@ -495,10 +643,11 @@ def reuse_canonical_structures(
             print(f"[WARNING] Failed to process {src_file} → {dst_file}: {exc}")
 
     if not retrieved_records:
-        print("[INFO] No canonical structures retrieved.")
+        print("No canonical structures retrieved.")
         return pd.DataFrame()
 
     retrieved_df = pd.DataFrame(retrieved_records).drop_duplicates()
+    retrieved_df = attach_metadata(retrieved_df, metadata_map)
     retrieved_df.to_csv(paths.retrieved_dir / "samplesheet.csv", index=False)
     print(f"Stored {len(retrieved_df):,} canonical structures in {paths.retrieved_pdb_dir}")
     prune_missing_bundle(paths.missing_dir, set(retrieved_df["sequence"]))
@@ -513,14 +662,25 @@ def run_pipeline(
 ) -> None:
     """Execute the MANE maintenance workflow end-to-end."""
     samplesheet = pd.read_csv(paths.samplesheet_path)
+    metadata_map = None
+    if settings.include_metadata:
+        metadata_map = build_metadata_map(
+            samplesheet,
+            paths.fasta_dir,
+            paths.mane_summary_path,
+            paths.cgc_list_path,
+        )
+        samplesheet = attach_metadata(samplesheet, metadata_map)
+        samplesheet.to_csv(paths.samplesheet_path, index=False)
+        print(f"Annotated master samplesheet with metadata at {paths.samplesheet_path}")
     print(f"Loaded {len(samplesheet):,} samples from {paths.samplesheet_path}")
 
     if predicted_raw_dir:
         if not predicted_raw_dir.exists():
             raise FileNotFoundError(f"--predicted-dir not found: {predicted_raw_dir}")
-        sync_predicted_bundle(predicted_raw_dir, paths.predicted_bundle_dir)
+        sync_predicted_bundle(predicted_raw_dir, paths.predicted_bundle_dir, metadata_map)
     else:
-        print("[INFO] No --predicted-dir supplied; skipping nf-core sync and using existing predicted bundle.")
+        print("No --predicted-dir supplied; skipping nf-core sync and using existing predicted bundle.")
 
     predicted_ids = list_predicted_sequences(paths.predicted_pdb_dir)
     print(f"Found {len(predicted_ids):,} predicted ENSP structures in {paths.predicted_pdb_dir}")
@@ -538,28 +698,34 @@ def run_pipeline(
     else:
         samplesheet_missing = samplesheet_missing.iloc[0:0].copy()
 
-    retrieved_df = pd.DataFrame()
     if settings.enable_canonical_reuse:
-        retrieved_df = reuse_canonical_structures(samplesheet_missing, paths, settings)
+        retrieved_df = reuse_canonical_structures(samplesheet_missing, paths, settings, metadata_map)
         if retrieved_df.empty:
-            print("[INFO] Skipping canonical reuse because no PDBs were harvested.")
+            print("Skipping canonical reuse because no PDBs were harvested.")
     else:
-        print("[INFO] No canonical directory provided; skipping canonical reuse.")
+        print("No canonical directory provided; skipping canonical reuse.")
 
     annotated_missing_df = annotate_missing_with_cgc(
         paths.missing_samplesheet_path,
         paths.cgc_list_path,
         paths.mane_summary_path,
+        metadata_map if settings.include_metadata else None,
     )
 
     removed_long_df = pd.DataFrame()
     if settings.filter_long_sequences and not annotated_missing_df.empty:
         annotated_missing_df, removed_long_df = filter_long_sequences(
-            annotated_missing_df, paths.missing_dir, settings.max_sequence_length
+            annotated_missing_df,
+            paths.missing_dir,
+            settings.max_sequence_length,
+            include_metadata=settings.include_metadata,
         )
 
-    clean_missing_df = annotated_missing_df.drop(columns=["symbol", "CGC", "length"], errors="ignore")
-    clean_missing_df.to_csv(paths.missing_samplesheet_path, index=False)
+    if settings.include_metadata:
+        annotated_missing_df.to_csv(paths.missing_samplesheet_path, index=False)
+    else:
+        clean_missing_df = annotated_missing_df.drop(columns=["symbol", "CGC", "length"], errors="ignore")
+        clean_missing_df.to_csv(paths.missing_samplesheet_path, index=False)
     print(f"Updated missing samplesheet saved to {paths.missing_samplesheet_path}")
 
     if settings.filter_long_sequences and not removed_long_df.empty:
@@ -572,10 +738,10 @@ def run_pipeline(
         bundles_to_merge.append(paths.retrieved_dir)
 
     if not bundles_to_merge:
-        print("[INFO] No predicted/retrieved bundles available; skipping final merge.")
+        print("No predicted/retrieved bundles available; skipping final merge.")
         return
 
-    merge_structure_bundles(bundles_to_merge, paths.final_bundle_dir)
+    merge_structure_bundles(bundles_to_merge, paths.final_bundle_dir, metadata_map)
     print(f"Final bundle written to {paths.final_bundle_dir}")
 
 
@@ -631,6 +797,12 @@ def run_pipeline(
     show_default=True,
     help="Maximum sequence length (residues) allowed in the nf-core missing set.",
 )
+@click.option(
+    "--include-metadata/--no-include-metadata",
+    default=False,
+    show_default=True,
+    help="Attach symbol/CGC/length columns to every emitted samplesheet.",
+)
 def cli(
     samplesheet_folder: str,
     config_path: Path,
@@ -641,6 +813,7 @@ def cli(
     max_workers: int,
     filter_long_sequences: bool,
     max_sequence_length: int,
+    include_metadata: bool,
 ) -> None:
     """CLI wrapper around the MANE maintenance workflow."""
     if not predicted_dir and not canonical_dir:
@@ -665,10 +838,11 @@ def cli(
         cgc_list_path=cgc_list_path,
     )
     settings = Settings(
-        enable_canonical_reuse=bool(paths.canonical_pdb_dir),
+        enable_canonical_reuse=bool(paths.canonical_pdb_dir and paths.canonical_seq_path),
         max_workers=max_workers,
         filter_long_sequences=filter_long_sequences,
         max_sequence_length=max_sequence_length,
+        include_metadata=include_metadata,
     )
     run_pipeline(paths, settings, predicted_dir, canonical_dir)
 
