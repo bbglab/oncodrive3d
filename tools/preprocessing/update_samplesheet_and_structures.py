@@ -503,7 +503,7 @@ def load_canonical_sequence_index(seq_path: Path) -> pd.DataFrame:
             "Seq": "aa_sequence",
         }
     )
-    seq_df["fragment"] = seq_df["fragment"].astype(str).str.replace("F", "", regex=False)
+    seq_df["fragment"] = seq_df["fragment"].astype(str).str.replace(r"^F", "", regex=True)
     seq_df["aa_sequence"] = seq_df["aa_sequence"].astype(str).str.strip()
     seq_df = seq_df.replace({"aa_sequence": {"": pd.NA}}).dropna(subset=["uniprot_id", "fragment", "aa_sequence"])
     return seq_df
