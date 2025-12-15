@@ -268,7 +268,7 @@ def sync_predicted_bundle(
     if not src_dir.exists():
         raise FileNotFoundError(f"predicted_dir not found: {src_dir}")
     if src_dir.resolve() == bundle_dir.resolve():
-        print(f"[INFO] predicted_dir already points to {bundle_dir}. Skipping sync.")
+        print(f"Predicted_dir already points to {bundle_dir}. Skipping sync.")
         samplesheet_path = bundle_dir / "samplesheet.csv"
         if samplesheet_path.exists():
             return pd.read_csv(samplesheet_path)
@@ -298,7 +298,7 @@ def prune_missing_bundle(missing_dir: Path, sequences: set[str]) -> None:
         return
     samplesheet_file = missing_dir / "samplesheet.csv"
     if not samplesheet_file.exists():
-        print(f"[INFO] Missing samplesheet for pruning: {samplesheet_file}")
+        print(f"Missing samplesheet for pruning: {samplesheet_file}")
         return
     df = pd.read_csv(samplesheet_file)
     mask = df["sequence"].isin(sequences)
@@ -319,7 +319,7 @@ def prune_missing_bundle(missing_dir: Path, sequences: set[str]) -> None:
 def load_cgc_symbols(cgc_path: Optional[Path]) -> set[str]:
     """Return the set of CGC gene symbols (and synonyms) if the file exists."""
     if not cgc_path or not cgc_path.exists():
-        print("[INFO] CGC list not provided; CGC prioritisation disabled.")
+        print("CGC list not provided; CGC prioritisation disabled.")
         return set()
     df = pd.read_csv(cgc_path, sep="\t")
     symbols = set(df.get("Gene Symbol", pd.Series(dtype=str)).dropna().str.strip())
@@ -480,7 +480,7 @@ def annotate_missing_with_cgc(
     """Annotate the missing samplesheet with CGC tags and computed lengths."""
     missing_df = pd.read_csv(missing_sheet)
     if missing_df.empty:
-        print("[INFO] No entries left in missing samplesheet.")
+        print("No entries left in missing samplesheet.")
         return missing_df
 
     seq_map, refseq_map, cgc_symbols = prepare_annotation_maps(mane_summary_path, cgc_path)
@@ -520,7 +520,7 @@ def reuse_canonical_structures(
         return pd.DataFrame()
 
     if "refseq_prot" not in samplesheet_missing.columns:
-        print("[INFO] Missing refseq_prot column; cannot perform canonical reuse.")
+        print("Missing refseq_prot column; cannot perform canonical reuse.")
         return pd.DataFrame()
 
     canonical_index = index_canonical_pdbs(paths.canonical_pdb_dir, settings.max_workers)
@@ -540,7 +540,7 @@ def reuse_canonical_structures(
         rename_map["RefSeq_prot"] = "refseq_prot"
     mane_missing_df = mane_missing_df.rename(columns=rename_map)
     if not {"uniprot_id", "refseq_prot"}.issubset(mane_missing_df.columns):
-        print("[INFO] Cannot map UniProt↔RefSeq from mane_missing.csv. Skipping reuse.")
+        print("Cannot map UniProt↔RefSeq from mane_missing.csv. Skipping reuse.")
         return pd.DataFrame()
     mane_missing_df = mane_missing_df[["uniprot_id", "refseq_prot"]].dropna().drop_duplicates()
 
@@ -566,7 +566,7 @@ def reuse_canonical_structures(
             print(f"[WARNING] Failed to process {src_file} → {dst_file}: {exc}")
 
     if not retrieved_records:
-        print("[INFO] No canonical structures retrieved.")
+        print("No canonical structures retrieved.")
         return pd.DataFrame()
 
     retrieved_df = pd.DataFrame(retrieved_records).drop_duplicates()
@@ -603,7 +603,7 @@ def run_pipeline(
             raise FileNotFoundError(f"--predicted-dir not found: {predicted_raw_dir}")
         sync_predicted_bundle(predicted_raw_dir, paths.predicted_bundle_dir, metadata_map)
     else:
-        print("[INFO] No --predicted-dir supplied; skipping nf-core sync and using existing predicted bundle.")
+        print("No --predicted-dir supplied; skipping nf-core sync and using existing predicted bundle.")
 
     predicted_ids = list_predicted_sequences(paths.predicted_pdb_dir)
     print(f"Found {len(predicted_ids):,} predicted ENSP structures in {paths.predicted_pdb_dir}")
@@ -625,9 +625,9 @@ def run_pipeline(
     if settings.enable_canonical_reuse:
         retrieved_df = reuse_canonical_structures(samplesheet_missing, paths, settings, metadata_map)
         if retrieved_df.empty:
-            print("[INFO] Skipping canonical reuse because no PDBs were harvested.")
+            print("Skipping canonical reuse because no PDBs were harvested.")
     else:
-        print("[INFO] No canonical directory provided; skipping canonical reuse.")
+        print("No canonical directory provided; skipping canonical reuse.")
 
     annotated_missing_df = annotate_missing_with_cgc(
         paths.missing_samplesheet_path,
@@ -658,7 +658,7 @@ def run_pipeline(
         bundles_to_merge.append(paths.retrieved_dir)
 
     if not bundles_to_merge:
-        print("[INFO] No predicted/retrieved bundles available; skipping final merge.")
+        print("No predicted/retrieved bundles available; skipping final merge.")
         return
 
     merge_structure_bundles(bundles_to_merge, paths.final_bundle_dir, metadata_map)
