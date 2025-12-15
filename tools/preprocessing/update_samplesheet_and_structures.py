@@ -698,7 +698,6 @@ def run_pipeline(
     else:
         samplesheet_missing = samplesheet_missing.iloc[0:0].copy()
 
-    retrieved_df = pd.DataFrame()
     if settings.enable_canonical_reuse:
         retrieved_df = reuse_canonical_structures(samplesheet_missing, paths, settings, metadata_map)
         if retrieved_df.empty:
