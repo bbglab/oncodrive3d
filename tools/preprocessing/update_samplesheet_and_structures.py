@@ -556,12 +556,12 @@ def annotate_missing_with_cgc(
         return missing_df
 
     seq_map, refseq_map, cgc_symbols = prepare_annotation_maps(mane_summary_path, cgc_path)
-    missing_df = attach_symbol_and_cgc(missing_df, seq_map, refseq_map)
-
     if metadata_map is not None:
         missing_df = attach_metadata(missing_df, metadata_map)
         missing_df["symbol"] = missing_df["symbol"].fillna("")
         missing_df["CGC"] = missing_df["CGC"].fillna(0).astype(int)
+    else:
+        missing_df = attach_symbol_and_cgc(missing_df, seq_map, refseq_map)
 
     if "fasta" in missing_df.columns:
         missing_df["length"] = compute_fasta_lengths(missing_df["fasta"])
