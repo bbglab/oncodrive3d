@@ -332,7 +332,7 @@ def load_cgc_symbols(cgc_path: Optional[Path]) -> set[str]:
 def prepare_annotation_maps(
     mane_summary_path: Path,
     cgc_path: Optional[Path],
-) -> tuple[pd.DataFrame, pd.DataFrame]:
+) -> tuple[pd.DataFrame, pd.DataFrame, set[str]]:
     """Build lookup tables that map ENSP/RefSeq identifiers to symbols and CGC flags."""
     mane_summary = pd.read_table(mane_summary_path)
 
@@ -360,7 +360,7 @@ def prepare_annotation_maps(
 
     seq_map = annotations.dropna(subset=["ensembl_prot"]).set_index("ensembl_prot")
     refseq_map = annotations.dropna(subset=["refseq_prot"]).set_index("refseq_prot")
-    return seq_map[["symbol", "CGC"]], refseq_map[["symbol", "CGC"]]
+    return seq_map[["symbol", "CGC"]], refseq_map[["symbol", "CGC"]], cgc_symbols
 
 
 def attach_symbol_and_cgc(
@@ -396,7 +396,7 @@ def build_metadata_map(
     if samplesheet.empty:
         return pd.DataFrame(columns=["sequence", "symbol", "CGC", "length"])
 
-    seq_map, refseq_map = prepare_annotation_maps(mane_summary_path, cgc_path)
+    seq_map, refseq_map, _ = prepare_annotation_maps(mane_summary_path, cgc_path)
     metadata = samplesheet[["sequence"]].drop_duplicates().copy()
 
     if "refseq_prot" in samplesheet.columns:
@@ -483,7 +483,7 @@ def annotate_missing_with_cgc(
         print("[INFO] No entries left in missing samplesheet.")
         return missing_df
 
-    seq_map, refseq_map = prepare_annotation_maps(mane_summary_path, cgc_path)
+    seq_map, refseq_map, cgc_symbols = prepare_annotation_maps(mane_summary_path, cgc_path)
     missing_df = attach_symbol_and_cgc(missing_df, seq_map, refseq_map)
 
     if "fasta" in missing_df.columns:
