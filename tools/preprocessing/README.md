@@ -97,6 +97,7 @@ Arguments:
 - `--enable-canonical-reuse/--disable-canonical-reuse`: Toggle canonical harvesting (enabled by default when `--canonical-dir` is provided).
 - `--filter-long-sequences/--no-filter-long-sequences`: Whether to drop long proteins from the nf-core input (default enabled).
 - `--max-sequence-length`: Length cutoff applied when filtering (default `2700` residues).
+- `--include-metadata/--no-include-metadata`: Add `symbol`, `CGC`, and `length` columns to every emitted `samplesheet.csv` (default disabled).
 - `--config-path`: YAML with path templates describing where to place predicted/missing/retrieved bundles relative to `--samplesheet-folder` (default `config.yaml`).
 
 > [!NOTE]
@@ -130,8 +131,6 @@ After each run, `<samplesheet_folder>` contains:
 - `final_bundle/`
   - `samplesheet.csv` (deduplicated union of predicted + retrieved ENSPs; ready for `oncodrive3d build-datasets --custom_mane_metadata_path`)
   - `pdbs/...` (ready for `oncodrive3d build-datasets --custom_mane_pdb_dir`)
-
----
 
 ## End-to-end loop
 
