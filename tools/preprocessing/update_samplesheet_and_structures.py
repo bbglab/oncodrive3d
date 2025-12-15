@@ -56,6 +56,7 @@ class PipelinePaths:
     final_bundle_dir: Path
     final_pdb_dir: Path
     canonical_pdb_dir: Optional[Path]
+    canonical_seq_path: Optional[Path]
     mane_dataset_dir: Path
     mane_missing_path: Path
     mane_summary_path: Path
@@ -109,6 +110,7 @@ def build_paths(
     retrieved_dir = resolve(path_config["retrieved_relpath"])
     final_bundle_dir = resolve(path_config["final_bundle_relpath"])
     canonical_pdb_dir = None
+    canonical_seq_path = None
     if canonical_dir:
         canonical_root = canonical_dir.resolve()
         if not canonical_root.exists():
@@ -116,6 +118,9 @@ def build_paths(
         canonical_pdb_dir = canonical_root / "pdb_structures"
         if not canonical_pdb_dir.exists():
             raise FileNotFoundError(f"Expected pdb_structures/ inside --canonical-dir: {canonical_pdb_dir}")
+        canonical_seq_path = canonical_root / "seq_for_mut_prob.tsv"
+        if not canonical_seq_path.exists():
+            raise FileNotFoundError(f"Expected seq_for_mut_prob.tsv inside --canonical-dir: {canonical_seq_path}")
     mane_missing_path = mane_dataset_dir / "mane_missing.csv"
     mane_summary_path = mane_dataset_dir / "mane_summary.txt.gz"
 
@@ -159,6 +164,7 @@ def build_paths(
         final_bundle_dir=final_bundle_dir,
         final_pdb_dir=final_pdb_dir,
         canonical_pdb_dir=canonical_pdb_dir,
+        canonical_seq_path=canonical_seq_path,
         mane_dataset_dir=mane_dataset_dir,
         mane_missing_path=mane_missing_path,
         mane_summary_path=mane_summary_path,
@@ -446,6 +452,63 @@ def compute_fasta_lengths(fasta_paths: pd.Series) -> pd.Series:
     return pd.Series(lengths, index=fasta_paths.index, dtype="Int64")
 
 
+def read_fasta_sequence(fasta_path: Path) -> str:
+    """Return the amino-acid sequence stored in a FASTA file."""
+    if not fasta_path.exists():
+        return ""
+    residues = []
+    with fasta_path.open() as handle:
+        for line in handle:
+            if line.startswith(">"):
+                continue
+            residues.append(line.strip())
+    return "".join(residues)
+
+
+def build_missing_sequence_index(samplesheet_missing: pd.DataFrame, fasta_dir: Path) -> pd.DataFrame:
+    """Load amino-acid sequences for each missing ENSP from the FASTA store."""
+    records = []
+    for _, row in samplesheet_missing.iterrows():
+        seq_id = row["sequence"]
+        fasta_hint = row.get("fasta") if isinstance(row, pd.Series) else None
+        seq_path = None
+        if isinstance(fasta_hint, str) and fasta_hint:
+            seq_path = Path(fasta_hint)
+        elif fasta_hint is not None and pd.notna(fasta_hint):
+            seq_path = Path(str(fasta_hint))
+        candidates = []
+        if seq_path and seq_path.exists():
+            candidates.append(seq_path)
+        candidates.append(fasta_dir / f"{seq_id}.fasta")
+        sequence = ""
+        for candidate in candidates:
+            if candidate.exists():
+                sequence = read_fasta_sequence(candidate)
+                if sequence:
+                    break
+        if not sequence:
+            print(f"[WARNING] Unable to load FASTA sequence for {seq_id}")
+            continue
+        records.append({"sequence": seq_id, "aa_sequence": sequence})
+    return pd.DataFrame(records)
+
+
+def load_canonical_sequence_index(seq_path: Path) -> pd.DataFrame:
+    """Load the canonical UniProt fragment sequences from seq_for_mut_prob.tsv."""
+    seq_df = pd.read_table(seq_path, usecols=["Uniprot_ID", "F", "Seq"])
+    seq_df = seq_df.rename(
+        columns={
+            "Uniprot_ID": "uniprot_id",
+            "F": "fragment",
+            "Seq": "aa_sequence",
+        }
+    )
+    seq_df["fragment"] = seq_df["fragment"].astype(str).str.replace("F", "", regex=False)
+    seq_df["aa_sequence"] = seq_df["aa_sequence"].astype(str).str.strip()
+    seq_df = seq_df.replace({"aa_sequence": {"": pd.NA}}).dropna(subset=["uniprot_id", "fragment", "aa_sequence"])
+    return seq_df
+
+
 def filter_long_sequences(df: pd.DataFrame, missing_dir: Path, max_len: int) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Drop ENSPs whose FASTA length exceeds max_len and log the removed entries."""
     if "length" not in df.columns:
@@ -521,13 +584,6 @@ def reuse_canonical_structures(
     if not paths.canonical_pdb_dir or not paths.canonical_pdb_dir.exists():
         print("Canonical PDB directory not found. Skipping reuse.")
         return pd.DataFrame()
-    if not paths.mane_missing_path or not paths.mane_missing_path.exists():
-        print("mane_missing.csv not found. Skipping reuse.")
-        return pd.DataFrame()
-
-    if "refseq_prot" not in samplesheet_missing.columns:
-        print("Missing refseq_prot column; cannot perform canonical reuse.")
-        return pd.DataFrame()
 
     canonical_index = index_canonical_pdbs(paths.canonical_pdb_dir, settings.max_workers)
     if canonical_index.empty:
@@ -538,21 +594,28 @@ def reuse_canonical_structures(
         return pd.DataFrame()
     print(f"Indexed {len(canonical_index):,} canonical PDB files")
 
-    mane_missing_df = pd.read_csv(paths.mane_missing_path)
-    rename_map = {}
-    if "uniprot_accession(s)" in mane_missing_df.columns:
-        rename_map["uniprot_accession(s)"] = "uniprot_id"
-    if "RefSeq_prot" in mane_missing_df.columns:
-        rename_map["RefSeq_prot"] = "refseq_prot"
-    mane_missing_df = mane_missing_df.rename(columns=rename_map)
-    if not {"uniprot_id", "refseq_prot"}.issubset(mane_missing_df.columns):
-        print("Cannot map UniProt↔RefSeq from mane_missing.csv. Skipping reuse.")
+    if not paths.canonical_seq_path or not paths.canonical_seq_path.exists():
+        print("[INFO] seq_for_mut_prob.tsv not found in canonical directory. Skipping reuse.")
         return pd.DataFrame()
-    mane_missing_df = mane_missing_df[["uniprot_id", "refseq_prot"]].dropna().drop_duplicates()
 
-    canonical_with_refseq = canonical_index.merge(mane_missing_df, on="uniprot_id", how="left").dropna(subset=["refseq_prot"])
-    retrievable = samplesheet_missing.merge(canonical_with_refseq, on="refseq_prot", how="inner")
-    print(f"Canonical structures available for {len(retrievable):,} ENSP entries")
+    canonical_seq_df = load_canonical_sequence_index(paths.canonical_seq_path)
+    canonical_with_seq = canonical_index.merge(canonical_seq_df, on=["uniprot_id", "fragment"], how="inner")
+    if canonical_with_seq.empty:
+        print("[INFO] No canonical sequences matched the indexed PDBs.")
+        return pd.DataFrame()
+
+    missing_seq_df = build_missing_sequence_index(samplesheet_missing, paths.fasta_dir)
+    if missing_seq_df.empty:
+        print("[INFO] Could not load sequences for the missing set; skipping canonical reuse.")
+        return pd.DataFrame()
+
+    retrievable = missing_seq_df.merge(
+        canonical_with_seq[["aa_sequence", "path", "fragment", "uniprot_id"]],
+        on="aa_sequence",
+        how="inner",
+    )
+    retrievable = retrievable.drop_duplicates(subset=["sequence"])
+    print(f"Canonical structures available via sequence match for {len(retrievable):,} ENSP entries")
 
     retrieved_records = []
     ensure_dir(paths.retrieved_pdb_dir)
@@ -765,7 +828,7 @@ def cli(
         cgc_list_path=cgc_list_path,
     )
     settings = Settings(
-        enable_canonical_reuse=bool(paths.canonical_pdb_dir),
+        enable_canonical_reuse=bool(paths.canonical_pdb_dir and paths.canonical_seq_path),
         max_workers=max_workers,
         filter_long_sequences=filter_long_sequences,
         max_sequence_length=max_sequence_length,

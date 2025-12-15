@@ -90,7 +90,7 @@ Arguments:
 
 - `--samplesheet-folder` (**required**): Absolute path to the folder created by `prepare_samplesheet.py` (contains `samplesheet.csv` + `fasta/`).
 - `--mane-dataset-dir` (**required**): Path to the MANE-only dataset built via `oncodrive3d build-datasets --mane_only`.
-- `--canonical-dir`: Path to the dataset including UniProt canonical structures built via `oncodrive3d build-datasets` or `oncodrive3d build-datasets --mane`.
+- `--canonical-dir`: Path to the dataset including UniProt canonical structures built via `oncodrive3d build-datasets` or `oncodrive3d build-datasets --mane`. The directory must contain both `pdb_structures/` and `seq_for_mut_prob.tsv` so the tool can match missing ENSPs to canonical PDBs by amino-acid sequence.
 - `--predicted-dir`: Path to the directory containing nf-core/proteinfold PDBs to ingest; omit it if you only want to reuse AF canonical structures in this pass.
 - `--cgc-list-path`: Path to the Cancer Gene Census TSV (optional; only needed for CGC prioritisation). Download available from the CGC website (registration required).
 - `--max-workers`: Parallel workers for canonical indexing (default = all cores).
@@ -107,7 +107,7 @@ Arguments:
 
 1. **Sync nf-core predictions (optional)** – copy the raw nf-core/proteinfold PDBs into `predicted/` and emit an accompanying `samplesheet.csv`.
 2. **Refresh the missing set** – copy FASTAs for still-missing ENSPs into `missing/fasta/`, rebuild `missing/samplesheet.csv`, and annotate with CGC metadata plus sequence lengths.
-3. **Reuse canonical structures (optional)** – if `--canonical-dir` is supplied, index the AlphaFold canonical bundle, map ENSPs via RefSeq IDs, and copy matching PDBs into `retrieved/`, pruning them from the `missing/` tree.
+3. **Reuse canonical structures (optional)** – if `--canonical-dir` is supplied, index the AlphaFold canonical bundle, match each missing ENSP against `seq_for_mut_prob.tsv` by exact amino-acid sequence, and copy the corresponding PDBs into `retrieved/`, pruning them from the `missing/` tree.
 4. **Filter long sequences** – optionally drop proteins exceeding `--max-sequence-length`, logging them in `missing/samplesheet_removed_long.csv`.
 5. **Merge bundles** – combine `predicted/` and `retrieved/` into `final_bundle/`, the directory you will pass to `oncodrive3d build-datasets --custom_mane_*`.
 
