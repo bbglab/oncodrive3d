@@ -476,15 +476,21 @@ def annotate_missing_with_cgc(
     missing_sheet: Path,
     cgc_path: Optional[Path],
     mane_summary_path: Path,
+    metadata_map: Optional[pd.DataFrame] = None,
 ) -> pd.DataFrame:
     """Annotate the missing samplesheet with CGC tags and computed lengths."""
     missing_df = pd.read_csv(missing_sheet)
     if missing_df.empty:
-        print("No entries left in missing samplesheet.")
+        print("[INFO] No entries left in missing samplesheet.")
         return missing_df
 
     seq_map, refseq_map, cgc_symbols = prepare_annotation_maps(mane_summary_path, cgc_path)
     missing_df = attach_symbol_and_cgc(missing_df, seq_map, refseq_map)
+
+    if metadata_map is not None:
+        missing_df = attach_metadata(missing_df, metadata_map)
+        missing_df["symbol"] = missing_df["symbol"].fillna("")
+        missing_df["CGC"] = missing_df["CGC"].fillna(0).astype(int)
 
     if "fasta" in missing_df.columns:
         missing_df["length"] = compute_fasta_lengths(missing_df["fasta"])
@@ -633,6 +639,7 @@ def run_pipeline(
         paths.missing_samplesheet_path,
         paths.cgc_list_path,
         paths.mane_summary_path,
+        metadata_map if settings.include_metadata else None,
     )
 
     removed_long_df = pd.DataFrame()
