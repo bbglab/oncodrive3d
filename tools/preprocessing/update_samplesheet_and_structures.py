@@ -509,7 +509,12 @@ def load_canonical_sequence_index(seq_path: Path) -> pd.DataFrame:
     return seq_df
 
 
-def filter_long_sequences(df: pd.DataFrame, missing_dir: Path, max_len: int) -> tuple[pd.DataFrame, pd.DataFrame]:
+def filter_long_sequences(
+    df: pd.DataFrame,
+    missing_dir: Path,
+    max_len: int,
+    include_metadata: bool = False,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Drop ENSPs whose FASTA length exceeds max_len and log the removed entries."""
     if "length" not in df.columns:
         return df, pd.DataFrame()
@@ -519,7 +524,10 @@ def filter_long_sequences(df: pd.DataFrame, missing_dir: Path, max_len: int) -> 
     kept = df[~mask].copy()
     removed = df[mask].copy()
 
-    removed_clean = removed.drop(columns=["symbol", "CGC", "length"], errors="ignore")
+    if include_metadata:
+        removed_clean = removed.copy()
+    else:
+        removed_clean = removed.drop(columns=["symbol", "CGC", "length"], errors="ignore")
     removed_path = missing_dir / "samplesheet_removed_long.csv"
     removed_clean.to_csv(removed_path, index=False)
 
@@ -708,7 +716,10 @@ def run_pipeline(
     removed_long_df = pd.DataFrame()
     if settings.filter_long_sequences and not annotated_missing_df.empty:
         annotated_missing_df, removed_long_df = filter_long_sequences(
-            annotated_missing_df, paths.missing_dir, settings.max_sequence_length
+            annotated_missing_df,
+            paths.missing_dir,
+            settings.max_sequence_length,
+            include_metadata=settings.include_metadata,
         )
 
     if settings.include_metadata:
