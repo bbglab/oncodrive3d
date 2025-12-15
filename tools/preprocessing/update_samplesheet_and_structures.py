@@ -552,7 +552,7 @@ def annotate_missing_with_cgc(
     """Annotate the missing samplesheet with CGC tags and computed lengths."""
     missing_df = pd.read_csv(missing_sheet)
     if missing_df.empty:
-        print("[INFO] No entries left in missing samplesheet.")
+        print("No entries left in missing samplesheet.")
         return missing_df
 
     seq_map, refseq_map, cgc_symbols = prepare_annotation_maps(mane_summary_path, cgc_path)
@@ -596,25 +596,25 @@ def reuse_canonical_structures(
     canonical_index = index_canonical_pdbs(paths.canonical_pdb_dir, settings.max_workers)
     if canonical_index.empty:
         print(
-            f"[ERROR] No canonical PDB files found in {paths.canonical_pdb_dir}. "
+            f"[WARNING] No canonical PDB files found in {paths.canonical_pdb_dir}. "
             "Verify --canonical-dir points to the AlphaFold DB download."
         )
         return pd.DataFrame()
     print(f"Indexed {len(canonical_index):,} canonical PDB files")
 
     if not paths.canonical_seq_path or not paths.canonical_seq_path.exists():
-        print("[INFO] seq_for_mut_prob.tsv not found in canonical directory. Skipping reuse.")
+        print("seq_for_mut_prob.tsv not found in canonical directory. Skipping reuse.")
         return pd.DataFrame()
 
     canonical_seq_df = load_canonical_sequence_index(paths.canonical_seq_path)
     canonical_with_seq = canonical_index.merge(canonical_seq_df, on=["uniprot_id", "fragment"], how="inner")
     if canonical_with_seq.empty:
-        print("[INFO] No canonical sequences matched the indexed PDBs.")
+        print("No canonical sequences matched the indexed PDBs.")
         return pd.DataFrame()
 
     missing_seq_df = build_missing_sequence_index(samplesheet_missing, paths.fasta_dir)
     if missing_seq_df.empty:
-        print("[INFO] Could not load sequences for the missing set; skipping canonical reuse.")
+        print("Could not load sequences for the missing set; skipping canonical reuse.")
         return pd.DataFrame()
 
     retrievable = missing_seq_df.merge(
