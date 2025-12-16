@@ -13,11 +13,6 @@ Requires:
 - Python 3.10+
 - Oncodrive3D datasets built (a `--mane_only` run for the MANE-only baseline plus, if needed, a standard `--mane` or default run for the canonical bundle). These builds supply `mane_refseq_prot_to_alphafold.csv`, `mane_summary.txt.gz`, `mane_missing.csv`, and (optionally) the canonical AlphaFold PDB bundle.
 
-```bash
-uv sync
-source .venv/bin/activate
-```
-
 ## `prepare_samplesheet.py`
 
 ### Purpose
@@ -26,7 +21,7 @@ Download the requested MANE protein FASTA from NCBI and materialize FASTA files 
 ### Usage
 
 ```bash
-python -m tools.preprocessing.prepare_samplesheet \
+uv run python tools.preprocessing.prepare_samplesheet.py \
     --mane-dataset-dir /path/to/o3d_mane_only_dataset \
     --output-dir   /path/to/mane_missing/data
 ```
@@ -79,7 +74,7 @@ Non-runtime paths still live in `config.yaml`:
 ### Usage
 
 ```bash
-python -m tools.preprocessing.update_samplesheet_and_structures \
+uv run python tools.preprocessing.update_samplesheet_and_structures.py \
     --samplesheet-folder /path/to/mane_missing/data \
     --mane-dataset-dir /path/to/mane_only_dataset \
     [--canonical-dir   /path/to/af_canonical_pdbs] \
@@ -145,22 +140,19 @@ After each run, `<samplesheet_folder>` contains:
 
 1. **Initialize datasets**
    ```bash
-   # Activate the main O3D environment
-   source .venv/bin/activate
+   # Execute from the root of the repository or activate Oncodrive3D env
 
    # Build O3D datasets
-   oncodrive3d build-datasets --mane_only   --output_dir <path/to/o3d_datasets-mane_only-date>
-   oncodrive3d build-datasets               --output_dir <path/to/o3d_datasets-date>
+   uv run oncodrive3d build-datasets --mane_only   --output_dir <path/to/o3d_datasets-mane_only-date>
+   uv run oncodrive3d build-datasets               --output_dir <path/to/o3d_datasets-date>
    ```
 
 2. **Prepare missing set**
    ```bash
-   # Activate tools environment
    cd tools/preprocessing
-   source .venv/bin/activate
 
    # Init the MANE missing structures
-   python -m tools.preprocessing.prepare_samplesheet \
+   uv run python prepare_samplesheet.py \
      --mane-dataset-dir <path/to/o3d_datasets-mane_only-date> \
      --output-dir       <path/to/mane_missing-date>
    ```
@@ -168,7 +160,7 @@ After each run, `<samplesheet_folder>` contains:
 3. **Harvest canonical matches (first iteration, optional but recommended)**
    ```bash
    # Retrieve MANE missing structures overlapping sequences of canonical ones
-   python -m tools.preprocessing.update_samplesheet_and_structures \
+   uv run python update_samplesheet_and_structures.py \
      --samplesheet-folder <path/to/mane_missing-date> \
      --mane-dataset-dir   <path/to/o3d_datasets-mane_only-date> \
      --canonical-dir      <path/to/o3d_datasets-date> \
@@ -181,7 +173,7 @@ After each run, `<samplesheet_folder>` contains:
 5. **Ingest predictions + canonical reuse**
    ```bash
    # Merge retrieved + predicted structures into a final_bundle
-   python -m tools.preprocessing.update_samplesheet_and_structures \
+   uv run python update_samplesheet_and_structures.py \
      --samplesheet-folder <path/to/mane_missing-date> \
      --mane-dataset-dir   <path/to/o3d_datasets-mane_only-date> \
      --canonical-dir      <path/to/o3d_datasets-date> \
@@ -191,8 +183,10 @@ After each run, `<samplesheet_folder>` contains:
 
 6. **Rebuild MANE-only datasets with the final bundle**
    ```bash
+   # Execute from the root of the repository or activate Oncodrive3D env
+
    # Build a new MANE only datasets providing the added structures in the final bundle
-   oncodrive3d build-datasets --mane_only \
+   uv run oncodrive3d build-datasets --mane_only \
      --custom_mane_pdb_dir          <path/to/mane_missing-date>/final_bundle/pdbs \
      --custom_mane_metadata_path    <path/to/mane_missing-date>/final_bundle/samplesheet.csv \
      --output_dir                   <path/to/mane_missing-new_date>
