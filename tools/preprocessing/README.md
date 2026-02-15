@@ -48,7 +48,7 @@ Inside the chosen `--output-dir` you will find:
 
 - `MANE.GRCh38.vX.Y.ensembl_protein.faa.gz` – cached MANE FASTA download.
 - `fasta/ENSP....fasta` – one FASTA per missing ENSP (filtered for length if requested).
-- `samplesheet.csv` – columns include `sequence`, `fasta`, `refseq`, `length`, `refseq_prot`, etc.
+- `samplesheet.csv` – columns include `sequence`, `fasta`, `aa_sequence`, `length`, `refseq_prot`, etc.
 
 Feed these files to `update_samplesheet_and_structures.py` and/or directly into nf-core/proteinfold.
 
@@ -90,7 +90,7 @@ Arguments:
   - If your prediction run outputs a flat folder of PDBs named like `ENSP0000....pdb`, point `--predicted-dir` to that folder.
   - If your prediction run outputs nested `ENSP*` folders with a `ranked_0.pdb` inside (no ENSP identifier in the filename), first flatten it with:
     ```bash
-    uv run python tools/preprocessing/flatten_alphafold_predictions.py \
+    uv run python tools/preprocessing/parse_alphafold_predictions.py \
         --predicted-dir /path/to/nested/predictions \
         --output-dir    /path/to/flat/pdbs
     ```

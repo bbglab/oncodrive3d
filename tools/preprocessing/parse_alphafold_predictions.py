@@ -2,7 +2,7 @@
 """
 Parse nested AlphaFold predictions into a simple PDB folder.
 
-A recent AlphaFold pipeline produce one directory per protein (ENSP...) 
+A recent AlphaFold pipeline produces one directory per protein (ENSP...) 
 with the actual structure nested inside and named `ranked_0.pdb`.
 
 This script scans a `--predicted-dir` containing multiple `ENSP*` folders,
