@@ -84,21 +84,25 @@ def copy_and_parse_custom_pdbs(
     # Handle metadata
     if custom_mane_metadata_path and os.path.isfile(custom_mane_metadata_path):
         samplesheet_df = pd.read_csv(custom_mane_metadata_path)
+        missing_cols = {"sequence", "aa_sequence"} - set(samplesheet_df.columns)
+        if missing_cols:
+            raise ValueError(
+                f"Custom MANE metadata file {custom_mane_metadata_path!r} is missing required columns: "
+                f"{', '.join(sorted(missing_cols))}"
+            )
     else:
         if not custom_mane_metadata_path:
             logger.warning(
-                "No samplesheet path provided; skipping SEQRES insertion for accession %s",
-                accession
+                "No samplesheet path provided; skipping SEQRES insertion."
             )
         else:
             logger.warning(
-                "samplesheet not found at '%s'; skipping SEQRES insertion for accession %s",
-                custom_mane_metadata_path,
-                accession
+                "samplesheet not found at '%s'; skipping SEQRES insertion.",
+                custom_mane_metadata_path
             )
         samplesheet_df = None
 
-    # Copy and gzip pdb and optionally add REFSEQ
+    # Copy and gzip pdb and optionally add SEQRES
     for fname in os.listdir(src_dir):
         if not fname.endswith('.pdb'):
             continue
@@ -126,7 +130,7 @@ def copy_and_parse_custom_pdbs(
             if accession not in samplesheet_df["sequence"].values:
                 logger.warning("Accession %s not in samplesheet %s", accession, custom_mane_metadata_path)
                 continue
-            seq = samplesheet_df[samplesheet_df["sequence"] == accession].refseq.values[0]
+            seq = samplesheet_df[samplesheet_df["sequence"] == accession].aa_sequence.values[0]
             
             if not pd.isna(seq):
                 seq = [one_to_three_res_map[aa] for aa in seq]

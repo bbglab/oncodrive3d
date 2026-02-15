@@ -182,7 +182,7 @@ def degronopedia_af_merge(struct_name, input_path, afold_version, output_path, z
 
 ## In-house scripts
 
-# Add SEQREF record to pdb file
+# Add SEQRES records to PDB file
 
 def get_res_from_chain(pdb_path):
     """
@@ -221,9 +221,9 @@ def get_pdb_seqres_records(lst_res):
     return records
 
 
-def add_refseq_record_to_pdb(path_structure):
+def add_seqres_records_to_pdb(path_structure):
     """
-    Add the SEQREF records to the pdb file.
+    Add SEQRES records to the PDB file.
     """
 
     # Open the PDB file and get SEQRES insert index
@@ -231,7 +231,7 @@ def add_refseq_record_to_pdb(path_structure):
         pdb_lines = file.readlines()
         insert_index = next(i for i, line in enumerate(pdb_lines) if line.startswith('MODEL'))
 
-    # Get seares records
+    # Get SEQRES records
     residues = get_res_from_chain(path_structure)
     seqres_records = get_pdb_seqres_records(residues)
 
@@ -324,12 +324,12 @@ def merge_af_fragments(input_dir, output_dir=None, af_version=4, gzip=False):
                     file = f"AF-{uni_id}-F{f}-model_v{af_version}.pdb{zip_ext}"
                     shutil.move(os.path.join(input_dir, file), path_original_frag)
 
-                # Rename merged structure and add refseq records to pdb
+                # Rename merged structure and add SEQRES records to PDB
                 if processed:
                     tmp_name = os.path.join(output_dir, f"AF-{uni_id}-FM-model_v{af_version}.pdb")
                     name = os.path.join(output_dir, f"AF-{uni_id}-F{max_f}M-model_v{af_version}.pdb")
                     os.rename(tmp_name, name)
-                    add_refseq_record_to_pdb(name)
+                    add_seqres_records_to_pdb(name)
 
             if len(not_processed) > 0:
                 logger.warning(f"Not processed: {not_processed}")
