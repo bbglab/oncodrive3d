@@ -21,7 +21,7 @@ Download the requested MANE protein FASTA from NCBI and materialize FASTA files 
 ### Usage
 
 ```bash
-uv run python tools.preprocessing.prepare_samplesheet.py \
+uv run python tools/preprocessing/prepare_samplesheet.py \
     --mane-dataset-dir /path/to/o3d_mane_only_dataset \
     --output-dir   /path/to/mane_missing/data
 ```
@@ -48,7 +48,7 @@ Inside the chosen `--output-dir` you will find:
 
 - `MANE.GRCh38.vX.Y.ensembl_protein.faa.gz` – cached MANE FASTA download.
 - `fasta/ENSP....fasta` – one FASTA per missing ENSP (filtered for length if requested).
-- `samplesheet.csv` – columns include `sequence`, `fasta`, `refseq`, `length`, `refseq_prot`, etc.
+- `samplesheet.csv` – columns include `sequence`, `fasta`, `aa_sequence`, `length`, `refseq_prot`, etc.
 
 Feed these files to `update_samplesheet_and_structures.py` and/or directly into nf-core/proteinfold.
 
@@ -74,7 +74,7 @@ Non-runtime paths still live in `config.yaml`:
 ### Usage
 
 ```bash
-uv run python tools.preprocessing.update_samplesheet_and_structures.py \
+uv run python tools/preprocessing/update_samplesheet_and_structures.py \
     --samplesheet-folder /path/to/mane_missing/data \
     --mane-dataset-dir /path/to/mane_only_dataset \
     [--canonical-dir   /path/to/af_canonical_pdbs] \
@@ -86,10 +86,17 @@ Arguments:
 - `--samplesheet-folder` (**required**): Absolute path to the folder created by `prepare_samplesheet.py` (contains `samplesheet.csv` + `fasta/`).
 - `--mane-dataset-dir` (**required**): Path to the MANE-only dataset built via `oncodrive3d build-datasets --mane_only`.
 - `--canonical-dir`: Path to the dataset including UniProt canonical structures built via `oncodrive3d build-datasets` or `oncodrive3d build-datasets --mane`. The directory must contain both `pdb_structures/` and `seq_for_mut_prob.tsv` so the tool can match missing ENSPs to canonical PDBs by amino-acid sequence.
-- `--predicted-dir`: Path to the directory containing nf-core/proteinfold PDBs to ingest; omit it if you only want to reuse AF canonical structures in this pass.
+- `--predicted-dir`: Path to a directory containing predicted PDBs to ingest.
+  - If your prediction run outputs a flat folder of PDBs named like `ENSP0000....pdb`, point `--predicted-dir` to that folder.
+  - If your prediction run outputs nested `ENSP*` folders with a `ranked_0.pdb` inside (no ENSP identifier in the filename), first flatten it with:
+    ```bash
+    uv run python tools/preprocessing/parse_alphafold_predictions.py \
+        --predicted-dir /path/to/nested/predictions \
+        --output-dir    /path/to/flat/pdbs
+    ```
+    and then pass `--predicted-dir /path/to/flat/pdbs`.
 - `--cgc-list-path`: Path to the Cancer Gene Census TSV (optional; only needed for CGC prioritisation). Download available from the CGC website (registration required).
 - `--max-workers`: Parallel workers for canonical indexing (default = all cores).
-- `--enable-canonical-reuse/--disable-canonical-reuse`: Toggle canonical harvesting (enabled by default when `--canonical-dir` is provided).
 - `--filter-long-sequences/--no-filter-long-sequences`: Whether to drop long proteins from the nf-core input (default enabled).
 - `--max-sequence-length`: Length cutoff applied when filtering (default `2700` residues).
 - `--include-metadata/--no-include-metadata`: Add `symbol`, `CGC`, and `length` columns to every emitted `samplesheet.csv` (default disabled).

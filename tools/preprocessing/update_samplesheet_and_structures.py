@@ -239,6 +239,7 @@ def merge_structure_bundles(
     bundle_dirs: Iterable[Path],
     output_dir: Path,
     metadata_map: Optional[pd.DataFrame] = None,
+    master_samplesheet: Optional[pd.DataFrame] = None,
 ) -> pd.DataFrame:
     """Merge multiple ENSP bundles into a single `output_dir` with deduplicated samplesheet."""
     output_dir = ensure_dir(output_dir)
@@ -258,6 +259,7 @@ def merge_structure_bundles(
         raise RuntimeError("No valid bundles provided for merging.")
     combined = pd.concat(merged, ignore_index=True).drop_duplicates(subset=["sequence"])
     combined = attach_metadata(combined, metadata_map)
+    combined = attach_refseq(combined, master_samplesheet)
     combined.to_csv(output_dir / "samplesheet.csv", index=False)
     print(f"Merged {len(merged)} bundles → {len(combined)} unique ENSP entries")
     return combined
@@ -335,6 +337,13 @@ def load_cgc_symbols(cgc_path: Optional[Path]) -> set[str]:
     return {sym for sym in symbols if sym}
 
 
+def strip_version_suffix(values: pd.Series) -> pd.Series:
+    """Remove trailing `.version` suffixes from identifier series."""
+    mask = values.isna()
+    stripped = values.astype(str).str.split(".", n=1).str[0]
+    return stripped.mask(mask, None)
+
+
 def prepare_annotation_maps(
     mane_summary_path: Path,
     cgc_path: Optional[Path],
@@ -360,7 +369,10 @@ def prepare_annotation_maps(
         raise KeyError(f"Missing columns in MANE summary: {missing}")
 
     mane_summary = mane_summary.rename(columns=rename_map)
-    annotations = mane_summary[["ensembl_prot", "refseq_prot", "symbol"]].drop_duplicates()
+    annotations = mane_summary[["ensembl_prot", "refseq_prot", "symbol"]].copy()
+    annotations["ensembl_prot"] = strip_version_suffix(annotations["ensembl_prot"])
+    annotations["refseq_prot"] = strip_version_suffix(annotations["refseq_prot"])
+    annotations = annotations.drop_duplicates()
     cgc_symbols = load_cgc_symbols(cgc_path)
     annotations["CGC"] = annotations["symbol"].isin(cgc_symbols).astype(int)
 
@@ -376,16 +388,18 @@ def attach_symbol_and_cgc(
 ) -> pd.DataFrame:
     """Annotate `df` with symbol/CGC columns using the provided lookup tables."""
     annotated = df.copy()
+    seq_keys = strip_version_suffix(annotated["sequence"])
     if not seq_map.empty:
-        annotated["symbol"] = annotated["sequence"].map(seq_map["symbol"])
-        annotated["CGC"] = annotated["sequence"].map(seq_map["CGC"])
+        annotated["symbol"] = seq_keys.map(seq_map["symbol"])
+        annotated["CGC"] = seq_keys.map(seq_map["CGC"])
     else:
         annotated["symbol"] = pd.Series("", index=annotated.index)
         annotated["CGC"] = pd.Series(0, index=annotated.index, dtype="Int64")
 
     if "refseq_prot" in annotated.columns and not refseq_map.empty:
-        annotated["symbol"] = annotated["symbol"].fillna(annotated["refseq_prot"].map(refseq_map["symbol"]))
-        annotated["CGC"] = annotated["CGC"].fillna(annotated["refseq_prot"].map(refseq_map["CGC"]))
+        refseq_keys = strip_version_suffix(annotated["refseq_prot"])
+        annotated["symbol"] = annotated["symbol"].fillna(refseq_keys.map(refseq_map["symbol"]))
+        annotated["CGC"] = annotated["CGC"].fillna(refseq_keys.map(refseq_map["CGC"]))
 
     annotated["symbol"] = annotated["symbol"].fillna("")
     annotated["CGC"] = annotated["CGC"].fillna(0).astype(int)
@@ -431,6 +445,20 @@ def attach_metadata(df: pd.DataFrame, metadata_map: Optional[pd.DataFrame]) -> p
         df.drop(columns=["symbol", "CGC", "length"], errors="ignore")
         .merge(metadata, on="sequence", how="left")
     )
+
+
+def attach_refseq(df: pd.DataFrame, master_samplesheet: Optional[pd.DataFrame]) -> pd.DataFrame:
+    """Attach the amino-acid sequence column (`refseq`) from the master samplesheet when available."""
+    if master_samplesheet is None or df.empty:
+        return df
+    if "refseq" not in master_samplesheet.columns:
+        return df
+    refseq_map = (
+        master_samplesheet[["sequence", "refseq"]]
+        .dropna(subset=["sequence"])
+        .drop_duplicates(subset=["sequence"])
+    )
+    return df.drop(columns=["refseq"], errors="ignore").merge(refseq_map, on="sequence", how="left")
 
 
 def compute_fasta_lengths(fasta_paths: pd.Series) -> pd.Series:
@@ -741,7 +769,12 @@ def run_pipeline(
         print("No predicted/retrieved bundles available; skipping final merge.")
         return
 
-    merge_structure_bundles(bundles_to_merge, paths.final_bundle_dir, metadata_map)
+    merge_structure_bundles(
+        bundles_to_merge,
+        paths.final_bundle_dir,
+        metadata_map,
+        master_samplesheet=samplesheet,
+    )
     print(f"Final bundle written to {paths.final_bundle_dir}")
 
 
