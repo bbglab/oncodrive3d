@@ -74,8 +74,8 @@ class ManeSamplesheetBuilder:
     def _parse_ncbi_mane_fasta(self) -> pd.DataFrame:
         """
         Parse the gzipped FASTA into a DataFrame with columns
-        ['sequence', 'refseq'] where 'sequence' is the Ensembl ID
-        (no version) and 'refseq' is the AA string.
+        ['sequence', 'aa_sequence'] where 'sequence' is the Ensembl ID
+        (no version) and 'aa_sequence' is the amino-acid string.
         """
         if not self.fasta_gz.exists():
             raise FileNotFoundError(self.fasta_gz)
@@ -99,7 +99,7 @@ class ManeSamplesheetBuilder:
                 ids.append(header)
                 seqs.append("".join(seq_parts))
 
-        return pd.DataFrame({"sequence": ids, "refseq": seqs})
+        return pd.DataFrame({"sequence": ids, "aa_sequence": seqs})
 
 
     def _load_mane_af(self) -> pd.DataFrame:
@@ -141,7 +141,7 @@ class ManeSamplesheetBuilder:
         """
 
         df = df.copy()
-        df["length"] = df["refseq"].str.len()
+        df["length"] = df["aa_sequence"].str.len()
         self.fasta_dir.mkdir(exist_ok=True, parents=True)
 
         if self.no_fragments:
@@ -149,7 +149,7 @@ class ManeSamplesheetBuilder:
 
         # Build fasta paths and write files
         fasta_paths = []
-        for seq_id, seq, length in zip(df["sequence"], df["refseq"], df["length"]):
+        for seq_id, seq, length in zip(df["sequence"], df["aa_sequence"], df["length"]):
             p = self.fasta_dir / f"{seq_id}.fasta"
             fasta_str = f">{seq_id} | {length} aa\n{seq}\n"
             p.write_text(fasta_str)
