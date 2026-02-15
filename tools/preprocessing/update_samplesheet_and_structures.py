@@ -239,6 +239,7 @@ def merge_structure_bundles(
     bundle_dirs: Iterable[Path],
     output_dir: Path,
     metadata_map: Optional[pd.DataFrame] = None,
+    master_samplesheet: Optional[pd.DataFrame] = None,
 ) -> pd.DataFrame:
     """Merge multiple ENSP bundles into a single `output_dir` with deduplicated samplesheet."""
     output_dir = ensure_dir(output_dir)
@@ -258,6 +259,7 @@ def merge_structure_bundles(
         raise RuntimeError("No valid bundles provided for merging.")
     combined = pd.concat(merged, ignore_index=True).drop_duplicates(subset=["sequence"])
     combined = attach_metadata(combined, metadata_map)
+    combined = attach_refseq(combined, master_samplesheet)
     combined.to_csv(output_dir / "samplesheet.csv", index=False)
     print(f"Merged {len(merged)} bundles → {len(combined)} unique ENSP entries")
     return combined
@@ -443,6 +445,20 @@ def attach_metadata(df: pd.DataFrame, metadata_map: Optional[pd.DataFrame]) -> p
         df.drop(columns=["symbol", "CGC", "length"], errors="ignore")
         .merge(metadata, on="sequence", how="left")
     )
+
+
+def attach_refseq(df: pd.DataFrame, master_samplesheet: Optional[pd.DataFrame]) -> pd.DataFrame:
+    """Attach the amino-acid sequence column (`refseq`) from the master samplesheet when available."""
+    if master_samplesheet is None or df.empty:
+        return df
+    if "refseq" not in master_samplesheet.columns:
+        return df
+    refseq_map = (
+        master_samplesheet[["sequence", "refseq"]]
+        .dropna(subset=["sequence"])
+        .drop_duplicates(subset=["sequence"])
+    )
+    return df.drop(columns=["refseq"], errors="ignore").merge(refseq_map, on="sequence", how="left")
 
 
 def compute_fasta_lengths(fasta_paths: pd.Series) -> pd.Series:
@@ -753,7 +769,12 @@ def run_pipeline(
         print("No predicted/retrieved bundles available; skipping final merge.")
         return
 
-    merge_structure_bundles(bundles_to_merge, paths.final_bundle_dir, metadata_map)
+    merge_structure_bundles(
+        bundles_to_merge,
+        paths.final_bundle_dir,
+        metadata_map,
+        master_samplesheet=samplesheet,
+    )
     print(f"Final bundle written to {paths.final_bundle_dir}")
 
 
