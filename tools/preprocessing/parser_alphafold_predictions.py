@@ -9,7 +9,7 @@ This script scans a `--predicted-dir` containing multiple `ENSP*` folders,
 finds each folder's `ranked_0.pdb` (or `ranked_0.pdb.gz`), and copies it to
 `--output-dir` as:
 
-    <ENSP_ID>.alphafold.pdb
+    <ENSP_ID>.1.alphafold.pdb
 """
 
 from __future__ import annotations
@@ -83,7 +83,7 @@ def cli(predicted_dir: Path, output_dir: Path) -> None:
             missing += 1
             continue
 
-        dst = output_dir / f"{ensp_id}.alphafold.pdb"
+        dst = output_dir / f"{ensp_id}.1.alphafold.pdb"
         try:
             copy_pdb(ranked, dst)
             copied += 1
