@@ -756,11 +756,22 @@ def get_ref_dna_from_ensembl(transcript_id):
     https://rest.ensembl.org/documentation/info/sequence_id
     """
 
+    pid = os.getpid()
+    start_time = time.perf_counter()
+    failures = 0
+
+    if pd.isna(transcript_id):
+        logger.debug("Ensembl CDS start: <NA> (pid=%s) -> skipping", pid)
+        return np.nan
+
+    transcript_id = str(transcript_id)
+    logger.debug("Ensembl CDS start: %s (pid=%s)", transcript_id, pid)
+
     server = "https://rest.ensembl.org"
     ext = f"/sequence/id/{transcript_id}?type=cds"
 
     status = "INIT"
-    i = 0
+    last_error = None
     while status != "FINISHED":
 
         try:
@@ -774,18 +785,51 @@ def get_ref_dna_from_ensembl(transcript_id):
                 status = "FINISHED"
 
         except requests.exceptions.RequestException as e:
-            i += 1
+            failures += 1
+            last_error = e
             status = "ERROR"
-            if i%10 == 0:
-                logger.debug(f"Failed to retrieve sequence for {transcript_id} {e}: Retrying..")
+            if failures % 10 == 0:
+                logger.debug(
+                    "Failed to retrieve sequence for %s (pid=%s, failures=%s) %s: Retrying..",
+                    transcript_id,
+                    pid,
+                    failures,
+                    e,
+                )
                 time.sleep(5)
-            if i == 100:
-                logger.debug(f"Failed to retrieve sequence for {transcript_id} {e}: Skipping..")
+            if failures == 100:
+                elapsed = time.perf_counter() - start_time
+                logger.warning(
+                    "Ensembl CDS failed: %s (pid=%s, elapsed=%.2fs, failures=%s). Last error: %s",
+                    transcript_id,
+                    pid,
+                    elapsed,
+                    failures,
+                    last_error,
+                )
                 return np.nan
 
             time.sleep(1)
 
     seq_dna = "".join(r.text.strip().split("\n")[1:])
+
+    elapsed = time.perf_counter() - start_time
+    if failures > 0:
+        logger.info(
+            "Ensembl CDS completed: %s (pid=%s, elapsed=%.2fs, failures=%s)",
+            transcript_id,
+            pid,
+            elapsed,
+            failures,
+        )
+    else:
+        logger.debug(
+            "Ensembl CDS completed: %s (pid=%s, elapsed=%.2fs, failures=%s)",
+            transcript_id,
+            pid,
+            elapsed,
+            failures,
+        )
 
     return seq_dna[:len(seq_dna)-3]
 
