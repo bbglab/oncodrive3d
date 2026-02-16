@@ -83,8 +83,8 @@ Examples:
 Options:
   -o, --output_dir PATH           Path to the directory where the output files will be saved. 
                                   Default: ./datasets/
-  -s, --organism PATH             Specifies the organism (`human` or `mouse`). 
-                                  Default: human
+  -s, --organism TEXT             Specifies the organism (`human` or `mouse`; also accepts `Homo sapiens` / `Mus musculus`). 
+                                  Default: Homo sapiens
   -m, --mane                      Use structures predicted from MANE Select transcripts 
                                   (applicable to Homo sapiens only).
   -M, --mane_only                 Use only structures predicted from MANE Select transcripts
