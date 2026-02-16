@@ -790,15 +790,6 @@ def get_ref_dna_from_ensembl(transcript_id):
     return seq_dna[:len(seq_dna)-3]
 
 
-def get_ref_dna_from_ensembl_wrapper(ensembl_id):
-    """
-    Wrapper for multiple processing function using
-    Ensembl Get sequence rest API.
-    """
-
-    return get_ref_dna_from_ensembl(ensembl_id)
-
-
 def get_ref_dna_from_ensembl_mp(seq_df, cores):
     """
     Multiple processing function to use Ensembl GET sequence
@@ -818,7 +809,7 @@ def get_ref_dna_from_ensembl_mp(seq_df, cores):
 
     if cores <= 1:
         seq_df["Seq_dna"] = [
-            get_ref_dna_from_ensembl_wrapper(tid)
+            get_ref_dna_from_ensembl(tid)
             for tid in tqdm(transcript_ids, total=total, desc="Ensembl CDS")
         ]
         logger.debug("Completed Ensembl CDS retrieval.")
@@ -826,7 +817,7 @@ def get_ref_dna_from_ensembl_mp(seq_df, cores):
 
     pool = multiprocessing.Pool(processes=cores)
     try:
-        results_iter = pool.imap(get_ref_dna_from_ensembl_wrapper, transcript_ids)
+        results_iter = pool.imap(get_ref_dna_from_ensembl, transcript_ids)
         seq_df["Seq_dna"] = [
             seq for seq in tqdm(results_iter, total=total, desc="Ensembl CDS")
         ]
