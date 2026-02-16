@@ -859,15 +859,9 @@ def get_ref_dna_from_ensembl_mp(seq_df, cores):
         logger.debug("Completed Ensembl CDS retrieval.")
         return seq_df
 
-    pool = multiprocessing.Pool(processes=cores)
-    try:
+    with multiprocessing.Pool(processes=cores) as pool:
         results_iter = pool.imap(get_ref_dna_from_ensembl, transcript_ids)
-        seq_df["Seq_dna"] = [
-            seq for seq in tqdm(results_iter, total=total, desc="Ensembl CDS")
-        ]
-    finally:
-        pool.close()
-        pool.join()
+        seq_df["Seq_dna"] = [seq for seq in tqdm(results_iter, total=total, desc="Ensembl CDS")]
 
     logger.debug("Completed Ensembl CDS retrieval.")
     return seq_df
