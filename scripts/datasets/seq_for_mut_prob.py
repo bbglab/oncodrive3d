@@ -647,11 +647,13 @@ def download_biomart_metadata(path_to_file, max_attempts=2, wait_seconds=10):
 
     if shutil.which("wget") is None:
         logger.warning("wget not found; falling back to Python downloader for BioMart metadata.")
+        last_exc = None
         for attempt in range(1, max_attempts + 1):
             try:
                 download_single_file(url, path_to_file, threads=4)
                 return
-            except Exception:
+            except Exception as exc:
+                last_exc = exc
                 logger.warning(
                     "BioMart download failed (attempt %s/%s). Retrying in %ss...",
                     attempt,
@@ -659,9 +661,26 @@ def download_biomart_metadata(path_to_file, max_attempts=2, wait_seconds=10):
                     wait_seconds,
                 )
                 time.sleep(wait_seconds)
+
         logger.warning("Falling back to latest Ensembl BioMart URL after failure on %s.", base_archive)
-        download_single_file(fallback_url, path_to_file, threads=4)
-        return
+        for attempt in range(1, max_attempts + 1):
+            try:
+                download_single_file(fallback_url, path_to_file, threads=4)
+                return
+            except Exception as exc:
+                last_exc = exc
+                logger.warning(
+                    "Fallback BioMart download failed (attempt %s/%s). Retrying in %ss...",
+                    attempt,
+                    max_attempts,
+                    wait_seconds,
+                )
+                time.sleep(wait_seconds)
+
+        raise RuntimeError(
+            f"Failed to download BioMart metadata after {max_attempts} attempts on archive and "
+            f"{max_attempts} attempts on latest."
+        ) from last_exc
 
     command = [
         "wget",
