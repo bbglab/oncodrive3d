@@ -655,11 +655,13 @@ def download_biomart_metadata(path_to_file, max_attempts=2, wait_seconds=10):
             except Exception as exc:
                 last_exc = exc
                 logger.warning(
-                    "BioMart download failed (attempt %s/%s). Retrying in %ss...",
+                    "BioMart download failed (attempt %s/%s). Retrying in %ss... Error: %s",
                     attempt,
                     max_attempts,
                     wait_seconds,
+                    exc,
                 )
+                logger.debug("BioMart download exception details:", exc_info=True)
                 time.sleep(wait_seconds)
 
         logger.warning("Falling back to latest Ensembl BioMart URL after failure on %s.", base_archive)
@@ -670,11 +672,13 @@ def download_biomart_metadata(path_to_file, max_attempts=2, wait_seconds=10):
             except Exception as exc:
                 last_exc = exc
                 logger.warning(
-                    "Fallback BioMart download failed (attempt %s/%s). Retrying in %ss...",
+                    "Fallback BioMart download failed (attempt %s/%s). Retrying in %ss... Error: %s",
                     attempt,
                     max_attempts,
                     wait_seconds,
+                    exc,
                 )
+                logger.debug("Fallback BioMart download exception details:", exc_info=True)
                 time.sleep(wait_seconds)
 
         raise RuntimeError(
