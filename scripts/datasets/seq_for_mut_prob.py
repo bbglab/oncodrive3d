@@ -665,6 +665,15 @@ def download_biomart_metadata(path_to_file, max_attempts=2, wait_seconds=10):
                 time.sleep(wait_seconds)
 
         logger.warning("Falling back to latest Ensembl BioMart URL after failure on %s.", base_archive)
+        if os.path.exists(path_to_file):
+            try:
+                os.remove(path_to_file)
+            except OSError as exc:
+                logger.warning(
+                    "Failed to remove partial BioMart metadata file %s before fallback: %s",
+                    path_to_file,
+                    exc,
+                )
         for attempt in range(1, max_attempts + 1):
             try:
                 download_single_file(fallback_url, path_to_file, threads=4)
@@ -710,6 +719,15 @@ def download_biomart_metadata(path_to_file, max_attempts=2, wait_seconds=10):
         time.sleep(wait_seconds)
 
     logger.warning("Falling back to latest Ensembl BioMart URL after failure on %s.", base_archive)
+    if os.path.exists(path_to_file):
+        try:
+            os.remove(path_to_file)
+        except OSError as exc:
+            logger.warning(
+                "Failed to remove partial BioMart metadata file %s before fallback: %s",
+                path_to_file,
+                exc,
+            )
     command[-1] = fallback_url
     for attempt in range(1, max_attempts + 1):
         result = subprocess.run(command)
