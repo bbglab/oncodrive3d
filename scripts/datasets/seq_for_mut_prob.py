@@ -807,12 +807,34 @@ def get_ref_dna_from_ensembl_mp(seq_df, cores):
     https://rest.ensembl.org/documentation/info/sequence_id
     """
 
-    pool = multiprocessing.Pool(processes=cores)
     seq_df = seq_df.copy()
-    seq_df["Seq_dna"] = pool.map(get_ref_dna_from_ensembl_wrapper, seq_df.Ens_Transcr_ID)
-    pool.close()
-    pool.join()
+    transcript_ids = seq_df.Ens_Transcr_ID.tolist()
+    total = len(transcript_ids)
+    if total == 0:
+        seq_df["Seq_dna"] = []
+        return seq_df
 
+    logger.debug("Retrieving CDS DNA from Ensembl for %s transcripts with %s cores.", total, cores)
+
+    if cores <= 1:
+        seq_df["Seq_dna"] = [
+            get_ref_dna_from_ensembl_wrapper(tid)
+            for tid in tqdm(transcript_ids, total=total, desc="Ensembl CDS")
+        ]
+        logger.debug("Completed Ensembl CDS retrieval.")
+        return seq_df
+
+    pool = multiprocessing.Pool(processes=cores)
+    try:
+        results_iter = pool.imap(get_ref_dna_from_ensembl_wrapper, transcript_ids)
+        seq_df["Seq_dna"] = [
+            seq for seq in tqdm(results_iter, total=total, desc="Ensembl CDS")
+        ]
+    finally:
+        pool.close()
+        pool.join()
+
+    logger.debug("Completed Ensembl CDS retrieval.")
     return seq_df
 
 
