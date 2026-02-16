@@ -16,7 +16,7 @@ import json
 import multiprocessing
 import os
 import re
-import shlex
+import shutil
 import subprocess
 import sys
 import time
@@ -624,17 +624,86 @@ def get_mane_to_af_mapping(
 #         time.sleep(5)
 
 
-def download_biomart_metadata(path_to_file):
+def download_biomart_metadata(path_to_file, max_attempts=2, wait_seconds=10):
     """
     Query biomart to get the list of transcript corresponding to the downloaded
     structures (a few structures are missing) and other information.
     """
 
-    command = f"""
-    wget -O {path_to_file} 'http://jan2024.archive.ensembl.org/biomart/martservice?query=<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE Query><Query virtualSchemaName="default" formatter="TSV" header="0" uniqueRows="0" count="" datasetConfigVersion="0.6"><Dataset name="hsapiens_gene_ensembl" interface="default"><Attribute name="ensembl_gene_id"/><Attribute name="ensembl_transcript_id"/><Attribute name="transcript_is_canonical"/><Attribute name="external_gene_name"/><Attribute name="external_gene_source"/><Attribute name="hgnc_id"/><Attribute name="uniprot_gn_id"/><Attribute name="uniprotswissprot"/><Attribute name="external_synonym"/></Dataset></Query>'
-    """
+    base_archive = "http://jan2024.archive.ensembl.org"
+    base_latest = "https://www.ensembl.org"
+    query = (
+        '/biomart/martservice?query=<?xml version="1.0" encoding="UTF-8"?>'
+        '<!DOCTYPE Query><Query virtualSchemaName="default" formatter="TSV" header="0" uniqueRows="0" count="" '
+        'datasetConfigVersion="0.6"><Dataset name="hsapiens_gene_ensembl" interface="default">'
+        '<Attribute name="ensembl_gene_id"/><Attribute name="ensembl_transcript_id"/>'
+        '<Attribute name="transcript_is_canonical"/><Attribute name="external_gene_name"/>'
+        '<Attribute name="external_gene_source"/><Attribute name="hgnc_id"/>'
+        '<Attribute name="uniprot_gn_id"/><Attribute name="uniprotswissprot"/>'
+        '<Attribute name="external_synonym"/></Dataset></Query>'
+    )
+    url = f"{base_archive}{query}"
+    fallback_url = f"{base_latest}{query}"
 
-    subprocess.run(shlex.split(command))
+    if shutil.which("wget") is None:
+        logger.warning("wget not found; falling back to Python downloader for BioMart metadata.")
+        for attempt in range(1, max_attempts + 1):
+            try:
+                download_single_file(url, path_to_file, threads=4)
+                return
+            except Exception:
+                logger.warning(
+                    "BioMart download failed (attempt %s/%s). Retrying in %ss...",
+                    attempt,
+                    max_attempts,
+                    wait_seconds,
+                )
+                time.sleep(wait_seconds)
+        logger.warning("Falling back to latest Ensembl BioMart URL after failure on %s.", base_archive)
+        download_single_file(fallback_url, path_to_file, threads=4)
+        return
+
+    command = [
+        "wget",
+        "--continue",
+        "--read-timeout=120",
+        "--timeout=120",
+        "--tries=1",
+        "-O",
+        path_to_file,
+        url,
+    ]
+
+    for attempt in range(1, max_attempts + 1):
+        result = subprocess.run(command)
+        if result.returncode == 0:
+            return
+        logger.warning(
+            "BioMart download failed (attempt %s/%s). Retrying in %ss...",
+            attempt,
+            max_attempts,
+            wait_seconds,
+        )
+        time.sleep(wait_seconds)
+
+    logger.warning("Falling back to latest Ensembl BioMart URL after failure on %s.", base_archive)
+    command[-1] = fallback_url
+    for attempt in range(1, max_attempts + 1):
+        result = subprocess.run(command)
+        if result.returncode == 0:
+            return
+        logger.warning(
+            "Fallback BioMart download failed (attempt %s/%s). Retrying in %ss...",
+            attempt,
+            max_attempts,
+            wait_seconds,
+        )
+        time.sleep(wait_seconds)
+
+    raise RuntimeError(
+        f"Failed to download BioMart metadata after {max_attempts} attempts on archive and "
+        f"{max_attempts} attempts on latest."
+    )
 
 
 def get_biomart_metadata(datasets_dir, uniprot_ids):
