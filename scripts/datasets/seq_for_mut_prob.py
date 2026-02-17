@@ -857,6 +857,15 @@ def get_ref_dna_from_ensembl_batch(transcript_ids, max_attempts=3, wait_seconds=
                     retry_after = float(retry_after)
                 except (TypeError, ValueError):
                     retry_after = wait_seconds
+                if attempt >= max_attempts:
+                    logger.warning(
+                        "Ensembl CDS batch rate limited (pid=%s, attempt=%s/%s). Giving up after %ss.",
+                        pid,
+                        attempt,
+                        max_attempts,
+                        retry_after,
+                    )
+                    return results
                 logger.warning(
                     "Ensembl CDS batch rate limited (pid=%s, attempt=%s/%s). Retrying after %ss.",
                     pid,
