@@ -613,23 +613,6 @@ def get_mane_to_af_mapping(
         return mane_mapping
 
 
-# def download_biomart_metadata(path_to_file, max_attempts=15, cores=8):
-#     """
-#         Query biomart to get the list of transcript corresponding to the downloaded
-#     structures (a few structures are missing) and other information.
-#     """
-
-#     url = 'http://jan2024.archive.ensembl.org/biomart/martservice?query=<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE Query><Query virtualSchemaName="default" formatter="TSV" header="0" uniqueRows="0" count="" datasetConfigVersion="0.6"><Dataset name="hsapiens_gene_ensembl" interface="default"><Attribute name="ensembl_gene_id"/><Attribute name="ensembl_transcript_id"/><Attribute name="transcript_is_canonical"/><Attribute name="external_gene_name"/><Attribute name="external_gene_source"/><Attribute name="hgnc_id"/><Attribute name="uniprot_gn_id"/><Attribute name="uniprotswissprot"/><Attribute name="external_synonym"/></Dataset></Query>'
-#     attempts = 0
-
-#     while not os.path.exists(path_to_file):
-#         download_single_file(url, path_to_file, threads=cores)
-#         attempts += 1
-#         if attempts >= max_attempts:
-#             raise RuntimeError(f"Failed to download MANE summary file after {max_attempts} attempts. Exiting..")
-#         time.sleep(5)
-
-
 def download_biomart_metadata(path_to_file, max_attempts=5, wait_seconds=10):
     """
     Query biomart to get the list of transcript corresponding to the downloaded
