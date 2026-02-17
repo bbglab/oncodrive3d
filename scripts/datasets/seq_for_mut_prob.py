@@ -636,6 +636,7 @@ def download_biomart_metadata(path_to_file, max_attempts=5, wait_seconds=10):
     )
     url = f"{base_archive}{query}"
     fallback_url = f"{base_latest}{query}"
+    logger.debug("Starting BioMart metadata download to %s (archive: %s, latest: %s).", path_to_file, base_archive, base_latest)
 
     if shutil.which("wget") is None:
         logger.warning("wget not found; falling back to Python downloader for BioMart metadata.")
@@ -1135,9 +1136,9 @@ def mane_uniprot_to_hugo(uniprot_ids, mane_mapping):
 
 
 def process_seq_df(seq_df,
+                   datasets_dir,
                    organism,
-                   uniprot_to_gene_dict,
-                   ens_canonical_transcripts_lst):
+                   uniprot_to_gene_dict):
     """
     Retrieve DNA sequence and tri-nucleotide context
     for each structure in the initialized dataframe
@@ -1152,6 +1153,8 @@ def process_seq_df(seq_df,
     if seq_df.empty:
         logger.error("No sequences to process in process_seq_df; this should not happen.")
         raise RuntimeError("Empty sequence dataframe: no structures to process.")
+
+    ens_canonical_transcripts_lst = get_biomart_metadata(datasets_dir, seq_df["Uniprot_ID"].unique())
 
     # Process entries in Proteins API (Reference_info 1)
     #---------------------------------------------------
@@ -1203,10 +1206,10 @@ def process_seq_df(seq_df,
 
 
 def process_seq_df_mane(seq_df,
+                        datasets_dir,
                         uniprot_to_gene_dict,
                         mane_mapping,
                         mane_mapping_not_af,
-                        ens_canonical_transcripts_lst,
                         num_cores=1):
     """
     Retrieve DNA sequence and tri-nucleotide context
@@ -1267,6 +1270,7 @@ def process_seq_df_mane(seq_df,
             seq_df_nomane_tr = seq_df_nomane.copy()
             seq_df_nomane_notr = seq_df_nomane.copy()
         else:
+            ens_canonical_transcripts_lst = get_biomart_metadata(datasets_dir, seq_df_nomane["Uniprot_ID"].unique())
             # Retrieve seq from coordinates
             logger.debug(f"Retrieving CDS DNA seq from reference genome (Proteins API): {len(seq_df_nomane['Uniprot_ID'].unique())} structures..")
             coord_df = get_exons_coord(seq_df_nomane["Uniprot_ID"].unique(), ens_canonical_transcripts_lst)
@@ -1354,25 +1358,22 @@ def get_seq_df(datasets_dir,
     #     uniprot_to_gene_dict = uniprot_to_hugo_pressed(uniprot_ids)
     # ---
     
-    # Get biomart metadata and canonical transcript IDs
-    ens_canonical_transcripts_lst = get_biomart_metadata(datasets_dir, uniprot_ids)
-
     # Create a dataframe with protein sequences
     logger.debug("Initializing sequence df..")
     seq_df = initialize_seq_df(pdb_dir, uniprot_to_gene_dict)
 
     if mane:
         seq_df = process_seq_df_mane(seq_df,
+                                    datasets_dir,
                                     uniprot_to_gene_dict,
                                     mane_mapping, 
                                     mane_mapping_not_af,
-                                    ens_canonical_transcripts_lst,
                                     num_cores)
     else:
         seq_df = process_seq_df(seq_df,
+                                datasets_dir,
                                 organism,
-                                uniprot_to_gene_dict,
-                                ens_canonical_transcripts_lst)
+                                uniprot_to_gene_dict)
 
     # Save
     seq_df_cols = ['Gene', 'HGNC_ID', 'Ens_Gene_ID',
