@@ -41,6 +41,11 @@ from scripts.datasets.utils import (
 logger = daiquiri.getLogger(__logger_name__ + ".build.seq_for_mut_prob")
 
 
+_ENSEMBL_REST_SERVER = "https://rest.ensembl.org"
+_ENSEMBL_REST_TIMEOUT = (10, 160)  # (connect, read) seconds
+_ENSEMBL_REST_HEADERS = {"Content-Type": "text/plain"}
+
+
 #===========
 # region Initialize
 #===========
@@ -789,6 +794,134 @@ def get_biomart_metadata(datasets_dir, uniprot_ids):
     return canonical_transcripts
 
 
+def get_ref_dna_from_ensembl_batch(transcript_ids, max_attempts=3, wait_seconds=2):
+    """
+    Retrieve Ensembl CDS DNA sequences for up to 50 stable IDs in a single request.
+
+    Ensembl REST docs: POST /sequence/id (max POST size = 50).
+    """
+
+    pid = os.getpid()
+    start_time = time.perf_counter()
+
+    if not transcript_ids:
+        return []
+
+    # Keep output aligned with the input order (including any NA values).
+    results = [np.nan] * len(transcript_ids)
+    request_ids = []
+    request_positions = []
+    for pos, tid in enumerate(transcript_ids):
+        if pd.isna(tid):
+            continue
+        tid_str = str(tid)
+        request_ids.append(tid_str)
+        request_positions.append(pos)
+
+    if not request_ids:
+        return results
+
+    if len(request_ids) > 50:
+        raise ValueError(f"Ensembl POST /sequence/id supports max 50 IDs per request; got {len(request_ids)}.")
+
+    url = f"{_ENSEMBL_REST_SERVER}/sequence/id"
+    headers = {"Content-Type": "application/json", "Accept": "application/json"}
+    payload = {"ids": request_ids}
+    params = {"type": "cds"}
+
+    last_error = None
+    for attempt in range(1, max_attempts + 1):
+        try:
+            r = requests.post(url, headers=headers, json=payload, params=params, timeout=_ENSEMBL_REST_TIMEOUT)
+            r.raise_for_status()
+            decoded = r.json()
+
+            seq_by_id = {}
+            errors_by_id = {}
+            if isinstance(decoded, dict):
+                decoded = [decoded]
+            if not isinstance(decoded, list):
+                raise ValueError(f"Unexpected Ensembl response type: {type(decoded).__name__}")
+
+            for item in decoded:
+                if not isinstance(item, dict):
+                    continue
+
+                item_id = item.get("id")
+                item_query = item.get("query")
+                item_keys = [k for k in (item_query, item_id) if k]
+                if not item_keys:
+                    continue
+
+                if "seq" in item and item.get("seq") is not None:
+                    seq_val = item.get("seq")
+                    for key in item_keys:
+                        seq_by_id[key] = seq_val
+                elif "error" in item:
+                    err_val = item.get("error")
+                    for key in item_keys:
+                        errors_by_id[key] = err_val
+
+            missing = 0
+            for pos, tid in zip(request_positions, request_ids):
+                seq_dna = seq_by_id.get(tid)
+                if seq_dna is None and "." in tid:
+                    seq_dna = seq_by_id.get(tid.split(".", 1)[0])
+                if not seq_dna:
+                    missing += 1
+                    continue
+                results[pos] = seq_dna[:-3] if len(seq_dna) >= 3 else ""
+
+            elapsed = time.perf_counter() - start_time
+            if missing > 0 and logger.isEnabledFor(logging.DEBUG):
+                example_missing = [tid for tid in request_ids if tid not in seq_by_id][:5]
+                logger.debug(
+                    "Ensembl CDS batch completed with missing IDs (pid=%s, elapsed=%.2fs, requested=%s, missing=%s). Example missing: %s",
+                    pid,
+                    elapsed,
+                    len(request_ids),
+                    missing,
+                    example_missing,
+                )
+                if errors_by_id:
+                    example_errors = {k: errors_by_id[k] for k in list(errors_by_id)[:3]}
+                    logger.debug("Ensembl CDS batch errors (pid=%s): %s", pid, example_errors)
+            else:
+                logger.debug(
+                    "Ensembl CDS batch completed (pid=%s, elapsed=%.2fs, requested=%s)",
+                    pid,
+                    elapsed,
+                    len(request_ids),
+                )
+
+            return results
+
+        except (requests.exceptions.RequestException, ValueError, json.JSONDecodeError) as exc:
+            last_error = exc
+            if attempt < max_attempts:
+                logger.debug(
+                    "Ensembl CDS batch request failed (pid=%s, attempt=%s/%s): %s. Retrying in %ss...",
+                    pid,
+                    attempt,
+                    max_attempts,
+                    exc,
+                    wait_seconds,
+                )
+                time.sleep(wait_seconds)
+                continue
+
+            elapsed = time.perf_counter() - start_time
+            logger.warning(
+                "Ensembl CDS batch failed (pid=%s, elapsed=%.2fs, requested=%s). Last error: %s",
+                pid,
+                elapsed,
+                len(request_ids),
+                last_error,
+            )
+
+    return results
+
+
 def get_ref_dna_from_ensembl(transcript_id):
     """
     Use Ensembl GET sequence rest API to obtain CDS DNA
@@ -808,15 +941,14 @@ def get_ref_dna_from_ensembl(transcript_id):
     transcript_id = str(transcript_id)
     logger.debug("Ensembl CDS start: %s (pid=%s)", transcript_id, pid)
 
-    server = "https://rest.ensembl.org"
-    ext = f"/sequence/id/{transcript_id}?type=cds"
+    url = f"{_ENSEMBL_REST_SERVER}/sequence/id/{transcript_id}?type=cds"
 
     status = "INIT"
     last_error = None
     while status != "FINISHED":
 
         try:
-            r = requests.get(server+ext, headers={ "Content-Type" : "text/x-fasta"}, timeout=160)
+            r = requests.get(url, headers=_ENSEMBL_REST_HEADERS, timeout=_ENSEMBL_REST_TIMEOUT)
             if not r.ok:
                 r.raise_for_status()
 
@@ -852,7 +984,11 @@ def get_ref_dna_from_ensembl(transcript_id):
 
             time.sleep(1)
 
-    seq_dna = "".join(r.text.strip().split("\n")[1:])
+    text = r.text.strip()
+    if text.startswith(">"):
+        seq_dna = "".join(text.splitlines()[1:])
+    else:
+        seq_dna = "".join(text.splitlines())
 
     elapsed = time.perf_counter() - start_time
     if failures > 0:
@@ -893,16 +1029,28 @@ def get_ref_dna_from_ensembl_mp(seq_df, cores):
     logger.debug("Retrieving CDS DNA from Ensembl for %s transcripts with %s cores.", total, cores)
 
     if cores <= 1:
-        seq_df["Seq_dna"] = [
-            get_ref_dna_from_ensembl(tid)
-            for tid in tqdm(transcript_ids, total=total, desc="Ensembl CDS")
-        ]
+        results = []
+        batch_size = 50
+        with tqdm(total=total, desc="Ensembl CDS") as pbar:
+            for i in range(0, total, batch_size):
+                batch_ids = transcript_ids[i : i + batch_size]
+                batch_results = get_ref_dna_from_ensembl_batch(batch_ids)
+                results.extend(batch_results)
+                pbar.update(len(batch_ids))
+        seq_df["Seq_dna"] = results
         logger.debug("Completed Ensembl CDS retrieval.")
         return seq_df
 
+    batch_size = 50
+    batches = [transcript_ids[i : i + batch_size] for i in range(0, total, batch_size)]
+    results = []
     with multiprocessing.Pool(processes=cores) as pool:
-        results_iter = pool.imap(get_ref_dna_from_ensembl, transcript_ids)
-        seq_df["Seq_dna"] = [seq for seq in tqdm(results_iter, total=total, desc="Ensembl CDS")]
+        results_iter = pool.imap(get_ref_dna_from_ensembl_batch, batches)
+        with tqdm(total=total, desc="Ensembl CDS") as pbar:
+            for batch_ids, batch_results in zip(batches, results_iter):
+                results.extend(batch_results)
+                pbar.update(len(batch_ids))
+    seq_df["Seq_dna"] = results
 
     logger.debug("Completed Ensembl CDS retrieval.")
     return seq_df
