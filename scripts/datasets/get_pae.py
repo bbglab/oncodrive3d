@@ -17,7 +17,7 @@ def download_pae(
     af_version: int, 
     output_dir: str,
     max_retries: int = 100
-    ) -> None:
+    ) -> str:
     """
     Download Predicted Aligned Error (PAE) file from AlphaFold DB.
 
@@ -26,6 +26,9 @@ def download_pae(
         af_version: AlphaFold 2 version.
         output_dir: Output directory where to download the PAE files.
         max_retries: Break the loop if the download fails too many times.
+
+    Returns:
+        "ok" if downloaded, "missing" if 404/410, "failed" otherwise.
     """
 
     file_path = os.path.join(output_dir, f"{uniprot_id}-F1-predicted_aligned_error.json")
@@ -42,6 +45,17 @@ def download_pae(
             time.sleep(30)
         try:
             response = requests.get(download_url, timeout=30)
+            if response.status_code in (404, 410):
+                logger.warning(
+                    "PAE not available for %s (AF v%s). Skipping.",
+                    uniprot_id,
+                    af_version,
+                )
+                return "missing"
+            if not response.ok:
+                raise requests.exceptions.HTTPError(
+                    f"PAE download failed with status {response.status_code}"
+                )
             content = response.content
             if content.endswith(b'}]') and not content.endswith(b'</Error>'):
                 with open(file_path, 'wb') as output_file:
@@ -51,6 +65,7 @@ def download_pae(
             status = "ERROR"
             if i % 10 == 0:
                 logger.debug(f"Request failed {e}: Retrying")
+    return "ok" if status == "FINISHED" else "failed"
 
 
 def get_pae(
@@ -88,11 +103,36 @@ def get_pae(
         custom_uniprot_ids = [fname.split('.')[0] for fname in os.listdir(custom_pdb_dir) if fname.endswith('.pdb')]
         uniprot_ids = [uni_id for uni_id in uniprot_ids if uni_id not in custom_uniprot_ids]
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=num_cores) as executor:
-        tasks = [executor.submit(download_pae, uniprot_id, af_version, output_dir) for uniprot_id in uniprot_ids]
+    consecutive_missing = 0
+    if uniprot_ids:
+        probe_ids = uniprot_ids[:5]
+        remaining_ids = uniprot_ids[5:]
+        for uniprot_id in tqdm(probe_ids, desc="Downloading PAE"):
+            result = download_pae(uniprot_id, af_version, output_dir)
+            if result == "missing":
+                consecutive_missing += 1
+            else:
+                consecutive_missing = 0
 
-        for _ in tqdm(concurrent.futures.as_completed(tasks), total=len(tasks), desc="Downloading PAE"):
-            pass
+        if consecutive_missing >= 5:
+            logger.warning(
+                "Detected %s consecutive missing PAE downloads (HTTP 404/410). "
+                "PAE files for AlphaFold DB v%s are likely unavailable. "
+                "Skipping remaining PAE downloads. Contact maps will be computed without PAE (binary maps). "
+                "Re-run build-datasets with --custom_pae_dir to use precomputed PAE.",
+                consecutive_missing,
+                af_version,
+            )
+            with open(checkpoint, "w") as f:
+                f.write('')
+            return
+
+        if remaining_ids:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=num_cores) as executor:
+                tasks = [executor.submit(download_pae, uniprot_id, af_version, output_dir) for uniprot_id in remaining_ids]
+
+                for _ in tqdm(concurrent.futures.as_completed(tasks), total=len(tasks), desc="Downloading PAE"):
+                    pass
 
     with open(checkpoint, "w") as f:
         f.write('')

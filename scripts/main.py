@@ -44,6 +44,8 @@ def oncodrive3D():
               help="Use only structures predicted from MANE Select transcripts", is_flag=True)
 @click.option("-C", "--custom_mane_pdb_dir", 
               help="Directory where to load custom MANE PDB structures (overwriting existing ones)")
+@click.option("--custom_pae_dir",
+              help="Directory containing pre-downloaded PAE JSON files to copy into the build (renamed to 'pae')")
 @click.option("-f", "--custom_mane_metadata_path", 
               help="Path to a dataframe including the Ensembl Protein ID and the amino acid sequence of the custom MANE PDB structures")
 @click.option("-j", "--mane_version", default=1.4, 
@@ -64,6 +66,7 @@ def build_datasets(output_dir,
                    mane,
                    mane_only,
                    custom_mane_pdb_dir,
+                   custom_pae_dir,
                    custom_mane_metadata_path,
                    distance_threshold,
                    cores, 
@@ -85,6 +88,7 @@ def build_datasets(output_dir,
     logger.info(f"MANE Select: {mane}")
     logger.info(f"MANE Select only: {mane_only}")
     logger.info(f"Custom MANE PDB directory: {custom_mane_pdb_dir}")
+    logger.info(f"Custom PAE directory: {custom_pae_dir}")
     logger.info(f"Custom MANE PDB metadata path: {custom_mane_metadata_path}")
     logger.info(f"Distance threshold: {distance_threshold}Å")
     logger.info(f"CPU cores: {cores}")
@@ -100,6 +104,7 @@ def build_datasets(output_dir,
         mane,
         mane_only,
         custom_mane_pdb_dir,
+        custom_pae_dir,
         custom_mane_metadata_path,
         distance_threshold,
         cores,
