@@ -18,7 +18,7 @@ Additionally, you may need to install additional development tools. Depending on
 - If you have sudo privileges:
 
    ```bash
-   sudo apt install built-essential
+   sudo apt install build-essential
    ```
 
 - For HPC cluster environment, it is recommended to use [Conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html) (or [Mamba](https://mamba.readthedocs.io/en/latest/)):
@@ -57,7 +57,7 @@ Additionally, you may need to install additional development tools. Depending on
 
 ## Building Datasets
 
-This step build the datasets necessary for Oncodrive3D to run the 3D clustering analysis. It is required once after installation or whenever you need to generate datasets for a different organism or apply a specific threshold to define amino acid contacts.
+This step builds the datasets necessary for Oncodrive3D to run the 3D clustering analysis. It is required once after installation or whenever you need to generate datasets for a different organism or apply a specific threshold to define amino acid contacts.
 
 > [!WARNING]
 > This step is highly time- and resource-intensive, requiring a significant amount of free disk space and computational power. It will download and process a large amount of data. Ensure sufficient resources are available before proceeding, as insufficient capacity may result in extended runtimes or processing failures.
@@ -65,7 +65,7 @@ This step build the datasets necessary for Oncodrive3D to run the 3D clustering 
 > Reliable internet access is required because AlphaFold structures, Ensembl annotations, Pfam files, and other resources are downloaded on demand during the build.
 
 > [!NOTE]
-> The first time that you run Oncodrive3D building dataset step with a given reference genome, it will download it from our servers. By default the downloaded datasets go to`~/.bgdata`. If you want to move these datasets to another folder you have to define the system environment variable `BGDATA_LOCAL` with an export command.
+> The first time that you run Oncodrive3D building dataset step with a given reference genome, it will download it from our servers. By default the downloaded datasets go to `~/.bgdata`. If you want to move these datasets to another folder you have to define the system environment variable `BGDATA_LOCAL` with an export command.
 
 > [!NOTE]
 > Human datasets built with the default settings pull canonical transcript metadata from the January 2024 Ensembl archive (release 111 / GENCODE v45). For maximum compatibility, annotate your input variants with the same Ensembl/Gencode release or supply the unfiltered VEP output together with `--o3d_transcripts --use_input_symbols`.
@@ -118,7 +118,7 @@ For more information on the output of this step, please refer to the [Building D
 > To maximize structural coverage of **MANE Select transcripts**, you can [predict missing structures locally and integrate them into Oncodrive3D](tools/preprocessing/README.md) using:
 >
 > - `tools/preprocessing/prepare_samplesheet.py`: a standalone utility that:
->   - Retrieve the full MANE entries from NCBI.
+>   - Retrieves the full MANE entries from NCBI.
 >   - Identifies proteins missing from the AlphaFold MANE dataset.
 >   - Generates:
 >     - A `samplesheet.csv` with Ensembl protein IDs, FASTA paths, and optional sequences.
@@ -139,7 +139,7 @@ For more information on the output of this step, please refer to the [Building D
 
 ## Running 3D clustering Analysis
 
-For in depth information on how to obtain the required input data and for comprehensive information about the output, please refer to the [Input and Output Documentation](https://github.com/bbglab/oncodrive3d/tree/master/docs/run_input_output.md) of the 3D clustering analysis.  
+For in-depth information on how to obtain the required input data and for comprehensive information about the output, please refer to the [Input and Output Documentation](https://github.com/bbglab/oncodrive3d/tree/master/docs/run_input_output.md) of the 3D clustering analysis.  
 
 ### Input
 
@@ -262,8 +262,6 @@ For more information, refer to the [Oncodrive3D Pipeline](https://github.com/bbg
 
 ### Usage
 
----
-
 > [!WARNING]
 > When using the Nextflow script, ensure that your input files are organized in the following directory structure (you only need either the `maf/` or `vep/` directory):
 > 
@@ -308,10 +306,10 @@ Options:
   --vep_input BOOL                Use `vep/` subdir as input and select transcripts matching 
                                   the Ensembl transcript IDs in Oncodrive3D built datasets. 
                                   Default: false
-  --mane BOOL                     Prioritize structures corresponding to MANE transcrips if 
+  --mane BOOL                     Prioritize structures corresponding to MANE transcripts if 
                                   multiple structures are associated to the same gene.
                                   Default: false
-  --seed INT:                     Seed value for reproducibility.
+  --seed INT                      Seed value for reproducibility.
                                   Default: 128
 ```
 
