@@ -59,81 +59,82 @@ def build(output_datasets,
 
     # Download PDB structures
     species = get_species(organism)
-    # if not mane_only:
-    #   logger.info("Downloading AlphaFold (AF) predicted structures...")
-    #   get_structures(
-    #     path=os.path.join(output_datasets,"pdb_structures"),
-    #     species=species,
-    #     af_version=str(af_version),
-    #     threads=num_cores
-    #     )
-    #   logger.info("Download of structures completed!")
+    if mane and str(af_version) != "4":
+      logger.warning(
+        "MANE structures are only available in AlphaFold DB v4. "
+        "Ignoring --af_version=%s and using v4 for this build.",
+        af_version,
+      )
+      af_version = 4
+    if not mane_only:
+      logger.info("Downloading AlphaFold (AF) predicted structures...")
+      get_structures(
+        path=os.path.join(output_datasets,"pdb_structures"),
+        species=species,
+        af_version=str(af_version),
+        threads=num_cores
+        )
+      logger.info("Download of structures completed!")
 
-    #   # Merge fragmented structures
-    #   logger.info("Merging fragmented structures...")
-    #   merge_af_fragments(input_dir=os.path.join(output_datasets,"pdb_structures"), gzip=True)
+      # Merge fragmented structures
+      logger.info("Merging fragmented structures...")
+      merge_af_fragments(input_dir=os.path.join(output_datasets,"pdb_structures"), gzip=True)
 
-    # # Download PDB MANE structures
-    # if species == "Homo sapiens" and mane:
-    #     if str(af_version) != "4":
-    #       logger.warning(
-    #         "MANE structures are only available in AlphaFold DB v4. "
-    #         "Ignoring --af_version=%s and using v4 for MANE downloads.",
-    #         af_version,
-    #       )
-    #     logger.info("Downloading AlphaFold (AF) predicted structures overlap with MANE...")
-    #     get_structures(
-    #       path=os.path.join(output_datasets,"pdb_structures_mane"),
-    #       species=species,
-    #       mane=True,
-    #       af_version="4",
-    #       threads=num_cores
-    #       )
-    #     mv_mane_pdb(output_datasets, "pdb_structures", "pdb_structures_mane")
-    #     logger.info("Download of MANE structures completed!")
+    # Download PDB MANE structures
+    if species == "Homo sapiens" and mane:
+        logger.info("Downloading AlphaFold (AF) predicted structures overlap with MANE...")
+        get_structures(
+          path=os.path.join(output_datasets,"pdb_structures_mane"),
+          species=species,
+          mane=True,
+          af_version=str(af_version),
+          threads=num_cores
+          )
+        mv_mane_pdb(output_datasets, "pdb_structures", "pdb_structures_mane")
+        logger.info("Download of MANE structures completed!")
         
-    # # Copy custom PDB structures and optinally add SEQRES
-    # if custom_pdb_dir is not None:
-    #   if custom_mane_metadata_path is None:
-    #     logger.error(
-    #       "custom_mane_metadata_path must be provided when custom_pdb_dir is specified"
-    #       )
-    #     raise ValueError(
-    #       "Both custom_pdb_dir and custom_mane_metadata_path must be provided together"
-    #       )
+    # Copy custom PDB structures and optinally add SEQRES
+    if custom_pdb_dir is not None:
+      if custom_mane_metadata_path is None:
+        logger.error(
+          "custom_mane_metadata_path must be provided when custom_pdb_dir is specified"
+          )
+        raise ValueError(
+          "Both custom_pdb_dir and custom_mane_metadata_path must be provided together"
+          )
       
-    #   logger.info("Copying custom PDB structures...")
-    #   if os.path.exists(custom_pdb_dir):
-    #     copy_and_parse_custom_pdbs(
-    #       src_dir=custom_pdb_dir,
-    #       dst_dir=os.path.join(output_datasets,"pdb_structures"), 
-    #       af_version=int(af_version),
-    #       custom_mane_metadata_path=custom_mane_metadata_path
-    #       )
-    #   else:
-    #       logger.error(f"Custom PDB directory does not exist: {custom_pdb_dir}")
-    #       raise FileNotFoundError(f"Custom PDB directory not found: {custom_pdb_dir}")
+      logger.info("Copying custom PDB structures...")
+      if os.path.exists(custom_pdb_dir):
+        copy_and_parse_custom_pdbs(
+          src_dir=custom_pdb_dir,
+          dst_dir=os.path.join(output_datasets,"pdb_structures"), 
+          af_version=int(af_version),
+          custom_mane_metadata_path=custom_mane_metadata_path
+          )
+      else:
+          logger.error(f"Custom PDB directory does not exist: {custom_pdb_dir}")
+          raise FileNotFoundError(f"Custom PDB directory not found: {custom_pdb_dir}")
     
-    # # Create df including genes and proteins sequences & Hugo to Uniprot_ID mapping
-    # logger.info("Generating dataframe for genes and proteins sequences...")
-    # seq_df = get_seq_df(
-    #   datasets_dir=output_datasets,
-    #   output_seq_df=os.path.join(output_datasets, "seq_for_mut_prob.tsv"),
-    #   organism=species,
-    #   mane=mane,
-    #   num_cores=num_cores,
-    #   mane_version=mane_version,
-    #   custom_mane_metadata_path=custom_mane_metadata_path
-    #   )
-    # logger.info("Generation of sequences dataframe completed!")
+    # Create df including genes and proteins sequences & Hugo to Uniprot_ID mapping
+    logger.info("Generating dataframe for genes and proteins sequences...")
+    seq_df = get_seq_df(
+      datasets_dir=output_datasets,
+      output_seq_df=os.path.join(output_datasets, "seq_for_mut_prob.tsv"),
+      organism=species,
+      mane=mane,
+      num_cores=num_cores,
+      mane_version=mane_version,
+      custom_mane_metadata_path=custom_mane_metadata_path
+      )
+    logger.info("Generation of sequences dataframe completed!")
 
-    # # Get model confidence
-    # logger.info("Extracting AF model confidence...")
-    # get_confidence(
-    #   input=os.path.join(output_datasets, "pdb_structures"),
-    #   output_dir=os.path.join(output_datasets),
-    #   seq_df=seq_df
-    #   )
+    # Get model confidence
+    logger.info("Extracting AF model confidence...")
+    get_confidence(
+      input=os.path.join(output_datasets, "pdb_structures"),
+      output_dir=os.path.join(output_datasets),
+      seq_df=seq_df
+      )
 
     pae_output_dir = os.path.join(output_datasets, "pae")
     if custom_pae_dir is not None:
