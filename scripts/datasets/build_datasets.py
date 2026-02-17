@@ -136,16 +136,19 @@ def build(output_datasets,
       seq_df=seq_df
       )
 
+    # Get PAE
     pae_output_dir = os.path.join(output_datasets, "pae")
     if custom_pae_dir is not None:
       logger.info("Copying precomputed PAE directory...")
       if os.path.exists(custom_pae_dir):
         shutil.copytree(custom_pae_dir, pae_output_dir)
       else:
-        logger.error(f"Custom PAE directory does not exist: {custom_pae_dir}")
-        raise FileNotFoundError(f"Custom PAE directory not found: {custom_pae_dir}")
+        logger.warning(
+          "Custom PAE directory does not exist: %s. Skipping copy. "
+          "Contact maps will be computed without PAE (binary maps).",
+          custom_pae_dir,
+        )
     else:
-      # Get PAE
       logger.info("Downloading AF predicted aligned error (PAE)...")
       get_pae(
         input_dir=os.path.join(output_datasets,"pdb_structures"),
