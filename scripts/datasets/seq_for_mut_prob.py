@@ -833,6 +833,22 @@ def get_ref_dna_from_ensembl_batch(transcript_ids, max_attempts=3, wait_seconds=
     for attempt in range(1, max_attempts + 1):
         try:
             r = requests.post(url, headers=headers, json=payload, params=params, timeout=_ENSEMBL_REST_TIMEOUT)
+            if r.status_code == 429:
+                retry_after = r.headers.get("Retry-After")
+                try:
+                    retry_after = float(retry_after)
+                except (TypeError, ValueError):
+                    retry_after = wait_seconds
+                logger.warning(
+                    "Ensembl CDS batch rate limited (pid=%s, attempt=%s/%s). Retrying after %ss.",
+                    pid,
+                    attempt,
+                    max_attempts,
+                    retry_after,
+                )
+                time.sleep(retry_after)
+                continue
+
             r.raise_for_status()
             decoded = r.json()
 
