@@ -1135,11 +1135,9 @@ def mane_uniprot_to_hugo(uniprot_ids, mane_mapping):
 
 
 def process_seq_df(seq_df,
-                   datasets_dir,
                    organism,
                    uniprot_to_gene_dict,
-                   ens_canonical_transcripts_lst,
-                   num_cores=1):
+                   ens_canonical_transcripts_lst):
     """
     Retrieve DNA sequence and tri-nucleotide context
     for each structure in the initialized dataframe
@@ -1205,14 +1203,11 @@ def process_seq_df(seq_df,
 
 
 def process_seq_df_mane(seq_df,
-                        datasets_dir,
                         uniprot_to_gene_dict,
                         mane_mapping,
                         mane_mapping_not_af,
                         ens_canonical_transcripts_lst,
-                        custom_mane_metadata_path=None,
-                        num_cores=1,
-                        mane_version=1.4):
+                        num_cores=1):
     """
     Retrieve DNA sequence and tri-nucleotide context
     for each structure in the initialized dataframe
@@ -1368,21 +1363,16 @@ def get_seq_df(datasets_dir,
 
     if mane:
         seq_df = process_seq_df_mane(seq_df,
-                                    datasets_dir,
                                     uniprot_to_gene_dict,
                                     mane_mapping, 
                                     mane_mapping_not_af,
                                     ens_canonical_transcripts_lst,
-                                    custom_mane_metadata_path,
-                                    num_cores,
-                                    mane_version=mane_version)
+                                    num_cores)
     else:
         seq_df = process_seq_df(seq_df,
-                                datasets_dir,
                                 organism,
                                 uniprot_to_gene_dict,
-                                ens_canonical_transcripts_lst,
-                                num_cores)
+                                ens_canonical_transcripts_lst)
 
     # Save
     seq_df_cols = ['Gene', 'HGNC_ID', 'Ens_Gene_ID',
