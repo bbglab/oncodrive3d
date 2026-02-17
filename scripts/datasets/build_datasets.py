@@ -181,16 +181,6 @@ def build(output_datasets,
     logger.info("Datasets have been successfully built and are ready for analysis!")
 
 if __name__ == "__main__":
-    build(
-      output_datasets="/home/spellegrini/Coding/Data/oncodrive3d/datasets-mane_only-mane_custom-260215-debugging",
-      organism="Homo sapiens",
-      mane=True,
-      mane_only=True,
-      custom_pdb_dir="/home/spellegrini/Coding/Data/oncodrive3d/mane_missing/20260215/final_bundle/pdbs",
-      custom_pae_dir=None,
-      custom_mane_metadata_path="/home/spellegrini/Coding/Data/oncodrive3d/mane_missing/20260215/final_bundle/samplesheet.csv",
-      distance_threshold=10,
-      num_cores=1,
-      af_version=4,
-      mane_version=1.4
-      )
+    raise SystemExit(
+        "This module is intended to be used via the CLI: `oncodrive3d build-datasets`."
+    )
