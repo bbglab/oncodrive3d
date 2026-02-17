@@ -1191,7 +1191,9 @@ def process_seq_df(seq_df,
         seq_df_not_uniprot = batch_backtranseq(seq_df_not_uniprot, 500, organism=organism)
 
         # Get trinucleotide context
-        seq_df_not_uniprot["Tri_context"] = seq_df_not_uniprot["Seq_dna"].apply(
+        seq_df_not_uniprot["Tri_context"] = np.nan
+        valid_seq_mask = seq_df_not_uniprot["Seq_dna"].notna()
+        seq_df_not_uniprot.loc[valid_seq_mask, "Tri_context"] = seq_df_not_uniprot.loc[valid_seq_mask, "Seq_dna"].apply(
             lambda x: ",".join(per_site_trinucleotide_context(x, no_flanks=True)))
 
 
@@ -1292,7 +1294,9 @@ def process_seq_df_mane(seq_df,
     seq_df_not_uniprot = pd.concat((seq_df_mane, seq_df_nomane_notr))
     if "Seq_dna" not in seq_df_not_uniprot.columns:
         seq_df_not_uniprot["Seq_dna"] = pd.Series(dtype=object)
-    seq_df_not_uniprot["Tri_context"] = seq_df_not_uniprot["Seq_dna"].apply(
+    seq_df_not_uniprot["Tri_context"] = np.nan
+    valid_seq_mask = seq_df_not_uniprot["Seq_dna"].notna()
+    seq_df_not_uniprot.loc[valid_seq_mask, "Tri_context"] = seq_df_not_uniprot.loc[valid_seq_mask, "Seq_dna"].apply(
         lambda x: ",".join(per_site_trinucleotide_context(x, no_flanks=True)))
 
     # Prepare final output
