@@ -629,7 +629,7 @@ def get_mane_to_af_mapping(
 #         time.sleep(5)
 
 
-def download_biomart_metadata(path_to_file, max_attempts=2, wait_seconds=10):
+def download_biomart_metadata(path_to_file, max_attempts=5, wait_seconds=10):
     """
     Query biomart to get the list of transcript corresponding to the downloaded
     structures (a few structures are missing) and other information.
