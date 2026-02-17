@@ -44,7 +44,7 @@ logger = daiquiri.getLogger(__logger_name__ + ".build.seq_for_mut_prob")
 
 _ENSEMBL_REST_SERVER = "https://rest.ensembl.org"
 _ENSEMBL_REST_TIMEOUT = (10, 160)  # (connect, read) seconds
-_ENSEMBL_REST_HEADERS = {"Content-Type": "text/plain"}
+_ENSEMBL_REST_HEADERS = {"Accept": "text/plain"}
 
 
 #===========
@@ -691,6 +691,7 @@ def download_biomart_metadata(path_to_file, max_attempts=5, wait_seconds=10):
 
     command = [
         "wget",
+        "--no-hsts",
         "--continue",
         "--read-timeout=120",
         "--timeout=120",
