@@ -640,9 +640,10 @@ def download_biomart_metadata(path_to_file, max_attempts=5, wait_seconds=10):
     if shutil.which("wget") is None:
         logger.warning("wget not found; falling back to Python downloader for BioMart metadata.")
         last_exc = None
+        ssl_verify_archive = url.startswith("https://")
         for attempt in range(1, max_attempts + 1):
             try:
-                download_single_file(url, path_to_file, threads=4)
+                download_single_file(url, path_to_file, threads=4, ssl=ssl_verify_archive)
                 return
             except Exception as exc:
                 last_exc = exc
@@ -666,9 +667,10 @@ def download_biomart_metadata(path_to_file, max_attempts=5, wait_seconds=10):
                     path_to_file,
                     exc,
                 )
+        ssl_verify_fallback = fallback_url.startswith("https://")
         for attempt in range(1, max_attempts + 1):
             try:
-                download_single_file(fallback_url, path_to_file, threads=4)
+                download_single_file(fallback_url, path_to_file, threads=4, ssl=ssl_verify_fallback)
                 return
             except Exception as exc:
                 last_exc = exc
