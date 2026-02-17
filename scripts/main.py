@@ -54,8 +54,8 @@ def oncodrive3D():
               help="Distance threshold (Å) to define contact between amino acids")
 @click.option("-c", "--cores", type=click.IntRange(min=1, max=len(os.sched_getaffinity(0)), clamp=False), default=len(os.sched_getaffinity(0)),
               help="Number of cores to use in the computation")
-@click.option("--af_version", type=click.IntRange(min=1, clamp=False), default=4,
-              help="Version of AlphaFold 2 predictions")
+@click.option("--af_version", type=click.IntRange(min=1, clamp=False), default=6,
+              help="AlphaFold DB version for non-MANE downloads (MANE uses v4)")
 @click.option("-y", "--yes", 
               help="No interaction", is_flag=True)
 @click.option("-v", "--verbose", 

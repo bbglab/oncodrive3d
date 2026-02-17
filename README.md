@@ -71,7 +71,7 @@ This step build the datasets necessary for Oncodrive3D to run the 3D clustering 
 > Human datasets built with the default settings pull canonical transcript metadata from the January 2024 Ensembl archive (release 111 / GENCODE v45). For maximum compatibility, annotate your input variants with the same Ensembl/Gencode release or supply the unfiltered VEP output together with `--o3d_transcripts --use_input_symbols`.
 
 > [!NOTE] Predicted Aligned Error (PAE) files for older AlphaFold DB versions (e.g., v4) are no longer hosted after 2025. If you need PAE for an older AF version, download and supply them locally via `--custom_pae_dir`.  
-> MANE structures are only available for download from the AlphaFold DB v4 release; for MANE mode, you should provide PAE files via `--custom_pae_dir`.
+> MANE structures are only available from the AlphaFold DB v4 release. Non‑MANE builds default to v6; MANE mode forces v4 for structures, so you should provide PAE files via `--custom_pae_dir`.
 
 ```
 Usage: oncodrive3d build-datasets [OPTIONS]
@@ -104,8 +104,8 @@ Options:
                                   Default: 10
   -c, --cores INT                 Number of CPU cores for computation. 
                                   Default: All available CPU cores
-  --af_version INT                Version of the AlphaFold Protein Structure Database release.
-                                  Default: 4
+  --af_version INT                AlphaFold DB version for non-MANE builds (MANE uses v4).
+                                  Default: 6
   -y, --yes                       Run without interactive prompts.
   -v, --verbose                   Enables verbose output.
   -h, --help                      Show this message and exit.  
