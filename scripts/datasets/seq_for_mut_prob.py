@@ -450,6 +450,9 @@ def add_extra_genes_to_seq_df(seq_df, uniprot_to_gene_dict):
                             lst_extra_genes_rows.append(row)
                             lst_added_genes.append(gene)
 
+    if not lst_extra_genes_rows:
+        return seq_df
+
     seq_df_extra_genes = pd.concat(lst_extra_genes_rows, axis=1).T
 
     # Remove rows with multiple symbols and drop duplicated ones
@@ -1105,6 +1108,10 @@ def process_seq_df(seq_df,
        -1 : Not available transcripts, seq DNA retrieved from Backtranseq API
     """
 
+    if seq_df.empty:
+        logger.error("No sequences to process in process_seq_df; this should not happen.")
+        raise RuntimeError("Empty sequence dataframe: no structures to process.")
+
     # Process entries in Proteins API (Reference_info 1)
     #---------------------------------------------------
 
@@ -1130,13 +1137,14 @@ def process_seq_df(seq_df,
     # Process entries not in Proteins API (Reference_info -1)
     #------------------------------------------------------------
 
-    # Add DNA seq from Backtranseq for any other entry
-    logger.debug(f"Retrieving CDS DNA seq for entries without available transcript ID (Backtranseq API): {len(seq_df_not_uniprot)} structures..")
-    seq_df_not_uniprot = batch_backtranseq(seq_df_not_uniprot, 500, organism=organism)
+    if len(seq_df_not_uniprot) > 0:
+        # Add DNA seq from Backtranseq for any other entry
+        logger.debug(f"Retrieving CDS DNA seq for entries without available transcript ID (Backtranseq API): {len(seq_df_not_uniprot)} structures..")
+        seq_df_not_uniprot = batch_backtranseq(seq_df_not_uniprot, 500, organism=organism)
 
-    # Get trinucleotide context
-    seq_df_not_uniprot["Tri_context"] = seq_df_not_uniprot["Seq_dna"].apply(
-        lambda x: ",".join(per_site_trinucleotide_context(x, no_flanks=True)))
+        # Get trinucleotide context
+        seq_df_not_uniprot["Tri_context"] = seq_df_not_uniprot["Seq_dna"].apply(
+            lambda x: ",".join(per_site_trinucleotide_context(x, no_flanks=True)))
 
 
     # Prepare final output
@@ -1181,45 +1189,63 @@ def process_seq_df_mane(seq_df,
     seq_df_mane = seq_df_mane.drop(columns=["Gene"]).merge(mane_mapping, how="left", on="Uniprot_ID")
     seq_df_mane["Reference_info"] = 0
 
-    # Add DNA seq from Ensembl for structures with available transcript ID
-    logger.debug(f"Retrieving CDS DNA seq from transcript ID (Ensembl API): {len(seq_df_mane)} structures..")
-    seq_df_mane = get_ref_dna_from_ensembl_mp(seq_df_mane, cores=num_cores)
+    if seq_df_mane.empty:
+        logger.warning("No MANE sequences to process; skipping Ensembl CDS retrieval.")
+        if "Seq_dna" not in seq_df_mane.columns:
+            seq_df_mane["Seq_dna"] = pd.Series(dtype=object)
+    else:
+        # Add DNA seq from Ensembl for structures with available transcript ID
+        logger.debug(f"Retrieving CDS DNA seq from transcript ID (Ensembl API): {len(seq_df_mane)} structures..")
+        seq_df_mane = get_ref_dna_from_ensembl_mp(seq_df_mane, cores=num_cores)
 
-    # Set failed and len-mismatching entries as no-transcripts entries
-    failed_ix = seq_df_mane.apply(lambda x: True if pd.isna(x.Seq_dna) else len(x.Seq_dna) / 3 != len(x.Seq), axis=1)
-    if sum(failed_ix) > 0:
-        seq_df_mane_failed = seq_df_mane[failed_ix]
-        seq_df_mane = seq_df_mane[~failed_ix]
-        seq_df_mane_failed = seq_df_mane_failed.drop(columns=[
-            "Ens_Gene_ID",  
-            "Ens_Transcr_ID", 
-            "Reverse_strand",
-            "Chr", 
-            "Refseq_prot", 
-            "Reference_info", 
-            "Seq_dna"
-            ])
-        seq_df_nomane = pd.concat((seq_df_nomane, seq_df_mane_failed))
+        # Set failed and len-mismatching entries as no-transcripts entries
+        failed_ix = seq_df_mane.apply(lambda x: True if pd.isna(x.Seq_dna) else len(x.Seq_dna) / 3 != len(x.Seq), axis=1)
+        if sum(failed_ix) > 0:
+            seq_df_mane_failed = seq_df_mane[failed_ix]
+            seq_df_mane = seq_df_mane[~failed_ix]
+            seq_df_mane_failed = seq_df_mane_failed.drop(columns=[
+                "Ens_Gene_ID",  
+                "Ens_Transcr_ID", 
+                "Reverse_strand",
+                "Chr", 
+                "Refseq_prot", 
+                "Reference_info", 
+                "Seq_dna"
+                ])
+            seq_df_nomane = pd.concat((seq_df_nomane, seq_df_mane_failed))
 
     # Seq df not MANE
     # ---------------
-    seq_df_nomane = add_extra_genes_to_seq_df(seq_df_nomane, uniprot_to_gene_dict)         # Filter out genes with NA
-    seq_df_nomane = seq_df_nomane[seq_df_nomane.Gene.isin(mane_mapping_not_af.Gene)]       # Filter out genes that are not in MANE list
+    if seq_df_nomane.empty:
+        logger.debug("No non-MANE sequences to process; skipping Proteins/Backtranseq retrieval.")
+        seq_df_nomane_tr = seq_df_nomane.copy()
+        seq_df_nomane_notr = seq_df_nomane.copy()
+    else:
+        seq_df_nomane = add_extra_genes_to_seq_df(seq_df_nomane, uniprot_to_gene_dict)         # Filter out genes with NA
+        seq_df_nomane = seq_df_nomane[seq_df_nomane.Gene.isin(mane_mapping_not_af.Gene)]       # Filter out genes that are not in MANE list
 
-    # Retrieve seq from coordinates
-    logger.debug(f"Retrieving CDS DNA seq from reference genome (Proteins API): {len(seq_df_nomane['Uniprot_ID'].unique())} structures..")
-    coord_df = get_exons_coord(seq_df_nomane["Uniprot_ID"].unique(), ens_canonical_transcripts_lst)
-    seq_df_nomane = seq_df_nomane.merge(coord_df, on=["Seq", "Uniprot_ID"], how="left").reset_index(drop=True)  # Discard entries whose Seq obtained by Proteins API don't exactly match the one in structure
-    seq_df_nomane = add_ref_dna_and_context(seq_df_nomane, hg38)
-    seq_df_nomane_tr = seq_df_nomane[seq_df_nomane["Reference_info"] == 1]
-    seq_df_nomane_notr = seq_df_nomane[seq_df_nomane["Reference_info"] == -1]
+        if seq_df_nomane.empty:
+            logger.debug("No non-MANE sequences after filtering; skipping Proteins/Backtranseq retrieval.")
+            seq_df_nomane_tr = seq_df_nomane.copy()
+            seq_df_nomane_notr = seq_df_nomane.copy()
+        else:
+            # Retrieve seq from coordinates
+            logger.debug(f"Retrieving CDS DNA seq from reference genome (Proteins API): {len(seq_df_nomane['Uniprot_ID'].unique())} structures..")
+            coord_df = get_exons_coord(seq_df_nomane["Uniprot_ID"].unique(), ens_canonical_transcripts_lst)
+            seq_df_nomane = seq_df_nomane.merge(coord_df, on=["Seq", "Uniprot_ID"], how="left").reset_index(drop=True)  # Discard entries whose Seq obtained by Proteins API don't exactly match the one in structure
+            seq_df_nomane = add_ref_dna_and_context(seq_df_nomane, hg38)
+            seq_df_nomane_tr = seq_df_nomane[seq_df_nomane["Reference_info"] == 1]
+            seq_df_nomane_notr = seq_df_nomane[seq_df_nomane["Reference_info"] == -1]
 
-    # Add DNA seq from Backtranseq for any other entry
-    logger.debug(f"Retrieving CDS DNA seq for genes without available transcript ID (Backtranseq API): {len(seq_df_nomane_notr)} structures..")
-    seq_df_nomane_notr = batch_backtranseq(seq_df_nomane_notr, 500, organism="Homo sapiens")
+            # Add DNA seq from Backtranseq for any other entry
+            if len(seq_df_nomane_notr) > 0:
+                logger.debug(f"Retrieving CDS DNA seq for genes without available transcript ID (Backtranseq API): {len(seq_df_nomane_notr)} structures..")
+                seq_df_nomane_notr = batch_backtranseq(seq_df_nomane_notr, 500, organism="Homo sapiens")
 
     # Get trinucleotide context
     seq_df_not_uniprot = pd.concat((seq_df_mane, seq_df_nomane_notr))
+    if "Seq_dna" not in seq_df_not_uniprot.columns:
+        seq_df_not_uniprot["Seq_dna"] = pd.Series(dtype=object)
     seq_df_not_uniprot["Tri_context"] = seq_df_not_uniprot["Seq_dna"].apply(
         lambda x: ",".join(per_site_trinucleotide_context(x, no_flanks=True)))
 
