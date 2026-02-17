@@ -921,7 +921,7 @@ def get_ref_dna_from_ensembl_batch(transcript_ids, max_attempts=3, wait_seconds=
                 if not seq_dna:
                     missing += 1
                     continue
-                results[pos] = seq_dna[:-3] if len(seq_dna) >= 3 else ""
+                results[pos] = seq_dna[:-3] if len(seq_dna) >= 3 else np.nan
 
             elapsed = time.perf_counter() - start_time
             if missing > 0 and logger.isEnabledFor(logging.DEBUG):
@@ -1059,7 +1059,7 @@ def get_ref_dna_from_ensembl(transcript_id):
             failures,
         )
 
-    return seq_dna[:-3]
+    return seq_dna[:-3] if len(seq_dna) >= 3 else np.nan
 
 
 def get_ref_dna_from_ensembl_mp(seq_df, cores):
