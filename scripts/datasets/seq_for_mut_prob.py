@@ -643,6 +643,7 @@ def download_biomart_metadata(path_to_file, max_attempts=5, wait_seconds=10):
         last_exc = None
         ssl_verify_archive = url.startswith("https://")
         for attempt in range(1, max_attempts + 1):
+            logger.debug("Starting BioMart download attempt %s/%s (archive).", attempt, max_attempts)
             try:
                 download_single_file(url, path_to_file, threads=4, ssl=ssl_verify_archive)
                 return
@@ -670,6 +671,7 @@ def download_biomart_metadata(path_to_file, max_attempts=5, wait_seconds=10):
                 )
         ssl_verify_fallback = fallback_url.startswith("https://")
         for attempt in range(1, max_attempts + 1):
+            logger.debug("Starting BioMart download attempt %s/%s (latest).", attempt, max_attempts)
             try:
                 download_single_file(fallback_url, path_to_file, threads=4, ssl=ssl_verify_fallback)
                 return
@@ -703,6 +705,7 @@ def download_biomart_metadata(path_to_file, max_attempts=5, wait_seconds=10):
     ]
 
     for attempt in range(1, max_attempts + 1):
+        logger.debug("Starting BioMart wget attempt %s/%s (archive).", attempt, max_attempts)
         result = subprocess.run(command, capture_output=True, text=True)
         if result.returncode == 0:
             return
@@ -739,6 +742,7 @@ def download_biomart_metadata(path_to_file, max_attempts=5, wait_seconds=10):
             )
     command[-1] = fallback_url
     for attempt in range(1, max_attempts + 1):
+        logger.debug("Starting BioMart wget attempt %s/%s (latest).", attempt, max_attempts)
         result = subprocess.run(command, capture_output=True, text=True)
         if result.returncode == 0:
             return
