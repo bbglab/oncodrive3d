@@ -54,8 +54,8 @@ def build(output_datasets,
     Build datasets necessary to run Oncodrive3D.
     """
 
-    # # Empty directory
-    # clean_dir(output_datasets, 'd', txt_file=True)
+    # Empty directory
+    clean_dir(output_datasets, 'd', txt_file=True)
 
     # Download PDB structures
     species = get_species(organism)
