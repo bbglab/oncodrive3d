@@ -699,15 +699,28 @@ def download_biomart_metadata(path_to_file, max_attempts=5, wait_seconds=10):
     ]
 
     for attempt in range(1, max_attempts + 1):
-        result = subprocess.run(command)
+        result = subprocess.run(command, capture_output=True, text=True)
         if result.returncode == 0:
             return
-        logger.warning(
-            "BioMart download failed (attempt %s/%s). Retrying in %ss...",
-            attempt,
-            max_attempts,
-            wait_seconds,
-        )
+        stderr = (result.stderr or "").strip()
+        if stderr:
+            logger.warning(
+                "BioMart download failed (attempt %s/%s, return code %s). stderr: %s",
+                attempt,
+                max_attempts,
+                result.returncode,
+                stderr,
+            )
+        else:
+            logger.warning(
+                "BioMart download failed (attempt %s/%s, return code %s). Retrying in %ss...",
+                attempt,
+                max_attempts,
+                result.returncode,
+                wait_seconds,
+            )
+        if logger.isEnabledFor(logging.DEBUG) and result.stdout:
+            logger.debug("BioMart wget stdout (attempt %s/%s): %s", attempt, max_attempts, result.stdout.strip())
         time.sleep(wait_seconds)
 
     logger.warning("Falling back to latest Ensembl BioMart URL after failure on %s.", base_archive)
@@ -722,15 +735,33 @@ def download_biomart_metadata(path_to_file, max_attempts=5, wait_seconds=10):
             )
     command[-1] = fallback_url
     for attempt in range(1, max_attempts + 1):
-        result = subprocess.run(command)
+        result = subprocess.run(command, capture_output=True, text=True)
         if result.returncode == 0:
             return
-        logger.warning(
-            "Fallback BioMart download failed (attempt %s/%s). Retrying in %ss...",
-            attempt,
-            max_attempts,
-            wait_seconds,
-        )
+        stderr = (result.stderr or "").strip()
+        if stderr:
+            logger.warning(
+                "Fallback BioMart download failed (attempt %s/%s, return code %s). stderr: %s",
+                attempt,
+                max_attempts,
+                result.returncode,
+                stderr,
+            )
+        else:
+            logger.warning(
+                "Fallback BioMart download failed (attempt %s/%s, return code %s). Retrying in %ss...",
+                attempt,
+                max_attempts,
+                result.returncode,
+                wait_seconds,
+            )
+        if logger.isEnabledFor(logging.DEBUG) and result.stdout:
+            logger.debug(
+                "Fallback BioMart wget stdout (attempt %s/%s): %s",
+                attempt,
+                max_attempts,
+                result.stdout.strip(),
+            )
         time.sleep(wait_seconds)
 
     raise RuntimeError(
@@ -1011,7 +1042,7 @@ def get_ref_dna_from_ensembl(transcript_id):
             failures,
         )
 
-    return seq_dna[:len(seq_dna)-3]
+    return seq_dna[:-3]
 
 
 def get_ref_dna_from_ensembl_mp(seq_df, cores):
