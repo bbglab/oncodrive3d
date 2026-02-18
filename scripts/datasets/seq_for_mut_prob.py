@@ -1224,6 +1224,7 @@ def process_seq_df_mane(seq_df,
                         uniprot_to_gene_dict,
                         mane_mapping,
                         mane_mapping_not_af,
+                        mane_only=False,
                         num_cores=1):
     """
     Retrieve DNA sequence and tri-nucleotide context
@@ -1295,14 +1296,24 @@ def process_seq_df_mane(seq_df,
         before_nomane = len(seq_df_nomane)
         seq_df_nomane = add_extra_genes_to_seq_df(seq_df_nomane, uniprot_to_gene_dict)         # Filter out genes with NA
         after_extra = len(seq_df_nomane)
-        seq_df_nomane = seq_df_nomane[seq_df_nomane.Gene.isin(mane_mapping_not_af.Gene)]       # Filter out genes that are not in MANE list
-        if logger.isEnabledFor(logging.DEBUG):
-            logger.debug(
-                "Non-MANE pool sizes: initial=%s, after_extra_genes=%s, after_mane_filter=%s.",
-                before_nomane,
-                after_extra,
-                len(seq_df_nomane),
-            )
+        if not mane_only:
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.debug("Filtering non-MANE entries using mane_mapping_not_af (gene whitelist).")
+            seq_df_nomane = seq_df_nomane[seq_df_nomane.Gene.isin(mane_mapping_not_af.Gene)]       # Filter out genes that are not in MANE list
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.debug(
+                    "Non-MANE pool sizes: initial=%s, after_extra_genes=%s, after_mane_filter=%s.",
+                    before_nomane,
+                    after_extra,
+                    len(seq_df_nomane),
+                )
+        else:
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.debug(
+                    "Non-MANE pool sizes: initial=%s, after_extra_genes=%s (mane_only, no MANE filter applied).",
+                    before_nomane,
+                    after_extra,
+                )
 
         if seq_df_nomane.empty:
             logger.debug("No non-MANE sequences after filtering; skipping Proteins/Backtranseq retrieval.")
@@ -1359,6 +1370,7 @@ def get_seq_df(datasets_dir,
                output_seq_df,
                organism = "Homo sapiens",
                mane=False,
+               mane_only=False,
                custom_mane_metadata_path=None,
                num_cores=1,
                mane_version=1.4):
@@ -1417,6 +1429,7 @@ def get_seq_df(datasets_dir,
                                     uniprot_to_gene_dict,
                                     mane_mapping, 
                                     mane_mapping_not_af,
+                                    mane_only,
                                     num_cores)
     else:
         seq_df = process_seq_df(seq_df,
@@ -1443,6 +1456,7 @@ if __name__ == "__main__":
     output_seq_df=os.path.join(output_datasets, "seq_for_mut_prob.tsv"),
     organism='Homo sapiens',
     mane=True,
+    mane_only=False,
     num_cores=8,
     mane_version=1.4,
     custom_mane_metadata_path="/data/bbg/nobackup/scratch/oncodrive3d/mane_missing/data/250724-no_fragments/af_predictions/previously_pred/samplesheet.csv"

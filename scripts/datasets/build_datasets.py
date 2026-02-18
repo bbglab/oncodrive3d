@@ -99,6 +99,13 @@ def build(output_datasets,
         
     # Copy custom PDB structures and optinally add SEQRES
     if custom_pdb_dir is not None:
+      if not mane_only:
+        logger.error(
+          "custom_pdb_dir requires --mane_only. Use --mane_only when providing custom MANE structures."
+          )
+        raise ValueError(
+          "custom_pdb_dir requires --mane_only"
+          )
       if custom_mane_metadata_path is None:
         logger.error(
           "custom_mane_metadata_path must be provided when custom_pdb_dir is specified"
@@ -126,6 +133,7 @@ def build(output_datasets,
       output_seq_df=os.path.join(output_datasets, "seq_for_mut_prob.tsv"),
       organism=species,
       mane=mane,
+      mane_only=mane_only,
       num_cores=num_cores,
       mane_version=mane_version,
       custom_mane_metadata_path=custom_mane_metadata_path

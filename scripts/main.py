@@ -43,7 +43,7 @@ def oncodrive3D():
 @click.option("-M", "--mane_only", 
               help="Use only structures predicted from MANE Select transcripts", is_flag=True)
 @click.option("-C", "--custom_mane_pdb_dir", 
-              help="Directory where to load custom MANE PDB structures (overwriting existing ones)")
+              help="Directory where to load custom MANE PDB structures (overwriting existing ones; requires --mane_only)")
 @click.option("--custom_pae_dir",
               help="Directory containing pre-downloaded PAE JSON files to copy into the build (renamed to 'pae')")
 @click.option("-f", "--custom_mane_metadata_path", 

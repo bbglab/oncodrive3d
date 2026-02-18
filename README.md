@@ -92,7 +92,7 @@ Options:
                                   (applicable to Homo sapiens only).
   -M, --mane_only                 Use only structures predicted from MANE Select transcripts
                                   (applicable to Homo sapiens only).
-  -C, --custom_mane_pdb_dir PATH  Path to directory containing custom MANE PDB structures.
+  -C, --custom_mane_pdb_dir PATH  Path to directory containing custom MANE PDB structures (requires --mane_only).
                                   Default: None
       --custom_pae_dir PATH       Path to directory containing pre-downloaded PAE JSON files.
                                   The directory will be copied into the build as `pae/`.
