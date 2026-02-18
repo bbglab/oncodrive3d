@@ -99,13 +99,19 @@ def copy_and_parse_custom_pdbs(
         samplesheet_df = None
 
     # Copy and gzip pdb and optionally add REFSEQ
+    total_pdb_files = 0
+    copied = 0
+    skipped_format = 0
+    seqres_inserted = 0
     for fname in os.listdir(src_dir):
         if not fname.endswith('.pdb'):
             continue
+        total_pdb_files += 1
 
         parts = fname.split('.')  # e.g. [ACCESSION, fragment_code, 'alphafold', 'pdb']
         if len(parts) < 4:
             logger.warning(f"Skipping unexpected filename format: {fname}")
+            skipped_format += 1
             continue
 
         accession = parts[0]
@@ -119,6 +125,7 @@ def copy_and_parse_custom_pdbs(
         with open(src_path, 'rb') as fin, gzip.open(dst_path, 'wb') as fout:
             shutil.copyfileobj(fin, fout)
 
+        copied += 1
         logger.debug(f'Copied and gzipped: {fname} -> {new_name}')
         
         # Optionally add SEQRES records
@@ -132,6 +139,7 @@ def copy_and_parse_custom_pdbs(
                 seq = [one_to_three_res_map[aa] for aa in seq]
                 add_seqres_to_pdb(path_pdb=dst_path, residues=seq)
                 logger.debug(f"Inserted SEQRES records into: {new_name}")
+                seqres_inserted += 1
             else:
                 try:
                     seq = "".join(list(get_seq_from_pdb(dst_path)))
@@ -142,3 +150,12 @@ def copy_and_parse_custom_pdbs(
                 except Exception as e:
                     logger.warning(f"SEQRES not found in samplesheet and its extraction from structure failed: {new_name}")
                     logger.warning(f"Exception captured: {e}")
+
+    logger.info(
+        "Custom PDB copy summary: %s/%s structures copied (skipped %s invalid filenames).",
+        copied,
+        total_pdb_files,
+        skipped_format,
+    )
+    if seqres_inserted:
+        logger.debug("Inserted SEQRES records into %s custom structures.", seqres_inserted)

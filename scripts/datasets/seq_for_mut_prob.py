@@ -636,6 +636,18 @@ def get_mane_to_af_mapping(
         base_ens = mane_mapping["Ens_Prot_ID"].str.split(".", n=1).str[0]
         mask = base_ens.isin(custom_ids)
         mane_mapping.loc[mask, "Uniprot_ID"] = base_ens[mask]
+        if logger.isEnabledFor(logging.DEBUG):
+            summary_ens = set(mane_summary["Ens_Prot_ID"].astype(str).str.split(".", n=1).str[0])
+            missing_custom = sorted(set(custom_ids) - summary_ens)
+            if missing_custom:
+                preview = ", ".join(missing_custom[:10])
+                suffix = "..." if len(missing_custom) > 10 else ""
+                logger.debug(
+                    "Custom MANE ENSP IDs not found in MANE summary (%s): %s%s",
+                    len(missing_custom),
+                    preview,
+                    suffix,
+                )
 
     # Select available Uniprot ID, fist one if multiple are present
     mane_mapping = mane_mapping.dropna(subset=["Uniprot_ID"]).reset_index(drop=True)

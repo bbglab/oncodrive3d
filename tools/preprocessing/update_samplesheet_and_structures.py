@@ -828,11 +828,8 @@ def run_pipeline(
             include_metadata=settings.include_metadata,
         )
 
-    if settings.include_metadata:
-        annotated_missing_df.to_csv(paths.missing_samplesheet_path, index=False)
-    else:
-        clean_missing_df = annotated_missing_df.drop(columns=["CGC", "length"], errors="ignore")
-        clean_missing_df.to_csv(paths.missing_samplesheet_path, index=False)
+    clean_missing_df = annotated_missing_df.drop(columns=["symbol", "CGC", "length"], errors="ignore")
+    clean_missing_df.to_csv(paths.missing_samplesheet_path, index=False)
     print(f"Updated missing samplesheet saved to {paths.missing_samplesheet_path}")
 
     if settings.filter_long_sequences and not removed_long_df.empty:
