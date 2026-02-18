@@ -153,6 +153,8 @@ def build(output_datasets,
     if custom_pae_dir is not None:
       logger.info("Copying precomputed PAE directory...")
       if os.path.exists(custom_pae_dir):
+        if os.path.exists(pae_output_dir):
+          shutil.rmtree(pae_output_dir)
         shutil.copytree(custom_pae_dir, pae_output_dir)
       else:
         logger.warning(
