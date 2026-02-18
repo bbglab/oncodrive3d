@@ -1149,6 +1149,9 @@ def process_seq_df(seq_df,
     prioritizing structures obtained from transcripts
     whose exon coordinates are available in the Proteins API.
 
+    Canonical transcript metadata is retrieved internally from BioMart
+    for the provided dataset directory and Uniprot IDs.
+
     Reference_info labels:
         1 : Transcript ID, exons coord, seq DNA obtained from Proteins API
        -1 : Not available transcripts, seq DNA retrieved from Backtranseq API
