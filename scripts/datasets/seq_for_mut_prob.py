@@ -1443,14 +1443,6 @@ def get_seq_df(datasets_dir,
 
 
 if __name__ == "__main__":
-    output_datasets = '/data/bbg/nobackup/scratch/oncodrive3d/tests/datasets_mane_240725_mane_missing_dev'
-    get_seq_df(
-    datasets_dir=output_datasets,
-    output_seq_df=os.path.join(output_datasets, "seq_for_mut_prob.tsv"),
-    organism='Homo sapiens',
-    mane=True,
-    mane_only=False,
-    num_cores=8,
-    mane_version=1.4,
-    custom_mane_metadata_path="/data/bbg/nobackup/scratch/oncodrive3d/mane_missing/data/250724-no_fragments/af_predictions/previously_pred/samplesheet.csv"
+    raise SystemExit(
+        "This module is intended to be used via the CLI: `oncodrive3d build-datasets`."
     )
