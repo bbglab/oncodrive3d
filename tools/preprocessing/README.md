@@ -99,7 +99,7 @@ Arguments:
 - `--max-workers`: Parallel workers for canonical indexing (default = all cores).
 - `--filter-long-sequences/--no-filter-long-sequences`: Whether to drop long proteins from the nf-core input (default enabled).
 - `--max-sequence-length`: Length cutoff applied when filtering (default `2700` residues).
-- `--include-metadata/--no-include-metadata`: Add `symbol`, `CGC`, and `length` columns to every emitted `samplesheet.csv` (default disabled).
+- `--include-metadata/--no-include-metadata`: Add `CGC` and `length` columns to every emitted `samplesheet.csv`.
 - `--config-path`: YAML with path templates describing where to place predicted/missing/retrieved bundles relative to `--samplesheet-folder` (default `config.yaml`).
 
 > [!NOTE]
