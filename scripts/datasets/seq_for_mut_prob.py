@@ -726,7 +726,7 @@ def download_biomart_metadata(path_to_file, max_attempts=5, wait_seconds=10):
                 result.returncode,
                 wait_seconds,
             )
-        if logger.isEnabledFor(logging.DEBUG) and result.stdout:
+        if result.stdout:
             logger.debug("BioMart wget stdout (attempt %s/%s): %s", attempt, max_attempts, result.stdout.strip())
         time.sleep(wait_seconds)
 
@@ -763,7 +763,7 @@ def download_biomart_metadata(path_to_file, max_attempts=5, wait_seconds=10):
                 result.returncode,
                 wait_seconds,
             )
-        if logger.isEnabledFor(logging.DEBUG) and result.stdout:
+        if result.stdout:
             logger.debug(
                 "Fallback BioMart wget stdout (attempt %s/%s): %s",
                 attempt,
@@ -1208,13 +1208,12 @@ def process_seq_df(seq_df,
     seq_df = add_extra_genes_to_seq_df(seq_df, uniprot_to_gene_dict)
     pre_drop = len(seq_df)
     seq_df = drop_gene_duplicates(seq_df)
-    if logger.isEnabledFor(logging.DEBUG):
-        logger.debug(
-            "Duplicate gene removal: %s removed (from %s to %s).",
-            pre_drop - len(seq_df),
-            pre_drop,
-            len(seq_df),
-        )
+    logger.debug(
+        "Duplicate gene removal: %s removed (from %s to %s).",
+        pre_drop - len(seq_df),
+        pre_drop,
+        len(seq_df),
+    )
 
     return seq_df
 
@@ -1260,13 +1259,12 @@ def process_seq_df_mane(seq_df,
         failed_nan = seq_df_mane["Seq_dna"].isna()
         failed_mismatch = (~failed_nan) & (dna_len / 3 != seq_len)
         failed_ix = failed_nan | failed_mismatch
-        if logger.isEnabledFor(logging.DEBUG):
-            logger.debug(
-                "Ensembl CDS failures: total=%s (missing=%s, length_mismatch=%s).",
-                int(failed_ix.sum()),
-                int(failed_nan.sum()),
-                int(failed_mismatch.sum()),
-            )
+        logger.debug(
+            "Ensembl CDS failures: total=%s (missing=%s, length_mismatch=%s).",
+            int(failed_ix.sum()),
+            int(failed_nan.sum()),
+            int(failed_mismatch.sum()),
+        )
         if sum(failed_ix) > 0:
             seq_df_mane_failed = seq_df_mane[failed_ix]
             seq_df_mane = seq_df_mane[~failed_ix]
@@ -1280,11 +1278,10 @@ def process_seq_df_mane(seq_df,
                 "Seq_dna"
                 ])
             seq_df_nomane = pd.concat((seq_df_nomane, seq_df_mane_failed))
-            if logger.isEnabledFor(logging.DEBUG):
-                logger.debug(
-                    "Moved %s failed MANE entries to non-MANE pool.",
-                    len(seq_df_mane_failed),
-                )
+            logger.debug(
+                "Moved %s failed MANE entries to non-MANE pool.",
+                len(seq_df_mane_failed),
+            )
 
     # Seq df not MANE
     # ---------------
@@ -1297,23 +1294,20 @@ def process_seq_df_mane(seq_df,
         seq_df_nomane = add_extra_genes_to_seq_df(seq_df_nomane, uniprot_to_gene_dict)         # Filter out genes with NA
         after_extra = len(seq_df_nomane)
         if not mane_only:
-            if logger.isEnabledFor(logging.DEBUG):
-                logger.debug("Filtering non-MANE entries using mane_mapping_not_af (gene whitelist).")
+            logger.debug("Filtering non-MANE entries using mane_mapping_not_af (gene whitelist).")
             seq_df_nomane = seq_df_nomane[seq_df_nomane.Gene.isin(mane_mapping_not_af.Gene)]       # Filter out genes that are not in MANE list
-            if logger.isEnabledFor(logging.DEBUG):
-                logger.debug(
-                    "Non-MANE pool sizes: initial=%s, after_extra_genes=%s, after_mane_filter=%s.",
-                    before_nomane,
-                    after_extra,
-                    len(seq_df_nomane),
-                )
+            logger.debug(
+                "Non-MANE pool sizes: initial=%s, after_extra_genes=%s, after_mane_filter=%s.",
+                before_nomane,
+                after_extra,
+                len(seq_df_nomane),
+            )
         else:
-            if logger.isEnabledFor(logging.DEBUG):
-                logger.debug(
-                    "Non-MANE pool sizes: initial=%s, after_extra_genes=%s (mane_only, no MANE filter applied).",
-                    before_nomane,
-                    after_extra,
-                )
+            logger.debug(
+                "Non-MANE pool sizes: initial=%s, after_extra_genes=%s (mane_only, no MANE filter applied).",
+                before_nomane,
+                after_extra,
+            )
 
         if seq_df_nomane.empty:
             logger.debug("No non-MANE sequences after filtering; skipping Proteins/Backtranseq retrieval.")
@@ -1347,13 +1341,12 @@ def process_seq_df_mane(seq_df,
     seq_df = pd.concat((seq_df_not_uniprot, seq_df_nomane_tr)).reset_index(drop=True)
     pre_drop = len(seq_df)
     seq_df = drop_gene_duplicates(seq_df)
-    if logger.isEnabledFor(logging.DEBUG):
-        logger.debug(
-            "Duplicate gene removal: %s removed (from %s to %s).",
-            pre_drop - len(seq_df),
-            pre_drop,
-            len(seq_df),
-        )
+    logger.debug(
+        "Duplicate gene removal: %s removed (from %s to %s).",
+        pre_drop - len(seq_df),
+        pre_drop,
+        len(seq_df),
+    )
     report_df = seq_df.Reference_info.value_counts().reset_index()
     report_df = report_df.rename(columns={"index" : "Source"})
     report_df.Source = report_df.Source.map({1 : "Proteins API",
