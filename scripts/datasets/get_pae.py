@@ -105,8 +105,8 @@ def get_pae(
 
     consecutive_missing = 0
     if uniprot_ids:
-        probe_ids = uniprot_ids[:5]
-        remaining_ids = uniprot_ids[5:]
+        probe_ids = uniprot_ids[:10]
+        remaining_ids = uniprot_ids[10:]
         for uniprot_id in tqdm(probe_ids, desc="Downloading PAE"):
             result = download_pae(uniprot_id, af_version, output_dir)
             if result == "missing":
@@ -114,7 +114,7 @@ def get_pae(
             else:
                 consecutive_missing = 0
 
-        if consecutive_missing >= 5:
+        if consecutive_missing >= 10:
             logger.warning(
                 "Detected %s consecutive missing PAE downloads (HTTP 404/410). "
                 "PAE files for AlphaFold DB v%s are likely unavailable. "
