@@ -78,7 +78,11 @@ def build(output_datasets,
 
       # Merge fragmented structures
       logger.info("Merging fragmented structures...")
-      merge_af_fragments(input_dir=os.path.join(output_datasets,"pdb_structures"), gzip=True)
+      merge_af_fragments(
+        input_dir=os.path.join(output_datasets,"pdb_structures"),
+        af_version=af_version,
+        gzip=True
+        )
 
     # Download PDB MANE structures
     if species == "Homo sapiens" and mane:
