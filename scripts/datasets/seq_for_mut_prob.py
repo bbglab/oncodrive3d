@@ -1206,7 +1206,15 @@ def process_seq_df(seq_df,
                                                               seq_df.Reference_info.value_counts().values)])
     logger.info(f"Built of sequence dataframe completed. Retrieved {len(seq_df)} structures ({logger_report})")
     seq_df = add_extra_genes_to_seq_df(seq_df, uniprot_to_gene_dict)
+    pre_drop = len(seq_df)
     seq_df = drop_gene_duplicates(seq_df)
+    if logger.isEnabledFor(logging.DEBUG):
+        logger.debug(
+            "Duplicate gene removal: %s removed (from %s to %s).",
+            pre_drop - len(seq_df),
+            pre_drop,
+            len(seq_df),
+        )
 
     return seq_df
 
@@ -1246,7 +1254,18 @@ def process_seq_df_mane(seq_df,
         seq_df_mane = get_ref_dna_from_ensembl_mp(seq_df_mane, cores=num_cores)
 
         # Set failed and len-mismatching entries as no-transcripts entries
-        failed_ix = seq_df_mane.apply(lambda x: True if pd.isna(x.Seq_dna) else len(x.Seq_dna) / 3 != len(x.Seq), axis=1)
+        seq_len = seq_df_mane["Seq"].str.len()
+        dna_len = seq_df_mane["Seq_dna"].str.len()
+        failed_nan = seq_df_mane["Seq_dna"].isna()
+        failed_mismatch = (~failed_nan) & (dna_len / 3 != seq_len)
+        failed_ix = failed_nan | failed_mismatch
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug(
+                "Ensembl CDS failures: total=%s (missing=%s, length_mismatch=%s).",
+                int(failed_ix.sum()),
+                int(failed_nan.sum()),
+                int(failed_mismatch.sum()),
+            )
         if sum(failed_ix) > 0:
             seq_df_mane_failed = seq_df_mane[failed_ix]
             seq_df_mane = seq_df_mane[~failed_ix]
@@ -1260,6 +1279,11 @@ def process_seq_df_mane(seq_df,
                 "Seq_dna"
                 ])
             seq_df_nomane = pd.concat((seq_df_nomane, seq_df_mane_failed))
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.debug(
+                    "Moved %s failed MANE entries to non-MANE pool.",
+                    len(seq_df_mane_failed),
+                )
 
     # Seq df not MANE
     # ---------------
@@ -1268,8 +1292,17 @@ def process_seq_df_mane(seq_df,
         seq_df_nomane_tr = seq_df_nomane.copy()
         seq_df_nomane_notr = seq_df_nomane.copy()
     else:
+        before_nomane = len(seq_df_nomane)
         seq_df_nomane = add_extra_genes_to_seq_df(seq_df_nomane, uniprot_to_gene_dict)         # Filter out genes with NA
+        after_extra = len(seq_df_nomane)
         seq_df_nomane = seq_df_nomane[seq_df_nomane.Gene.isin(mane_mapping_not_af.Gene)]       # Filter out genes that are not in MANE list
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug(
+                "Non-MANE pool sizes: initial=%s, after_extra_genes=%s, after_mane_filter=%s.",
+                before_nomane,
+                after_extra,
+                len(seq_df_nomane),
+            )
 
         if seq_df_nomane.empty:
             logger.debug("No non-MANE sequences after filtering; skipping Proteins/Backtranseq retrieval.")
@@ -1301,7 +1334,15 @@ def process_seq_df_mane(seq_df,
 
     # Prepare final output
     seq_df = pd.concat((seq_df_not_uniprot, seq_df_nomane_tr)).reset_index(drop=True)
+    pre_drop = len(seq_df)
     seq_df = drop_gene_duplicates(seq_df)
+    if logger.isEnabledFor(logging.DEBUG):
+        logger.debug(
+            "Duplicate gene removal: %s removed (from %s to %s).",
+            pre_drop - len(seq_df),
+            pre_drop,
+            len(seq_df),
+        )
     report_df = seq_df.Reference_info.value_counts().reset_index()
     report_df = report_df.rename(columns={"index" : "Source"})
     report_df.Source = report_df.Source.map({1 : "Proteins API",
