@@ -528,6 +528,41 @@ def load_custom_ens_prot_ids(path):
     return ids
 
 
+def load_custom_symbol_map(path):
+    """
+    Read a samplesheet and return a mapping from ENSP (sequence) to gene symbol.
+    Falls back to 'gene' column if 'symbol' is not present.
+    """
+    if not os.path.isfile(path):
+        logger.error(f"Custom MANE metadata path does not exist: {path!r}")
+        raise FileNotFoundError(f"Custom MANE metadata not found: {path!r}")
+    df = pd.read_csv(path)
+    if "sequence" not in df.columns:
+        logger.debug("Custom MANE metadata missing 'sequence' column; skipping symbol mapping.")
+        return {}
+
+    symbol_col = None
+    if "symbol" in df.columns:
+        symbol_col = "symbol"
+    elif "gene" in df.columns:
+        symbol_col = "gene"
+    else:
+        logger.debug("Custom MANE metadata missing 'symbol'/'gene' column; skipping symbol mapping.")
+        return {}
+
+    seq = df["sequence"].astype(str).str.split(".", n=1).str[0]
+    sym = df[symbol_col]
+    mapping = {}
+    for k, v in zip(seq, sym):
+        if pd.isna(v):
+            continue
+        v = str(v).strip()
+        if not v:
+            continue
+        mapping[k] = v
+    return mapping
+
+
 def get_mane_to_af_mapping(
     datasets_dir, 
     uniprot_ids, 
@@ -1402,6 +1437,19 @@ def get_seq_df(datasets_dir,
             )
         
         uniprot_to_gene_dict = dict(zip(mane_mapping["Uniprot_ID"], mane_mapping["Gene"]))
+        if custom_mane_metadata_path is not None:
+            custom_symbol_map = load_custom_symbol_map(custom_mane_metadata_path)
+            if custom_symbol_map:
+                filled = 0
+                for ens_id, symbol in custom_symbol_map.items():
+                    if ens_id in uniprot_ids and (ens_id not in uniprot_to_gene_dict or pd.isna(uniprot_to_gene_dict[ens_id])):
+                        uniprot_to_gene_dict[ens_id] = symbol
+                        filled += 1
+                if filled > 0:
+                    logger.debug(
+                        "Filled %s gene symbols from custom MANE samplesheet for ENSP-only entries.",
+                        filled,
+                    )
         missing_uni_ids = list(set(uniprot_ids) - set(mane_mapping.Uniprot_ID))
         uniprot_to_gene_dict = uniprot_to_gene_dict | uniprot_to_hugo(missing_uni_ids)
     else:
