@@ -1145,7 +1145,12 @@ def get_ref_dna_from_ensembl_mp(seq_df, cores):
                 results.extend(batch_results)
                 pbar.update(len(batch_ids))
         seq_df["Seq_dna"] = results
-        logger.debug("Completed Ensembl CDS retrieval.")
+        retrieved = int(pd.Series(results).notna().sum())
+        logger.debug(
+            "Completed Ensembl CDS retrieval: %s/%s sequences retrieved.",
+            retrieved,
+            total,
+        )
         return seq_df
 
     batch_size = 50
@@ -1158,8 +1163,12 @@ def get_ref_dna_from_ensembl_mp(seq_df, cores):
                 results.extend(batch_results)
                 pbar.update(len(batch_ids))
     seq_df["Seq_dna"] = results
-
-    logger.debug("Completed Ensembl CDS retrieval.")
+    retrieved = int(pd.Series(results).notna().sum())
+    logger.debug(
+        "Completed Ensembl CDS retrieval: %s/%s sequences retrieved.",
+        retrieved,
+        total,
+    )
     return seq_df
 
 
