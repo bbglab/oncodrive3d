@@ -91,7 +91,7 @@ def initialize_seq_df(input_path, uniprot_to_gene_dict):
 # (not 100% reliable but available fo most seq)
 #==============================================
 
-def backtranseq(protein_seqs, organism = "Homo sapiens"):
+def backtranseq(protein_seqs, organism = "Homo sapiens", max_attempts=5, total_timeout=45 * 60):
     """
     Perform backtranslation from proteins to DNA sequences using EMBOS backtranseq.
     """
@@ -108,66 +108,101 @@ def backtranseq(protein_seqs, organism = "Homo sapiens"):
               "molecule": "dna",
               "organism": organism}
 
-    # Submit the job request and retrieve the job ID
-    response = "INIT"
-    while str(response) != "<Response [200]>":
-        if response != "INIT":
-            time.sleep(10)
-        try:
-            response = requests.post(run_url, data=params, timeout=160)
-            if not response.ok:
+    for attempt in range(1, max_attempts + 1):
+        attempt_start = time.monotonic()
+
+        # Submit the job request and retrieve the job ID
+        job_id = None
+        while job_id is None:
+            if time.monotonic() - attempt_start > total_timeout:
+                logger.warning(
+                    "Backtranseq submit timed out after %ss (attempt %s/%s).",
+                    total_timeout,
+                    attempt,
+                    max_attempts,
+                )
+                break
+            try:
+                response = requests.post(run_url, data=params, timeout=160)
+                if response.ok:
+                    job_id = response.text.strip()
+                    break
                 logger.debug(
                     "Backtranseq submit returned HTTP %s: %s",
                     response.status_code,
                     response.text[:200],
                 )
-        except requests.exceptions.RequestException as e:
-            response = "ERROR"
-            logger.debug(f"Request failed: {e}")
+            except requests.exceptions.RequestException as e:
+                logger.debug(f"Request failed: {e}")
+            time.sleep(10)
 
-    job_id = response.text.strip()
+        if job_id is None:
+            continue
 
-    # Wait for the job to complete
-    status = "INIT"
-    while status != "FINISHED":
-        time.sleep(20)
-        try:
-            result = requests.get(status_url + job_id, timeout=160)
-            if result.ok:
-                status = result.text.strip()
-            else:
-                status = "ERROR"
-                logger.debug(
-                    "Backtranseq status returned HTTP %s: %s",
-                    result.status_code,
-                    result.text[:200],
+        # Wait for the job to complete
+        status = "INIT"
+        while True:
+            if time.monotonic() - attempt_start > total_timeout:
+                logger.warning(
+                    "Backtranseq status polling timed out after %ss (attempt %s/%s).",
+                    total_timeout,
+                    attempt,
+                    max_attempts,
                 )
-        except requests.exceptions.RequestException as e:
-            status = "ERROR"
-            logger.debug(f"Request failed {e}: Retrying..")
+                status = "TIMEOUT"
+                break
+            time.sleep(20)
+            try:
+                result = requests.get(status_url + job_id, timeout=160)
+                if not result.ok:
+                    logger.debug(
+                        "Backtranseq status returned HTTP %s: %s",
+                        result.status_code,
+                        result.text[:200],
+                    )
+                    continue
+                status = result.text.strip()
+                if status == "FINISHED":
+                    break
+                if status in {"ERROR", "FAILED"}:
+                    logger.warning(
+                        "Backtranseq returned terminal status '%s' (attempt %s/%s).",
+                        status,
+                        attempt,
+                        max_attempts,
+                    )
+                    break
+            except requests.exceptions.RequestException as e:
+                logger.debug(f"Request failed {e}: Retrying..")
 
-    # Retrieve the results of the job
-    status = "INIT"
-    while status != "FINISHED":
-        try:
-            result = requests.get(result_url + job_id + "/out", timeout=160)
-            if result.ok:
-                status = "FINISHED"
-            else:
-                status = "ERROR"
+        if status != "FINISHED":
+            continue
+
+        # Retrieve the results of the job
+        while True:
+            if time.monotonic() - attempt_start > total_timeout:
+                logger.warning(
+                    "Backtranseq result fetch timed out after %ss (attempt %s/%s).",
+                    total_timeout,
+                    attempt,
+                    max_attempts,
+                )
+                break
+            try:
+                result = requests.get(result_url + job_id + "/out", timeout=160)
+                if result.ok:
+                    return result.text.strip()
                 logger.debug(
                     "Backtranseq result returned HTTP %s: %s",
                     result.status_code,
                     result.text[:200],
                 )
-        except requests.exceptions.RequestException as e:
-            status = "ERROR"
-            logger.debug(f"Request failed {e}: Retrying..")
-        time.sleep(10)
+            except requests.exceptions.RequestException as e:
+                logger.debug(f"Request failed {e}: Retrying..")
+            time.sleep(10)
 
-    dna_seq = result.text.strip()
-
-    return dna_seq
+    logger.warning("Backtranseq failed after %s attempts; returning empty result.", max_attempts)
+    return None
 
 
 def batch_backtranseq(df, batch_size, organism = "Homo sapiens"):
@@ -194,6 +229,16 @@ def batch_backtranseq(df, batch_size, organism = "Homo sapiens"):
 
         # Run backtranseq
         batch_dna = backtranseq(batch_seq, organism = organism)
+
+        if not batch_dna:
+            logger.warning(
+                "Backtranseq failed for batch %s/%s; setting Seq_dna to NaN.",
+                i + 1,
+                len(batches),
+            )
+            batch["Seq_dna"] = np.nan
+            lst_batches.append(batch)
+            continue
 
         # Parse output
         batch_dna = re.split(">EMBOSS_\d+", batch_dna.replace("\n", ""))[1:]
