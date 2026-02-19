@@ -867,7 +867,7 @@ def get_biomart_metadata(datasets_dir, uniprot_ids):
     return canonical_transcripts
 
 
-def get_ref_dna_from_ensembl_batch(transcript_ids, max_attempts=3, wait_seconds=2):
+def get_ref_dna_from_ensembl_batch(transcript_ids, max_attempts=8, wait_seconds=3):
     """
     Retrieve Ensembl CDS DNA sequences for up to 50 stable IDs in a single request.
 
@@ -1302,6 +1302,22 @@ def process_seq_df_mane(seq_df,
         # Add DNA seq from Ensembl for structures with available transcript ID
         logger.debug(f"Retrieving CDS DNA seq from transcript ID (Ensembl API): {len(seq_df_mane)} structures..")
         seq_df_mane = get_ref_dna_from_ensembl_mp(seq_df_mane, cores=num_cores)
+
+        # Retry missing entries one-by-one using single-request API
+        missing_mask = seq_df_mane["Seq_dna"].isna()
+        if missing_mask.any():
+            logger.debug(
+                "Retrying %s missing Ensembl CDS entries one by one.",
+                int(missing_mask.sum()),
+            )
+            recovered = 0
+            for idx in seq_df_mane[missing_mask].index:
+                seq_dna = get_ref_dna_from_ensembl(seq_df_mane.at[idx, "Ens_Transcr_ID"])
+                if pd.notna(seq_dna):
+                    recovered += 1
+                seq_df_mane.at[idx, "Seq_dna"] = seq_dna
+            if recovered > 0:
+                logger.debug("Recovered %s missing Ensembl CDS entries after single-request retry.", recovered)
 
         # Set failed and len-mismatching entries as no-transcripts entries
         seq_len = seq_df_mane["Seq"].str.len()
