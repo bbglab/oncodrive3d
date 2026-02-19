@@ -1312,21 +1312,28 @@ def process_seq_df_mane(seq_df,
         logger.debug(f"Retrieving CDS DNA seq from transcript ID (Ensembl API): {len(seq_df_mane)} structures..")
         seq_df_mane = get_ref_dna_from_ensembl_mp(seq_df_mane, cores=num_cores)
 
-        # Retry missing entries one-by-one using single-request API
+        # Retry missing entries using single-request API (bounded parallelism)
         missing_mask = seq_df_mane["Seq_dna"].isna()
         if missing_mask.any():
+            missing_ids = seq_df_mane.loc[missing_mask, "Ens_Transcr_ID"].tolist()
             logger.debug(
-                "Retrying %s missing Ensembl CDS entries one by one.",
-                int(missing_mask.sum()),
+                "Retrying %s missing Ensembl CDS entries with %s workers.",
+                len(missing_ids),
+                min(num_cores, _ENSEMBL_CDS_MAX_CORES),
             )
-            recovered = 0
-            for idx in seq_df_mane[missing_mask].index:
-                seq_dna = get_ref_dna_from_ensembl(seq_df_mane.at[idx, "Ens_Transcr_ID"])
-                if pd.notna(seq_dna):
-                    recovered += 1
-                seq_df_mane.at[idx, "Seq_dna"] = seq_dna
+            retry_workers = min(num_cores, _ENSEMBL_CDS_MAX_CORES)
+            if retry_workers <= 1:
+                retry_results = [get_ref_dna_from_ensembl(tid) for tid in missing_ids]
+            else:
+                with multiprocessing.Pool(processes=retry_workers) as pool:
+                    retry_results = pool.map(get_ref_dna_from_ensembl, missing_ids)
+            recovered = sum(pd.notna(val) for val in retry_results)
+            seq_df_mane.loc[missing_mask, "Seq_dna"] = retry_results
             if recovered > 0:
-                logger.debug("Recovered %s missing Ensembl CDS entries after single-request retry.", recovered)
+                logger.debug(
+                    "Recovered %s missing Ensembl CDS entries after single-request retry.",
+                    recovered,
+                )
 
         # Set failed and len-mismatching entries as no-transcripts entries
         seq_len = seq_df_mane["Seq"].str.len()
