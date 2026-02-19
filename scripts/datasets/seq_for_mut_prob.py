@@ -314,8 +314,30 @@ def get_exons_coord(ids, ens_canonical_transcripts_lst, batch_size=100):
     https://doi.org/10.1093/nar/gkx237
     """
 
+    ids = [str(i) for i in ids]
+    ens_prot_ids = [i for i in ids if i.upper().startswith("ENSP")]
+    proteins_api_ids = [i for i in ids if not i.upper().startswith("ENSP")]
+
+    if ens_prot_ids:
+        logger.debug(
+            "Skipping %s ENSP IDs for Proteins API (will fall back to Backtranseq).",
+            len(ens_prot_ids),
+        )
+
     lst_df = []
-    batches_ids = [ids[i:i+batch_size] for i in range(0, len(ids), batch_size)]
+    if not proteins_api_ids:
+        nan = np.repeat(np.nan, len(ids))
+        return pd.DataFrame({
+            "Uniprot_ID": ids,
+            "Ens_Gene_ID": nan,
+            "Ens_Transcr_ID": nan,
+            "Seq": nan,
+            "Chr": nan,
+            "Reverse_strand": nan,
+            "Exons_coord": nan,
+        })
+
+    batches_ids = [proteins_api_ids[i:i+batch_size] for i in range(0, len(proteins_api_ids), batch_size)]
 
     for batch_ids in tqdm(batches_ids, total=len(batches_ids), desc="Adding exons coordinate"):
 
@@ -334,6 +356,19 @@ def get_exons_coord(ids, ens_canonical_transcripts_lst, batch_size=100):
 
         batch_df = pd.concat([batch_df, nan_rows], ignore_index=True)
         lst_df.append(batch_df)
+
+    if ens_prot_ids:
+        nan = np.repeat(np.nan, len(ens_prot_ids))
+        nan_rows = pd.DataFrame({
+            "Uniprot_ID": ens_prot_ids,
+            "Ens_Gene_ID": nan,
+            "Ens_Transcr_ID": nan,
+            "Seq": nan,
+            "Chr": nan,
+            "Reverse_strand": nan,
+            "Exons_coord": nan,
+        })
+        lst_df.append(nan_rows)
 
     return pd.concat(lst_df).reset_index(drop=True)
 
