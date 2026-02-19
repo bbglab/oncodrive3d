@@ -459,7 +459,7 @@ def build_symbol_map(samplesheet: pd.DataFrame, mane_summary_path: Path) -> pd.D
     if not seq_map.empty:
         metadata["symbol"] = seq_keys.map(seq_map["symbol"])
     else:
-        metadata["symbol"] = pd.Series("", index=metadata.index)
+        metadata["symbol"] = pd.Series(pd.NA, index=metadata.index)
 
     if "refseq_prot" in metadata.columns and not refseq_map.empty:
         refseq_keys = strip_version_suffix(metadata["refseq_prot"])
