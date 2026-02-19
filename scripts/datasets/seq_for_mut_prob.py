@@ -1291,7 +1291,7 @@ def process_seq_df(seq_df,
     if len(seq_df_not_uniprot) > 0:
         # Add DNA seq from Backtranseq for any other entry
         logger.debug(f"Retrieving CDS DNA seq for entries without available transcript ID (Backtranseq API): {len(seq_df_not_uniprot)} structures..")
-        seq_df_not_uniprot = batch_backtranseq(seq_df_not_uniprot, 500, organism=organism)
+        seq_df_not_uniprot = batch_backtranseq(seq_df_not_uniprot, 100, organism=organism)
 
         # Get trinucleotide context
         seq_df_not_uniprot["Tri_context"] = np.nan
@@ -1452,7 +1452,7 @@ def process_seq_df_mane(seq_df,
             # Add DNA seq from Backtranseq for any other entry
             if len(seq_df_nomane_notr) > 0:
                 logger.debug(f"Retrieving CDS DNA seq for genes without available transcript ID (Backtranseq API): {len(seq_df_nomane_notr)} structures..")
-                seq_df_nomane_notr = batch_backtranseq(seq_df_nomane_notr, 500, organism="Homo sapiens")
+                seq_df_nomane_notr = batch_backtranseq(seq_df_nomane_notr, 100, organism="Homo sapiens")
 
     # Get trinucleotide context
     seq_df_not_uniprot = pd.concat((seq_df_mane, seq_df_nomane_notr))
