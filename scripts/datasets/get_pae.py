@@ -111,7 +111,7 @@ def get_pae(
             result = download_pae(uniprot_id, af_version, output_dir)
             if result == "missing":
                 consecutive_missing += 1
-            else:
+            elif result == "ok":
                 consecutive_missing = 0
 
         if consecutive_missing >= 10:
