@@ -45,6 +45,7 @@ logger = daiquiri.getLogger(__logger_name__ + ".build.seq_for_mut_prob")
 _ENSEMBL_REST_SERVER = "https://rest.ensembl.org"
 _ENSEMBL_REST_TIMEOUT = (10, 160)  # (connect, read) seconds
 _ENSEMBL_REST_HEADERS = {"Accept": "text/plain"}
+_ENSEMBL_CDS_MAX_CORES = 8
 
 
 #===========
@@ -1123,6 +1124,14 @@ def get_ref_dna_from_ensembl_mp(seq_df, cores):
     if total == 0:
         seq_df["Seq_dna"] = []
         return seq_df
+
+    if cores > _ENSEMBL_CDS_MAX_CORES:
+        logger.info(
+            "Capping Ensembl CDS batch workers from %s to %s.",
+            cores,
+            _ENSEMBL_CDS_MAX_CORES,
+        )
+        cores = _ENSEMBL_CDS_MAX_CORES
 
     logger.debug("Retrieving CDS DNA from Ensembl for %s transcripts with %s cores.", total, cores)
 
