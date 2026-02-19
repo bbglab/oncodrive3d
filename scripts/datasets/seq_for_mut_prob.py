@@ -115,6 +115,12 @@ def backtranseq(protein_seqs, organism = "Homo sapiens"):
             time.sleep(10)
         try:
             response = requests.post(run_url, data=params, timeout=160)
+            if not response.ok:
+                logger.debug(
+                    "Backtranseq submit returned HTTP %s: %s",
+                    response.status_code,
+                    response.text[:200],
+                )
         except requests.exceptions.RequestException as e:
             response = "ERROR"
             logger.debug(f"Request failed: {e}")
@@ -127,7 +133,15 @@ def backtranseq(protein_seqs, organism = "Homo sapiens"):
         time.sleep(20)
         try:
             result = requests.get(status_url + job_id, timeout=160)
-            status = result.text.strip()
+            if result.ok:
+                status = result.text.strip()
+            else:
+                status = "ERROR"
+                logger.debug(
+                    "Backtranseq status returned HTTP %s: %s",
+                    result.status_code,
+                    result.text[:200],
+                )
         except requests.exceptions.RequestException as e:
             status = "ERROR"
             logger.debug(f"Request failed {e}: Retrying..")
@@ -137,7 +151,15 @@ def backtranseq(protein_seqs, organism = "Homo sapiens"):
     while status != "FINISHED":
         try:
             result = requests.get(result_url + job_id + "/out", timeout=160)
-            status = "FINISHED"
+            if result.ok:
+                status = "FINISHED"
+            else:
+                status = "ERROR"
+                logger.debug(
+                    "Backtranseq result returned HTTP %s: %s",
+                    result.status_code,
+                    result.text[:200],
+                )
         except requests.exceptions.RequestException as e:
             status = "ERROR"
             logger.debug(f"Request failed {e}: Retrying..")
