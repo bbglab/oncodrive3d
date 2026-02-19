@@ -124,7 +124,7 @@ def download_single_file(url: str, destination: str, threads: int, proteome=None
         destination (str): The local path where the file will be saved.
     """
 
-    num_connections = 15 if threads > 40 else threads
+    num_connections = min(threads, 10)
 
     if os.path.exists(destination):
         logger.debug(f"File {destination} already exists..")
