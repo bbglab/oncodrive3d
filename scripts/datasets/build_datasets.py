@@ -136,7 +136,8 @@ def build(output_datasets,
       mane_only=mane_only,
       num_cores=num_cores,
       mane_version=mane_version,
-      custom_mane_metadata_path=custom_mane_metadata_path
+      custom_mane_metadata_path=custom_mane_metadata_path,
+      af_version=af_version,
       )
     logger.info("Generation of sequences dataframe completed!")
 

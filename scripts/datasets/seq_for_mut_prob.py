@@ -766,7 +766,7 @@ def get_mane_to_af_mapping(
         return mane_mapping
 
 
-def download_biomart_metadata(path_to_file, max_attempts=5, wait_seconds=10):
+def download_biomart_metadata(path_to_file, max_attempts=3, wait_seconds=10, use_archive=True):
     """
     Query biomart to get the list of transcript corresponding to the downloaded
     structures (a few structures are missing) and other information.
@@ -791,25 +791,29 @@ def download_biomart_metadata(path_to_file, max_attempts=5, wait_seconds=10):
     if shutil.which("wget") is None:
         logger.warning("wget not found; falling back to Python downloader for BioMart metadata.")
         last_exc = None
-        ssl_verify_archive = url.startswith("https://")
-        for attempt in range(1, max_attempts + 1):
-            logger.debug("Starting BioMart download attempt %s/%s (archive).", attempt, max_attempts)
-            try:
-                download_single_file(url, path_to_file, threads=4, ssl=ssl_verify_archive)
-                return
-            except Exception as exc:
-                last_exc = exc
-                logger.warning(
-                    "BioMart download failed (attempt %s/%s). Retrying in %ss... Error: %s",
-                    attempt,
-                    max_attempts,
-                    wait_seconds,
-                    exc,
-                )
-                logger.debug("BioMart download exception details:", exc_info=True)
-                time.sleep(wait_seconds)
+        if use_archive:
+            ssl_verify_archive = url.startswith("https://")
+            for attempt in range(1, max_attempts + 1):
+                logger.debug("Starting BioMart download attempt %s/%s (archive).", attempt, max_attempts)
+                try:
+                    download_single_file(url, path_to_file, threads=4, ssl=ssl_verify_archive)
+                    return
+                except Exception as exc:
+                    last_exc = exc
+                    logger.warning(
+                        "BioMart download failed (attempt %s/%s). Retrying in %ss... Error: %s",
+                        attempt,
+                        max_attempts,
+                        wait_seconds,
+                        exc,
+                    )
+                    logger.debug("BioMart download exception details:", exc_info=True)
+                    time.sleep(wait_seconds)
 
-        logger.warning("Falling back to latest Ensembl BioMart URL after failure on %s.", base_archive)
+            logger.warning("Falling back to latest Ensembl BioMart URL after failure on %s.", base_archive)
+        else:
+            logger.debug("Skipping archive BioMart URL; using latest only.")
+
         if os.path.exists(path_to_file):
             try:
                 os.remove(path_to_file)
@@ -837,10 +841,14 @@ def download_biomart_metadata(path_to_file, max_attempts=5, wait_seconds=10):
                 logger.debug("Fallback BioMart download exception details:", exc_info=True)
                 time.sleep(wait_seconds)
 
-        raise RuntimeError(
-            f"Failed to download BioMart metadata after {max_attempts} attempts on archive and "
-            f"{max_attempts} attempts on latest."
-        ) from last_exc
+        if use_archive:
+            message = (
+                f"Failed to download BioMart metadata after {max_attempts} attempts on archive and "
+                f"{max_attempts} attempts on latest."
+            )
+        else:
+            message = f"Failed to download BioMart metadata after {max_attempts} attempts on latest."
+        raise RuntimeError(message) from last_exc
 
     command = [
         "wget",
@@ -854,33 +862,37 @@ def download_biomart_metadata(path_to_file, max_attempts=5, wait_seconds=10):
         url,
     ]
 
-    for attempt in range(1, max_attempts + 1):
-        logger.debug("Starting BioMart wget attempt %s/%s (archive).", attempt, max_attempts)
-        result = subprocess.run(command, capture_output=True, text=True)
-        if result.returncode == 0:
-            return
-        stderr = (result.stderr or "").strip()
-        if stderr:
-            logger.warning(
-                "BioMart download failed (attempt %s/%s, return code %s). stderr: %s",
-                attempt,
-                max_attempts,
-                result.returncode,
-                stderr,
-            )
-        else:
-            logger.warning(
-                "BioMart download failed (attempt %s/%s, return code %s). Retrying in %ss...",
-                attempt,
-                max_attempts,
-                result.returncode,
-                wait_seconds,
-            )
-        if result.stdout:
-            logger.debug("BioMart wget stdout (attempt %s/%s): %s", attempt, max_attempts, result.stdout.strip())
-        time.sleep(wait_seconds)
+    if use_archive:
+        for attempt in range(1, max_attempts + 1):
+            logger.debug("Starting BioMart wget attempt %s/%s (archive).", attempt, max_attempts)
+            result = subprocess.run(command, capture_output=True, text=True)
+            if result.returncode == 0:
+                return
+            stderr = (result.stderr or "").strip()
+            if stderr:
+                logger.warning(
+                    "BioMart download failed (attempt %s/%s, return code %s). stderr: %s",
+                    attempt,
+                    max_attempts,
+                    result.returncode,
+                    stderr,
+                )
+            else:
+                logger.warning(
+                    "BioMart download failed (attempt %s/%s, return code %s). Retrying in %ss...",
+                    attempt,
+                    max_attempts,
+                    result.returncode,
+                    wait_seconds,
+                )
+            if result.stdout:
+                logger.debug("BioMart wget stdout (attempt %s/%s): %s", attempt, max_attempts, result.stdout.strip())
+            time.sleep(wait_seconds)
 
-    logger.warning("Falling back to latest Ensembl BioMart URL after failure on %s.", base_archive)
+        logger.warning("Falling back to latest Ensembl BioMart URL after failure on %s.", base_archive)
+    else:
+        logger.debug("Skipping archive BioMart URL; using latest only.")
+
     if os.path.exists(path_to_file):
         try:
             os.remove(path_to_file)
@@ -922,13 +934,17 @@ def download_biomart_metadata(path_to_file, max_attempts=5, wait_seconds=10):
             )
         time.sleep(wait_seconds)
 
-    raise RuntimeError(
-        f"Failed to download BioMart metadata after {max_attempts} attempts on archive and "
-        f"{max_attempts} attempts on latest."
-    )
+    if use_archive:
+        message = (
+            f"Failed to download BioMart metadata after {max_attempts} attempts on archive and "
+            f"{max_attempts} attempts on latest."
+        )
+    else:
+        message = f"Failed to download BioMart metadata after {max_attempts} attempts on latest."
+    raise RuntimeError(message)
 
 
-def get_biomart_metadata(datasets_dir, uniprot_ids):
+def get_biomart_metadata(datasets_dir, uniprot_ids, use_archive=True):
     """
     Download a dataframe including ensembl canonical transcript IDs,
     HGNC IDs, Uniprot IDs, and other useful information.
@@ -937,7 +953,7 @@ def get_biomart_metadata(datasets_dir, uniprot_ids):
     try:
         path_biomart_metadata = os.path.join(datasets_dir, "biomart_metadata.tsv")
         if not os.path.exists(path_biomart_metadata):
-            download_biomart_metadata(path_biomart_metadata)
+            download_biomart_metadata(path_biomart_metadata, use_archive=use_archive)
 
         # Parse
         biomart_df = pd.read_csv(path_biomart_metadata, sep="\t", header=None, low_memory=False)
@@ -1309,7 +1325,8 @@ def mane_uniprot_to_hugo(uniprot_ids, mane_mapping):
 def process_seq_df(seq_df,
                    datasets_dir,
                    organism,
-                   uniprot_to_gene_dict):
+                   uniprot_to_gene_dict,
+                   use_archive_biomart=True):
     """
     Retrieve DNA sequence and tri-nucleotide context
     for each structure in the initialized dataframe
@@ -1328,7 +1345,11 @@ def process_seq_df(seq_df,
         logger.error("No sequences to process in process_seq_df; this should not happen.")
         raise RuntimeError("Empty sequence dataframe: no structures to process.")
 
-    ens_canonical_transcripts_lst = get_biomart_metadata(datasets_dir, seq_df["Uniprot_ID"].unique())
+    ens_canonical_transcripts_lst = get_biomart_metadata(
+        datasets_dir,
+        seq_df["Uniprot_ID"].unique(),
+        use_archive=use_archive_biomart,
+    )
 
     # Process entries in Proteins API (Reference_info 1)
     #---------------------------------------------------
@@ -1394,7 +1415,8 @@ def process_seq_df_mane(seq_df,
                         mane_mapping,
                         mane_mapping_not_af,
                         mane_only=False,
-                        num_cores=1):
+                        num_cores=1,
+                        use_archive_biomart=True):
     """
     Retrieve DNA sequence and tri-nucleotide context
     for each structure in the initialized dataframe
@@ -1507,7 +1529,11 @@ def process_seq_df_mane(seq_df,
             seq_df_nomane_tr = seq_df_nomane.copy()
             seq_df_nomane_notr = seq_df_nomane.copy()
         else:
-            ens_canonical_transcripts_lst = get_biomart_metadata(datasets_dir, seq_df_nomane["Uniprot_ID"].unique())
+            ens_canonical_transcripts_lst = get_biomart_metadata(
+                datasets_dir,
+                seq_df_nomane["Uniprot_ID"].unique(),
+                use_archive=use_archive_biomart,
+            )
             # Retrieve seq from coordinates
             logger.debug(f"Retrieving CDS DNA seq from reference genome (Proteins API): {len(seq_df_nomane['Uniprot_ID'].unique())} structures..")
             coord_df = get_exons_coord(seq_df_nomane["Uniprot_ID"].unique(), ens_canonical_transcripts_lst)
@@ -1559,7 +1585,8 @@ def get_seq_df(datasets_dir,
                mane_only=False,
                custom_mane_metadata_path=None,
                num_cores=1,
-               mane_version=1.4):
+               mane_version=1.4,
+               af_version=None):
     """
     Generate a dataframe including IDs mapping information, the protein
     sequence, the DNA sequence and its tri-nucleotide context, which is
@@ -1618,23 +1645,37 @@ def get_seq_df(datasets_dir,
     #     uniprot_to_gene_dict = uniprot_to_hugo_pressed(uniprot_ids)
     # ---
     
+    use_archive_biomart = True
+    if af_version is not None and str(af_version) != "4":
+        use_archive_biomart = False
+        logger.debug(
+            "Using latest BioMart URL only because af_version=%s (archive disabled).",
+            af_version,
+        )
+
     # Create a dataframe with protein sequences
     logger.debug("Initializing sequence df..")
     seq_df = initialize_seq_df(pdb_dir, uniprot_to_gene_dict)
 
     if mane:
-        seq_df = process_seq_df_mane(seq_df,
-                                    datasets_dir,
-                                    uniprot_to_gene_dict,
-                                    mane_mapping, 
-                                    mane_mapping_not_af,
-                                    mane_only,
-                                    num_cores)
+        seq_df = process_seq_df_mane(
+            seq_df,
+            datasets_dir,
+            uniprot_to_gene_dict,
+            mane_mapping,
+            mane_mapping_not_af,
+            mane_only,
+            num_cores,
+            use_archive_biomart=use_archive_biomart,
+        )
     else:
-        seq_df = process_seq_df(seq_df,
-                                datasets_dir,
-                                organism,
-                                uniprot_to_gene_dict)
+        seq_df = process_seq_df(
+            seq_df,
+            datasets_dir,
+            organism,
+            uniprot_to_gene_dict,
+            use_archive_biomart=use_archive_biomart,
+        )
 
     # Save
     seq_df_cols = ['Gene', 'HGNC_ID', 'Ens_Gene_ID',
