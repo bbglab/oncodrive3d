@@ -773,7 +773,7 @@ def run_pipeline(
             symbol_map=symbol_map,
         )
 
-    metadata_for_outputs = metadata_map or symbol_map
+    metadata_for_outputs = metadata_map if metadata_map is not None else symbol_map
     samplesheet = attach_metadata(samplesheet, metadata_for_outputs)
     samplesheet.to_csv(paths.samplesheet_path, index=False)
     if settings.include_metadata:

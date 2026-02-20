@@ -223,7 +223,7 @@ def get_pdb_seqres_records(lst_res):
 
 def add_refseq_record_to_pdb(path_structure):
     """
-    Add the SEQREF records to the pdb file.
+    Add the SEQRES records to the pdb file.
     Returns True if SEQRES was inserted, False if skipped because SEQRES already exists.
     """
 
