@@ -21,6 +21,7 @@ The build is a pipeline that perform the following tasks:
 
 
 import os
+import shutil
 import daiquiri
 
 from scripts import __logger_name__
@@ -43,6 +44,7 @@ def build(output_datasets,
           mane,
           mane_only,
           custom_pdb_dir,
+          custom_pae_dir,
           custom_mane_metadata_path,
           distance_threshold,
           num_cores,
@@ -57,6 +59,13 @@ def build(output_datasets,
 
     # Download PDB structures
     species = get_species(organism)
+    if mane and str(af_version) != "4":
+      logger.warning(
+        "MANE structures are only available in AlphaFold DB v4. "
+        "Ignoring --af_version=%s and using v4 for this build.",
+        af_version,
+      )
+      af_version = 4
     if not mane_only:
       logger.info("Downloading AlphaFold (AF) predicted structures...")
       get_structures(
@@ -69,7 +78,11 @@ def build(output_datasets,
 
       # Merge fragmented structures
       logger.info("Merging fragmented structures...")
-      merge_af_fragments(input_dir=os.path.join(output_datasets,"pdb_structures"), gzip=True)
+      merge_af_fragments(
+        input_dir=os.path.join(output_datasets,"pdb_structures"),
+        af_version=af_version,
+        gzip=True
+        )
 
     # Download PDB MANE structures
     if species == "Homo sapiens" and mane:
@@ -78,6 +91,7 @@ def build(output_datasets,
           path=os.path.join(output_datasets,"pdb_structures_mane"),
           species=species,
           mane=True,
+          af_version=str(af_version),
           threads=num_cores
           )
         mv_mane_pdb(output_datasets, "pdb_structures", "pdb_structures_mane")
@@ -85,6 +99,13 @@ def build(output_datasets,
         
     # Copy custom PDB structures and optinally add SEQRES
     if custom_pdb_dir is not None:
+      if not mane_only:
+        logger.error(
+          "custom_pdb_dir requires --mane_only. Use --mane_only when providing custom MANE structures."
+          )
+        raise ValueError(
+          "custom_pdb_dir requires --mane_only"
+          )
       if custom_mane_metadata_path is None:
         logger.error(
           "custom_mane_metadata_path must be provided when custom_pdb_dir is specified"
@@ -112,9 +133,11 @@ def build(output_datasets,
       output_seq_df=os.path.join(output_datasets, "seq_for_mut_prob.tsv"),
       organism=species,
       mane=mane,
+      mane_only=mane_only,
       num_cores=num_cores,
       mane_version=mane_version,
-      custom_mane_metadata_path=custom_mane_metadata_path
+      custom_mane_metadata_path=custom_mane_metadata_path,
+      af_version=af_version,
       )
     logger.info("Generation of sequences dataframe completed!")
 
@@ -127,18 +150,32 @@ def build(output_datasets,
       )
 
     # Get PAE
-    logger.info("Downloading AF predicted aligned error (PAE)...")
-    get_pae(
-      input_dir=os.path.join(output_datasets,"pdb_structures"),
-      output_dir=os.path.join(output_datasets,"pae"),
-      num_cores=num_cores,
-      af_version=str(af_version),
-      custom_pdb_dir=custom_pdb_dir
-      )
+    pae_output_dir = os.path.join(output_datasets, "pae")
+    if custom_pae_dir is not None:
+      logger.info("Copying precomputed PAE directory...")
+      if os.path.exists(custom_pae_dir):
+        if os.path.exists(pae_output_dir):
+          shutil.rmtree(pae_output_dir)
+        shutil.copytree(custom_pae_dir, pae_output_dir)
+      else:
+        logger.warning(
+          "Custom PAE directory does not exist: %s. Skipping copy. "
+          "Contact maps will be computed without PAE (binary maps).",
+          custom_pae_dir,
+        )
+    else:
+      logger.info("Downloading AF predicted aligned error (PAE)...")
+      get_pae(
+        input_dir=os.path.join(output_datasets,"pdb_structures"),
+        output_dir=pae_output_dir,
+        num_cores=num_cores,
+        af_version=str(af_version),
+        custom_pdb_dir=custom_pdb_dir
+        )
 
     # Parse PAE
     logger.info("Parsing PAE...")
-    parse_pae(input=os.path.join(output_datasets, 'pae'))
+    parse_pae(input=pae_output_dir)
     logger.info("Parsing PAE completed!")
 
     # Get pCAMPs
@@ -159,15 +196,6 @@ def build(output_datasets,
     logger.info("Datasets have been successfully built and are ready for analysis!")
 
 if __name__ == "__main__":
-    build(
-      output_datasets="/data/bbg/nobackup/scratch/oncodrive3d/mane_missing/oncodrive3d/datasets/datasets-mane_only-mane_custom-250729",
-      organism="Homo sapiens",
-      mane=False,
-      mane_only=True,
-      custom_pdb_dir="/data/bbg/nobackup/scratch/oncodrive3d/mane_missing/data/250724-no_fragments/all_pdbs-pred_and_retrieved/pdbs",
-      custom_mane_metadata_path="/data/bbg/nobackup/scratch/oncodrive3d/mane_missing/data/250724-no_fragments/all_pdbs-pred_and_retrieved/samplesheet.csv",
-      distance_threshold=10,
-      num_cores=8,
-      af_version=4,
-      mane_version=1.4
-      )
+    raise SystemExit(
+        "This module is intended to be used via the CLI: `oncodrive3d build-datasets`."
+    )

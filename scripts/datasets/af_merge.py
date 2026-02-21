@@ -223,13 +223,18 @@ def get_pdb_seqres_records(lst_res):
 
 def add_refseq_record_to_pdb(path_structure):
     """
-    Add the SEQREF records to the pdb file.
+    Add the SEQRES records to the pdb file.
+    Returns True if SEQRES was inserted, False if skipped because SEQRES already exists.
     """
 
     # Open the PDB file and get SEQRES insert index
     with open(path_structure, 'r') as file:
         pdb_lines = file.readlines()
-        insert_index = next(i for i, line in enumerate(pdb_lines) if line.startswith('MODEL'))
+
+    if any(line.startswith('SEQRES') for line in pdb_lines):
+        return False
+
+    insert_index = next(i for i, line in enumerate(pdb_lines) if line.startswith('MODEL'))
 
     # Get seares records
     residues = get_res_from_chain(path_structure)
@@ -242,6 +247,8 @@ def add_refseq_record_to_pdb(path_structure):
     with open(path_structure, 'w') as output_file:
         output_file.truncate()
         output_file.writelines(pdb_lines)
+
+    return True
 
 
 # Other functions
@@ -306,6 +313,8 @@ def merge_af_fragments(input_dir, output_dir=None, af_version=4, gzip=False):
         else:
             # Get list of fragmented Uniprot ID and max AF-F
             not_processed = []
+            refseq_added = 0
+            refseq_skipped_existing = 0
             for uni_id, max_f in tqdm(fragments, total=len(fragments), desc="Merging AF fragments"):
 
                 processed = False
@@ -329,7 +338,10 @@ def merge_af_fragments(input_dir, output_dir=None, af_version=4, gzip=False):
                     tmp_name = os.path.join(output_dir, f"AF-{uni_id}-FM-model_v{af_version}.pdb")
                     name = os.path.join(output_dir, f"AF-{uni_id}-F{max_f}M-model_v{af_version}.pdb")
                     os.rename(tmp_name, name)
-                    add_refseq_record_to_pdb(name)
+                    if add_refseq_record_to_pdb(name):
+                        refseq_added += 1
+                    else:
+                        refseq_skipped_existing += 1
 
             if len(not_processed) > 0:
                 logger.warning(f"Not processed: {not_processed}")
@@ -338,6 +350,11 @@ def merge_af_fragments(input_dir, output_dir=None, af_version=4, gzip=False):
 
             save_unprocessed_ids(not_processed,
                                 os.path.join(output_dir, "fragmented_pdbs", "ids_not_merged.txt"))
+            if refseq_skipped_existing:
+                logger.info(
+                    "Skipped SEQRES insertion for %s merged structures (SEQRES already present).",
+                    refseq_skipped_existing,
+                )
             logger.info("Merge of structures completed!")
 
     else:

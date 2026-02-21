@@ -13,10 +13,11 @@ certain volume to be hit by a missense mutation.
 
 import ast
 import json
+import logging
 import multiprocessing
 import os
 import re
-import shlex
+import shutil
 import subprocess
 import sys
 import time
@@ -39,6 +40,12 @@ from scripts.datasets.utils import (
 )
 
 logger = daiquiri.getLogger(__logger_name__ + ".build.seq_for_mut_prob")
+
+
+_ENSEMBL_REST_SERVER = "https://rest.ensembl.org"
+_ENSEMBL_REST_TIMEOUT = (10, 160)  # (connect, read) seconds
+_ENSEMBL_REST_HEADERS = {"Accept": "text/plain"}
+_ENSEMBL_CDS_MAX_CORES = 8
 
 
 #===========
@@ -84,7 +91,7 @@ def initialize_seq_df(input_path, uniprot_to_gene_dict):
 # (not 100% reliable but available fo most seq)
 #==============================================
 
-def backtranseq(protein_seqs, organism = "Homo sapiens"):
+def backtranseq(protein_seqs, organism = "Homo sapiens", max_attempts=5, total_timeout=45 * 60):
     """
     Perform backtranslation from proteins to DNA sequences using EMBOS backtranseq.
     """
@@ -101,44 +108,101 @@ def backtranseq(protein_seqs, organism = "Homo sapiens"):
               "molecule": "dna",
               "organism": organism}
 
-    # Submit the job request and retrieve the job ID
-    response = "INIT"
-    while str(response) != "<Response [200]>":
-        if response != "INIT":
+    for attempt in range(1, max_attempts + 1):
+        attempt_start = time.monotonic()
+
+        # Submit the job request and retrieve the job ID
+        job_id = None
+        while job_id is None:
+            if time.monotonic() - attempt_start > total_timeout:
+                logger.warning(
+                    "Backtranseq submit timed out after %ss (attempt %s/%s).",
+                    total_timeout,
+                    attempt,
+                    max_attempts,
+                )
+                break
+            try:
+                response = requests.post(run_url, data=params, timeout=160)
+                if response.ok:
+                    job_id = response.text.strip()
+                    break
+                logger.debug(
+                    "Backtranseq submit returned HTTP %s: %s",
+                    response.status_code,
+                    response.text[:200],
+                )
+            except requests.exceptions.RequestException as e:
+                logger.debug(f"Request failed: {e}")
             time.sleep(10)
-        try:
-            response = requests.post(run_url, data=params, timeout=160)
-        except requests.exceptions.RequestException as e:
-            response = "ERROR"
-            logger.debug(f"Request failed: {e}")
 
-    job_id = response.text.strip()
+        if job_id is None:
+            continue
 
-    # Wait for the job to complete
-    status = "INIT"
-    while status != "FINISHED":
-        time.sleep(20)
-        try:
-            result = requests.get(status_url + job_id, timeout=160)
-            status = result.text.strip()
-        except requests.exceptions.RequestException as e:
-            status = "ERROR"
-            logger.debug(f"Request failed {e}: Retrying..")
+        # Wait for the job to complete
+        status = "INIT"
+        while True:
+            if time.monotonic() - attempt_start > total_timeout:
+                logger.warning(
+                    "Backtranseq status polling timed out after %ss (attempt %s/%s).",
+                    total_timeout,
+                    attempt,
+                    max_attempts,
+                )
+                status = "TIMEOUT"
+                break
+            time.sleep(20)
+            try:
+                result = requests.get(status_url + job_id, timeout=160)
+                if not result.ok:
+                    logger.debug(
+                        "Backtranseq status returned HTTP %s: %s",
+                        result.status_code,
+                        result.text[:200],
+                    )
+                    continue
+                status = result.text.strip()
+                if status == "FINISHED":
+                    break
+                if status in {"ERROR", "FAILED"}:
+                    logger.warning(
+                        "Backtranseq returned terminal status '%s' (attempt %s/%s).",
+                        status,
+                        attempt,
+                        max_attempts,
+                    )
+                    break
+            except requests.exceptions.RequestException as e:
+                logger.debug(f"Request failed {e}: Retrying..")
 
-    # Retrieve the results of the job
-    status = "INIT"
-    while status != "FINISHED":
-        try:
-            result = requests.get(result_url + job_id + "/out", timeout=160)
-            status = "FINISHED"
-        except requests.exceptions.RequestException as e:
-            status = "ERROR"
-            logger.debug(f"Request failed {e}: Retrying..")
-        time.sleep(10)
+        if status != "FINISHED":
+            continue
 
-    dna_seq = result.text.strip()
+        # Retrieve the results of the job
+        while True:
+            if time.monotonic() - attempt_start > total_timeout:
+                logger.warning(
+                    "Backtranseq result fetch timed out after %ss (attempt %s/%s).",
+                    total_timeout,
+                    attempt,
+                    max_attempts,
+                )
+                break
+            try:
+                result = requests.get(result_url + job_id + "/out", timeout=160)
+                if result.ok:
+                    return result.text.strip()
+                logger.debug(
+                    "Backtranseq result returned HTTP %s: %s",
+                    result.status_code,
+                    result.text[:200],
+                )
+            except requests.exceptions.RequestException as e:
+                logger.debug(f"Request failed {e}: Retrying..")
+            time.sleep(10)
 
-    return dna_seq
+    logger.warning("Backtranseq failed after %s attempts; returning empty result.", max_attempts)
+    return None
 
 
 def batch_backtranseq(df, batch_size, organism = "Homo sapiens"):
@@ -165,6 +229,16 @@ def batch_backtranseq(df, batch_size, organism = "Homo sapiens"):
 
         # Run backtranseq
         batch_dna = backtranseq(batch_seq, organism = organism)
+
+        if not batch_dna:
+            logger.warning(
+                "Backtranseq failed for batch %s/%s; setting Seq_dna to NaN.",
+                i + 1,
+                len(batches),
+            )
+            batch["Seq_dna"] = np.nan
+            lst_batches.append(batch)
+            continue
 
         # Parse output
         batch_dna = re.split(">EMBOSS_\d+", batch_dna.replace("\n", ""))[1:]
@@ -307,8 +381,30 @@ def get_exons_coord(ids, ens_canonical_transcripts_lst, batch_size=100):
     https://doi.org/10.1093/nar/gkx237
     """
 
+    ids = [str(i) for i in ids]
+    ens_prot_ids = [i for i in ids if i.upper().startswith("ENSP")]
+    proteins_api_ids = [i for i in ids if not i.upper().startswith("ENSP")]
+
+    if ens_prot_ids:
+        logger.debug(
+            "Skipping %s ENSP IDs for Proteins API (will fall back to Backtranseq).",
+            len(ens_prot_ids),
+        )
+
     lst_df = []
-    batches_ids = [ids[i:i+batch_size] for i in range(0, len(ids), batch_size)]
+    if not proteins_api_ids:
+        nan = np.repeat(np.nan, len(ids))
+        return pd.DataFrame({
+            "Uniprot_ID": ids,
+            "Ens_Gene_ID": nan,
+            "Ens_Transcr_ID": nan,
+            "Seq": nan,
+            "Chr": nan,
+            "Reverse_strand": nan,
+            "Exons_coord": nan,
+        })
+
+    batches_ids = [proteins_api_ids[i:i+batch_size] for i in range(0, len(proteins_api_ids), batch_size)]
 
     for batch_ids in tqdm(batches_ids, total=len(batches_ids), desc="Adding exons coordinate"):
 
@@ -327,6 +423,19 @@ def get_exons_coord(ids, ens_canonical_transcripts_lst, batch_size=100):
 
         batch_df = pd.concat([batch_df, nan_rows], ignore_index=True)
         lst_df.append(batch_df)
+
+    if ens_prot_ids:
+        nan = np.repeat(np.nan, len(ens_prot_ids))
+        nan_rows = pd.DataFrame({
+            "Uniprot_ID": ens_prot_ids,
+            "Ens_Gene_ID": nan,
+            "Ens_Transcr_ID": nan,
+            "Seq": nan,
+            "Chr": nan,
+            "Reverse_strand": nan,
+            "Exons_coord": nan,
+        })
+        lst_df.append(nan_rows)
 
     return pd.concat(lst_df).reset_index(drop=True)
 
@@ -444,6 +553,9 @@ def add_extra_genes_to_seq_df(seq_df, uniprot_to_gene_dict):
                             lst_extra_genes_rows.append(row)
                             lst_added_genes.append(gene)
 
+    if not lst_extra_genes_rows:
+        return seq_df
+
     seq_df_extra_genes = pd.concat(lst_extra_genes_rows, axis=1).T
 
     # Remove rows with multiple symbols and drop duplicated ones
@@ -519,6 +631,41 @@ def load_custom_ens_prot_ids(path):
     return ids
 
 
+def load_custom_symbol_map(path):
+    """
+    Read a samplesheet and return a mapping from ENSP (sequence) to gene symbol.
+    Falls back to 'gene' column if 'symbol' is not present.
+    """
+    if not os.path.isfile(path):
+        logger.error(f"Custom MANE metadata path does not exist: {path!r}")
+        raise FileNotFoundError(f"Custom MANE metadata not found: {path!r}")
+    df = pd.read_csv(path)
+    if "sequence" not in df.columns:
+        logger.debug("Custom MANE metadata missing 'sequence' column; skipping symbol mapping.")
+        return {}
+
+    symbol_col = None
+    if "symbol" in df.columns:
+        symbol_col = "symbol"
+    elif "gene" in df.columns:
+        symbol_col = "gene"
+    else:
+        logger.debug("Custom MANE metadata missing 'symbol'/'gene' column; skipping symbol mapping.")
+        return {}
+
+    seq = df["sequence"].astype(str).str.split(".", n=1).str[0]
+    sym = df[symbol_col]
+    mapping = {}
+    for k, v in zip(seq, sym):
+        if pd.isna(v):
+            continue
+        v = str(v).strip()
+        if not v:
+            continue
+        mapping[k] = v
+    return mapping
+
+
 def get_mane_to_af_mapping(
     datasets_dir, 
     uniprot_ids, 
@@ -592,6 +739,18 @@ def get_mane_to_af_mapping(
         base_ens = mane_mapping["Ens_Prot_ID"].str.split(".", n=1).str[0]
         mask = base_ens.isin(custom_ids)
         mane_mapping.loc[mask, "Uniprot_ID"] = base_ens[mask]
+        if logger.isEnabledFor(logging.DEBUG):
+            summary_ens = set(mane_summary["Ens_Prot_ID"].astype(str).str.split(".", n=1).str[0])
+            missing_custom = sorted(set(custom_ids) - summary_ens)
+            if missing_custom:
+                preview = ", ".join(missing_custom[:10])
+                suffix = "..." if len(missing_custom) > 10 else ""
+                logger.debug(
+                    "Custom MANE ENSP IDs not found in MANE summary (%s): %s%s",
+                    len(missing_custom),
+                    preview,
+                    suffix,
+                )
 
     # Select available Uniprot ID, fist one if multiple are present
     mane_mapping = mane_mapping.dropna(subset=["Uniprot_ID"]).reset_index(drop=True)
@@ -607,37 +766,185 @@ def get_mane_to_af_mapping(
         return mane_mapping
 
 
-# def download_biomart_metadata(path_to_file, max_attempts=15, cores=8):
-#     """
-#         Query biomart to get the list of transcript corresponding to the downloaded
-#     structures (a few structures are missing) and other information.
-#     """
-
-#     url = 'http://jan2024.archive.ensembl.org/biomart/martservice?query=<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE Query><Query virtualSchemaName="default" formatter="TSV" header="0" uniqueRows="0" count="" datasetConfigVersion="0.6"><Dataset name="hsapiens_gene_ensembl" interface="default"><Attribute name="ensembl_gene_id"/><Attribute name="ensembl_transcript_id"/><Attribute name="transcript_is_canonical"/><Attribute name="external_gene_name"/><Attribute name="external_gene_source"/><Attribute name="hgnc_id"/><Attribute name="uniprot_gn_id"/><Attribute name="uniprotswissprot"/><Attribute name="external_synonym"/></Dataset></Query>'
-#     attempts = 0
-
-#     while not os.path.exists(path_to_file):
-#         download_single_file(url, path_to_file, threads=cores)
-#         attempts += 1
-#         if attempts >= max_attempts:
-#             raise RuntimeError(f"Failed to download MANE summary file after {max_attempts} attempts. Exiting..")
-#         time.sleep(5)
-
-
-def download_biomart_metadata(path_to_file):
+def download_biomart_metadata(path_to_file, max_attempts=3, wait_seconds=10, use_archive=True):
     """
     Query biomart to get the list of transcript corresponding to the downloaded
     structures (a few structures are missing) and other information.
     """
 
-    command = f"""
-    wget -O {path_to_file} 'http://jan2024.archive.ensembl.org/biomart/martservice?query=<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE Query><Query virtualSchemaName="default" formatter="TSV" header="0" uniqueRows="0" count="" datasetConfigVersion="0.6"><Dataset name="hsapiens_gene_ensembl" interface="default"><Attribute name="ensembl_gene_id"/><Attribute name="ensembl_transcript_id"/><Attribute name="transcript_is_canonical"/><Attribute name="external_gene_name"/><Attribute name="external_gene_source"/><Attribute name="hgnc_id"/><Attribute name="uniprot_gn_id"/><Attribute name="uniprotswissprot"/><Attribute name="external_synonym"/></Dataset></Query>'
-    """
+    base_archive = "http://jan2024.archive.ensembl.org"
+    base_latest = "https://www.ensembl.org"
+    query = (
+        '/biomart/martservice?query=<?xml version="1.0" encoding="UTF-8"?>'
+        '<!DOCTYPE Query><Query virtualSchemaName="default" formatter="TSV" header="0" uniqueRows="0" count="" '
+        'datasetConfigVersion="0.6"><Dataset name="hsapiens_gene_ensembl" interface="default">'
+        '<Attribute name="ensembl_gene_id"/><Attribute name="ensembl_transcript_id"/>'
+        '<Attribute name="transcript_is_canonical"/><Attribute name="external_gene_name"/>'
+        '<Attribute name="external_gene_source"/><Attribute name="hgnc_id"/>'
+        '<Attribute name="uniprot_gn_id"/><Attribute name="uniprotswissprot"/>'
+        '<Attribute name="external_synonym"/></Dataset></Query>'
+    )
+    url = f"{base_archive}{query}"
+    fallback_url = f"{base_latest}{query}"
+    logger.debug("Starting BioMart metadata download to %s (archive: %s, latest: %s).", path_to_file, base_archive, base_latest)
 
-    subprocess.run(shlex.split(command))
+    if shutil.which("wget") is None:
+        logger.warning("wget not found; falling back to Python downloader for BioMart metadata.")
+        last_exc = None
+        if use_archive:
+            ssl_verify_archive = url.startswith("https://")
+            for attempt in range(1, max_attempts + 1):
+                logger.debug("Starting BioMart download attempt %s/%s (archive).", attempt, max_attempts)
+                try:
+                    download_single_file(url, path_to_file, threads=4, ssl=ssl_verify_archive)
+                    return
+                except Exception as exc:
+                    last_exc = exc
+                    logger.warning(
+                        "BioMart download failed (attempt %s/%s). Retrying in %ss... Error: %s",
+                        attempt,
+                        max_attempts,
+                        wait_seconds,
+                        exc,
+                    )
+                    logger.debug("BioMart download exception details:", exc_info=True)
+                    time.sleep(wait_seconds)
+
+            logger.warning("Falling back to latest Ensembl BioMart URL after failure on %s.", base_archive)
+        else:
+            logger.debug("Skipping archive BioMart URL; using latest only.")
+
+        if os.path.exists(path_to_file):
+            try:
+                os.remove(path_to_file)
+            except OSError as exc:
+                logger.warning(
+                    "Failed to remove partial BioMart metadata file %s before fallback: %s",
+                    path_to_file,
+                    exc,
+                )
+        ssl_verify_fallback = fallback_url.startswith("https://")
+        for attempt in range(1, max_attempts + 1):
+            logger.debug("Starting BioMart download attempt %s/%s (latest).", attempt, max_attempts)
+            try:
+                download_single_file(fallback_url, path_to_file, threads=4, ssl=ssl_verify_fallback)
+                return
+            except Exception as exc:
+                last_exc = exc
+                logger.warning(
+                    "Fallback BioMart download failed (attempt %s/%s). Retrying in %ss... Error: %s",
+                    attempt,
+                    max_attempts,
+                    wait_seconds,
+                    exc,
+                )
+                logger.debug("Fallback BioMart download exception details:", exc_info=True)
+                time.sleep(wait_seconds)
+
+        if use_archive:
+            message = (
+                f"Failed to download BioMart metadata after {max_attempts} attempts on archive and "
+                f"{max_attempts} attempts on latest."
+            )
+        else:
+            message = f"Failed to download BioMart metadata after {max_attempts} attempts on latest."
+        raise RuntimeError(message) from last_exc
+
+    command = [
+        "wget",
+        "--no-hsts",
+        "--continue",
+        "--read-timeout=120",
+        "--timeout=120",
+        "--tries=1",
+        "-O",
+        path_to_file,
+        url,
+    ]
+
+    if use_archive:
+        for attempt in range(1, max_attempts + 1):
+            logger.debug("Starting BioMart wget attempt %s/%s (archive).", attempt, max_attempts)
+            result = subprocess.run(command, capture_output=True, text=True)
+            if result.returncode == 0:
+                return
+            stderr = (result.stderr or "").strip()
+            if stderr:
+                logger.warning(
+                    "BioMart download failed (attempt %s/%s, return code %s). stderr: %s",
+                    attempt,
+                    max_attempts,
+                    result.returncode,
+                    stderr,
+                )
+            else:
+                logger.warning(
+                    "BioMart download failed (attempt %s/%s, return code %s). Retrying in %ss...",
+                    attempt,
+                    max_attempts,
+                    result.returncode,
+                    wait_seconds,
+                )
+            if result.stdout:
+                logger.debug("BioMart wget stdout (attempt %s/%s): %s", attempt, max_attempts, result.stdout.strip())
+            time.sleep(wait_seconds)
+
+        logger.warning("Falling back to latest Ensembl BioMart URL after failure on %s.", base_archive)
+    else:
+        logger.debug("Skipping archive BioMart URL; using latest only.")
+
+    if os.path.exists(path_to_file):
+        try:
+            os.remove(path_to_file)
+        except OSError as exc:
+            logger.warning(
+                "Failed to remove partial BioMart metadata file %s before fallback: %s",
+                path_to_file,
+                exc,
+            )
+    command[-1] = fallback_url
+    for attempt in range(1, max_attempts + 1):
+        logger.debug("Starting BioMart wget attempt %s/%s (latest).", attempt, max_attempts)
+        result = subprocess.run(command, capture_output=True, text=True)
+        if result.returncode == 0:
+            return
+        stderr = (result.stderr or "").strip()
+        if stderr:
+            logger.warning(
+                "Fallback BioMart download failed (attempt %s/%s, return code %s). stderr: %s",
+                attempt,
+                max_attempts,
+                result.returncode,
+                stderr,
+            )
+        else:
+            logger.warning(
+                "Fallback BioMart download failed (attempt %s/%s, return code %s). Retrying in %ss...",
+                attempt,
+                max_attempts,
+                result.returncode,
+                wait_seconds,
+            )
+        if result.stdout:
+            logger.debug(
+                "Fallback BioMart wget stdout (attempt %s/%s): %s",
+                attempt,
+                max_attempts,
+                result.stdout.strip(),
+            )
+        time.sleep(wait_seconds)
+
+    if use_archive:
+        message = (
+            f"Failed to download BioMart metadata after {max_attempts} attempts on archive and "
+            f"{max_attempts} attempts on latest."
+        )
+    else:
+        message = f"Failed to download BioMart metadata after {max_attempts} attempts on latest."
+    raise RuntimeError(message)
 
 
-def get_biomart_metadata(datasets_dir, uniprot_ids):
+def get_biomart_metadata(datasets_dir, uniprot_ids, use_archive=True):
     """
     Download a dataframe including ensembl canonical transcript IDs,
     HGNC IDs, Uniprot IDs, and other useful information.
@@ -646,7 +953,7 @@ def get_biomart_metadata(datasets_dir, uniprot_ids):
     try:
         path_biomart_metadata = os.path.join(datasets_dir, "biomart_metadata.tsv")
         if not os.path.exists(path_biomart_metadata):
-            download_biomart_metadata(path_biomart_metadata)
+            download_biomart_metadata(path_biomart_metadata, use_archive=use_archive)
 
         # Parse
         biomart_df = pd.read_csv(path_biomart_metadata, sep="\t", header=None, low_memory=False)
@@ -679,6 +986,159 @@ def get_biomart_metadata(datasets_dir, uniprot_ids):
     return canonical_transcripts
 
 
+def get_ref_dna_from_ensembl_batch(transcript_ids, max_attempts=8, wait_seconds=3):
+    """
+    Retrieve Ensembl CDS DNA sequences for up to 50 stable IDs in a single request.
+
+    Ensembl REST docs: POST /sequence/id (max POST size = 50).
+    """
+
+    pid = os.getpid()
+    start_time = time.perf_counter()
+
+    if not transcript_ids:
+        return []
+
+    # Keep output aligned with the input order (including any NA values).
+    results = [np.nan] * len(transcript_ids)
+    request_ids = []
+    request_positions = []
+    for pos, tid in enumerate(transcript_ids):
+        if pd.isna(tid):
+            continue
+        tid_str = str(tid)
+        request_ids.append(tid_str)
+        request_positions.append(pos)
+
+    if not request_ids:
+        return results
+
+    if len(request_ids) > 50:
+        raise ValueError(f"Ensembl POST /sequence/id supports max 50 IDs per request; got {len(request_ids)}.")
+
+    url = f"{_ENSEMBL_REST_SERVER}/sequence/id"
+    headers = {"Content-Type": "application/json", "Accept": "application/json"}
+    payload = {"ids": request_ids}
+    params = {"type": "cds"}
+
+    last_error = None
+    for attempt in range(1, max_attempts + 1):
+        try:
+            r = requests.post(url, headers=headers, json=payload, params=params, timeout=_ENSEMBL_REST_TIMEOUT)
+            if r.status_code == 429:
+                retry_after = r.headers.get("Retry-After")
+                try:
+                    retry_after = float(retry_after)
+                except (TypeError, ValueError):
+                    retry_after = wait_seconds
+                if attempt >= max_attempts:
+                    logger.warning(
+                        "Ensembl CDS batch rate limited (pid=%s, attempt=%s/%s). Giving up after %ss.",
+                        pid,
+                        attempt,
+                        max_attempts,
+                        retry_after,
+                    )
+                    return results
+                logger.warning(
+                    "Ensembl CDS batch rate limited (pid=%s, attempt=%s/%s). Retrying after %ss.",
+                    pid,
+                    attempt,
+                    max_attempts,
+                    retry_after,
+                )
+                time.sleep(retry_after)
+                continue
+
+            r.raise_for_status()
+            decoded = r.json()
+
+            seq_by_id = {}
+            errors_by_id = {}
+            if isinstance(decoded, dict):
+                decoded = [decoded]
+            if not isinstance(decoded, list):
+                raise ValueError(f"Unexpected Ensembl response type: {type(decoded).__name__}")
+
+            for item in decoded:
+                if not isinstance(item, dict):
+                    continue
+
+                item_id = item.get("id")
+                item_query = item.get("query")
+                item_keys = [k for k in (item_query, item_id) if k]
+                if not item_keys:
+                    continue
+
+                if "seq" in item and item.get("seq") is not None:
+                    seq_val = item.get("seq")
+                    for key in item_keys:
+                        seq_by_id[key] = seq_val
+                elif "error" in item:
+                    err_val = item.get("error")
+                    for key in item_keys:
+                        errors_by_id[key] = err_val
+
+            missing = 0
+            for pos, tid in zip(request_positions, request_ids):
+                seq_dna = seq_by_id.get(tid)
+                if seq_dna is None and "." in tid:
+                    seq_dna = seq_by_id.get(tid.split(".", 1)[0])
+                if not seq_dna:
+                    missing += 1
+                    continue
+                results[pos] = seq_dna[:-3] if len(seq_dna) >= 3 else np.nan
+
+            elapsed = time.perf_counter() - start_time
+            if missing > 0 and logger.isEnabledFor(logging.DEBUG):
+                example_missing = [tid for tid in request_ids if tid not in seq_by_id][:5]
+                logger.debug(
+                    "Ensembl CDS batch completed with missing IDs (pid=%s, elapsed=%.2fs, requested=%s, missing=%s). Example missing: %s",
+                    pid,
+                    elapsed,
+                    len(request_ids),
+                    missing,
+                    example_missing,
+                )
+                if errors_by_id:
+                    example_errors = {k: errors_by_id[k] for k in list(errors_by_id)[:3]}
+                    logger.debug("Ensembl CDS batch errors (pid=%s): %s", pid, example_errors)
+            else:
+                logger.debug(
+                    "Ensembl CDS batch completed (pid=%s, elapsed=%.2fs, requested=%s)",
+                    pid,
+                    elapsed,
+                    len(request_ids),
+                )
+
+            return results
+
+        except (requests.exceptions.RequestException, ValueError, json.JSONDecodeError) as exc:
+            last_error = exc
+            if attempt < max_attempts:
+                logger.debug(
+                    "Ensembl CDS batch request failed (pid=%s, attempt=%s/%s): %s. Retrying in %ss...",
+                    pid,
+                    attempt,
+                    max_attempts,
+                    exc,
+                    wait_seconds,
+                )
+                time.sleep(wait_seconds)
+                continue
+
+            elapsed = time.perf_counter() - start_time
+            logger.warning(
+                "Ensembl CDS batch failed (pid=%s, elapsed=%.2fs, requested=%s). Last error: %s",
+                pid,
+                elapsed,
+                len(request_ids),
+                last_error,
+            )
+
+    return results
+
+
 def get_ref_dna_from_ensembl(transcript_id):
     """
     Use Ensembl GET sequence rest API to obtain CDS DNA
@@ -687,15 +1147,25 @@ def get_ref_dna_from_ensembl(transcript_id):
     https://rest.ensembl.org/documentation/info/sequence_id
     """
 
-    server = "https://rest.ensembl.org"
-    ext = f"/sequence/id/{transcript_id}?type=cds"
+    pid = os.getpid()
+    start_time = time.perf_counter()
+    failures = 0
+
+    if pd.isna(transcript_id):
+        logger.debug("Ensembl CDS start: <NA> (pid=%s) -> skipping", pid)
+        return np.nan
+
+    transcript_id = str(transcript_id)
+    logger.debug("Ensembl CDS start: %s (pid=%s)", transcript_id, pid)
+
+    url = f"{_ENSEMBL_REST_SERVER}/sequence/id/{transcript_id}?type=cds"
 
     status = "INIT"
-    i = 0
+    last_error = None
     while status != "FINISHED":
 
         try:
-            r = requests.get(server+ext, headers={ "Content-Type" : "text/x-fasta"}, timeout=160)
+            r = requests.get(url, headers=_ENSEMBL_REST_HEADERS, timeout=_ENSEMBL_REST_TIMEOUT)
             if not r.ok:
                 r.raise_for_status()
 
@@ -705,29 +1175,57 @@ def get_ref_dna_from_ensembl(transcript_id):
                 status = "FINISHED"
 
         except requests.exceptions.RequestException as e:
-            i += 1
+            failures += 1
+            last_error = e
             status = "ERROR"
-            if i%10 == 0:
-                logger.debug(f"Failed to retrieve sequence for {transcript_id} {e}: Retrying..")
+            if failures % 10 == 0:
+                logger.debug(
+                    "Failed to retrieve sequence for %s (pid=%s, failures=%s) %s: Retrying..",
+                    transcript_id,
+                    pid,
+                    failures,
+                    e,
+                )
                 time.sleep(5)
-            if i == 100:
-                logger.debug(f"Failed to retrieve sequence for {transcript_id} {e}: Skipping..")
+            if failures == 100:
+                elapsed = time.perf_counter() - start_time
+                logger.warning(
+                    "Ensembl CDS failed: %s (pid=%s, elapsed=%.2fs, failures=%s). Last error: %s",
+                    transcript_id,
+                    pid,
+                    elapsed,
+                    failures,
+                    last_error,
+                )
                 return np.nan
 
             time.sleep(1)
 
-    seq_dna = "".join(r.text.strip().split("\n")[1:])
+    text = r.text.strip()
+    if text.startswith(">"):
+        seq_dna = "".join(text.splitlines()[1:])
+    else:
+        seq_dna = "".join(text.splitlines())
 
-    return seq_dna[:len(seq_dna)-3]
+    elapsed = time.perf_counter() - start_time
+    if failures > 0:
+        logger.info(
+            "Ensembl CDS completed: %s (pid=%s, elapsed=%.2fs, failures=%s)",
+            transcript_id,
+            pid,
+            elapsed,
+            failures,
+        )
+    else:
+        logger.debug(
+            "Ensembl CDS completed: %s (pid=%s, elapsed=%.2fs, failures=%s)",
+            transcript_id,
+            pid,
+            elapsed,
+            failures,
+        )
 
-
-def get_ref_dna_from_ensembl_wrapper(ensembl_id):
-    """
-    Wrapper for multiple processing function using
-    Ensembl Get sequence rest API.
-    """
-
-    return get_ref_dna_from_ensembl(ensembl_id)
+    return seq_dna[:-3] if len(seq_dna) >= 3 else np.nan
 
 
 def get_ref_dna_from_ensembl_mp(seq_df, cores):
@@ -738,12 +1236,57 @@ def get_ref_dna_from_ensembl_mp(seq_df, cores):
     https://rest.ensembl.org/documentation/info/sequence_id
     """
 
-    pool = multiprocessing.Pool(processes=cores)
     seq_df = seq_df.copy()
-    seq_df["Seq_dna"] = pool.map(get_ref_dna_from_ensembl_wrapper, seq_df.Ens_Transcr_ID)
-    pool.close()
-    pool.join()
+    transcript_ids = seq_df.Ens_Transcr_ID.tolist()
+    total = len(transcript_ids)
+    if total == 0:
+        seq_df["Seq_dna"] = []
+        return seq_df
 
+    if cores > _ENSEMBL_CDS_MAX_CORES:
+        logger.info(
+            "Capping Ensembl CDS batch workers from %s to %s.",
+            cores,
+            _ENSEMBL_CDS_MAX_CORES,
+        )
+        cores = _ENSEMBL_CDS_MAX_CORES
+
+    logger.debug("Retrieving CDS DNA from Ensembl for %s transcripts with %s cores.", total, cores)
+
+    if cores <= 1:
+        results = []
+        batch_size = 50
+        with tqdm(total=total, desc="Ensembl CDS") as pbar:
+            for i in range(0, total, batch_size):
+                batch_ids = transcript_ids[i : i + batch_size]
+                batch_results = get_ref_dna_from_ensembl_batch(batch_ids)
+                results.extend(batch_results)
+                pbar.update(len(batch_ids))
+        seq_df["Seq_dna"] = results
+        retrieved = int(pd.Series(results).notna().sum())
+        logger.debug(
+            "Completed Ensembl CDS retrieval: %s/%s sequences retrieved.",
+            retrieved,
+            total,
+        )
+        return seq_df
+
+    batch_size = 50
+    batches = [transcript_ids[i : i + batch_size] for i in range(0, total, batch_size)]
+    results = []
+    with multiprocessing.Pool(processes=cores) as pool:
+        results_iter = pool.imap(get_ref_dna_from_ensembl_batch, batches)
+        with tqdm(total=total, desc="Ensembl CDS") as pbar:
+            for batch_ids, batch_results in zip(batches, results_iter):
+                results.extend(batch_results)
+                pbar.update(len(batch_ids))
+    seq_df["Seq_dna"] = results
+    retrieved = int(pd.Series(results).notna().sum())
+    logger.debug(
+        "Completed Ensembl CDS retrieval: %s/%s sequences retrieved.",
+        retrieved,
+        total,
+    )
     return seq_df
 
 
@@ -783,18 +1326,30 @@ def process_seq_df(seq_df,
                    datasets_dir,
                    organism,
                    uniprot_to_gene_dict,
-                   ens_canonical_transcripts_lst,
-                   num_cores=1):
+                   use_archive_biomart=True):
     """
     Retrieve DNA sequence and tri-nucleotide context
     for each structure in the initialized dataframe
     prioritizing structures obtained from transcripts
     whose exon coordinates are available in the Proteins API.
 
+    Canonical transcript metadata is retrieved internally from BioMart
+    for the provided dataset directory and Uniprot IDs.
+
     Reference_info labels:
         1 : Transcript ID, exons coord, seq DNA obtained from Proteins API
        -1 : Not available transcripts, seq DNA retrieved from Backtranseq API
     """
+
+    if seq_df.empty:
+        logger.error("No sequences to process in process_seq_df; this should not happen.")
+        raise RuntimeError("Empty sequence dataframe: no structures to process.")
+
+    ens_canonical_transcripts_lst = get_biomart_metadata(
+        datasets_dir,
+        seq_df["Uniprot_ID"].unique(),
+        use_archive=use_archive_biomart,
+    )
 
     # Process entries in Proteins API (Reference_info 1)
     #---------------------------------------------------
@@ -821,13 +1376,16 @@ def process_seq_df(seq_df,
     # Process entries not in Proteins API (Reference_info -1)
     #------------------------------------------------------------
 
-    # Add DNA seq from Backtranseq for any other entry
-    logger.debug(f"Retrieving CDS DNA seq for entries without available transcript ID (Backtranseq API): {len(seq_df_not_uniprot)} structures..")
-    seq_df_not_uniprot = batch_backtranseq(seq_df_not_uniprot, 500, organism=organism)
+    if len(seq_df_not_uniprot) > 0:
+        # Add DNA seq from Backtranseq for any other entry
+        logger.debug(f"Retrieving CDS DNA seq for entries without available transcript ID (Backtranseq API): {len(seq_df_not_uniprot)} structures..")
+        seq_df_not_uniprot = batch_backtranseq(seq_df_not_uniprot, 100, organism=organism)
 
-    # Get trinucleotide context
-    seq_df_not_uniprot["Tri_context"] = seq_df_not_uniprot["Seq_dna"].apply(
-        lambda x: ",".join(per_site_trinucleotide_context(x, no_flanks=True)))
+        # Get trinucleotide context
+        seq_df_not_uniprot["Tri_context"] = np.nan
+        valid_seq_mask = seq_df_not_uniprot["Seq_dna"].notna()
+        seq_df_not_uniprot.loc[valid_seq_mask, "Tri_context"] = seq_df_not_uniprot.loc[valid_seq_mask, "Seq_dna"].apply(
+            lambda x: ",".join(per_site_trinucleotide_context(x, no_flanks=True)))
 
 
     # Prepare final output
@@ -839,7 +1397,14 @@ def process_seq_df(seq_df,
                                                               seq_df.Reference_info.value_counts().values)])
     logger.info(f"Built of sequence dataframe completed. Retrieved {len(seq_df)} structures ({logger_report})")
     seq_df = add_extra_genes_to_seq_df(seq_df, uniprot_to_gene_dict)
+    pre_drop = len(seq_df)
     seq_df = drop_gene_duplicates(seq_df)
+    logger.debug(
+        "Duplicate gene removal: %s removed (from %s to %s).",
+        pre_drop - len(seq_df),
+        pre_drop,
+        len(seq_df),
+    )
 
     return seq_df
 
@@ -849,10 +1414,9 @@ def process_seq_df_mane(seq_df,
                         uniprot_to_gene_dict,
                         mane_mapping,
                         mane_mapping_not_af,
-                        ens_canonical_transcripts_lst,
-                        custom_mane_metadata_path=None,
+                        mane_only=False,
                         num_cores=1,
-                        mane_version=1.4):
+                        use_archive_biomart=True):
     """
     Retrieve DNA sequence and tri-nucleotide context
     for each structure in the initialized dataframe
@@ -872,51 +1436,136 @@ def process_seq_df_mane(seq_df,
     seq_df_mane = seq_df_mane.drop(columns=["Gene"]).merge(mane_mapping, how="left", on="Uniprot_ID")
     seq_df_mane["Reference_info"] = 0
 
-    # Add DNA seq from Ensembl for structures with available transcript ID
-    logger.debug(f"Retrieving CDS DNA seq from transcript ID (Ensembl API): {len(seq_df_mane)} structures..")
-    seq_df_mane = get_ref_dna_from_ensembl_mp(seq_df_mane, cores=num_cores)
+    if seq_df_mane.empty:
+        logger.warning("No MANE sequences to process; skipping Ensembl CDS retrieval.")
+        if "Seq_dna" not in seq_df_mane.columns:
+            seq_df_mane["Seq_dna"] = pd.Series(dtype=object)
+    else:
+        # Add DNA seq from Ensembl for structures with available transcript ID
+        logger.debug(f"Retrieving CDS DNA seq from transcript ID (Ensembl API): {len(seq_df_mane)} structures..")
+        seq_df_mane = get_ref_dna_from_ensembl_mp(seq_df_mane, cores=num_cores)
 
-    # Set failed and len-mismatching entries as no-transcripts entries
-    failed_ix = seq_df_mane.apply(lambda x: True if pd.isna(x.Seq_dna) else len(x.Seq_dna) / 3 != len(x.Seq), axis=1)
-    if sum(failed_ix) > 0:
-        seq_df_mane_failed = seq_df_mane[failed_ix]
-        seq_df_mane = seq_df_mane[~failed_ix]
-        seq_df_mane_failed = seq_df_mane_failed.drop(columns=[
-            "Ens_Gene_ID",  
-            "Ens_Transcr_ID", 
-            "Reverse_strand",
-            "Chr", 
-            "Refseq_prot", 
-            "Reference_info", 
-            "Seq_dna"
-            ])
-        seq_df_nomane = pd.concat((seq_df_nomane, seq_df_mane_failed))
+        # Retry missing entries using single-request API (bounded parallelism)
+        missing_mask = seq_df_mane["Seq_dna"].isna()
+        if missing_mask.any():
+            missing_ids = seq_df_mane.loc[missing_mask, "Ens_Transcr_ID"].tolist()
+            logger.debug(
+                "Retrying %s missing Ensembl CDS entries with %s workers.",
+                len(missing_ids),
+                min(num_cores, _ENSEMBL_CDS_MAX_CORES),
+            )
+            retry_workers = min(num_cores, _ENSEMBL_CDS_MAX_CORES)
+            if retry_workers <= 1:
+                retry_results = [get_ref_dna_from_ensembl(tid) for tid in missing_ids]
+            else:
+                with multiprocessing.Pool(processes=retry_workers) as pool:
+                    retry_results = pool.map(get_ref_dna_from_ensembl, missing_ids)
+            recovered = sum(pd.notna(val) for val in retry_results)
+            seq_df_mane.loc[missing_mask, "Seq_dna"] = retry_results
+            if recovered > 0:
+                logger.debug(
+                    "Recovered %s missing Ensembl CDS entries after single-request retry.",
+                    recovered,
+                )
+
+        # Set failed and len-mismatching entries as no-transcripts entries
+        seq_len = seq_df_mane["Seq"].str.len()
+        dna_len = seq_df_mane["Seq_dna"].str.len()
+        failed_nan = seq_df_mane["Seq_dna"].isna()
+        failed_mismatch = (~failed_nan) & (dna_len / 3 != seq_len)
+        failed_ix = failed_nan | failed_mismatch
+        logger.debug(
+            "Ensembl CDS failures: total=%s (missing=%s, length_mismatch=%s).",
+            int(failed_ix.sum()),
+            int(failed_nan.sum()),
+            int(failed_mismatch.sum()),
+        )
+        if sum(failed_ix) > 0:
+            seq_df_mane_failed = seq_df_mane[failed_ix]
+            seq_df_mane = seq_df_mane[~failed_ix]
+            seq_df_mane_failed = seq_df_mane_failed.drop(columns=[
+                "Ens_Gene_ID",  
+                "Ens_Transcr_ID", 
+                "Reverse_strand",
+                "Chr", 
+                "Refseq_prot", 
+                "Reference_info", 
+                "Seq_dna"
+                ])
+            seq_df_nomane = pd.concat((seq_df_nomane, seq_df_mane_failed))
+            logger.debug(
+                "Moved %s failed MANE entries to non-MANE pool.",
+                len(seq_df_mane_failed),
+            )
 
     # Seq df not MANE
     # ---------------
-    seq_df_nomane = add_extra_genes_to_seq_df(seq_df_nomane, uniprot_to_gene_dict)         # Filter out genes with NA
-    seq_df_nomane = seq_df_nomane[seq_df_nomane.Gene.isin(mane_mapping_not_af.Gene)]       # Filter out genes that are not in MANE list
+    if seq_df_nomane.empty:
+        logger.debug("No non-MANE sequences to process; skipping Proteins/Backtranseq retrieval.")
+        seq_df_nomane_tr = seq_df_nomane.copy()
+        seq_df_nomane_notr = seq_df_nomane.copy()
+    else:
+        before_nomane = len(seq_df_nomane)
+        seq_df_nomane = add_extra_genes_to_seq_df(seq_df_nomane, uniprot_to_gene_dict)         # Filter out genes with NA
+        after_extra = len(seq_df_nomane)
+        if not mane_only:
+            logger.debug("Filtering non-MANE entries using mane_mapping_not_af (gene whitelist).")
+            seq_df_nomane = seq_df_nomane[seq_df_nomane.Gene.isin(mane_mapping_not_af.Gene)]       # Filter out genes that are not in MANE list
+            logger.debug(
+                "Non-MANE pool sizes: initial=%s, after_extra_genes=%s, after_mane_filter=%s.",
+                before_nomane,
+                after_extra,
+                len(seq_df_nomane),
+            )
+        else:
+            logger.debug(
+                "Non-MANE pool sizes: initial=%s, after_extra_genes=%s (mane_only, no MANE filter applied).",
+                before_nomane,
+                after_extra,
+            )
 
-    # Retrieve seq from coordinates
-    logger.debug(f"Retrieving CDS DNA seq from reference genome (Proteins API): {len(seq_df_nomane['Uniprot_ID'].unique())} structures..")
-    coord_df = get_exons_coord(seq_df_nomane["Uniprot_ID"].unique(), ens_canonical_transcripts_lst)
-    seq_df_nomane = seq_df_nomane.merge(coord_df, on=["Seq", "Uniprot_ID"], how="left").reset_index(drop=True)  # Discard entries whose Seq obtained by Proteins API don't exactly match the one in structure
-    seq_df_nomane = add_ref_dna_and_context(seq_df_nomane, hg38)
-    seq_df_nomane_tr = seq_df_nomane[seq_df_nomane["Reference_info"] == 1]
-    seq_df_nomane_notr = seq_df_nomane[seq_df_nomane["Reference_info"] == -1]
+        if seq_df_nomane.empty:
+            logger.debug("No non-MANE sequences after filtering; skipping Proteins/Backtranseq retrieval.")
+            seq_df_nomane_tr = seq_df_nomane.copy()
+            seq_df_nomane_notr = seq_df_nomane.copy()
+        else:
+            ens_canonical_transcripts_lst = get_biomart_metadata(
+                datasets_dir,
+                seq_df_nomane["Uniprot_ID"].unique(),
+                use_archive=use_archive_biomart,
+            )
+            # Retrieve seq from coordinates
+            logger.debug(f"Retrieving CDS DNA seq from reference genome (Proteins API): {len(seq_df_nomane['Uniprot_ID'].unique())} structures..")
+            coord_df = get_exons_coord(seq_df_nomane["Uniprot_ID"].unique(), ens_canonical_transcripts_lst)
+            seq_df_nomane = seq_df_nomane.merge(coord_df, on=["Seq", "Uniprot_ID"], how="left").reset_index(drop=True)  # Discard entries whose Seq obtained by Proteins API don't exactly match the one in structure
+            seq_df_nomane = add_ref_dna_and_context(seq_df_nomane, hg38)
+            seq_df_nomane_tr = seq_df_nomane[seq_df_nomane["Reference_info"] == 1]
+            seq_df_nomane_notr = seq_df_nomane[seq_df_nomane["Reference_info"] == -1]
 
-    # Add DNA seq from Backtranseq for any other entry
-    logger.debug(f"Retrieving CDS DNA seq for genes without available transcript ID (Backtranseq API): {len(seq_df_nomane_notr)} structures..")
-    seq_df_nomane_notr = batch_backtranseq(seq_df_nomane_notr, 500, organism="Homo sapiens")
+            # Add DNA seq from Backtranseq for any other entry
+            if len(seq_df_nomane_notr) > 0:
+                logger.debug(f"Retrieving CDS DNA seq for genes without available transcript ID (Backtranseq API): {len(seq_df_nomane_notr)} structures..")
+                seq_df_nomane_notr = batch_backtranseq(seq_df_nomane_notr, 100, organism="Homo sapiens")
 
     # Get trinucleotide context
     seq_df_not_uniprot = pd.concat((seq_df_mane, seq_df_nomane_notr))
-    seq_df_not_uniprot["Tri_context"] = seq_df_not_uniprot["Seq_dna"].apply(
+    if "Seq_dna" not in seq_df_not_uniprot.columns:
+        seq_df_not_uniprot["Seq_dna"] = pd.Series(dtype=object)
+    seq_df_not_uniprot["Tri_context"] = np.nan
+    valid_seq_mask = seq_df_not_uniprot["Seq_dna"].notna()
+    seq_df_not_uniprot.loc[valid_seq_mask, "Tri_context"] = seq_df_not_uniprot.loc[valid_seq_mask, "Seq_dna"].apply(
         lambda x: ",".join(per_site_trinucleotide_context(x, no_flanks=True)))
 
     # Prepare final output
     seq_df = pd.concat((seq_df_not_uniprot, seq_df_nomane_tr)).reset_index(drop=True)
+    pre_drop = len(seq_df)
     seq_df = drop_gene_duplicates(seq_df)
+    logger.debug(
+        "Duplicate gene removal: %s removed (from %s to %s).",
+        pre_drop - len(seq_df),
+        pre_drop,
+        len(seq_df),
+    )
     report_df = seq_df.Reference_info.value_counts().reset_index()
     report_df = report_df.rename(columns={"index" : "Source"})
     report_df.Source = report_df.Source.map({1 : "Proteins API",
@@ -933,9 +1582,11 @@ def get_seq_df(datasets_dir,
                output_seq_df,
                organism = "Homo sapiens",
                mane=False,
+               mane_only=False,
                custom_mane_metadata_path=None,
                num_cores=1,
-               mane_version=1.4):
+               mane_version=1.4,
+               af_version=None):
     """
     Generate a dataframe including IDs mapping information, the protein
     sequence, the DNA sequence and its tri-nucleotide context, which is
@@ -968,6 +1619,19 @@ def get_seq_df(datasets_dir,
             )
         
         uniprot_to_gene_dict = dict(zip(mane_mapping["Uniprot_ID"], mane_mapping["Gene"]))
+        if custom_mane_metadata_path is not None:
+            custom_symbol_map = load_custom_symbol_map(custom_mane_metadata_path)
+            if custom_symbol_map:
+                filled = 0
+                for ens_id, symbol in custom_symbol_map.items():
+                    if ens_id in uniprot_ids and (ens_id not in uniprot_to_gene_dict or pd.isna(uniprot_to_gene_dict[ens_id])):
+                        uniprot_to_gene_dict[ens_id] = symbol
+                        filled += 1
+                if filled > 0:
+                    logger.debug(
+                        "Filled %s gene symbols from custom MANE samplesheet for ENSP-only entries.",
+                        filled,
+                    )
         missing_uni_ids = list(set(uniprot_ids) - set(mane_mapping.Uniprot_ID))
         uniprot_to_gene_dict = uniprot_to_gene_dict | uniprot_to_hugo(missing_uni_ids)
     else:
@@ -981,30 +1645,37 @@ def get_seq_df(datasets_dir,
     #     uniprot_to_gene_dict = uniprot_to_hugo_pressed(uniprot_ids)
     # ---
     
-    # Get biomart metadata and canonical transcript IDs
-    ens_canonical_transcripts_lst = get_biomart_metadata(datasets_dir, uniprot_ids)
+    use_archive_biomart = True
+    if af_version is not None and str(af_version) != "4":
+        use_archive_biomart = False
+        logger.debug(
+            "Using latest BioMart URL only because af_version=%s (archive disabled).",
+            af_version,
+        )
 
     # Create a dataframe with protein sequences
     logger.debug("Initializing sequence df..")
     seq_df = initialize_seq_df(pdb_dir, uniprot_to_gene_dict)
 
     if mane:
-        seq_df = process_seq_df_mane(seq_df,
-                                    datasets_dir,
-                                    uniprot_to_gene_dict,
-                                    mane_mapping, 
-                                    mane_mapping_not_af,
-                                    ens_canonical_transcripts_lst,
-                                    custom_mane_metadata_path,
-                                    num_cores,
-                                    mane_version=mane_version)
+        seq_df = process_seq_df_mane(
+            seq_df,
+            datasets_dir,
+            uniprot_to_gene_dict,
+            mane_mapping,
+            mane_mapping_not_af,
+            mane_only,
+            num_cores,
+            use_archive_biomart=use_archive_biomart,
+        )
     else:
-        seq_df = process_seq_df(seq_df,
-                                datasets_dir,
-                                organism,
-                                uniprot_to_gene_dict,
-                                ens_canonical_transcripts_lst,
-                                num_cores)
+        seq_df = process_seq_df(
+            seq_df,
+            datasets_dir,
+            organism,
+            uniprot_to_gene_dict,
+            use_archive_biomart=use_archive_biomart,
+        )
 
     # Save
     seq_df_cols = ['Gene', 'HGNC_ID', 'Ens_Gene_ID',
@@ -1019,13 +1690,6 @@ def get_seq_df(datasets_dir,
 
 
 if __name__ == "__main__":
-    output_datasets = '/data/bbg/nobackup/scratch/oncodrive3d/tests/datasets_mane_240725_mane_missing_dev'
-    get_seq_df(
-    datasets_dir=output_datasets,
-    output_seq_df=os.path.join(output_datasets, "seq_for_mut_prob.tsv"),
-    organism='Homo sapiens',
-    mane=True,
-    num_cores=8,
-    mane_version=1.4,
-    custom_mane_metadata_path="/data/bbg/nobackup/scratch/oncodrive3d/mane_missing/data/250724-no_fragments/af_predictions/previously_pred/samplesheet.csv"
+    raise SystemExit(
+        "This module is intended to be used via the CLI: `oncodrive3d build-datasets`."
     )

@@ -381,6 +381,38 @@ def prepare_annotation_maps(
     return seq_map[["symbol", "CGC"]], refseq_map[["symbol", "CGC"]], cgc_symbols
 
 
+def prepare_symbol_maps(mane_summary_path: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Build lookup tables that map ENSP/RefSeq identifiers to symbols."""
+    mane_summary = pd.read_table(mane_summary_path)
+
+    column_aliases = {
+        "ensembl_prot": {"Ensembl_prot", "ensembl_prot", "Ens_Prot_ID"},
+        "refseq_prot": {"RefSeq_prot", "refseq_prot"},
+        "symbol": {"symbol", "Gene Symbol", "gene_symbol"},
+    }
+
+    rename_map = {}
+    for target, candidates in column_aliases.items():
+        for candidate in candidates:
+            if candidate in mane_summary.columns:
+                rename_map[candidate] = target
+                break
+    required = {"ensembl_prot", "refseq_prot", "symbol"}
+    if not required.issubset(rename_map.values()):
+        missing = required - set(rename_map.values())
+        raise KeyError(f"Missing columns in MANE summary: {missing}")
+
+    mane_summary = mane_summary.rename(columns=rename_map)
+    annotations = mane_summary[["ensembl_prot", "refseq_prot", "symbol"]].copy()
+    annotations["ensembl_prot"] = strip_version_suffix(annotations["ensembl_prot"])
+    annotations["refseq_prot"] = strip_version_suffix(annotations["refseq_prot"])
+    annotations = annotations.drop_duplicates()
+
+    seq_map = annotations.dropna(subset=["ensembl_prot"]).set_index("ensembl_prot")
+    refseq_map = annotations.dropna(subset=["refseq_prot"]).set_index("refseq_prot")
+    return seq_map[["symbol"]], refseq_map[["symbol"]]
+
+
 def attach_symbol_and_cgc(
     df: pd.DataFrame,
     seq_map: pd.DataFrame,
@@ -389,12 +421,13 @@ def attach_symbol_and_cgc(
     """Annotate `df` with symbol/CGC columns using the provided lookup tables."""
     annotated = df.copy()
     seq_keys = strip_version_suffix(annotated["sequence"])
+    if "symbol" not in annotated.columns:
+        annotated["symbol"] = pd.NA
+    if "CGC" not in annotated.columns:
+        annotated["CGC"] = pd.NA
     if not seq_map.empty:
-        annotated["symbol"] = seq_keys.map(seq_map["symbol"])
-        annotated["CGC"] = seq_keys.map(seq_map["CGC"])
-    else:
-        annotated["symbol"] = pd.Series("", index=annotated.index)
-        annotated["CGC"] = pd.Series(0, index=annotated.index, dtype="Int64")
+        annotated["symbol"] = annotated["symbol"].fillna(seq_keys.map(seq_map["symbol"]))
+        annotated["CGC"] = annotated["CGC"].fillna(seq_keys.map(seq_map["CGC"]))
 
     if "refseq_prot" in annotated.columns and not refseq_map.empty:
         refseq_keys = strip_version_suffix(annotated["refseq_prot"])
@@ -406,17 +439,12 @@ def attach_symbol_and_cgc(
     return annotated
 
 
-def build_metadata_map(
-    samplesheet: pd.DataFrame,
-    fasta_dir: Path,
-    mane_summary_path: Path,
-    cgc_path: Optional[Path],
-) -> pd.DataFrame:
-    """Return a dataframe with one row per sequence containing symbol/CGC/length metadata."""
+def build_symbol_map(samplesheet: pd.DataFrame, mane_summary_path: Path) -> pd.DataFrame:
+    """Return a dataframe with one row per sequence containing symbol metadata."""
     if samplesheet.empty:
-        return pd.DataFrame(columns=["sequence", "symbol", "CGC", "length"])
+        return pd.DataFrame(columns=["sequence", "symbol"])
 
-    seq_map, refseq_map, _ = prepare_annotation_maps(mane_summary_path, cgc_path)
+    seq_map, refseq_map = prepare_symbol_maps(mane_summary_path)
     metadata = samplesheet[["sequence"]].drop_duplicates().copy()
 
     if "refseq_prot" in samplesheet.columns:
@@ -427,11 +455,44 @@ def build_metadata_map(
         )
         metadata["refseq_prot"] = metadata["sequence"].map(refseq_lookup)
 
-    metadata = attach_symbol_and_cgc(metadata, seq_map, refseq_map)
+    seq_keys = strip_version_suffix(metadata["sequence"])
+    if not seq_map.empty:
+        metadata["symbol"] = seq_keys.map(seq_map["symbol"])
+    else:
+        metadata["symbol"] = pd.Series(pd.NA, index=metadata.index)
+
+    if "refseq_prot" in metadata.columns and not refseq_map.empty:
+        refseq_keys = strip_version_suffix(metadata["refseq_prot"])
+        metadata["symbol"] = metadata["symbol"].fillna(refseq_keys.map(refseq_map["symbol"]))
+
+    metadata["symbol"] = metadata["symbol"].fillna("")
+    return metadata.drop(columns=["refseq_prot"], errors="ignore")
+
+
+def build_metadata_map(
+    samplesheet: pd.DataFrame,
+    fasta_dir: Path,
+    mane_summary_path: Path,
+    cgc_path: Optional[Path],
+    symbol_map: Optional[pd.DataFrame] = None,
+) -> pd.DataFrame:
+    """Return a dataframe with one row per sequence containing symbol/CGC/length metadata."""
+    if samplesheet.empty:
+        return pd.DataFrame(columns=["sequence", "symbol", "CGC", "length"])
+
+    metadata = samplesheet[["sequence"]].drop_duplicates().copy()
+    if symbol_map is None:
+        symbol_map = build_symbol_map(samplesheet, mane_summary_path)
+    metadata = attach_metadata(metadata, symbol_map)
+    metadata["symbol"] = metadata.get("symbol", pd.Series("", index=metadata.index)).fillna("")
+    cgc_symbols = load_cgc_symbols(cgc_path)
+    if cgc_symbols:
+        metadata["CGC"] = metadata["symbol"].isin(cgc_symbols).astype(int)
+    else:
+        metadata["CGC"] = 0
 
     fasta_paths = metadata["sequence"].map(lambda seq: (fasta_dir / f"{seq}.fasta").as_posix())
     metadata["length"] = compute_fasta_lengths(pd.Series(fasta_paths.values, index=metadata.index))
-    metadata = metadata.drop(columns=["refseq_prot"], errors="ignore")
     return metadata
 
 
@@ -439,12 +500,23 @@ def attach_metadata(df: pd.DataFrame, metadata_map: Optional[pd.DataFrame]) -> p
     """Merge symbol/CGC/length metadata into df when available."""
     if metadata_map is None or df.empty:
         return df
-    columns = ["sequence", "symbol", "CGC", "length"]
-    metadata = metadata_map[columns].drop_duplicates(subset=["sequence"])
-    return (
-        df.drop(columns=["symbol", "CGC", "length"], errors="ignore")
-        .merge(metadata, on="sequence", how="left")
-    )
+    available = [col for col in ["symbol", "CGC", "length"] if col in metadata_map.columns]
+    if not available:
+        return df
+    metadata = metadata_map[["sequence"] + available].drop_duplicates(subset=["sequence"])
+    merged = df.merge(metadata, on="sequence", how="left", suffixes=("", "_meta"))
+    for col in available:
+        meta_col = f"{col}_meta"
+        if meta_col in merged.columns:
+            if col in merged.columns:
+                merged[col] = merged[meta_col].combine_first(merged[col])
+            else:
+                merged[col] = merged[meta_col]
+            merged = merged.drop(columns=[meta_col])
+    for col in ("CGC", "length"):
+        if col not in available and col in merged.columns:
+            merged = merged.drop(columns=[col])
+    return merged
 
 
 def attach_refseq(df: pd.DataFrame, master_samplesheet: Optional[pd.DataFrame]) -> pd.DataFrame:
@@ -555,7 +627,7 @@ def filter_long_sequences(
     if include_metadata:
         removed_clean = removed.copy()
     else:
-        removed_clean = removed.drop(columns=["symbol", "CGC", "length"], errors="ignore")
+        removed_clean = removed.drop(columns=["CGC", "length"], errors="ignore")
     removed_path = missing_dir / "samplesheet_removed_long.csv"
     removed_clean.to_csv(removed_path, index=False)
 
@@ -690,6 +762,7 @@ def run_pipeline(
 ) -> None:
     """Execute the MANE maintenance workflow end-to-end."""
     samplesheet = pd.read_csv(paths.samplesheet_path)
+    symbol_map = build_symbol_map(samplesheet, paths.mane_summary_path)
     metadata_map = None
     if settings.include_metadata:
         metadata_map = build_metadata_map(
@@ -697,16 +770,22 @@ def run_pipeline(
             paths.fasta_dir,
             paths.mane_summary_path,
             paths.cgc_list_path,
+            symbol_map=symbol_map,
         )
-        samplesheet = attach_metadata(samplesheet, metadata_map)
-        samplesheet.to_csv(paths.samplesheet_path, index=False)
+
+    metadata_for_outputs = metadata_map if metadata_map is not None else symbol_map
+    samplesheet = attach_metadata(samplesheet, metadata_for_outputs)
+    samplesheet.to_csv(paths.samplesheet_path, index=False)
+    if settings.include_metadata:
         print(f"Annotated master samplesheet with metadata at {paths.samplesheet_path}")
+    else:
+        print(f"Annotated master samplesheet with symbols at {paths.samplesheet_path}")
     print(f"Loaded {len(samplesheet):,} samples from {paths.samplesheet_path}")
 
     if predicted_raw_dir:
         if not predicted_raw_dir.exists():
             raise FileNotFoundError(f"--predicted-dir not found: {predicted_raw_dir}")
-        sync_predicted_bundle(predicted_raw_dir, paths.predicted_bundle_dir, metadata_map)
+        sync_predicted_bundle(predicted_raw_dir, paths.predicted_bundle_dir, metadata_for_outputs)
     else:
         print("No --predicted-dir supplied; skipping nf-core sync and using existing predicted bundle.")
 
@@ -727,7 +806,7 @@ def run_pipeline(
         samplesheet_missing = samplesheet_missing.iloc[0:0].copy()
 
     if settings.enable_canonical_reuse:
-        retrieved_df = reuse_canonical_structures(samplesheet_missing, paths, settings, metadata_map)
+        retrieved_df = reuse_canonical_structures(samplesheet_missing, paths, settings, metadata_for_outputs)
         if retrieved_df.empty:
             print("Skipping canonical reuse because no PDBs were harvested.")
     else:
@@ -749,11 +828,8 @@ def run_pipeline(
             include_metadata=settings.include_metadata,
         )
 
-    if settings.include_metadata:
-        annotated_missing_df.to_csv(paths.missing_samplesheet_path, index=False)
-    else:
-        clean_missing_df = annotated_missing_df.drop(columns=["symbol", "CGC", "length"], errors="ignore")
-        clean_missing_df.to_csv(paths.missing_samplesheet_path, index=False)
+    clean_missing_df = annotated_missing_df.drop(columns=["symbol", "CGC", "length"], errors="ignore")
+    clean_missing_df.to_csv(paths.missing_samplesheet_path, index=False)
     print(f"Updated missing samplesheet saved to {paths.missing_samplesheet_path}")
 
     if settings.filter_long_sequences and not removed_long_df.empty:
@@ -772,7 +848,7 @@ def run_pipeline(
     merge_structure_bundles(
         bundles_to_merge,
         paths.final_bundle_dir,
-        metadata_map,
+        metadata_for_outputs,
         master_samplesheet=samplesheet,
     )
     print(f"Final bundle written to {paths.final_bundle_dir}")
@@ -834,7 +910,7 @@ def run_pipeline(
     "--include-metadata/--no-include-metadata",
     default=False,
     show_default=True,
-    help="Attach symbol/CGC/length columns to every emitted samplesheet.",
+    help="Attach CGC/length columns (symbol is always included) to every emitted samplesheet.",
 )
 def cli(
     samplesheet_folder: str,

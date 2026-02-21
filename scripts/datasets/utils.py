@@ -115,7 +115,7 @@ def calculate_hash(filepath: str, hash_func=hashlib.sha256) -> str:
     return hash_obj.hexdigest()
 
 
-def download_single_file(url: str, destination: str, threads: int, proteome=None) -> None:
+def download_single_file(url: str, destination: str, threads: int, proteome=None, ssl=False) -> None:
     """
     Downloads a file from a URL and saves it to the specified destination.
 
@@ -124,7 +124,7 @@ def download_single_file(url: str, destination: str, threads: int, proteome=None
         destination (str): The local path where the file will be saved.
     """
 
-    num_connections = 15 if threads > 40 else threads
+    num_connections = min(threads, 8)
 
     if os.path.exists(destination):
         logger.debug(f"File {destination} already exists..")
@@ -138,7 +138,7 @@ def download_single_file(url: str, destination: str, threads: int, proteome=None
 
     logger.debug(f'Downloading {url}')
     logger.debug(f"Downloading to {destination}")
-    dl = Downloader(timeout=aiohttp.ClientTimeout(sock_read=400), ssl=False)
+    dl = Downloader(timeout=aiohttp.ClientTimeout(sock_read=400), ssl=ssl)
     dl.start(url, destination, segments=num_connections, display=True, retries=10, clear_terminal=False)
     logger.debug('Download complete')
 
