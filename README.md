@@ -64,15 +64,15 @@ This step builds the datasets necessary for Oncodrive3D to run the 3D clustering
 >
 > Reliable internet access is required because AlphaFold structures, Ensembl annotations, Pfam files, and other resources are downloaded on demand during the build.
 
-> [!NOTE]
-> The first time that you run Oncodrive3D building dataset step with a given reference genome, it will download it from our servers. By default the downloaded datasets go to `~/.bgdata`. If you want to move these datasets to another folder you have to define the system environment variable `BGDATA_LOCAL` with an export command.
-
-> [!NOTE]
+> [!WARNING]
 > Human datasets built with the default settings pull canonical transcript metadata from the January 2024 Ensembl archive (release 111 / GENCODE v45). For maximum compatibility, annotate your input variants with the same Ensembl/Gencode release or supply the unfiltered VEP output together with `--o3d_transcripts --use_input_symbols`.
 
 > [!NOTE]
 > Predicted Aligned Error (PAE) files for older AlphaFold DB versions (e.g., v4) are no longer hosted after 2025. If you need PAE for an older AF version, download and supply them locally via `--custom_pae_dir`.  
 > MANE structures are available only in AlphaFold DB v4, while non-MANE builds default to v6. Since MANE mode forces v4 structures, you should also supply the corresponding PAE files through `--custom_pae_dir`.
+
+> [!NOTE]
+> The first time that you run Oncodrive3D building dataset step with a given reference genome, it will download it from our servers. By default the downloaded datasets go to `~/.bgdata`. If you want to move these datasets to another folder you have to define the system environment variable `BGDATA_LOCAL` with an export command.
 
 ```
 Usage: oncodrive3d build-datasets [OPTIONS]
@@ -219,7 +219,7 @@ Options:
   -h, --help                       Show this message and exit.  
 ```
 
-> [!NOTE]
+> [!TIP]
 > To maximize the number of matching transcripts between the input mutations and the AlphaFold predicted structures used by Oncodrive3D, it is recommended to use the unfiltered output of VEP (including all possible transcripts) as input, along with the flags `--o3d_transcripts` `--use_input_symbols` in the `oncodrive3d run` command.
 
 ### Handling Heterogeneous Sequencing Depth
@@ -263,7 +263,7 @@ For more information, refer to the [Oncodrive3D Pipeline](https://github.com/bbg
 
 ### Usage
 
-> [!WARNING]
+> [!NOTE]
 > When using the Nextflow script, ensure that your input files are organized in the following directory structure (you only need either the `maf/` or `vep/` directory):
 > 
 > ```plaintext
