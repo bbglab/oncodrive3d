@@ -1,9 +1,5 @@
 process O3D_RUN {
     tag "O3D $cohort"
-    queue 'bigmem,normal'
-    cpus params.cores
-    memory params.memory
-    maxForks params.max_running
     publishDir "${params.outdir}/${params.outsubdir}", mode:'copy'
     container 'docker.io/bbglab/oncodrive3d:latest'
 
@@ -26,7 +22,7 @@ process O3D_RUN {
         -C ${cohort} \\
         -o ${prefix} \\
         -s ${params.seed} \\
-        -c ${params.cores} \\
+        -c ${task.cpus} \\
         ${params.ignore_mapping_issues ? '--thr_mapping_issue 1' : ''} \\
         ${params.verbose ? '-v' : ''} \\
         ${params.vep_input ? '--o3d_transcripts --use_input_symbols' : ''} \\
