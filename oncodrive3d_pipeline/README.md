@@ -65,25 +65,34 @@ Example of run using VEP output as input and MANE Select transcripts:
 Options:
   --indir PATH                    Path to the input directory including the subdirectories 
                                   `maf` or `vep` and `mut_profile`. 
-  --outdir PATH                   Path to the output directory. 
+  --outdir PATH                   Base output directory.
+                                  Default: ./
+  --outsubdir PATH                Subdirectory created under --outdir.
                                   Default: run_<timestamp>/
   --cohort_pattern STR            Pattern expression to filter specific files within the 
                                   input directory (e.g., 'TCGA*' select only TCGA cohorts). 
                                   Default: *
   --data_dir PATH                 Path to the Oncodrive3D datasets directory, which includes 
                                   the files compiled during the building datasets step.
-                                  Default: ${baseDir}/datasets/
+                                  Default: ${baseDir}/../datasets/
+  --annotations_dir PATH          Path to the Oncodrive3D annotations directory (required when --plot true).
+                                  Default: ${baseDir}/../annotations/
   --max_running INT               Maximum number of cohorts to process in parallel.
                                   Default: 5
   --cores INT                     Number of CPU cores used to process each cohort. 
                                   Default: 10
   --memory STR                    Amount of memory allocated for processing each cohort. 
                                   Default: 70GB
-  --vep_input BOLEAN              Use `vep/` subdir as input and select transcripts matching 
+  --vep_input BOOLEAN             Use `vep/` subdir as input and select transcripts matching 
                                   the Ensembl transcript IDs in Oncodrive3D built datasets. 
                                   Default: false
-  --mane                          Prioritize structures corresponding to MANE transcrips if 
+  --mane                          Prioritize structures corresponding to MANE transcripts if 
                                   multiple structures are associated to the same gene.
+                                  Default: false
+  --ignore_mapping_issues         Disable filtering mismatching mutations by setting
+                                  `--thr_mapping_issue 1` in the underlying `oncodrive3d run`.
+                                  Default: false
+  --verbose                       Enable verbose logging for underlying Oncodrive3D commands.
                                   Default: false
   --seed INT                      Seed value for reproducibility.
                                   Default: 128
@@ -91,9 +100,6 @@ Options:
                                   Default: false
   --chimerax_plot BOOL            Generate ChimeraX snapshots.
                                   Default: false
-  --run_extra_args STR            Extra CLI args forwarded to `oncodrive3d run`
-                                  (e.g., "--mutability_config_path /path/to/mut.json").
-                                  Default: ""
 ```
 
 ### Optional modules
@@ -103,11 +109,14 @@ Options:
 
 ### Mutability-aware runs
 
-The pipeline expects a mutational profile JSON (`mut_profile/<cohort>.sig.json`) for every cohort. To supply an additional mutability configuration (e.g., for heterogeneous-depth cohorts), pass the CLI flag through `--run_extra_args`, for example:
+The pipeline expects a mutational profile JSON (`mut_profile/<cohort>.sig.json`) for every cohort. To supply an additional mutability configuration (e.g., for heterogeneous-depth cohorts), pass extra CLI flags via process `ext.args` (e.g., in a custom config you include with `-c`):
 
 ```
-nextflow run main.nf \
-  --run_extra_args "--mutability_config_path /path/to/mutability.json --thr_mapping_issue 0.2"
+process {
+  withName: 'ONCODRIVE3D:O3D_RUN' {
+    ext.args = "--mutability_config_path /path/to/mutability.json --thr_mapping_issue 0.2"
+  }
+}
 ```
 
 Oncodrive3D prioritizes `--mutability_config_path` over the mutational profile, so the provided `.sig.json` file can be a generic profile if one is not available; it will be ignored once mutability is enabled. Refer to [docs/mutability.md](../docs/mutability.md) for details on preparing the config and TSV.
