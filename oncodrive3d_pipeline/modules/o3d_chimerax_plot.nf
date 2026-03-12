@@ -1,8 +1,5 @@
 process O3D_CHIMERAX_PLOT {
     tag "ChimeraX plot $cohort"
-    label 'process_low'
-    queue 'bigmem,normal'
-    maxForks params.max_running
     publishDir "${params.outdir}/${params.outsubdir}", mode:'copy'
     container 'docker.io/spellegrini87/oncodrive3d_chimerax:latest'
 

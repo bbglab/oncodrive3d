@@ -1,8 +1,5 @@
 process O3D_PLOT {
     tag "Plot $cohort"
-    label 'process_low'
-    queue 'bigmem,normal'
-    maxForks params.max_running
     publishDir "${params.outdir}/${params.outsubdir}", mode:'copy'
     container 'docker.io/bbglab/oncodrive3d:latest'
 
