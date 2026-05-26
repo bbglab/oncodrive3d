@@ -7,7 +7,6 @@ from multiprocessing import Pool
 
 import pandas as pd
 import numpy as np
-from progressbar import progressbar
 import daiquiri
 
 from scripts import __logger_name__
@@ -78,34 +77,8 @@ def download_stability_change(path: str,
         raise e
 
 
-def append_ddg_to_dict(ddg_dict, df, frag=False):
-
-    # Use the module-level _VARIANT_RE so malformed rows are treated
-    # consistently with _validate_protein_ddg: skipped, not crashed on.
-    for _, row in df.iterrows():
-        variant, ddg = row.values
-        match = _VARIANT_RE.match(str(variant))
-        if match is None:
-            continue
-        pos = match.group(2)
-        alt = match.group(3)
-
-        if pos not in ddg_dict:
-            ddg_dict[pos] = {}
-
-        if alt not in ddg_dict[pos] and frag:
-            ddg_dict[pos][alt] = []
-
-        if frag:
-            ddg_dict[pos][alt].append(ddg)
-        else:
-            ddg_dict[pos][alt] = ddg
-
-    return ddg_dict
-
-
 def save_json(path_dir, uni_id, dictionary):
-    
+
     with open(os.path.join(path_dir, f"{uni_id}_ddg.json"), "w") as json_file:
         json.dump(dictionary, json_file)
 
@@ -126,63 +99,40 @@ def id_from_ddg_path(path):
     return match.group(0)
 
 
-def _validate_protein_ddg(canonical_seq, csv_paths, wt_mismatch_threshold):
-    """Validate that predicted ΔΔG variants align with the canonical sequence.
+def _parse_ddg_csv(path_prot):
+    """Read one RaSP-style CSV and extract (wt, pos, alt, ddg) arrays.
 
-    Two failure modes are caught:
-      1. positions outside the canonical sequence (length mismatch / wrong isoform);
-      2. wild-type residues disagreeing with the canonical sequence above
-         ``wt_mismatch_threshold`` (fraction of total variants checked).
+    Returns ``(wt_arr, pos_arr, alt_arr, ddg_arr)`` for variants whose ``variant``
+    field matches ``[A-Za-z]\\d+[A-Za-z]``. Malformed rows are silently dropped,
+    consistent with the previous row-by-row parser.
 
-    ``canonical_seq`` is the canonical UniProt sequence string for this protein.
-    When ``None`` validation is treated as a hard failure (the caller has
-    already decided this protein has no canonical reference available).
-
-    Returns ``(is_valid, reason)`` where ``reason`` is a short string for logging.
+    On read error (missing column, broken CSV, etc.) raises the exception so the
+    caller can log a clean ``csv_unreadable`` reason.
     """
 
-    if canonical_seq is None:
-        return False, "uniprot_id_not_in_canonical_seq_map"
-    if not isinstance(canonical_seq, str) or len(canonical_seq) == 0:
-        return False, "canonical_seq_unavailable"
-
-    n_total = 0
-    n_mismatch = 0
-    for path_prot in csv_paths:
-        try:
-            # Load score_ml too so a CSV missing that column fails validation
-            # here (clean log) rather than later inside the worker (multiprocessing
-            # KeyError with a swallowed traceback).
-            df = pd.read_csv(path_prot, usecols=["variant", "score_ml"])
-        except Exception as e:
-            return False, f"csv_unreadable: {type(e).__name__}"
-        for variant in df["variant"]:
-            m = _VARIANT_RE.match(str(variant))
-            if not m:
-                continue
-            wt = m.group(1).upper()
-            pos = int(m.group(2))
-            if pos < 1 or pos > len(canonical_seq):
-                return False, (
-                    f"position_{pos}_out_of_range_(canonical_len_{len(canonical_seq)})"
-                )
-            n_total += 1
-            if canonical_seq[pos - 1].upper() != wt:
-                n_mismatch += 1
-
-    if n_total == 0:
-        return False, "no_valid_variants_in_csv"
-
-    mismatch_rate = n_mismatch / n_total
-    if mismatch_rate > wt_mismatch_threshold:
-        return False, (
-            f"wt_mismatch_rate_{mismatch_rate:.1%}_exceeds_threshold_"
-            f"{wt_mismatch_threshold:.1%}"
-        )
-    return True, "ok"
+    # Read only the two columns we need — RaSP files have ~13 columns by default.
+    df = pd.read_csv(path_prot, usecols=["variant", "score_ml"])
+    # Vectorised regex extract; rows that don't match yield NaN.
+    extracted = df["variant"].astype(str).str.extract(_VARIANT_RE.pattern, expand=True)
+    valid = extracted.notna().all(axis=1)
+    if not valid.any():
+        empty = np.array([], dtype=object)
+        return empty, empty, empty, np.array([], dtype=float)
+    wt_arr = extracted.loc[valid, 0].to_numpy()
+    pos_arr = extracted.loc[valid, 1].to_numpy()
+    alt_arr = extracted.loc[valid, 2].to_numpy()
+    ddg_arr = df.loc[valid, "score_ml"].to_numpy()
+    return wt_arr, pos_arr, alt_arr, ddg_arr
 
 
 def parse_ddg_rasp_worker(args):
+    """Process one protein: read its fragment CSV(s), validate, accumulate, write JSON.
+
+    Each fragment CSV is read exactly once. Validation (position-in-range +
+    cumulative WT-mismatch rate) is interleaved with accumulation rather than
+    run as a separate pre-pass, eliminating the double-read while preserving
+    the original drop-protein-on-failure semantics.
+    """
 
     file, path_dir, output_path, canonical_seq, wt_mismatch_threshold, validate = args
 
@@ -193,30 +143,89 @@ def parse_ddg_rasp_worker(args):
         logger.warning(f"Skipping ΔΔG file {file}: {e}")
         return
 
-    # Get paths of all fragments
+    # Get paths of all fragments for this protein
     lst_path_prot = glob.glob(os.path.join(path_dir, f"*{uni_id}*"))
-    frag = True if len(lst_path_prot) > 1 else False
+    frag = len(lst_path_prot) > 1
 
-    # Validate against the canonical sequence (skipped only if explicitly disabled)
+    # Pre-validate the canonical sequence handle once (cheap)
     if validate:
-        is_valid, reason = _validate_protein_ddg(
-            canonical_seq, lst_path_prot, wt_mismatch_threshold
-        )
-        if not is_valid:
-            logger.warning(f"Skipping ΔΔG for {uni_id}: {reason}")
+        if canonical_seq is None:
+            logger.warning(
+                f"Skipping ΔΔG for {uni_id}: uniprot_id_not_in_canonical_seq_map"
+            )
+            return
+        if not isinstance(canonical_seq, str) or len(canonical_seq) == 0:
+            logger.warning(f"Skipping ΔΔG for {uni_id}: canonical_seq_unavailable")
+            return
+        seq_len = len(canonical_seq)
+        # Pre-convert canonical to a numpy array of single-char codes so we can
+        # index it with the int-pos array per fragment.
+        canonical_arr = np.frombuffer(canonical_seq.upper().encode("ascii"), dtype="S1")
+
+    # Accumulate variants across fragments. Validation runs inline.
+    ddg_dict = {}
+    n_total = 0
+    n_mismatch = 0
+    for path_prot in lst_path_prot:
+        try:
+            wt_arr, pos_arr, alt_arr, ddg_arr = _parse_ddg_csv(path_prot)
+        except Exception as e:
+            logger.warning(
+                f"Skipping ΔΔG for {uni_id}: csv_unreadable: {type(e).__name__}"
+            )
             return
 
-    # Save a dictionary for each pos with keys as ALT and lst of DDG as values
-    ddg_dict = {}
-    for path_prot in progressbar(lst_path_prot):
-        df = pd.read_csv(path_prot)[["variant", "score_ml"]]
-        ddg_dict = append_ddg_to_dict(ddg_dict, df, frag=frag)
+        if len(pos_arr) == 0:
+            # No well-formed variants in this fragment — skip it; other fragments
+            # may still contribute.
+            continue
 
-    # Iterate through the pos and the ALT and get the mean across frags for each variant
+        # Vectorised position-range check
+        pos_int = pos_arr.astype(int)
+        if validate:
+            oor_mask = (pos_int < 1) | (pos_int > seq_len)
+            if oor_mask.any():
+                bad_pos = int(pos_int[oor_mask][0])
+                logger.warning(
+                    f"Skipping ΔΔG for {uni_id}: "
+                    f"position_{bad_pos}_out_of_range_(canonical_len_{seq_len})"
+                )
+                return
+            # Vectorised WT-mismatch tally
+            wt_upper = np.char.upper(wt_arr.astype("U1")).astype("S1")
+            canonical_at_pos = canonical_arr[pos_int - 1]
+            n_total += pos_int.size
+            n_mismatch += int(np.count_nonzero(canonical_at_pos != wt_upper))
+
+        # Accumulate into the position → {alt → ddg} dict. The inner loop is
+        # pure Python (numpy → dict) but no longer involves per-row regex.
+        if frag:
+            for p, a, d in zip(pos_arr, alt_arr, ddg_arr):
+                bucket = ddg_dict.setdefault(p, {})
+                bucket.setdefault(a, []).append(d)
+        else:
+            for p, a, d in zip(pos_arr, alt_arr, ddg_arr):
+                ddg_dict.setdefault(p, {})[a] = d
+
+    # Final validation gates
+    if validate:
+        if n_total == 0:
+            logger.warning(f"Skipping ΔΔG for {uni_id}: no_valid_variants_in_csv")
+            return
+        mismatch_rate = n_mismatch / n_total
+        if mismatch_rate > wt_mismatch_threshold:
+            logger.warning(
+                f"Skipping ΔΔG for {uni_id}: "
+                f"wt_mismatch_rate_{mismatch_rate:.1%}_exceeds_threshold_"
+                f"{wt_mismatch_threshold:.1%}"
+            )
+            return
+
+    # Average across fragments for the variants seen in more than one
     if frag:
         for pos in ddg_dict:
             for alt in ddg_dict[pos]:
-                ddg_dict[pos][alt] = np.mean(ddg_dict[pos][alt])
+                ddg_dict[pos][alt] = float(np.mean(ddg_dict[pos][alt]))
 
     # Save dict
     save_json(output_path, uni_id, ddg_dict)
@@ -280,29 +289,30 @@ def parse_ddg_rasp(input_path, output_path, threads=1,
     logger.debug(f"Input: {input_path}")
     logger.debug(f"Output: {output_path}")
     if len(lst_files) > 0:
-        logger.debug(f"Parsing DDG of {len(lst_files)} proteins...")
+        n_proteins = len(lst_files)
+        logger.info(f"Parsing ΔΔG of {n_proteins} proteins...")
 
-        # TODO: for now it is created a process for each protein, while it would
-        #       be better to have chunks of protein processed by the same process
-        #       to decrese runtime (at the moment quite slow, 1h40m with 40 cores)
-
-        # TODO: also the parsing itself can be optimized
-
-        # Create a pool of workers parsing processes. Pass only this protein's
-        # canonical sequence to each task (avoids pickling the full seq_map
-        # ~thousands of times).
+        # Pass only this protein's canonical sequence to each task (avoids
+        # pickling the full seq_map per worker invocation).
+        args_list = [
+            (file, input_path, output_path,
+             seq_map.get(uni_id), wt_mismatch_threshold, validate)
+            for file, uni_id in lst_files
+        ]
+        # imap_unordered streams results back as workers finish; we use it
+        # for parent-side progress reporting. chunksize amortises pickle/
+        # dispatch overhead — small enough to keep the progress signal
+        # responsive on small inputs, large enough to matter on big ones.
+        chunksize = max(1, min(64, n_proteins // (4 * max(1, threads))))
+        report_every = max(1, n_proteins // 20)  # ~20 progress lines total
+        n_done = 0
         with Pool(processes=threads) as pool:
-            args_list = [
-                (file, input_path, output_path,
-                 seq_map.get(uni_id), wt_mismatch_threshold, validate)
-                for file, uni_id in lst_files
-            ]
-            # Map the worker function to the arguments list
-            pool.map(parse_ddg_rasp_worker, args_list)
-        if len(lst_files) > 50:
-            os.system('clear')
-            logger.debug("clear")
-        logger.debug("DDG succesfully converted into json files...")
+            for _ in pool.imap_unordered(parse_ddg_rasp_worker, args_list,
+                                         chunksize=chunksize):
+                n_done += 1
+                if n_done % report_every == 0 or n_done == n_proteins:
+                    logger.info(f"Parsed {n_done}/{n_proteins} proteins")
+        logger.debug("DDG successfully converted into json files...")
     else:
         logger.debug("DDG not found: Skipping...")
 
