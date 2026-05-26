@@ -58,7 +58,7 @@ See `oncodrive3d build-annotations --help` for all options.
 
 **Worth knowing:**
 
-- ΔΔG predictions default to the public RaSP bundle (computed against AlphaFold v4 human structures). For datasets built with a different AF version, residue-level mismatches are filtered during validation (see `--ddg_mismatch_threshold` below).
+- ΔΔG predictions default to the public RaSP bundle (computed against the canonical AlphaFold v4 human proteome — not the MANE bundle). For datasets built with a different AF version, residue-level mismatches are filtered during validation (see `--ddg_mismatch_threshold` below).
 - `--ddg_dir` overrides the default download with a folder of RaSP-style CSVs (columns `variant` and `score_ml`; UniProt accession auto-detected anywhere in the filename, any separator). For non-human organisms the public bundle doesn't apply, so without `--ddg_dir` the ΔΔG step is skipped with a warning — other annotations build normally. To generate predictions yourself on CPUs, see [bbglab/rasp_cpu](https://github.com/bbglab/rasp_cpu).
 - `--ddg_mismatch_threshold` (default `0.1`) drops a protein if its wild-type residues disagree with the canonical UniProt sequence above this fraction. Set to `1.0` to disable the WT-mismatch check (positions outside the canonical sequence still drop the protein).
 - If `--output_dir` exists and isn't empty, you're prompted before its contents are cleaned (excluding `log/`); pass `--yes` to auto-confirm.
