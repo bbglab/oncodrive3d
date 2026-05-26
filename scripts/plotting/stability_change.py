@@ -26,11 +26,7 @@ _UNIPROT_RE = re.compile(
     r"|[A-NR-Z][0-9](?:[A-Z][A-Z0-9]{2}[0-9]){1,2}"
 )
 
-# Matches a single missense variant (e.g. "M1A") in RaSP-style CSV rows.
-# The leading ``^`` anchors the match to the start of the string so that
-# ``str.extract`` (which uses ``re.search`` semantics) matches the same set
-# of inputs as the historical ``re.match`` path — i.e. ``"prefix_M1A"`` is
-# dropped, not silently parsed as ``M1A``.
+# Missense variant like "M1A". The ^ anchor is required because str.extract uses re.search.
 _VARIANT_RE = re.compile(r"^([A-Za-z])(\d+)([A-Za-z])")
 
 
