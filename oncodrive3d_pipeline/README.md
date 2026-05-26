@@ -71,6 +71,7 @@ Commonly tweaked options:
 - `--vep_input true` — read inputs from `vep/` instead of `maf/`.
 - `--mane true` — prioritize MANE Select transcripts when multiple structures match a gene.
 - `--plot true` / `--chimerax_plot true` — enable the plotting modules (see [Optional modules](#optional-modules) below).
+- `--ignore_mapping_issues true` — disable filtering of mismatched mutations (sets `--thr_mapping_issue 1` in the underlying `oncodrive3d run`).
 - `--max_running <int>` — number of cohorts processed in parallel (default `5`).
 
 See [`nextflow.config`](nextflow.config) for the full parameter list and defaults.

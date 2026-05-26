@@ -121,8 +121,7 @@ See `oncodrive3d plot --help` for all options.
 
 **Worth knowing:**
 
-- All input files (gene/pos results, `--maf_path`, `--miss_prob_path`, `--seq_df_path`) must come from the same `oncodrive3d run` invocation; `--datasets_dir` and `--annotations_dir` must be the same pair used during that run. Any mismatch yields empty plots or missing-track errors.
-- `--maf_for_nonmiss_path` is optional and points to the **original** MAF (not the processed one); supplying it enables the non-missense track.
+- `--maf_path` is the **processed missense-only** TSV (`<cohort>.mutations.processed.tsv`) from `oncodrive3d run`. `--maf_for_nonmiss_path` is optional and takes the **original** MAF (before processing) — supply it to enable the non-missense track. All other input files (gene/pos results, `--miss_prob_path`, `--seq_df_path`, `--datasets_dir`, `--annotations_dir`) must come from that same `oncodrive3d run` invocation; mismatch yields empty plots or missing-track errors.
 - `--lst_summary_tracks` / `--lst_gene_tracks` accept comma-separated track names; pair them with `--lst_*_hratios` to redistribute vertical space.
 
 During execution (`scripts/plotting/plot.py`):
