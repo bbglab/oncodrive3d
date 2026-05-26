@@ -244,3 +244,27 @@ It includes the following fields:
 
 
 ## Supplementary Output
+
+These intermediate files are written alongside the main output. They are not the analysis results themselves but are consumed by downstream tooling — in particular, `oncodrive3d plot` requires all three.
+
+### Processed sequence dataframe
+
+TSV file (`<cohort>.seq_df.processed.tsv`) — subset of the built `seq_for_mut_prob.tsv` filtered to genes that entered the run, with the following columns:
+
+- **Gene**, **HGNC_ID**, **Ens_Gene_ID**, **Ens_Transcr_ID**, **Refseq_prot**, **Uniprot_ID**, **F**: identifier and fragment-number metadata.
+- **Seq**, **Seq_dna**: protein and coding-DNA sequences.
+- **Chr**, **Reverse_strand**, **Exons_coord**: genomic coordinates of the transcript (used by mutability mode).
+- **Tri_context**: per-base trinucleotide contexts along the CDS.
+- **Reference_info**: flag indicating whether the genomic coordinates were resolved against the Proteins API (`1`) or fallback sources. Only `Reference_info == 1` entries can be paired with site-level mutability — see [mutability.md](mutability.md).
+
+### Processed mutations
+
+TSV file (`<cohort>.mutations.processed.tsv`) — input MAF after Oncodrive3D's parsing pass: filtered to missense variants, protein positions extracted, transcript IDs mapped against the built datasets, and the columns `O3D_transcript_ID` and `Transcript_status` appended (see the `Transcript_status` field documented under [Gene-level output](#gene-level-output) for the possible values).
+
+### Missense probability dictionary
+
+JSON file (`<cohort>.miss_prob.processed.json`) — dictionary keyed by `{Uniprot_ID}-F{fragment}`, where each value is a per-residue vector of missense-mutation probabilities. The vector is derived from the cohort's mutational profile, or from the site-level mutability table when `--mutability_config_path` is provided.
+
+### Logs
+
+`log/` subdirectory — log files produced during the run.
