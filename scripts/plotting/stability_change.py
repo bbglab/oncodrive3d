@@ -46,7 +46,7 @@ def download_stability_change(path: str,
     try:
         # Download file
         logger.debug(f'Downloading to {file_path}')
-        download_single_file(download_url, file_path, threads)
+        download_single_file(download_url, file_path, min(threads, 4))
         
         # Extract from zip
         logger.debug(f'Extracting {filename}')
