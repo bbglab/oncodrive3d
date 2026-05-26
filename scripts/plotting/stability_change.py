@@ -30,16 +30,26 @@ _UNIPROT_RE = re.compile(
 # Missense variant like "M1A". The ^ anchor is required because str.extract uses re.search.
 _VARIANT_RE = re.compile(r"^([A-Za-z])(\d+)([A-Za-z])")
 
-# Skip-reason keys returned by parse_ddg_rasp_worker and the human-readable
-# labels used in the INFO summary at the end of parse_ddg_rasp.
+# Skip-reason keys returned by parse_ddg_rasp_worker. Module-level constants
+# (rather than bare string literals) so the worker's return sites and the
+# _SKIP_REASONS lookup below can be typo-checked by an IDE or linter.
+_REASON_NO_UNIPROT_MATCH = "no_uniprot_match"
+_REASON_NO_SEQ_AVAILABLE = "no_seq_available"
+_REASON_OUT_OF_RANGE = "out_of_range"
+_REASON_WT_MISMATCH = "wt_mismatch"
+_REASON_NO_VARIANTS = "no_variants"
+_REASON_UNREADABLE = "unreadable"
+_REASON_BAD_FILENAME = "bad_filename"
+
+# Human-readable labels used in the INFO summary at the end of parse_ddg_rasp.
 _SKIP_REASONS = {
-    "no_uniprot_match": "UniProt ID not found in datasets/seq_for_mut_prob.tsv",
-    "no_seq_available": "Sequence missing in datasets/seq_for_mut_prob.tsv",
-    "out_of_range":     "Position out of range",
-    "wt_mismatch":      "WT mismatch above threshold",
-    "no_variants":      "No valid variants in CSV",
-    "unreadable":       "Unreadable CSV",
-    "bad_filename":     "UniProt accession not recognised in filename",
+    _REASON_NO_UNIPROT_MATCH: "UniProt ID not found in datasets/seq_for_mut_prob.tsv",
+    _REASON_NO_SEQ_AVAILABLE: "Sequence missing in datasets/seq_for_mut_prob.tsv",
+    _REASON_OUT_OF_RANGE: "Position out of range",
+    _REASON_WT_MISMATCH: "WT mismatch above threshold",
+    _REASON_NO_VARIANTS: "No valid variants in CSV",
+    _REASON_UNREADABLE: "Unreadable CSV",
+    _REASON_BAD_FILENAME: "UniProt accession not recognised in filename",
 }
 
 
@@ -154,7 +164,7 @@ def parse_ddg_rasp_worker(args):
         uni_id = id_from_ddg_path(file)
     except ValueError as e:
         logger.warning(f"Skipping ΔΔG file {file}: {e}")
-        return "bad_filename"
+        return _REASON_BAD_FILENAME
 
     # Get paths of all fragments for this protein. Restrict to .csv so we don't
     # pick up sibling files (e.g. RaSP's prism_cavity_*.txt) that happen to share
@@ -172,13 +182,13 @@ def parse_ddg_rasp_worker(args):
                 f"Skipping ΔΔG for {uni_id}: UniProt ID not found in "
                 "datasets/seq_for_mut_prob.tsv"
             )
-            return "no_uniprot_match"
+            return _REASON_NO_UNIPROT_MATCH
         if not isinstance(canonical_seq, str) or len(canonical_seq) == 0:
             logger.debug(
                 f"Skipping ΔΔG for {uni_id}: sequence missing in "
                 "datasets/seq_for_mut_prob.tsv for this UniProt ID"
             )
-            return "no_seq_available"
+            return _REASON_NO_SEQ_AVAILABLE
         seq_len = len(canonical_seq)
         # Pre-convert canonical to a numpy array of single-char codes so we can
         # index it with the int-pos array per fragment.
@@ -195,9 +205,9 @@ def parse_ddg_rasp_worker(args):
             logger.warning(
                 f"Skipping ΔΔG for {uni_id}: unreadable CSV "
                 f"({os.path.basename(path_prot)}): "
-                f"{type(e).__name__}: {str(e)[:120]}"
+                f"{type(e).__name__}: {str(e)[:200]}"
             )
-            return "unreadable"
+            return _REASON_UNREADABLE
 
         if len(pos_arr) == 0:
             # No well-formed variants in this fragment — skip it; other fragments
@@ -213,7 +223,7 @@ def parse_ddg_rasp_worker(args):
                     f"Skipping ΔΔG for {uni_id}: "
                     f"position {bad_pos} out of range (canonical length {seq_len})"
                 )
-                return "out_of_range"
+                return _REASON_OUT_OF_RANGE
             # Vectorised WT-mismatch tally. ``np.char.upper`` operates on ``S1``
             # dtype directly, so we skip the unicode round-trip.
             wt_upper = np.char.upper(wt_arr.astype("S1"))
@@ -235,7 +245,7 @@ def parse_ddg_rasp_worker(args):
     if validate:
         if n_total == 0:
             logger.warning(f"Skipping ΔΔG for {uni_id}: no valid variants in CSV")
-            return "no_variants"
+            return _REASON_NO_VARIANTS
         mismatch_rate = n_mismatch / n_total
         if mismatch_rate > wt_mismatch_threshold:
             logger.warning(
@@ -243,7 +253,7 @@ def parse_ddg_rasp_worker(args):
                 f"WT mismatch rate {mismatch_rate:.1%} exceeds threshold "
                 f"{wt_mismatch_threshold:.1%}"
             )
-            return "wt_mismatch"
+            return _REASON_WT_MISMATCH
 
     # Average across fragments for the variants seen in more than one
     if frag:
