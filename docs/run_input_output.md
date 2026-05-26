@@ -117,7 +117,7 @@ To compute the mutation profile with BGSignature two main files are required:
     
 ##### Create the Regions File  
 
-A small helper script ([tools/preprocessing/get_regions_file.py](../tools/preprocessing/get_regions_file.py)) generates the regions file via BGReference.
+A small helper script ([tools/mut_profile/get_regions_file.py](../tools/mut_profile/get_regions_file.py)) generates the regions file via BGReference.
 
 1. Install BGReference:
     ```
@@ -126,7 +126,7 @@ A small helper script ([tools/preprocessing/get_regions_file.py](../tools/prepro
 
 2. Run the helper from the repo root:
     ```
-    python tools/preprocessing/get_regions_file.py hg38 3 > hg38_wg_regions.tsv
+    python tools/mut_profile/get_regions_file.py hg38 3 > hg38_wg_regions.tsv
     ```
     Supported genomes: `hg18`, `hg19`, `hg38`, `mm10`, `mm39`. The first argument is the genome build; the second is the k-mer size (typically `3` for trinucleotide contexts).
 
