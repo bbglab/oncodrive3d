@@ -17,8 +17,9 @@ With `--mane` or `--mane_only`, the folder also contains assets from the AlphaFo
 
 ```text
 ├── mane_summary.txt.gz                # NCBI MANE release summary (cached after first download)
-├── mane_refseq_prot_to_alphafold.csv  # RefSeq protein → AlphaFold MANE mapping (consumed by the MANE preprocessing toolkit)
-└── mane_readme.txt                    # README from the MANE overlap bundle
+├── mane_refseq_prot_to_alphafold.csv  # RefSeq → AlphaFold MANE bundle mapping (consumed by the MANE preprocessing toolkit)
+├── mane_missing.csv                   # MANE entries lacking an AlphaFold MANE structure (consumed by the MANE preprocessing toolkit)
+└── mane_readme.txt                    # README from the AlphaFold MANE overlap bundle
 ```
 
 > [!NOTE]
