@@ -104,15 +104,6 @@ def append_ddg_to_dict(ddg_dict, df, frag=False):
     return ddg_dict
 
 
-def extract_mut(variant_str, pattern):
-
-    match = pattern.match(variant_str)
-    pos = match.group(2)
-    alt = match.group(3)
-
-    return pos, alt
-
-
 def save_json(path_dir, uni_id, dictionary):
     
     with open(os.path.join(path_dir, f"{uni_id}_ddg.json"), "w") as json_file:
@@ -159,7 +150,10 @@ def _validate_protein_ddg(canonical_seq, csv_paths, wt_mismatch_threshold):
     n_mismatch = 0
     for path_prot in csv_paths:
         try:
-            df = pd.read_csv(path_prot, usecols=["variant"])
+            # Load score_ml too so a CSV missing that column fails validation
+            # here (clean log) rather than later inside the worker (multiprocessing
+            # KeyError with a swallowed traceback).
+            df = pd.read_csv(path_prot, usecols=["variant", "score_ml"])
         except Exception as e:
             return False, f"csv_unreadable: {type(e).__name__}"
         for variant in df["variant"]:
