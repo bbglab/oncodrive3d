@@ -204,10 +204,10 @@ def parse_ddg_rasp_worker(args):
         if frag:
             for p, a, d in zip(pos_arr, alt_arr, ddg_arr):
                 bucket = ddg_dict.setdefault(p, {})
-                bucket.setdefault(a, []).append(d)
+                bucket.setdefault(a, []).append(float(d))
         else:
             for p, a, d in zip(pos_arr, alt_arr, ddg_arr):
-                ddg_dict.setdefault(p, {})[a] = d
+                ddg_dict.setdefault(p, {})[a] = float(d)
 
     # Final validation gates
     if validate:
