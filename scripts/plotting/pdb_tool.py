@@ -3,6 +3,7 @@ import logging
 import subprocess
 import re
 import shutil
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import numpy as np
 import pandas as pd
@@ -35,26 +36,42 @@ def decompress_pdb_gz(input_dir):
         logger.debug("Decompression complete!")
     
 
-def run_pdb_tool(input_dir, output_dir, f="4"):
+def _run_pdb_tool_one(input_path, output_path, f):
+    """Invoke the PDB_Tool binary on a single structure."""
+    subprocess.run(["PDB_Tool", "-i", input_path, "-o", output_path, "-F", f])
+
+
+def run_pdb_tool(input_dir, output_dir, f="4", cores=1):
     """
     Use PDB_Tool to extract features from all pdb files in directory.
+
+    Each invocation is independent, so the calls are dispatched across a thread
+    pool. PDB_Tool runs as a subprocess, so the GIL doesn't constrain throughput.
     """
 
     pdb_tool_output = os.path.join(output_dir, "pdb_tool")
     if not os.path.isdir(pdb_tool_output):
         os.makedirs(pdb_tool_output)
         logger.debug(f'mkdir {pdb_tool_output}')
-    
+
     decompress_pdb_gz(input_dir)
-    pdb_files = [file for file in os.listdir(input_dir) if file.endswith(".pdb")]    
-    logger.debug("Running PDB_Tool...")
-    for file in tqdm(pdb_files, desc="Running PDB_Tool"):
-        output = os.path.join(pdb_tool_output, file.replace(".pdb", ".feature"))
-        # Singularity container
-        #subprocess.run(["singularity", "exec", f"{pdb_tool_sif_path}", "/PDB_Tool/PDB_Tool", "-i", f"{input_dir}/{file}", "-o", output, "-F", f])            
-        # Added to $PATH
-        subprocess.run(["PDB_Tool", "-i", os.path.join(input_dir, file), "-o", output, "-F", f])   
-        
+    pdb_files = [file for file in os.listdir(input_dir) if file.endswith(".pdb")]
+    logger.debug(f"Running PDB_Tool with {cores} worker(s)...")
+
+    max_workers = max(1, int(cores))
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = [
+            executor.submit(
+                _run_pdb_tool_one,
+                os.path.join(input_dir, file),
+                os.path.join(pdb_tool_output, file.replace(".pdb", ".feature")),
+                f,
+            )
+            for file in pdb_files
+        ]
+        for future in tqdm(as_completed(futures), total=len(futures), desc="Running PDB_Tool"):
+            future.result()
+
     return pdb_tool_output
             
             

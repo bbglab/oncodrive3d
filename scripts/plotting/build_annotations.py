@@ -75,13 +75,12 @@ def get_annotations(data_dir,
     else:
         logger.warning(f"Currently, stability change annotation is not available for {species} but only for Homo sapiens: Skipping...")
     
-    ## TODO: Enable multiprocessing for PDB_Tool
     ## TODO: Evaluate the possibility of installing PDB_Tool instead of using container
-    
+
     # Run PDB_Tool
     logger.info("Extracting pACC and 2° structure..")
     path_pdb_structure = os.path.join(data_dir, "pdb_structures")
-    pdb_tool_output = run_pdb_tool(input_dir=path_pdb_structure, output_dir=output_dir)
+    pdb_tool_output = run_pdb_tool(input_dir=path_pdb_structure, output_dir=output_dir, cores=cores)
     logger.info("Extraction completed!")
     
     # Parse PDB_Tool
