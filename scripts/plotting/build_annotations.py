@@ -50,13 +50,14 @@ def get_annotations(data_dir,
         os.makedirs(ddg_output, exist_ok=True)
         if ddg_dir is not None:
             # User-supplied directory — read in place (no copy).
+            logger.info(f"Using user-supplied ΔΔG inputs from {ddg_dir}")
             ddg_input_path = ddg_dir
             cleanup_input = False
         else:
             # Download ddG to a directory we own; clean it up after parsing.
             ddg_input_path = download_stability_change(ddg_output, cores)
+            logger.info("Download completed!")
             cleanup_input = True
-        logger.info("Completed!")
 
         ## TODO: Optimize DDG parsing
         ##       - only one protein is allocated to one process every time
@@ -71,7 +72,6 @@ def get_annotations(data_dir,
                        wt_mismatch_threshold=ddg_mismatch_threshold)
         if cleanup_input:
             rm_dir(ddg_input_path)
-        logger.info("Parsing completed!")
     else:
         logger.warning(f"Currently, stability change annotation is not available for {species} but only for Homo sapiens: Skipping...")
     
