@@ -27,7 +27,11 @@ _UNIPROT_RE = re.compile(
 )
 
 # Matches a single missense variant (e.g. "M1A") in RaSP-style CSV rows.
-_VARIANT_RE = re.compile(r"([A-Za-z])(\d+)([A-Za-z])")
+# The leading ``^`` anchors the match to the start of the string so that
+# ``str.extract`` (which uses ``re.search`` semantics) matches the same set
+# of inputs as the historical ``re.match`` path — i.e. ``"prefix_M1A"`` is
+# dropped, not silently parsed as ``M1A``.
+_VARIANT_RE = re.compile(r"^([A-Za-z])(\d+)([A-Za-z])")
 
 
 # ===============================
@@ -182,9 +186,8 @@ def parse_ddg_rasp_worker(args):
             # may still contribute.
             continue
 
-        # Vectorised position-range check
-        pos_int = pos_arr.astype(int)
         if validate:
+            pos_int = pos_arr.astype(int)
             oor_mask = (pos_int < 1) | (pos_int > seq_len)
             if oor_mask.any():
                 bad_pos = int(pos_int[oor_mask][0])
@@ -193,8 +196,9 @@ def parse_ddg_rasp_worker(args):
                     f"position_{bad_pos}_out_of_range_(canonical_len_{seq_len})"
                 )
                 return
-            # Vectorised WT-mismatch tally
-            wt_upper = np.char.upper(wt_arr.astype("U1")).astype("S1")
+            # Vectorised WT-mismatch tally. ``np.char.upper`` operates on ``S1``
+            # dtype directly, so we skip the unicode round-trip.
+            wt_upper = np.char.upper(wt_arr.astype("S1"))
             canonical_at_pos = canonical_arr[pos_int - 1]
             n_total += pos_int.size
             n_mismatch += int(np.count_nonzero(canonical_at_pos != wt_upper))
