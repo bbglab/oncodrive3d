@@ -55,52 +55,25 @@ If you prefer to use Conda, replace `container` in the `-profile` argument with 
 
 ---
 
-```
+```text
 Usage: nextflow run main.nf [OPTIONS]
 
-Example of run using VEP output as input and MANE Select transcripts:
+Example using VEP input and MANE Select transcripts:
   nextflow run main.nf -profile container --data_dir <build_folder> --indir <input> \
                        --vep_input true --mane true
-  
-Options:
-  --indir PATH                    Path to the input directory including the subdirectories 
-                                  `maf` or `vep` and `mut_profile`. 
-  --outdir PATH                   Base output directory.
-                                  Default: ./
-  --outsubdir PATH                Subdirectory created under --outdir.
-                                  Default: run_<timestamp>/
-  --cohort_pattern STR            Pattern expression to filter specific files within the 
-                                  input directory (e.g., 'TCGA*' select only TCGA cohorts). 
-                                  Default: *
-  --data_dir PATH                 Path to the Oncodrive3D datasets directory, which includes 
-                                  the files compiled during the building datasets step.
-                                  Default: ${baseDir}/../datasets/
-  --annotations_dir PATH          Path to the Oncodrive3D annotations directory (required when --plot true).
-                                  Default: ${baseDir}/../annotations/
-  --max_running INT               Maximum number of cohorts to process in parallel.
-                                  Default: 5
-  --cores INT                     Number of CPU cores used to process each cohort. 
-                                  Default: 10
-  --memory STR                    Amount of memory allocated for processing each cohort. 
-                                  Default: 70GB
-  --vep_input BOOLEAN             Use `vep/` subdir as input and select transcripts matching 
-                                  the Ensembl transcript IDs in Oncodrive3D built datasets. 
-                                  Default: false
-  --mane                          Prioritize structures corresponding to MANE transcripts if 
-                                  multiple structures are associated to the same gene.
-                                  Default: false
-  --ignore_mapping_issues         Disable filtering mismatching mutations by setting
-                                  `--thr_mapping_issue 1` in the underlying `oncodrive3d run`.
-                                  Default: false
-  --verbose                       Enable verbose logging for underlying Oncodrive3D commands.
-                                  Default: false
-  --seed INT                      Seed value for reproducibility.
-                                  Default: 128
-  --plot BOOL                     Generate summary/gene plots (requires annotations_dir).
-                                  Default: false
-  --chimerax_plot BOOL            Generate ChimeraX snapshots.
-                                  Default: false
 ```
+
+Commonly tweaked options:
+
+- `--indir <path>` — input directory with `maf/` (or `vep/`) and `mut_profile/` subdirs.
+- `--data_dir <path>` — Oncodrive3D datasets built by `oncodrive3d build-datasets`.
+- `--annotations_dir <path>` — annotation bundle (required when `--plot true`).
+- `--vep_input true` — read inputs from `vep/` instead of `maf/`.
+- `--mane true` — prioritize MANE Select transcripts when multiple structures match a gene.
+- `--plot true` / `--chimerax_plot true` — enable the plotting modules (see [Optional modules](#optional-modules) below).
+- `--max_running <int>` — number of cohorts processed in parallel (default `5`).
+
+See [`nextflow.config`](nextflow.config) for the full parameter list and defaults.
 
 ### Optional modules
 
