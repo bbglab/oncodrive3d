@@ -15,9 +15,27 @@ This document describes the prerequisites, the intermediate files that are produ
 
 1. **Datasets** – `oncodrive3d build-datasets` (or `build-datasets --mane_only`) must have been run already; the plotting stage reads `datasets/pdb_structures`, `seq_for_mut_prob.tsv`, and `confidence.tsv`.
 2. **Python environment** – use the same environment (e.g., `uv` virtualenv) that you rely on for the CLI.
-3. **PDB_Tool binary** – `oncodrive3d build-annotations` invokes the [PDB_Tool](https://github.com/realbigws/PDB_Tool) executable named `PDB_Tool` on `$PATH` to compute per-residue solvent accessibility and secondary structure. Install it or wrap it in a container accessible from the command line.
+3. **PDB_Tool binary** – `oncodrive3d build-annotations` invokes the [PDB_Tool](https://github.com/realbigws/PDB_Tool) executable named `PDB_Tool` on `$PATH` to compute per-residue solvent accessibility and secondary structure. See **Installing PDB_Tool** below for a recipe.
 4. **Internet access** – required to download Pfam annotations, UniProt features, and (if `--ddg_dir` is not set) RaSP ΔΔG predictions. You can point `--ddg_dir` to precomputed RaSP files to skip the download step or to provide in-house predicted scores.
 5. **Disk space** – annotation folders contain many files; keep several GB free.
+
+### Installing PDB_Tool
+
+[PDB_Tool](https://github.com/realbigws/PDB_Tool) compiles from source. If your conda env has no C/C++ toolchain, install one first:
+
+```bash
+conda install -c conda-forge gxx make
+```
+
+Then build and put it on `$PATH`:
+
+```bash
+git clone https://github.com/realbigws/PDB_Tool.git
+cd PDB_Tool
+make -C source_code
+# The Makefile drops the binary at the repo root. Symlink into the active conda env so it resolves via `which PDB_Tool`:
+ln -s "$(pwd)/PDB_Tool" "$CONDA_PREFIX/bin/PDB_Tool"
+```
 
 ---
 
