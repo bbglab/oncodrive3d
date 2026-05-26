@@ -37,8 +37,18 @@ def decompress_pdb_gz(input_dir):
     
 
 def _run_pdb_tool_one(input_path, output_path, f):
-    """Invoke the PDB_Tool binary on a single structure."""
-    subprocess.run(["PDB_Tool", "-i", input_path, "-o", output_path, "-F", f])
+    """Invoke the PDB_Tool binary on a single structure. Captures stderr so failures
+    surface as warnings instead of garbling the tqdm bar."""
+    result = subprocess.run(
+        ["PDB_Tool", "-i", input_path, "-o", output_path, "-F", f],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        logger.warning(
+            f"PDB_Tool failed on {os.path.basename(input_path)} "
+            f"(rc={result.returncode}): {result.stderr.strip()}"
+        )
 
 
 def run_pdb_tool(input_dir, output_dir, f="4", cores=1):
@@ -56,9 +66,12 @@ def run_pdb_tool(input_dir, output_dir, f="4", cores=1):
 
     decompress_pdb_gz(input_dir)
     pdb_files = [file for file in os.listdir(input_dir) if file.endswith(".pdb")]
-    logger.debug(f"Running PDB_Tool with {cores} worker(s)...")
+    if not pdb_files:
+        return pdb_tool_output
 
-    max_workers = max(1, int(cores))
+    max_workers = max(1, min(cores, len(pdb_files)))
+    logger.debug(f"Running PDB_Tool with {max_workers} worker(s)...")
+
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = [
             executor.submit(
