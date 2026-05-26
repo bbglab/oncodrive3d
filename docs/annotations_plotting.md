@@ -56,12 +56,12 @@ annotations/
 ├── pdb_tool_df.tsv
 ├── pfam.tsv
 ├── uniprot_feat.tsv
-├── stability_change/
+├── stability_change/        # optional; absent for mouse builds without --ddg_dir
 │   └── <UNIPROT>_ddg.json
 └── log/
 ```
 
-Keep this directory around—`oncodrive3d plot` expects all of these files.
+Keep this directory around — `oncodrive3d plot` reads the tables above and merges in ΔΔG values when `stability_change/` is present, otherwise the ΔΔG track is omitted from per-gene plots and association analyses.
 
 ---
 
