@@ -35,7 +35,7 @@ Key options:
 
 - `--data_dir` (**required**) – the Oncodrive3D datasets folder built via `oncodrive3d build-datasets`; annotations pull AlphaFold PDBs and metadata from here.
 - `--output_dir` – target directory for the annotation bundle (defaults to `annotations/`; cleaned at each run unless `--yes`).
-- `--ddg_dir` – point to precomputed RaSP ΔΔG predictions to skip the download step (mandatory for mouse because only human RaSP files are hosted).
+- `--ddg_dir` – point to precomputed RaSP ΔΔG predictions to skip the download step. Required for mouse if ΔΔG tracks are desired (only the human RaSP bundle is hosted); when omitted for mouse, the ΔΔG step is skipped with a warning and the rest of the build proceeds normally.
 - `--organism` – select the species recipe (human or mouse) so the correct external resources are queried.
 - `--cores` / `--yes` – control parallelism and disable confirmation prompts when overwriting an existing `output_dir`.
 
@@ -56,12 +56,12 @@ annotations/
 ├── pdb_tool_df.tsv
 ├── pfam.tsv
 ├── uniprot_feat.tsv
-├── stability_change/
+├── stability_change/        # optional; absent for mouse builds without --ddg_dir
 │   └── <UNIPROT>_ddg.json
 └── log/
 ```
 
-Keep this directory around—`oncodrive3d plot` expects all of these files.
+Keep this directory around — `oncodrive3d plot` reads the tables above and merges in ΔΔG values when `stability_change/` is present, otherwise the ΔΔG track is omitted from per-gene plots and association analyses.
 
 ---
 
