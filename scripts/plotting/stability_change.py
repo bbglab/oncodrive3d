@@ -143,8 +143,10 @@ def parse_ddg_rasp_worker(args):
         logger.warning(f"Skipping ΔΔG file {file}: {e}")
         return
 
-    # Get paths of all fragments for this protein
-    lst_path_prot = glob.glob(os.path.join(path_dir, f"*{uni_id}*"))
+    # Get paths of all fragments for this protein. Restrict to .csv so we don't
+    # pick up sibling files (e.g. RaSP's prism_cavity_*.txt) that happen to share
+    # the UniProt accession in their name.
+    lst_path_prot = glob.glob(os.path.join(path_dir, f"*{uni_id}*.csv"))
     frag = len(lst_path_prot) > 1
 
     # Pre-validate the canonical sequence handle once (cheap)
@@ -171,7 +173,9 @@ def parse_ddg_rasp_worker(args):
             wt_arr, pos_arr, alt_arr, ddg_arr = _parse_ddg_csv(path_prot)
         except Exception as e:
             logger.warning(
-                f"Skipping ΔΔG for {uni_id}: csv_unreadable: {type(e).__name__}"
+                f"Skipping ΔΔG for {uni_id}: csv_unreadable "
+                f"({os.path.basename(path_prot)}): "
+                f"{type(e).__name__}: {str(e)[:120]}"
             )
             return
 
