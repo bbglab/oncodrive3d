@@ -113,7 +113,7 @@ def _parse_ddg_csv(path_prot):
     # Read only the two columns we need — RaSP files have ~13 columns by default.
     df = pd.read_csv(path_prot, usecols=["variant", "score_ml"])
     # Vectorised regex extract; rows that don't match yield NaN.
-    extracted = df["variant"].astype(str).str.extract(_VARIANT_RE.pattern, expand=True)
+    extracted = df["variant"].astype(str).str.extract(_VARIANT_RE, expand=True)
     valid = extracted.notna().all(axis=1)
     if not valid.any():
         empty = np.array([], dtype=object)
