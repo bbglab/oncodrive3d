@@ -121,9 +121,7 @@ def _parse_ddg_csv(path_prot):
     wt_arr = extracted.loc[valid, 0].to_numpy()
     pos_arr = extracted.loc[valid, 1].to_numpy()
     alt_arr = extracted.loc[valid, 2].to_numpy()
-    # Force float dtype: an all-integer score_ml column would otherwise yield
-    # np.int64, which is not a subclass of Python int and so trips json.dump.
-    ddg_arr = df.loc[valid, "score_ml"].to_numpy(dtype=float)
+    ddg_arr = df.loc[valid, "score_ml"].to_numpy(dtype=float)  # int score_ml would yield np.int64 (not JSON-serializable)
     return wt_arr, pos_arr, alt_arr, ddg_arr
 
 
