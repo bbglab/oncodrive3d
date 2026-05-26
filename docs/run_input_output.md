@@ -115,46 +115,18 @@ To compute the mutation profile with BGSignature two main files are required:
     
 #### Create the Regions File  
 
-The regions file can be generated using BGReference. Below is an example of a Python script to create a regions file for a specified genome and k-mer size.
+A small helper script ([tools/preprocessing/get_regions_file.py](../tools/preprocessing/get_regions_file.py)) generates the regions file via BGReference.
 
 1. Install BGReference:
     ```
     pip install bgreference
     ```
 
-2. Save the following Python script as get_regions_file.py:
-
-    ```python
-    import sys
-    from bgreference import refseq
-
-    CHR = [str(i) for i in range(1, 20)] + ['X', 'Y', 'M']
-
-
-    def compute_sizes(genome, kmer):
-        sizes = []
-        for chr_ in CHR:
-            seq = refseq(genome, f"chr{chr_}", start=(1 + kmer // 2), size=None)
-            sizes.append(tuple(map(str, (chr_, 1 + kmer // 2, len(seq) - kmer // 2))))
-        return sizes
-
-
-    def write(sizes):
-        print('\t'.join(('CHROMOSOME', 'START', 'END')))
-        for s in sizes:
-            print('\t'.join(s))
-
-    if __name__ == '__main__':
-        genome = sys.argv[1]
-        kmer = int(sys.argv[2])
-        write(compute_sizes(genome, kmer))
+2. Run the helper from the repo root:
     ```
-
-3. Run the script:
-
+    python tools/preprocessing/get_regions_file.py hg38 3 > hg38_wg_regions.tsv
     ```
-    python3 get_regions_file.py hg38 3 > hg38_wg_regions.tsv
-    ```
+    Supported genomes: `hg18`, `hg19`, `hg38`, `mm10`, `mm39`. The first argument is the genome build; the second is the k-mer size (typically `3` for trinucleotide contexts).
 
 # Ouput
 
