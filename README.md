@@ -12,23 +12,21 @@ The method leverages **AlphaFold 2-predicted protein structures** and Predicted 
 
 ## Requirements
 
-Before you begin, ensure **Python 3.10 or later** is installed on your system.  
-Additionally, you may need to install additional development tools. Depending on your environment, you can choose one of the following methods:
+Python 3.10+ is required. Some systems also need a C/C++ toolchain:
 
-- If you have sudo privileges:
+- With sudo privileges:
 
    ```bash
    sudo apt install build-essential
    ```
 
-- For HPC cluster environment, it is recommended to use [Conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html) (or [Mamba](https://mamba.readthedocs.io/en/latest/)):
+- On HPC clusters, [Conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html) (or [Mamba](https://mamba.readthedocs.io/en/latest/)) is recommended:
 
    ```bash
    conda create -n o3d python=3.10.0
    conda activate o3d
    conda install -c conda-forge gxx gcc libxcrypt clang zlib
    ```
-
 
 ## Installation
 
@@ -60,87 +58,38 @@ Additionally, you may need to install additional development tools. Depending on
 This step builds the datasets necessary for Oncodrive3D to run the 3D clustering analysis. It is required once after installation or whenever you need to generate datasets for a different organism or apply a specific threshold to define amino acid contacts.
 
 > [!WARNING]
-> This step is highly time- and resource-intensive, requiring a significant amount of free disk space and computational power. It will download and process a large amount of data. Ensure sufficient resources are available before proceeding, as insufficient capacity may result in extended runtimes or processing failures.
->
-> Reliable internet access is required because AlphaFold structures, Ensembl annotations, Pfam files, and other resources are downloaded on demand during the build.
+> This step is time- and resource-intensive: it downloads and processes large amounts of structural data. Ensure adequate disk space, CPU, and a reliable internet connection (AlphaFold, Ensembl, Pfam, and other resources are fetched on demand).
 
 > [!WARNING]
-> Human datasets built with the default settings pull canonical transcript metadata from the January 2024 Ensembl archive (release 111 / GENCODE v45). For maximum compatibility, annotate your input variants with the same Ensembl/Gencode release or supply the unfiltered VEP output together with `--o3d_transcripts --use_input_symbols`.
-
-> [!NOTE]
-> Predicted Aligned Error (PAE) files for older AlphaFold DB versions (e.g., v4) are no longer hosted after 2025. If you need PAE for an older AF version, download and supply them locally via `--custom_pae_dir`.  
-> MANE structures are available only in AlphaFold DB v4, while non-MANE builds default to v6. Since MANE mode forces v4 structures, you should also supply the corresponding PAE files through `--custom_pae_dir`.
+> MANE builds force AlphaFold DB v4 structures (non-MANE builds default to v6). PAE files for v4 are no longer hosted after 2025, so MANE builds without `--custom_pae_dir` fall back to binary contact maps. To keep PAE-weighted probability maps, supply precomputed v4 PAE files via `--custom_pae_dir`.
 
 > [!NOTE]
 > The first time that you run Oncodrive3D building dataset step with a given reference genome, it will download it from our servers. By default the downloaded datasets go to `~/.bgdata`. If you want to move these datasets to another folder you have to define the system environment variable `BGDATA_LOCAL` with an export command.
 
-```
+```text
 Usage: oncodrive3d build-datasets [OPTIONS]
 
 Examples:
-  Basic build:
+  Basic build (human):
     oncodrive3d build-datasets -o <build_folder>
-  
+
   Build with MANE Select transcripts:
     oncodrive3d build-datasets -o <build_folder> --mane
 
-Options:
-  -o, --output_dir PATH           Path to the directory where the output files will be saved. 
-                                  Default: ./datasets/
-  -s, --organism TEXT             Specifies the organism (`human` or `mouse`; also accepts `Homo sapiens` / `Mus musculus`). 
-                                  Default: Homo sapiens
-  -m, --mane                      Use structures predicted from MANE Select transcripts 
-                                  (applicable to Homo sapiens only).
-  -M, --mane_only                 Use only structures predicted from MANE Select transcripts
-                                  (applicable to Homo sapiens only).
-  -C, --custom_mane_pdb_dir PATH  Path to directory containing custom MANE PDB structures (requires --mane_only).
-                                  Default: None
-      --custom_pae_dir PATH       Path to directory containing pre-downloaded PAE JSON files.
-                                  The directory will be copied into the build as `pae/`.
-                                  Default: None
-  -f, --custom_mane_metadata_path Path to a dataframe (typically a samplesheet.csv) including 
-                                  Ensembl IDs and sequences of the custom pdbs.
-                                  Default: None
-  -d, --distance_threshold INT    Distance threshold (Å) for defining residues contacts. 
-                                  Default: 10
-  -c, --cores INT                 Number of CPU cores for computation. 
-                                  Default: All available CPU cores
-  --af_version INT                AlphaFold DB version for non-MANE builds (MANE uses v4).
-                                  Default: 6
-  -y, --yes                       Run without interactive prompts.
-  -v, --verbose                   Enables verbose output.
-  -h, --help                      Show this message and exit.  
+  Build mouse datasets:
+    oncodrive3d build-datasets -o <build_folder> -s mouse
 ```
 
-For more information on the output of this step, please refer to the [Building Datasets Output Documentation](https://github.com/bbglab/oncodrive3d/tree/master/docs/build_output.md).
+See `oncodrive3d build-datasets --help` for all options.
+
+For more information on the output of this step, please refer to the [Building Datasets Output Documentation](docs/build_output.md).
 
 > [!TIP]
-> ### Increasing MANE Structural Coverage
-> To maximize structural coverage of **MANE Select transcripts**, you can [predict missing structures locally and integrate them into Oncodrive3D](tools/preprocessing/README.md) using:
->
-> - `tools/preprocessing/prepare_samplesheet.py`: a standalone utility that:
->   - Retrieves the full MANE entries from NCBI.
->   - Identifies proteins missing from the AlphaFold MANE dataset.
->   - Generates:
->     - A `samplesheet.csv` with Ensembl protein IDs, FASTA paths, and optional sequences.
->     - Individual FASTA files for each missing protein.
->
-> - `tools/preprocessing/update_samplesheet_and_structures.py`: takes the samplesheet folder produced above and:
->   - Reuses canonical AlphaFold structures when possible to shrink the nf-core input.
->   - Ingests nf-core/proteinfold predictions and keeps the `missing/` set up to date.
->   - Generates a `final_bundle/samplesheet.csv` plus `final_bundle/pdbs/`, ready to be passed to `oncodrive3d build-datasets --mane_only` via `--custom_mane_metadata_path` and `--custom_mane_pdb_dir`.
->
-> - When invoking `oncodrive3d build-datasets`, supply:
->   - `--custom_mane_pdb_dir`: use this to provide your own predicted PDB structures (e.g., from [nf-core/proteinfold](https://nf-co.re/proteinfold/1.1.1/) or `final_bundle/pdbs/` produced by `update_samplesheet_and_structures.py`).
->   - `--custom_mane_metadata_path`: path to the corresponding `samplesheet.csv` (e.g., `final_bundle/samplesheet.csv`).
->
-> See the documentation of [MANE Preprocessing Toolkit](tools/preprocessing/README.md) for the full workflow to expand coverage of the MANE associated structures.
+> To extend MANE Select structural coverage beyond the AlphaFold MANE bundle, see the [MANE Preprocessing Toolkit](tools/preprocessing/README.md).
 
+## Running 3D Clustering Analysis
 
-
-## Running 3D clustering Analysis
-
-For in-depth information on how to obtain the required input data and for comprehensive information about the output, please refer to the [Input and Output Documentation](https://github.com/bbglab/oncodrive3d/tree/master/docs/run_input_output.md) of the 3D clustering analysis.  
+See the [Input and Output Documentation](docs/run_input_output.md) for details on inputs and outputs.
 
 ### Input
 
@@ -151,7 +100,7 @@ For in-depth information on how to obtain the required input data and for compre
 - **<mut_profile>** (`optional`): Dictionary including the normalized frequencies of mutations (*values*) in every possible trinucleotide context (*keys*), such as 'ACA>A', 'ACC>A', and so on.
 
 > [!NOTE] 
-> Examples of the input files are available in the [Test Input Folder](https://github.com/bbglab/oncodrive3d/tree/master/test/input).  
+> Examples of the input files are available in the [Test Input Folder](test/input).  
 Please refer to these examples to understand the expected format and structure of the input files.
 
 > [!NOTE]
@@ -163,64 +112,27 @@ Please refer to these examples to understand the expected format and structure o
   
 - **Residue-level output**: CSV file (`<cohort>.3d_clustering_pos.csv`) containing the results of the analysis at the level of mutated residues. Each row corresponds to a mutated position within a gene and includes detailed information for each potential mutational cluster.
 
-
 ### Usage
 
-```
+```text
 Usage: oncodrive3d run [OPTIONS]
 
 Examples:
   Basic run:
     oncodrive3d run -i <input_maf> -p <mut_profile> -d <build_folder> -C <cohort_name>
-  
-  Example of run using VEP output as input and MANE Select transcripts:
+
+  Run using VEP output as input and MANE Select transcripts:
     oncodrive3d run -i <input_vep> -p <mut_profile> -d <build_folder> -C <cohort_name> \
                     --o3d_transcripts --use_input_symbols --mane
-
-Options:
-  -i, --input_path PATH            Path to the input file (MAF or VEP output) containing the 
-                                   annotated mutations for the cohort. [required]
-  -p, --mut_profile_path PATH      Path to the JSON file specifying the cohort's mutational 
-                                   profile (192 key-value pairs).
-  -m, --mutability_config_path PATH
-                                   Path to the JSON file with information on mutability, used when
-                                   mutation calls originate from cohorts with highly heterogeneous
-                                   sequencing depth across sites.
-  -o, --output_dir PATH            Path to the output directory for results. 
-                                   Default: ./output/
-  -d, --data_dir PATH              Path to the directory containing the datasets built in the 
-                                   building datasets step. 
-                                   Default: ./datasets/
-  -n, --n_iterations INT           Number of densities to be simulated.
-                                   Default: 10000
-  -a, --alpha FLOAT                Significance threshold for residue and gene p-values.
-                                   Default: 0.01
-  -c, --cores INT                  Number of CPU cores to use. 
-                                   Default: All available CPU cores
-  -s, --seed INT                   Random seed for reproducibility.
-  -v, --verbose                    Enables verbose output.
-  -t, --cancer_type STR            Cancer type to include as metadata in the output file.
-  -C, --cohort STR                 Cohort name for metadata and output file naming. 
-  --no_fragments                   Disable processing of fragmented (AF-F) proteins.
-  --only_processed                 Include only processed genes in the output.
-  --thr_mapping_issue FLOAT        Threshold for the ratio of mutations with mapping issues 
-                                   (out of structure, WT mismatch, zero mutability). A value 
-                                   of 1 disables filtering mismatching mutations.
-                                   Default: 0.1
-  -P, --cmap_prob_thr FLOAT        Threshold for defining residues contacts based on distance 
-                                   on predicted structure and predicted aligned error (PAE). 
-                                   Default: 0.5
-  --mane                           Prioritizes MANE Select transcripts when multiple 
-                                   structures map to the same gene symbol.
-  --o3d_transcripts                Filters mutations including only transcripts in Oncodrive3D 
-                                   built datasets (requires VEP output as input file).
-  --use_input_symbols              Update HUGO symbols in Oncodrive3D built datasets using the 
-                                   input file's entries (requires VEP output as input file).
-  -h, --help                       Show this message and exit.  
 ```
 
+See `oncodrive3d run --help` for all options.
+
+> [!WARNING]
+> Human datasets built with the default settings pin canonical transcript metadata to the January 2024 Ensembl archive (release 111 / GENCODE v45). Annotate input variants with the same Ensembl/GENCODE release to avoid transcript-ID mismatches.
+
 > [!TIP]
-> To maximize the number of matching transcripts between the input mutations and the AlphaFold predicted structures used by Oncodrive3D, it is recommended to use the unfiltered output of VEP (including all possible transcripts) as input, along with the flags `--o3d_transcripts` `--use_input_symbols` in the `oncodrive3d run` command.
+> To maximize the number of matching transcripts between your input mutations and Oncodrive3D's structures, supply the unfiltered VEP output as input along with `--o3d_transcripts --use_input_symbols`.
 
 ### Handling Heterogeneous Sequencing Depth
 
@@ -251,74 +163,18 @@ Check the output in the `test/output/` directory to ensure the analysis complete
 
 ## Building Annotations & Plotting
 
-Oncodrive3D ships with an optional plotting pipeline: run `oncodrive3d build-annotations` once to cache structural/functional tracks, then use `oncodrive3d plot` and/or `chimerax-plot` to generate plots and tables that help interpret the clustering signal and distinguish real biology from artifacts.  
+Oncodrive3D ships with an optional plotting pipeline: run `oncodrive3d build-annotations` once to cache structural/functional tracks, then use `oncodrive3d plot` and/or `chimerax-plot` to generate plots and tables that help interpret the clustering signal and distinguish real biology from artifacts.
 
-Please refer to [Annotation & plotting workflow](docs/annotations_plotting.md) for prerequisites, command examples, and output descriptions.
+See the [Annotation & plotting workflow](docs/annotations_plotting.md) for prerequisites, usage examples, and output descriptions.
 
 ## Parallel Processing on Multiple Cohorts
 
-This repository provides a [Nextflow](https://www.nextflow.io/) pipeline to run Oncodrive3D in parallel across multiple cohorts, enabling efficient, reproducible and scalable analysis across datasets.  
-
-For more information, refer to the [Oncodrive3D Pipeline](https://github.com/bbglab/oncodrive3d/tree/master/oncodrive3d_pipeline/) documentation.
-
-### Usage
-
-> [!NOTE]
-> When using the Nextflow script, ensure that your input files are organized in the following directory structure (you only need either the `maf/` or `vep/` directory):
-> 
-> ```plaintext
-> input/
->   ├── maf/
->   │   └── <cohort>.in.maf
->   ├── vep/
->   │   └── <cohort>.vep.tsv.gz
->   └── mut_profile/
->       └── <cohort>.sig.json
-> ```
-> 
-> - `maf/`: Contains mutation files with the `.in.maf` extension.
-> - `vep/`: Contains VEP annotation files with the `.vep.tsv.gz` extension, which include annotated mutations with all possible transcripts.
-> - `mut_profile/`: Contains mutational profile files with the `.sig.json` extension.
-
-```
-Usage: nextflow run main.nf [OPTIONS]
-
-Example of run using VEP output as input and MANE Select transcripts:
-  nextflow run main.nf -profile container --data_dir <build_folder> --indir <input> \
-                       --vep_input true --mane true
-  
-Options:
-  --indir PATH                    Path to the input directory including the subdirectories 
-                                  `maf/` or `vep/` and `mut_profile/`. 
-  --outdir PATH                   Path to the output directory. 
-                                  Default: run_<timestamp>/
-  --cohort_pattern STR            Pattern expression to filter specific files within the 
-                                  input directory (e.g., 'TCGA*' select only TCGA cohorts). 
-                                  Default: *
-  --data_dir PATH                 Path to the Oncodrive3D datasets directory, which includes 
-                                  the files compiled during the building datasets step.
-                                  Default: ${baseDir}/datasets/
-  --max_running INT               Maximum number of cohorts to process in parallel.
-                                  Default: 5
-  --cores INT                     Number of CPU cores used to process each cohort. 
-                                  Default: 10
-  --memory STR                    Amount of memory allocated for processing each cohort. 
-                                  Default: 70GB
-  --vep_input BOOL                Use `vep/` subdir as input and select transcripts matching 
-                                  the Ensembl transcript IDs in Oncodrive3D built datasets. 
-                                  Default: false
-  --mane BOOL                     Prioritize structures corresponding to MANE transcripts if 
-                                  multiple structures are associated to the same gene.
-                                  Default: false
-  --seed INT                      Seed value for reproducibility.
-                                  Default: 128
-```
-
+Oncodrive3D ships with a [Nextflow](https://www.nextflow.io/) pipeline for running multiple cohorts in parallel. See the [Oncodrive3D Pipeline documentation](oncodrive3d_pipeline/README.md) for setup, input layout, and options.
 
 ## License
 
 Oncodrive3D is available to the general public subject to certain conditions described in its [LICENSE](LICENSE).
 
+## Citation
 
-## Citation 
 If you use Oncodrive3D in your research, please cite the original paper: [Oncodrive3D: fast and accurate detection of structural clusters of somatic mutations under positive selection](https://academic.oup.com/nar/article/53/15/gkaf776/8234003).

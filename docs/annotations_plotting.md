@@ -15,9 +15,27 @@ This document describes the prerequisites, the intermediate files that are produ
 
 1. **Datasets** – `oncodrive3d build-datasets` (or `build-datasets --mane_only`) must have been run already; the plotting stage reads `datasets/pdb_structures`, `seq_for_mut_prob.tsv`, and `confidence.tsv`.
 2. **Python environment** – use the same environment (e.g., `uv` virtualenv) that you rely on for the CLI.
-3. **PDB_Tool binary** – `oncodrive3d build-annotations` invokes the [PDB_Tool](https://github.com/realbigws/PDB_Tool) executable named `PDB_Tool` on `$PATH` to compute per-residue solvent accessibility and secondary structure. Install it or wrap it in a container accessible from the command line.
+3. **PDB_Tool binary** – `oncodrive3d build-annotations` invokes the [PDB_Tool](https://github.com/realbigws/PDB_Tool) executable named `PDB_Tool` on `$PATH` to compute per-residue solvent accessibility and secondary structure. See **Installing PDB_Tool** below for a recipe.
 4. **Internet access** – required to download Pfam annotations, UniProt features, and (if `--ddg_dir` is not set) RaSP ΔΔG predictions. You can point `--ddg_dir` to precomputed RaSP files to skip the download step or to provide in-house predicted scores.
 5. **Disk space** – annotation folders contain many files; keep several GB free.
+
+### Installing PDB_Tool
+
+[PDB_Tool](https://github.com/realbigws/PDB_Tool) compiles from source. If your conda env has no C/C++ toolchain, install one first:
+
+```bash
+conda install -c conda-forge gxx make
+```
+
+Then build and put it on `$PATH`:
+
+```bash
+git clone https://github.com/realbigws/PDB_Tool.git
+cd PDB_Tool
+make -C source_code
+# The Makefile drops the binary at the repo root. Symlink into the active conda env so it resolves via `which PDB_Tool`:
+ln -s "$(pwd)/PDB_Tool" "$CONDA_PREFIX/bin/PDB_Tool"
+```
 
 ---
 
@@ -26,24 +44,29 @@ This document describes the prerequisites, the intermediate files that are produ
 Run once per dataset (or whenever you update AlphaFold structures):
 
 ```bash
-oncodrive3d build-annotations \
-  --data_dir /path/to/datasets \
-  --output_dir /path/to/annotations
+# Default (Homo sapiens, public RaSP ΔΔG):
+oncodrive3d build-annotations -d <build_folder> -o <annot_folder>
+
+# With a MANE-built dataset:
+oncodrive3d build-annotations -d <mane_build_folder> -o <annot_folder>
+
+# Mouse with custom ΔΔG predictions (omit --ddg_dir to skip the ΔΔG step):
+oncodrive3d build-annotations -d <build_folder> -o <annot_folder> -s mouse --ddg_dir <ddg_path>
 ```
 
-Key options:
+See `oncodrive3d build-annotations --help` for all options.
 
-- `--data_dir` (**required**) – the Oncodrive3D datasets folder built via `oncodrive3d build-datasets`; annotations pull AlphaFold PDBs and metadata from here.
-- `--output_dir` – target directory for the annotation bundle (defaults to `annotations/`; cleaned at each run unless `--yes`).
-- `--ddg_dir` – point to precomputed RaSP ΔΔG predictions to skip the download step. Required for mouse if ΔΔG tracks are desired (only the human RaSP bundle is hosted); when omitted for mouse, the ΔΔG step is skipped with a warning and the rest of the build proceeds normally. Files in the directory must be CSVs containing `variant` (e.g. `M1A`) and `score_ml` columns; the UniProt accession is auto-detected anywhere in each filename, so any separator around it (e.g. `cavity_pred_A0A075B6X5_A.csv` or `rasp_pred-A0A075B6X5-F1.csv`) is accepted.
-- `--ddg_mismatch_threshold` – maximum fraction of wild-type residues in a ΔΔG file allowed to disagree with the canonical UniProt sequence before that protein is dropped. Default `0.1` (10%). Proteins with any position outside the canonical sequence are always skipped; the threshold catches isoform/structure mismatches that would otherwise produce misleading ΔΔG numbers. Set to `1.0` to effectively disable the WT-mismatch check (the position-out-of-range check still applies) — useful when you know your predictions came from a different isoform but want to keep the values anyway.
-- `--organism` – select the species recipe (human or mouse) so the correct external resources are queried.
-- `--cores` / `--yes` – control parallelism and disable confirmation prompts when overwriting an existing `output_dir`.
+**Worth knowing:**
+
+- ΔΔG predictions default to the public RaSP bundle (computed against the canonical AlphaFold v4 human proteome — not the MANE bundle). For datasets built with a different AF version, residue-level mismatches are filtered during validation (see `--ddg_mismatch_threshold` below).
+- `--ddg_dir` overrides the default download with a folder of RaSP-style CSVs (columns `variant` and `score_ml`; UniProt accession auto-detected anywhere in the filename, any separator). For non-human organisms the public bundle doesn't apply, so without `--ddg_dir` the ΔΔG step is skipped with a warning — other annotations build normally. To generate predictions yourself on CPUs, see [bbglab/rasp_cpu](https://github.com/bbglab/rasp_cpu).
+- `--ddg_mismatch_threshold` (default `0.1`) drops a protein if its wild-type residues disagree with the canonical UniProt sequence above this fraction. Set to `1.0` to disable the WT-mismatch check (positions outside the canonical sequence still drop the protein).
+- If `--output_dir` exists and isn't empty, you're prompted before its contents are cleaned (excluding `log/`); pass `--yes` to auto-confirm.
 
 What happens internally (`scripts/plotting/build_annotations.py` and helpers):
 
-1. **Cleanup** – the target directory is emptied (except for `log/`) unless `--yes` is provided.
-2. **Stability change (ΔΔG)** – for human datasets the command downloads RaSP predictions (`scripts/plotting/stability_change.py`). There is no public RaSP bundle for mouse, so mouse runs must supply their own predictions with `--ddg_dir` if ΔΔG tracks are desired. In all cases, whichever folder you point to is parsed into JSON maps `{position: {ALT: ddg}}`, averaging overlapping fragments. Before each protein is written out the parser validates every variant against the canonical UniProt sequence from `seq_for_mut_prob.tsv` and drops the protein (with a warning) if any position lies outside the sequence or if the wild-type mismatch rate exceeds `--ddg_mismatch_threshold`. Downstream `oncodrive3d plot` already tolerates missing per-protein JSONs, so dropped proteins simply omit the ΔΔG track. Within a kept protein, positions for which no prediction is available are surfaced as `NaN` (rather than `0.0`) so per-gene plots show gaps, the annotated CSV's `ΔΔG` column distinguishes "no data" from "neutral mutation", and the univariate logistic regression correctly restricts itself to positions with a real measurement.
+1. **Cleanup** – if the target directory exists and is non-empty, you're prompted before cleaning (preserving `log/`); `--yes` auto-confirms.
+2. **Stability change (ΔΔG)** – RaSP predictions are downloaded (human) or read from `--ddg_dir`. Each protein is parsed into `{position: {ALT: ddg}}` (averaging across fragments) and validated against the canonical sequence from `seq_for_mut_prob.tsv`; proteins failing validation are dropped with a warning. Within a kept protein, positions with no prediction surface as `NaN` (not `0.0`) so plots show gaps, the annotated CSV distinguishes "no data" from "neutral mutation", and the logistic regression restricts itself to real measurements.
 3. **PDB features** – AlphaFold structures are decompressed and sent through `PDB_Tool`, producing `.feature` files that are then parsed into `pdb_tool_df.tsv` with residue-level secondary structure (`SSE`) and relative accessibility (`pACC`).
 4. **Pfam domains** – Pfam coordinates are pulled from the Ensembl BioMart archive plus the Pfam ID database, merged with Oncodrive3D’s sequence metadata, and written to `pfam.tsv`.
 5. **UniProt features** – the EMBL-EBI Proteins API supplies DOMAIN/PTM/SITE/MOTIF/MEMBRANE annotations. They are normalized, merged with Pfam entries, and stored in `uniprot_feat.tsv`.
@@ -94,18 +117,12 @@ oncodrive3d plot \
   --lst_gene_tracks miss_count,miss_prob,score,clusters,ddg,disorder,pacc,ptm,site,sse,pfam
 ```
 
-Key options:
+See `oncodrive3d plot --help` for all options.
 
-- `--gene_result_path`, `--pos_result_path` (**required**) – paths to `<cohort>.3d_clustering_genes.csv` and `<cohort>.3d_clustering_pos.csv` from the same run.
-- `--maf_path` / `--maf_for_nonmiss_path` – `--maf_path` must point to the processed missense-only TSV created by `oncodrive3d run`; `--maf_for_nonmiss_path` is optional and enables the non-missense track if you provide the original MAF.
-- `--miss_prob_path` / `--seq_df_path` – these files (`<cohort>.miss_prob.processed.json` and `<cohort>.seq_df.processed.tsv`) must come from the same run; they carry the per-residue missense probabilities and mapping metadata needed for plotting.
-- `--datasets_dir` / `--annotations_dir` (**required**) – the dataset folder used during the run and the annotation bundle produced by `build-annotations`; mismatched directories cause missing-track errors.
-- `--output_dir` / `--cohort` – where plots/CSVs are written and which cohort label is printed on them.
-- `--fdr` – pass the column name with BH-FDR–adjusted p-values to display corrected values in the plots; defaults to raw `pvalue`.
-- `--lst_summary_tracks` / `--lst_gene_tracks` – comma-separated lists of track names. If you pass custom lists, match them with `--lst_*_hratios` to redistribute vertical space.
-- `--genes` / `--c_genes_only` / `--max_n_genes` – jointly control which genes are rendered. Use `--genes` for explicit symbols, `--c_genes_only` to keep only significant hits, and `--max_n_genes` to cap the total.
-- `--volcano_top_n`, `--summary_fsize_*`, `--gene_fsize_*` – resize summary/association plots; `--volcano_top_n` sets how many associations are annotated in the cohort-level volcano.
-- `--output_csv` / `--output_all_pos` – write the annotated position-level CSV; include non-mutated residues only when `--output_all_pos` is set.
+**Worth knowing:**
+
+- `--maf_path` is the **processed missense-only** TSV (`<cohort>.mutations.processed.tsv`) from `oncodrive3d run`. `--maf_for_nonmiss_path` is optional and takes the **original** MAF (before processing) — supply it to enable the non-missense track. All other input files (gene/pos results, `--miss_prob_path`, `--seq_df_path`, `--datasets_dir`, `--annotations_dir`) must come from that same `oncodrive3d run` invocation; mismatch yields empty plots or missing-track errors.
+- `--lst_summary_tracks` / `--lst_gene_tracks` accept comma-separated track names; pair them with `--lst_*_hratios` to redistribute vertical space.
 
 During execution (`scripts/plotting/plot.py`):
 
@@ -152,15 +169,14 @@ oncodrive3d chimerax-plot \
   --cluster_ext
 ```
 
-- `--gene_result_path`, `--pos_result_path` (**required**) – gene- and residue-level CSVs from the same run; both are needed to highlight clusters.
-- `--seq_df_path` – must point to the processed sequence dataframe (`<cohort>.seq_df.processed.tsv`), which provides transcript IDs, fragments, and mappings needed to overlay residues on structures.
-- `--datasets_dir` / `--output_dir` – dataset directory supplying AlphaFold models to load in ChimeraX and the destination for PNG/attribute outputs.
-- `--cohort` / `--max_n_genes` – label snapshots and cap the number of genes displayed.
-- `--chimerax_bin` – path to the ChimeraX executable; override this if ChimeraX is installed outside `/usr/bin/chimerax`.
-- `--pixel_size` – controls image resolution (smaller values produce larger images); default `0.08`.
-- `--cluster_ext` / `--fragmented_proteins` – toggles to display extended clusters (mutations that help rescue significance) and to keep AlphaFold-fragmented proteins, respectively.
-- `--transparent_bg` – render PNGs with a transparent background (handy for figure overlays).
-- `--af_version` – specify which AlphaFold build (release tag) your datasets use so the script picks the right structure names (default `4`).
+See `oncodrive3d chimerax-plot --help` for all options.
+
+**Worth knowing:**
+
+- `--chimerax_bin` defaults to `/usr/bin/chimerax`; override it if ChimeraX is installed elsewhere or running in a container.
+- `--pixel_size` controls resolution — smaller values produce larger images (default `0.08`).
+- `--cluster_ext` displays extended clusters (mutations that contribute to but don't directly form significant clusters).
+- `--af_version` defaults to `6` (matching `build-datasets`). Pass it only if your datasets were built with a different version (e.g., `--af_version 4` for MANE builds).
 
 ---
 

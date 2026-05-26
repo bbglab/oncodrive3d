@@ -1,19 +1,26 @@
-# Output
+# Building Datasets Output
 
-After successfully completing this step, the build folder must include the following files and directories:
+After `oncodrive3d build-datasets` completes, the build folder contains:
 
-- **pae/**: Directory including the AlphaFold predicted aligned error (PAE) for any protein of the proteome with a length lower than 2700 amino acids
+```text
+<build_folder>/
+├── pdb_structures/        # AlphaFold PDB files (downloaded bundle + any custom-supplied structures)
+├── pae/                   # AlphaFold Predicted Aligned Error files (.npy, one per UniProt protein — fragmented proteins use the F1 fragment's PAE); absent or partial when PAE is unavailable for the chosen AF version
+├── prob_cmaps/            # Contact probability maps (.npy, one per protein/fragment); F2+ fragments and proteins without PAE fall back to binary contact maps
+├── confidence.tsv         # Per-residue pLDDT scores for every protein in the proteome
+├── seq_for_mut_prob.tsv   # Per-protein metadata: HUGO symbol, HGNC/Ensembl/UniProt IDs, protein and DNA sequence, exon coordinates, trinucleotide contexts
+├── biomart_metadata.tsv   # Ensembl BioMart canonical transcript metadata; used to prioritize when multiple transcripts map to one structure
+└── log/                   # Logs from the build run
+```
 
-- **prob_cmaps/**: Directory including the contact probability map (pCMAPs) for any protein of the proteome
+With `--mane` or `--mane_only`, the folder also contains assets from the AlphaFold MANE overlap bundle (prefixed with `mane_`):
 
-- **confidence.csv**: CSV file including per-residue predicted local distance difference test (pLDDT) score for any protein of the proteome
+```text
+├── mane_summary.txt.gz                # NCBI MANE release summary (cached after first download)
+├── mane_refseq_prot_to_alphafold.csv  # RefSeq → AlphaFold MANE bundle mapping (consumed by the MANE preprocessing toolkit)
+├── mane_missing.csv                   # MANE entries lacking an AlphaFold MANE structure (consumed by the MANE preprocessing toolkit)
+└── mane_readme.txt                    # README from the AlphaFold MANE overlap bundle
+```
 
-- **seq_for_mut_prob.csv**: CSV file including HUGO symbol, Uniprot ID, DNA and protein sequences for any proteine of the proteome
-
-- **pdb_structures/**: Directory containing all PDB structure files—both those downloaded from the AlphaFold database and any custom in-house predicted structures (if provided).
-
-- **log/**: Directory containing log files produced during the build-datasets execution.
-
-- **biomart_metadata.csv**: Metadata file from Ensembl BioMart used to prioritize canonical transcripts when multiple transcripts map to the same protein structure.
-
-...
+> [!NOTE]
+> If `--custom_pae_dir` is provided, `pae/` is replaced with the contents of that directory. When PAE files are unavailable (e.g., AF DB v4 after 2025) and no custom PAE is supplied, the build proceeds with binary contact maps in `prob_cmaps/`.
