@@ -3,6 +3,7 @@ import json
 import logging
 import re
 import glob
+from collections import Counter
 from multiprocessing import Pool
 
 import pandas as pd
@@ -28,6 +29,28 @@ _UNIPROT_RE = re.compile(
 
 # Missense variant like "M1A". The ^ anchor is required because str.extract uses re.search.
 _VARIANT_RE = re.compile(r"^([A-Za-z])(\d+)([A-Za-z])")
+
+# Skip-reason keys returned by parse_ddg_rasp_worker. Module-level constants
+# (rather than bare string literals) so the worker's return sites and the
+# _SKIP_REASONS lookup below can be typo-checked by an IDE or linter.
+_REASON_NO_UNIPROT_MATCH = "no_uniprot_match"
+_REASON_NO_SEQ_AVAILABLE = "no_seq_available"
+_REASON_OUT_OF_RANGE = "out_of_range"
+_REASON_WT_MISMATCH = "wt_mismatch"
+_REASON_NO_VARIANTS = "no_variants"
+_REASON_UNREADABLE = "unreadable"
+_REASON_BAD_FILENAME = "bad_filename"
+
+# Human-readable labels used in the INFO summary at the end of parse_ddg_rasp.
+_SKIP_REASONS = {
+    _REASON_NO_UNIPROT_MATCH: "UniProt ID not found in datasets/seq_for_mut_prob.tsv",
+    _REASON_NO_SEQ_AVAILABLE: "Sequence missing in datasets/seq_for_mut_prob.tsv",
+    _REASON_OUT_OF_RANGE: "Position out of range",
+    _REASON_WT_MISMATCH: "WT mismatch above threshold",
+    _REASON_NO_VARIANTS: "No valid variants in CSV",
+    _REASON_UNREADABLE: "Unreadable CSV",
+    _REASON_BAD_FILENAME: "UniProt accession not recognised in filename",
+}
 
 
 # ===============================
@@ -141,22 +164,31 @@ def parse_ddg_rasp_worker(args):
         uni_id = id_from_ddg_path(file)
     except ValueError as e:
         logger.warning(f"Skipping ΔΔG file {file}: {e}")
-        return
+        return _REASON_BAD_FILENAME
 
-    # Get paths of all fragments for this protein
-    lst_path_prot = glob.glob(os.path.join(path_dir, f"*{uni_id}*"))
+    # Get paths of all fragments for this protein. Restrict to .csv so we don't
+    # pick up sibling files (e.g. RaSP's prism_cavity_*.txt) that happen to share
+    # the UniProt accession in their name.
+    lst_path_prot = glob.glob(os.path.join(path_dir, f"*{uni_id}*.csv"))
     frag = len(lst_path_prot) > 1
 
-    # Pre-validate the canonical sequence handle once (cheap)
+    # Pre-validate the canonical sequence handle once (cheap). These are
+    # demoted to DEBUG because, for the public RaSP bundle, they're an
+    # expected consequence of UniProt-snapshot drift between the bundle and
+    # the dataset — predictions for proteins Oncodrive3D doesn't analyse.
     if validate:
         if canonical_seq is None:
-            logger.warning(
-                f"Skipping ΔΔG for {uni_id}: uniprot_id_not_in_canonical_seq_map"
+            logger.debug(
+                f"Skipping ΔΔG for {uni_id}: UniProt ID not found in "
+                "datasets/seq_for_mut_prob.tsv"
             )
-            return
+            return _REASON_NO_UNIPROT_MATCH
         if not isinstance(canonical_seq, str) or len(canonical_seq) == 0:
-            logger.warning(f"Skipping ΔΔG for {uni_id}: canonical_seq_unavailable")
-            return
+            logger.debug(
+                f"Skipping ΔΔG for {uni_id}: sequence missing in "
+                "datasets/seq_for_mut_prob.tsv for this UniProt ID"
+            )
+            return _REASON_NO_SEQ_AVAILABLE
         seq_len = len(canonical_seq)
         # Pre-convert canonical to a numpy array of single-char codes so we can
         # index it with the int-pos array per fragment.
@@ -171,9 +203,11 @@ def parse_ddg_rasp_worker(args):
             wt_arr, pos_arr, alt_arr, ddg_arr = _parse_ddg_csv(path_prot)
         except Exception as e:
             logger.warning(
-                f"Skipping ΔΔG for {uni_id}: csv_unreadable: {type(e).__name__}"
+                f"Skipping ΔΔG for {uni_id}: unreadable CSV "
+                f"({os.path.basename(path_prot)}): "
+                f"{type(e).__name__}: {str(e)[:200]}"
             )
-            return
+            return _REASON_UNREADABLE
 
         if len(pos_arr) == 0:
             # No well-formed variants in this fragment — skip it; other fragments
@@ -187,9 +221,9 @@ def parse_ddg_rasp_worker(args):
                 bad_pos = int(pos_int[oor_mask][0])
                 logger.warning(
                     f"Skipping ΔΔG for {uni_id}: "
-                    f"position_{bad_pos}_out_of_range_(canonical_len_{seq_len})"
+                    f"position {bad_pos} out of range (canonical length {seq_len})"
                 )
-                return
+                return _REASON_OUT_OF_RANGE
             # Vectorised WT-mismatch tally. ``np.char.upper`` operates on ``S1``
             # dtype directly, so we skip the unicode round-trip.
             wt_upper = np.char.upper(wt_arr.astype("S1"))
@@ -210,16 +244,16 @@ def parse_ddg_rasp_worker(args):
     # Final validation gates
     if validate:
         if n_total == 0:
-            logger.warning(f"Skipping ΔΔG for {uni_id}: no_valid_variants_in_csv")
-            return
+            logger.warning(f"Skipping ΔΔG for {uni_id}: no valid variants in CSV")
+            return _REASON_NO_VARIANTS
         mismatch_rate = n_mismatch / n_total
         if mismatch_rate > wt_mismatch_threshold:
             logger.warning(
                 f"Skipping ΔΔG for {uni_id}: "
-                f"wt_mismatch_rate_{mismatch_rate:.1%}_exceeds_threshold_"
+                f"WT mismatch rate {mismatch_rate:.1%} exceeds threshold "
                 f"{wt_mismatch_threshold:.1%}"
             )
-            return
+            return _REASON_WT_MISMATCH
 
     # Average across fragments for the variants seen in more than one
     if frag:
@@ -229,6 +263,7 @@ def parse_ddg_rasp_worker(args):
 
     # Save dict
     save_json(output_path, uni_id, ddg_dict)
+    return None
 
 
 def parse_ddg_rasp(input_path, output_path, threads=1,
@@ -288,6 +323,7 @@ def parse_ddg_rasp(input_path, output_path, threads=1,
     ## Save dict for each proteins
     logger.debug(f"Input: {input_path}")
     logger.debug(f"Output: {output_path}")
+    skip_counts = Counter()
     if len(lst_files) > 0:
         n_proteins = len(lst_files)
         logger.info(f"Parsing ΔΔG of {n_proteins} proteins...")
@@ -307,14 +343,34 @@ def parse_ddg_rasp(input_path, output_path, threads=1,
         report_every = max(1, n_proteins // 20)  # ~20 progress lines total
         n_done = 0
         with Pool(processes=threads) as pool:
-            for _ in pool.imap_unordered(parse_ddg_rasp_worker, args_list,
-                                         chunksize=chunksize):
+            for result in pool.imap_unordered(parse_ddg_rasp_worker, args_list,
+                                              chunksize=chunksize):
                 n_done += 1
+                if result is not None:
+                    skip_counts[result] += 1
                 if n_done % report_every == 0 or n_done == n_proteins:
                     logger.info(f"Parsed {n_done}/{n_proteins} proteins")
-        logger.debug("DDG successfully converted into json files...")
     else:
         logger.debug("DDG not found: Skipping...")
+
+    # Coverage and skip-reason summary. Reads on-disk state so the numbers are
+    # correct even when re-running with already-produced JSONs (which the
+    # resume-skip logic above filters out of this run's args_list).
+    n_produced = len(glob.glob(os.path.join(output_path, "*_ddg.json")))
+    if validate and len(seq_map) > 0:
+        pct = 100.0 * n_produced / len(seq_map)
+        logger.info(
+            f"ΔΔG coverage: {n_produced:,} / {len(seq_map):,} proteins "
+            f"in datasets/seq_for_mut_prob.tsv ({pct:.1f}%)"
+        )
+    elif n_produced > 0:
+        logger.info(f"ΔΔG produced: {n_produced:,} JSONs")
+    if skip_counts:
+        n_skipped = sum(skip_counts.values())
+        logger.info(f"Skipped {n_skipped:,} proteins in this run:")
+        for key, count in skip_counts.most_common():
+            label = _SKIP_REASONS.get(key, key)
+            logger.info(f"  - {label}: {count:,}")
 
     # Remove the original folder
     logger.debug(f"Deleting {input_path}")
