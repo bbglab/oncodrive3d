@@ -259,6 +259,10 @@ def run(input_path,
 @click.option("-s", "--organism", type=click.Choice(["Homo sapiens", 'human', "Mus musculus", 'mouse']), help="Organism name", default="Homo sapiens")
 @click.option("-c", "--cores", type=click.IntRange(min=1, max=len(os.sched_getaffinity(0)), clamp=False), default=len(os.sched_getaffinity(0)),
               help="Number of cores to use in the computation")
+@click.option("--ddg_mismatch_threshold", type=click.FloatRange(min=0.0, max=1.0), default=0.1,
+              help="Maximum fraction of wild-type residues in a ΔΔG file allowed to "
+                   "disagree with the canonical UniProt sequence before that protein "
+                   "is skipped. Default: 0.1")
 @click.option("-y", "--yes", help="No interaction", is_flag=True)
 @click.option("-v", "--verbose", help="Verbose", is_flag=True)
 @setup_logging_decorator
@@ -268,6 +272,7 @@ def build_annotations(data_dir,
                       #path_pdb_tool_sif,
                       organism,
                       cores,
+                      ddg_mismatch_threshold,
                       yes,
                       verbose):
     """
@@ -275,25 +280,27 @@ def build_annotations(data_dir,
     """
 
     startup_message(__version__, "Initializing building annotations..")
-    
+
     logger.info(f"Output directory: {output_dir}")
     logger.info(f"Path to datasets: {data_dir}")
     logger.info(f"Path to custom ddG predictions: {ddg_dir}")
     #logger.info(f"Path to PDB_Tool SIF: {path_pdb_tool_sif}")
     logger.info(f"Organism: {organism}")
     logger.info(f"Cores: {cores}")
+    logger.info(f"ΔΔG WT mismatch threshold: {ddg_mismatch_threshold}")
     logger.info(f"Verbose: {bool(verbose)}")
     logger.info(f'Log path: {os.path.join(output_dir, "log")}')
     logger.info("")
-    
+
     from scripts.plotting.build_annotations import get_annotations
 
-    get_annotations(data_dir, 
-                    output_dir, 
+    get_annotations(data_dir,
+                    output_dir,
                     ddg_dir,
                     #path_pdb_tool_sif,
                     organism,
-                    cores)
+                    cores,
+                    ddg_mismatch_threshold=ddg_mismatch_threshold)
 
 
 

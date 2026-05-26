@@ -26,13 +26,16 @@ def get_annotations(data_dir,
                     ddg_dir,
                     #path_pdb_tool_sif,
                     organism,
-                    cores):
+                    cores,
+                    ddg_mismatch_threshold=0.1):
     """
     Main function to build annotations to generate annotated plots.
     """
 
     # Empty directory and load sequence df
     clean_annot_dir(output_dir, 'd')
+    seq_df = pd.read_table(os.path.join(data_dir, "seq_for_mut_prob.tsv"))
+    seq_map = dict(zip(seq_df["Uniprot_ID"], seq_df["Seq"]))
 
     # # Get ddG
     species = get_species(organism)
@@ -59,9 +62,11 @@ def get_annotations(data_dir,
         ##       - only one protein is allocated to one process every time
         ##       - a list of proteins should be allocated instead
 
-        # Parsing DDG
+        # Parsing DDG (with per-protein validation against canonical sequence)
         logger.info("Parsing stability change..")
-        parse_ddg_rasp(temp_ddg_path, ddg_output, cores)
+        parse_ddg_rasp(temp_ddg_path, ddg_output, cores,
+                       seq_map=seq_map,
+                       wt_mismatch_threshold=ddg_mismatch_threshold)
         logger.info("Parsing completed!")
     else:
         logger.warning(f"Currently, stability change annotation is not available for {species} but only for Homo sapiens: Skipping...")
@@ -82,8 +87,7 @@ def get_annotations(data_dir,
     
     # Get Pfam annotations
     logger.info("Downloading and parsing Pfam..")
-    seq_df = pd.read_table(os.path.join(data_dir, "seq_for_mut_prob.tsv"))    
-    pfam_df = get_pfam(seq_df = seq_df, 
+    pfam_df = get_pfam(seq_df = seq_df,
                        output_tsv = os.path.join(output_dir, "pfam.tsv"),
                        organism = species)
     logger.info("Completed!")
