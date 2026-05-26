@@ -313,6 +313,7 @@ def parse_ddg_rasp(input_path, output_path, threads=1,
     ## Save dict for each proteins
     logger.debug(f"Input: {input_path}")
     logger.debug(f"Output: {output_path}")
+    skip_counts = Counter()
     if len(lst_files) > 0:
         n_proteins = len(lst_files)
         logger.info(f"Parsing ΔΔG of {n_proteins} proteins...")
@@ -331,7 +332,6 @@ def parse_ddg_rasp(input_path, output_path, threads=1,
         chunksize = max(1, min(64, n_proteins // (4 * max(1, threads))))
         report_every = max(1, n_proteins // 20)  # ~20 progress lines total
         n_done = 0
-        skip_counts = Counter()
         with Pool(processes=threads) as pool:
             for result in pool.imap_unordered(parse_ddg_rasp_worker, args_list,
                                               chunksize=chunksize):
@@ -340,25 +340,27 @@ def parse_ddg_rasp(input_path, output_path, threads=1,
                     skip_counts[result] += 1
                 if n_done % report_every == 0 or n_done == n_proteins:
                     logger.info(f"Parsed {n_done}/{n_proteins} proteins")
-
-        # Coverage and skip-reason summary
-        n_skipped = sum(skip_counts.values())
-        n_produced = n_done - n_skipped
-        if validate and len(seq_map) > 0:
-            pct = 100.0 * n_produced / len(seq_map)
-            logger.info(
-                f"ΔΔG coverage: {n_produced:,} / {len(seq_map):,} proteins "
-                f"in datasets/seq_for_mut_prob.tsv ({pct:.1f}%)"
-            )
-        else:
-            logger.info(f"ΔΔG produced: {n_produced:,} JSONs")
-        if skip_counts:
-            logger.info(f"Skipped {n_skipped:,} proteins:")
-            for key, count in skip_counts.most_common():
-                label = _SKIP_REASONS.get(key, key)
-                logger.info(f"  - {label}: {count:,}")
     else:
         logger.debug("DDG not found: Skipping...")
+
+    # Coverage and skip-reason summary. Reads on-disk state so the numbers are
+    # correct even when re-running with already-produced JSONs (which the
+    # resume-skip logic above filters out of this run's args_list).
+    n_produced = len(glob.glob(os.path.join(output_path, "*_ddg.json")))
+    if validate and len(seq_map) > 0:
+        pct = 100.0 * n_produced / len(seq_map)
+        logger.info(
+            f"ΔΔG coverage: {n_produced:,} / {len(seq_map):,} proteins "
+            f"in datasets/seq_for_mut_prob.tsv ({pct:.1f}%)"
+        )
+    elif n_produced > 0:
+        logger.info(f"ΔΔG produced: {n_produced:,} JSONs")
+    if skip_counts:
+        n_skipped = sum(skip_counts.values())
+        logger.info(f"Skipped {n_skipped:,} proteins in this run:")
+        for key, count in skip_counts.most_common():
+            label = _SKIP_REASONS.get(key, key)
+            logger.info(f"  - {label}: {count:,}")
 
     # Remove the original folder
     logger.debug(f"Deleting {input_path}")
