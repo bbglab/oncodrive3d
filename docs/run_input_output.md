@@ -1,4 +1,6 @@
-# Input
+# Input and Output
+
+## Input
 
 Oncodrive3D analyse patterns of somatic mutations at the cohort level, and relies on two primary input files:
 
@@ -11,9 +13,9 @@ Oncodrive3D analyse patterns of somatic mutations at the cohort level, and relie
 
 ---
 
-## Input Mutations
+### Input Mutations
 
-### MAF File
+#### MAF File
 
 A [Mutation Annotation Format (MAF)](https://docs.gdc.cancer.gov/Data/File_Formats/MAF_Format/#introduction) file that encompasses all somatic mutations identified within a specific cohort and their annotations (e.g., annotated by using Ensembl Variant Effect Predictor (VEP)).
 
@@ -32,7 +34,7 @@ The output of VEP should be filtered so that each mutation is mapped to a single
 - **Transcript_ID**: Ensembl ID of the transcript affected by the variant.
 - **HGVSp_Short**: The protein sequence of the variant in HGVS recommended format using 1-letter amino-acid codes.
 
-### VEP File
+#### VEP File
 
 To maximize the number of matching transcripts between the input mutations and the AlphaFold predicted structures used by Oncodrive3D, it is recommended to USE the unfiltered output of VEP (generated using the VEP command described in the [MAF file section](#maf-file)) as input.
 In this case:
@@ -51,7 +53,7 @@ In this case:
 
 ---
 
-## Mutation Profile
+### Mutation Profile
 
 The mutation profile of a cohort rapresents the count or the normalized frequencies of mutations in every possible k-nucleotide (e.g., trinucleotide or pentanucleotide) contexts.
 
@@ -81,7 +83,7 @@ The mutation profile used by Oncodrive3D is a dictionary (json file) including t
 
 The mutation profile can be computed using BGSignature (detailed below) or other bioinformatics softwares.  
 
-### Create the Mutation Profile with BGSignature
+#### Create the Mutation Profile with BGSignature
 
 1. Install BGSignature:
     ```
@@ -113,7 +115,7 @@ To compute the mutation profile with BGSignature two main files are required:
     - `END`
     - `ELEMENT`  
     
-#### Create the Regions File  
+##### Create the Regions File  
 
 A small helper script ([tools/preprocessing/get_regions_file.py](../tools/preprocessing/get_regions_file.py)) generates the regions file via BGReference.
 
@@ -128,13 +130,13 @@ A small helper script ([tools/preprocessing/get_regions_file.py](../tools/prepro
     ```
     Supported genomes: `hg18`, `hg19`, `hg38`, `mm10`, `mm39`. The first argument is the genome build; the second is the k-mer size (typically `3` for trinucleotide contexts).
 
-# Output
+## Output
 
 The `oncodrive3d run command` performs the 3D clustering analysis, generating both main and supplementary output files. The main output files include a gene-level output and a residue-level output, both summarizing the results of the analysis. The supplementary output files include the processed input files and a processed file derived from the Oncodrive3D built datasets, containing information on the genes being analyzed.
 
-## Main Output
+### Main Output
 
-### Gene-level output
+#### Gene-level output
 
 CSV file (`<cohort>.3d_clustering_genes.csv`) containing the results of the analysis at the gene level. The genes (rows) are sorted by ascending order based on significance and deviation from neutrality. 
 
@@ -186,7 +188,7 @@ It includes the following fields:
     - `Fragmented`: The protein structure is predicted as fragments by AlphaFold, and the analysis of fragmented structures is not enabled (`-f`, `--no_fragments`).
 
 
-### Residue-level output
+#### Residue-level output
   
 CSV file (`<cohort>.3d_clustering_pos.csv`) containing the results of the analysis at the level of mutated residues. Each row corresponds to a mutated position within a gene and includes detailed information for each potential mutational cluster.
 
@@ -215,11 +217,11 @@ It includes the following fields:
 - **Cohort**: Cohort name.
 
 
-## Supplementary Output
+### Supplementary Output
 
 These intermediate files are written alongside the main output. They are not the analysis results themselves but are consumed by downstream tooling — in particular, `oncodrive3d plot` requires all three.
 
-### Processed sequence dataframe
+#### Processed sequence dataframe
 
 TSV file (`<cohort>.seq_df.processed.tsv`) — subset of the built `seq_for_mut_prob.tsv` filtered to genes that entered the run, with the following columns:
 
@@ -229,14 +231,14 @@ TSV file (`<cohort>.seq_df.processed.tsv`) — subset of the built `seq_for_mut_
 - **Tri_context**: per-base trinucleotide contexts along the CDS.
 - **Reference_info**: flag indicating whether the genomic coordinates were resolved against the Proteins API (`1`) or fallback sources. Only `Reference_info == 1` entries can be paired with site-level mutability — see [mutability.md](mutability.md).
 
-### Processed mutations
+#### Processed mutations
 
 TSV file (`<cohort>.mutations.processed.tsv`) — input MAF after Oncodrive3D's parsing pass: filtered to missense variants, protein positions extracted, transcript IDs mapped against the built datasets, and the columns `O3D_transcript_ID` and `Transcript_status` appended (see the `Transcript_status` field documented under [Gene-level output](#gene-level-output) for the possible values).
 
-### Missense probability dictionary
+#### Missense probability dictionary
 
 JSON file (`<cohort>.miss_prob.processed.json`) — dictionary keyed by `{Uniprot_ID}-F{fragment}`, where each value is a per-residue vector of missense-mutation probabilities. The vector is derived from the cohort's mutational profile, or from the site-level mutability table when `--mutability_config_path` is provided.
 
-### Logs
+#### Logs
 
 `log/` subdirectory — log files produced during the run.
