@@ -42,11 +42,11 @@ See `oncodrive3d build-annotations --help` for all options.
 
 - `--ddg_dir` must point to a folder of RaSP-style CSVs (columns `variant` and `score_ml`; UniProt accession auto-detected anywhere in the filename, any separator). Required for mouse if ΔΔG tracks are desired — the public RaSP bundle is human-only; omitting it for mouse skips ΔΔG with a warning.
 - `--ddg_mismatch_threshold` (default `0.1`) drops a protein if its wild-type residues disagree with the canonical UniProt sequence above this fraction. Set to `1.0` to disable the WT-mismatch check (positions outside the canonical sequence still drop the protein).
-- `--output_dir` is cleaned at each run unless `--yes` is passed.
+- If `--output_dir` exists and isn't empty, you're prompted before its contents are cleaned (excluding `log/`); pass `--yes` to auto-confirm.
 
 What happens internally (`scripts/plotting/build_annotations.py` and helpers):
 
-1. **Cleanup** – the target directory is emptied (except for `log/`) unless `--yes` is provided.
+1. **Cleanup** – if the target directory exists and is non-empty, you're prompted before cleaning (preserving `log/`); `--yes` auto-confirms.
 2. **Stability change (ΔΔG)** – RaSP predictions are downloaded (human) or read from `--ddg_dir`. Each protein is parsed into `{position: {ALT: ddg}}` (averaging across fragments) and validated against the canonical sequence from `seq_for_mut_prob.tsv`; proteins failing validation are dropped with a warning. Within a kept protein, positions with no prediction surface as `NaN` (not `0.0`) so plots show gaps, the annotated CSV distinguishes "no data" from "neutral mutation", and the logistic regression restricts itself to real measurements.
 3. **PDB features** – AlphaFold structures are decompressed and sent through `PDB_Tool`, producing `.feature` files that are then parsed into `pdb_tool_df.tsv` with residue-level secondary structure (`SSE`) and relative accessibility (`pACC`).
 4. **Pfam domains** – Pfam coordinates are pulled from the Ensembl BioMart archive plus the Pfam ID database, merged with Oncodrive3D’s sequence metadata, and written to `pfam.tsv`.
@@ -158,7 +158,7 @@ See `oncodrive3d chimerax-plot --help` for all options.
 - `--chimerax_bin` defaults to `/usr/bin/chimerax`; override it if ChimeraX is installed elsewhere or running in a container.
 - `--pixel_size` controls resolution — smaller values produce larger images (default `0.08`).
 - `--cluster_ext` displays extended clusters (mutations that contribute to but don't directly form significant clusters).
-- `--af_version` must match the AlphaFold build behind your datasets (default `4`) so structure filenames resolve correctly.
+- `--af_version` defaults to `6` (matching `build-datasets`). Pass it only if your datasets were built with a different version (e.g., `--af_version 4` for MANE builds).
 
 ---
 

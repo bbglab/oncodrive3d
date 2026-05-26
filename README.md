@@ -61,7 +61,7 @@ This step builds the datasets necessary for Oncodrive3D to run the 3D clustering
 > This step is time- and resource-intensive: it downloads and processes large amounts of structural data. Ensure adequate disk space, CPU, and a reliable internet connection (AlphaFold, Ensembl, Pfam, and other resources are fetched on demand).
 
 > [!WARNING]
-> MANE builds force AlphaFold DB v4 structures (non-MANE builds default to v6). PAE files for v4 are no longer hosted after 2025, so `--mane` runs must supply them locally via `--custom_pae_dir`.
+> MANE builds force AlphaFold DB v4 structures (non-MANE builds default to v6). PAE files for v4 are no longer hosted after 2025, so MANE builds without `--custom_pae_dir` fall back to binary contact maps. To keep PAE-weighted probability maps, supply precomputed v4 PAE files via `--custom_pae_dir`.
 
 > [!NOTE]
 > The first time that you run Oncodrive3D building dataset step with a given reference genome, it will download it from our servers. By default the downloaded datasets go to `~/.bgdata`. If you want to move these datasets to another folder you have to define the system environment variable `BGDATA_LOCAL` with an export command.
