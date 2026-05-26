@@ -12,7 +12,6 @@ import daiquiri
 
 from scripts import __logger_name__
 from scripts.datasets.utils import download_single_file, extract_zip_file
-from scripts.globals import rm_dir
 
 logger = daiquiri.getLogger(__logger_name__ + ".plotting.stability_change")
 
@@ -372,7 +371,4 @@ def parse_ddg_rasp(input_path, output_path, threads=1,
             label = _SKIP_REASONS.get(key, key)
             logger.info(f"  - {label}: {count:,}")
 
-    # Remove the original folder
-    logger.debug(f"Deleting {input_path}")
-    rm_dir(input_path)
     logger.info("Parsing of DDG completed!")
