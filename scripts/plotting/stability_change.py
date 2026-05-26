@@ -80,15 +80,19 @@ def download_stability_change(path: str,
 
 def append_ddg_to_dict(ddg_dict, df, frag=False):
 
-    pattern = re.compile(r'([A-Za-z])(\d+)([A-Za-z])')
-    
+    # Use the module-level _VARIANT_RE so malformed rows are treated
+    # consistently with _validate_protein_ddg: skipped, not crashed on.
     for _, row in df.iterrows():
         variant, ddg = row.values
-        pos, alt = extract_mut(variant, pattern)
-        
+        match = _VARIANT_RE.match(str(variant))
+        if match is None:
+            continue
+        pos = match.group(2)
+        alt = match.group(3)
+
         if pos not in ddg_dict:
             ddg_dict[pos] = {}
-        
+
         if alt not in ddg_dict[pos] and frag:
             ddg_dict[pos][alt] = []
 
@@ -257,9 +261,13 @@ def parse_ddg_rasp(input_path, output_path, threads=1,
         seq_map = {}
 
     # Get already processed files and available ones for processing.
-    # Collect (file, uni_id) so we don't extract the accession twice.
+    # Collect (file, uni_id), deduplicating by uni_id so fragmented proteins
+    # don't spawn duplicate workers that race to write the same JSON. The
+    # worker globs all fragments for its uni_id internally, so a single
+    # entry per accession is sufficient.
     files_processed = set(glob.glob(os.path.join(output_path, "*.json")))
     lst_files = []
+    seen_uni_ids = set()
     for file in os.listdir(input_path):
         if not file.endswith(".csv"):
             continue
@@ -268,8 +276,11 @@ def parse_ddg_rasp(input_path, output_path, threads=1,
         except ValueError as e:
             logger.warning(f"Skipping {file}: {e}")
             continue
+        if uni_id in seen_uni_ids:
+            continue
         if os.path.join(output_path, f"{uni_id}_ddg.json") in files_processed:
             continue
+        seen_uni_ids.add(uni_id)
         lst_files.append((file, uni_id))
     ## Save dict for each proteins
     logger.debug(f"Input: {input_path}")
