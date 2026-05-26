@@ -128,7 +128,7 @@ A small helper script ([tools/preprocessing/get_regions_file.py](../tools/prepro
     ```
     Supported genomes: `hg18`, `hg19`, `hg38`, `mm10`, `mm39`. The first argument is the genome build; the second is the k-mer size (typically `3` for trinucleotide contexts).
 
-# Ouput
+# Output
 
 The `oncodrive3d run command` performs the 3D clustering analysis, generating both main and supplementary output files. The main output files include a gene-level output and a residue-level output, both summarizing the results of the analysis. The supplementary output files include the processed input files and a processed file derived from the Oncodrive3D built datasets, containing information on the genes being analyzed.
 
