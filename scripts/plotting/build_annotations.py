@@ -36,14 +36,14 @@ def get_annotations(data_dir,
 
     # # Get ddG
     species = get_species(organism)
-    logger.info("Obtaining stability change..")
+    logger.info("Checking stability change inputs..")
     if species == "Mus musculus" and ddg_dir is None:
         logger.warning(
             "Stability change (ΔΔG) for Mus musculus requires precomputed predictions: "
             "the public RaSP bundle is only hosted for Homo sapiens. Skipping ΔΔG step. "
             "Provide --ddg_dir with mouse RaSP predictions to include ΔΔG tracks."
         )
-    elif species == "Homo sapiens" or species == "Mus musculus":
+    elif species in ("Homo sapiens", "Mus musculus"):
         ddg_output = os.path.join(output_dir, "stability_change")
         os.makedirs(ddg_output, exist_ok=True)
         if ddg_dir is not None:
