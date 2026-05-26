@@ -5,7 +5,7 @@ import daiquiri
 import pandas as pd
 
 from scripts import __logger_name__
-from scripts.globals import copy_dir
+from scripts.globals import rm_dir
 from scripts.plotting.utils import clean_annot_dir, get_species
 from scripts.plotting.stability_change import download_stability_change, parse_ddg_rasp
 from scripts.plotting.pdb_tool import run_pdb_tool, parse_pdb_tool
@@ -49,12 +49,13 @@ def get_annotations(data_dir,
         ddg_output = os.path.join(output_dir, "stability_change")
         os.makedirs(ddg_output, exist_ok=True)
         if ddg_dir is not None:
-            # Copy ddG from path
-            temp_ddg_path = os.path.join(output_dir, "stability_change_temp")
-            copy_dir(source_dir=ddg_dir, destination_dir=temp_ddg_path)
+            # User-supplied directory — read in place (no copy).
+            ddg_input_path = ddg_dir
+            cleanup_input = False
         else:
-            # Download ddG
-            temp_ddg_path = download_stability_change(ddg_output, cores)
+            # Download ddG to a directory we own; clean it up after parsing.
+            ddg_input_path = download_stability_change(ddg_output, cores)
+            cleanup_input = True
         logger.info("Completed!")
 
         ## TODO: Optimize DDG parsing
@@ -65,9 +66,11 @@ def get_annotations(data_dir,
         seq_df = pd.read_table(os.path.join(data_dir, "seq_for_mut_prob.tsv"))
         seq_map = dict(zip(seq_df["Uniprot_ID"], seq_df["Seq"]))
         logger.info("Parsing stability change..")
-        parse_ddg_rasp(temp_ddg_path, ddg_output, cores,
+        parse_ddg_rasp(ddg_input_path, ddg_output, cores,
                        seq_map=seq_map,
                        wt_mismatch_threshold=ddg_mismatch_threshold)
+        if cleanup_input:
+            rm_dir(ddg_input_path)
         logger.info("Parsing completed!")
     else:
         logger.warning(f"Currently, stability change annotation is not available for {species} but only for Homo sapiens: Skipping...")
