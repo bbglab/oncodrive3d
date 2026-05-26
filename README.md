@@ -86,7 +86,7 @@ Examples:
 
 See `oncodrive3d build-datasets --help` for all options.
 
-For more information on the output of this step, please refer to the [Building Datasets Output Documentation](https://github.com/bbglab/oncodrive3d/tree/master/docs/build_output.md).
+For more information on the output of this step, please refer to the [Building Datasets Output Documentation](docs/build_output.md).
 
 > [!TIP]
 > To extend MANE Select structural coverage beyond the AlphaFold MANE bundle, see the [MANE Preprocessing Toolkit](tools/preprocessing/README.md).
@@ -104,7 +104,7 @@ See the [Input and Output Documentation](docs/run_input_output.md) for details o
 - **<mut_profile>** (`optional`): Dictionary including the normalized frequencies of mutations (*values*) in every possible trinucleotide context (*keys*), such as 'ACA>A', 'ACC>A', and so on.
 
 > [!NOTE] 
-> Examples of the input files are available in the [Test Input Folder](https://github.com/bbglab/oncodrive3d/tree/master/test/input).  
+> Examples of the input files are available in the [Test Input Folder](test/input).  
 Please refer to these examples to understand the expected format and structure of the input files.
 
 > [!NOTE]
