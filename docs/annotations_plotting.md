@@ -32,7 +32,7 @@ oncodrive3d build-annotations -d <build_folder> -o <annot_folder>
 # With a MANE-built dataset:
 oncodrive3d build-annotations -d <mane_build_folder> -o <annot_folder>
 
-# Mouse (custom ΔΔG predictions required):
+# Mouse with custom ΔΔG predictions (omit --ddg_dir to skip the ΔΔG step):
 oncodrive3d build-annotations -d <build_folder> -o <annot_folder> -s mouse --ddg_dir <ddg_path>
 ```
 
