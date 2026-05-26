@@ -343,9 +343,13 @@ def get_nonmiss_mut(path_to_maf):
 def avg_per_pos_ddg(pos_result_gene, ddg_prot, maf_gene):
     """
     Compute per-position average stability change upon mutations (DDG).
+
+    Positions absent from ``ddg_prot`` (no prediction available) are left as
+    NaN so that downstream consumers (plots, annotated CSV, logistic
+    regression) can distinguish "no data" from a genuine ΔΔG of zero.
     """
-    
-    ddg_vec = np.repeat(0., len(pos_result_gene))
+
+    ddg_vec = np.repeat(np.nan, len(pos_result_gene))
     for pos, group in maf_gene.groupby('Pos'):
         pos = str(pos)
         obs_mut = group.Mut

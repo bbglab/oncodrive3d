@@ -32,10 +32,9 @@ def get_annotations(data_dir,
     Main function to build annotations to generate annotated plots.
     """
 
-    # Empty directory and load sequence df
+    # Empty directory
     clean_annot_dir(output_dir, 'd')
-    seq_df = pd.read_table(os.path.join(data_dir, "seq_for_mut_prob.tsv"))
-    seq_map = dict(zip(seq_df["Uniprot_ID"], seq_df["Seq"]))
+    seq_df = None  # loaded lazily — only the ΔΔG and Pfam/UniProt steps need it
 
     # # Get ddG
     species = get_species(organism)
@@ -63,6 +62,8 @@ def get_annotations(data_dir,
         ##       - a list of proteins should be allocated instead
 
         # Parsing DDG (with per-protein validation against canonical sequence)
+        seq_df = pd.read_table(os.path.join(data_dir, "seq_for_mut_prob.tsv"))
+        seq_map = dict(zip(seq_df["Uniprot_ID"], seq_df["Seq"]))
         logger.info("Parsing stability change..")
         parse_ddg_rasp(temp_ddg_path, ddg_output, cores,
                        seq_map=seq_map,
@@ -87,6 +88,8 @@ def get_annotations(data_dir,
     
     # Get Pfam annotations
     logger.info("Downloading and parsing Pfam..")
+    if seq_df is None:
+        seq_df = pd.read_table(os.path.join(data_dir, "seq_for_mut_prob.tsv"))
     pfam_df = get_pfam(seq_df = seq_df,
                        output_tsv = os.path.join(output_dir, "pfam.tsv"),
                        organism = species)

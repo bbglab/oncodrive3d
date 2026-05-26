@@ -27,6 +27,9 @@ _UNIPROT_RE = re.compile(
     r"|[A-NR-Z][0-9](?:[A-Z][A-Z0-9]{2}[0-9]){1,2}"
 )
 
+# Matches a single missense variant (e.g. "M1A") in RaSP-style CSV rows.
+_VARIANT_RE = re.compile(r"([A-Za-z])(\d+)([A-Za-z])")
+
 
 # ===============================
 # Stability change upon mutations
@@ -128,7 +131,7 @@ def id_from_ddg_path(path):
     return match.group(0)
 
 
-def _validate_protein_ddg(uni_id, csv_paths, seq_map, wt_mismatch_threshold):
+def _validate_protein_ddg(canonical_seq, csv_paths, wt_mismatch_threshold):
     """Validate that predicted ΔΔG variants align with the canonical sequence.
 
     Two failure modes are caught:
@@ -136,25 +139,27 @@ def _validate_protein_ddg(uni_id, csv_paths, seq_map, wt_mismatch_threshold):
       2. wild-type residues disagreeing with the canonical sequence above
          ``wt_mismatch_threshold`` (fraction of total variants checked).
 
+    ``canonical_seq`` is the canonical UniProt sequence string for this protein.
+    When ``None`` validation is treated as a hard failure (the caller has
+    already decided this protein has no canonical reference available).
+
     Returns ``(is_valid, reason)`` where ``reason`` is a short string for logging.
     """
 
-    if uni_id not in seq_map:
+    if canonical_seq is None:
         return False, "uniprot_id_not_in_canonical_seq_map"
-    canonical_seq = seq_map[uni_id]
     if not isinstance(canonical_seq, str) or len(canonical_seq) == 0:
         return False, "canonical_seq_unavailable"
 
-    variant_pat = re.compile(r"([A-Za-z])(\d+)([A-Za-z])")
     n_total = 0
     n_mismatch = 0
     for path_prot in csv_paths:
         try:
             df = pd.read_csv(path_prot, usecols=["variant"])
         except Exception as e:
-            return False, f"csv_unreadable: {e}"
+            return False, f"csv_unreadable: {type(e).__name__}"
         for variant in df["variant"]:
-            m = variant_pat.match(str(variant))
+            m = _VARIANT_RE.match(str(variant))
             if not m:
                 continue
             wt = m.group(1).upper()
@@ -181,7 +186,7 @@ def _validate_protein_ddg(uni_id, csv_paths, seq_map, wt_mismatch_threshold):
 
 def parse_ddg_rasp_worker(args):
 
-    file, path_dir, output_path, seq_map, wt_mismatch_threshold = args
+    file, path_dir, output_path, canonical_seq, wt_mismatch_threshold, validate = args
 
     # Get Uniprot_ID
     try:
@@ -194,10 +199,10 @@ def parse_ddg_rasp_worker(args):
     lst_path_prot = glob.glob(os.path.join(path_dir, f"*{uni_id}*"))
     frag = True if len(lst_path_prot) > 1 else False
 
-    # Validate against the canonical sequence when a seq_map is provided
-    if seq_map:
+    # Validate against the canonical sequence (skipped only if explicitly disabled)
+    if validate:
         is_valid, reason = _validate_protein_ddg(
-            uni_id, lst_path_prot, seq_map, wt_mismatch_threshold
+            canonical_seq, lst_path_prot, wt_mismatch_threshold
         )
         if not is_valid:
             logger.warning(f"Skipping ΔΔG for {uni_id}: {reason}")
@@ -230,22 +235,30 @@ def parse_ddg_rasp(input_path, output_path, threads=1,
     DDG of that variant across the different fragments (fragments are overlapping).
 
     When ``seq_map`` is provided (``{uniprot_id: canonical_sequence}``), each
-    protein's predictions are validated against the canonical sequence: any
+    protein's predictions are validated against its canonical sequence: any
     protein with positions beyond the sequence length or with a wild-type
     mismatch rate above ``wt_mismatch_threshold`` (default 0.1) is skipped
-    with a warning. The plotting module already tolerates per-protein missing
-    JSONs, so downstream output simply omits the ΔΔG track for skipped genes.
+    with a warning. Setting ``wt_mismatch_threshold`` to ``1.0`` effectively
+    disables the WT-mismatch check (the position-out-of-range check remains).
+    The plotting module already tolerates per-protein missing JSONs, so
+    downstream output simply omits the ΔΔG track for skipped genes.
+
+    Only the canonical sequence string for the protein being processed is
+    passed to each worker — not the full ``seq_map`` — to keep
+    multiprocessing pickle overhead bounded.
 
     Rapid protein stability prediction using deep learning representations
     https://elifesciences.org/articles/82593
     DOI: 10.7554/eLife.82593
     """
 
+    validate = seq_map is not None
     if seq_map is None:
         seq_map = {}
 
-    # Get already processed files and available ones for processing
-    files_processed = glob.glob(os.path.join(output_path, "*.json"))
+    # Get already processed files and available ones for processing.
+    # Collect (file, uni_id) so we don't extract the accession twice.
+    files_processed = set(glob.glob(os.path.join(output_path, "*.json")))
     lst_files = []
     for file in os.listdir(input_path):
         if not file.endswith(".csv"):
@@ -257,7 +270,7 @@ def parse_ddg_rasp(input_path, output_path, threads=1,
             continue
         if os.path.join(output_path, f"{uni_id}_ddg.json") in files_processed:
             continue
-        lst_files.append(file)
+        lst_files.append((file, uni_id))
     ## Save dict for each proteins
     logger.debug(f"Input: {input_path}")
     logger.debug(f"Output: {output_path}")
@@ -270,11 +283,14 @@ def parse_ddg_rasp(input_path, output_path, threads=1,
 
         # TODO: also the parsing itself can be optimized
 
-        # Create a pool of workers parsing processes
+        # Create a pool of workers parsing processes. Pass only this protein's
+        # canonical sequence to each task (avoids pickling the full seq_map
+        # ~thousands of times).
         with Pool(processes=threads) as pool:
             args_list = [
-                (file, input_path, output_path, seq_map, wt_mismatch_threshold)
-                for file in lst_files
+                (file, input_path, output_path,
+                 seq_map.get(uni_id), wt_mismatch_threshold, validate)
+                for file, uni_id in lst_files
             ]
             # Map the worker function to the arguments list
             pool.map(parse_ddg_rasp_worker, args_list)
