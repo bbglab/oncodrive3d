@@ -37,22 +37,28 @@ def get_annotations(data_dir,
     # # Get ddG
     species = get_species(organism)
     logger.info("Obtaining stability change..")
-    if species == "Homo sapiens" or species == "Mus musculus":
+    if species == "Mus musculus" and ddg_dir is None:
+        logger.warning(
+            "Stability change (ΔΔG) for Mus musculus requires precomputed predictions: "
+            "the public RaSP bundle is only hosted for Homo sapiens. Skipping ΔΔG step. "
+            "Provide --ddg_dir with mouse RaSP predictions to include ΔΔG tracks."
+        )
+    elif species == "Homo sapiens" or species == "Mus musculus":
         ddg_output = os.path.join(output_dir, "stability_change")
         os.makedirs(ddg_output, exist_ok=True)
         if ddg_dir is not None:
             # Copy ddG from path
             temp_ddg_path = os.path.join(output_dir, "stability_change_temp")
             copy_dir(source_dir=ddg_dir, destination_dir=temp_ddg_path)
-        else:    
+        else:
             # Download ddG
             temp_ddg_path = download_stability_change(ddg_output, cores)
         logger.info("Completed!")
-        
-        ## TODO: Optimize DDG parsing 
+
+        ## TODO: Optimize DDG parsing
         ##       - only one protein is allocated to one process every time
         ##       - a list of proteins should be allocated instead
-        
+
         # Parsing DDG
         logger.info("Parsing stability change..")
         parse_ddg_rasp(temp_ddg_path, ddg_output, cores)
