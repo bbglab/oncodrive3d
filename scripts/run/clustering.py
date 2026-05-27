@@ -604,8 +604,9 @@ def run_clustering(input_path,
             init_mutabilities_module(mutab_config)
             seq_df = seq_df[seq_df["Reference_info"] == 1]   
             seq_df['Exons_coord'] = seq_df['Exons_coord'].apply(eval)  
-            genes_to_process = [gene for gene in genes_to_process if gene in seq_df["Gene"].unique()]
-            genes_not_mutability = [gene for gene in genes_to_process if gene not in seq_df["Gene"].unique()]
+            genes_in_seq_df = set(seq_df["Gene"].unique())
+            genes_not_mutability = [gene for gene in genes_to_process if gene not in genes_in_seq_df]
+            genes_to_process = [gene for gene in genes_to_process if gene in genes_in_seq_df]
             logger.debug("Computing probabilities..")
             miss_prob_dict = get_miss_mut_prob_dict(mut_rate_dict=None, seq_df=seq_df,
                                                     mutability=True, mutability_config=mutab_config)
