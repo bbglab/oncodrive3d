@@ -77,6 +77,8 @@ def get_dcm_anomaly_score(k, n, p, decimal=600):
     num = dcm_binom_logsf(k-1, n, p)
     den = stats.binom.logpmf(k=n, n=n, p=p)
 
+    if isinstance(num, float) and np.isinf(num):
+        return np.inf
     return float(num / Decimal(den))
 
 
