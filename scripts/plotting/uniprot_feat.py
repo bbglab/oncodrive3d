@@ -230,8 +230,8 @@ def parse_prot_feat(feat_df):
     # Domain
     feat_df.loc[feat_df["Type"] == "DOMAIN", "Description"] = feat_df[feat_df["Type"] == "DOMAIN"].apply(
         lambda x: x["Description"].split(";")[0] if pd.notna(x["Description"]) else np.nan, axis=1)
-    feat_df.loc[feat_df["Type"] == "DOMAIN", "Description"] = feat_df.loc[feat_df["Type"] == "DOMAIN", 
-                                                                          "Description"].str.replace(r' \d+', '')
+    feat_df.loc[feat_df["Type"] == "DOMAIN", "Description"] = feat_df.loc[feat_df["Type"] == "DOMAIN",
+                                                                          "Description"].str.replace(r' \d+', '', regex=True)
     feat_df["Domain_ID"] = feat_df.pop("Domain_ID")
     
     return feat_df
