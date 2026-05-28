@@ -193,3 +193,6 @@ run_*
 # VSC
 launch.json
 .vscode
+
+# Docker build artifacts (ChimeraX installer staged into context)
+chimerax*.deb

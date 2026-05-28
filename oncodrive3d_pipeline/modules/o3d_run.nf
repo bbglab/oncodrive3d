@@ -1,7 +1,7 @@
 process O3D_RUN {
     tag "O3D $cohort"
     publishDir "${params.outdir}/${params.outsubdir}", mode:'copy'
-    container 'docker.io/bbglab/oncodrive3d:latest'
+    container 'docker.io/spellegrini87/oncodrive3d:latest'
 
     input:
     tuple val(cohort), path(inputs)

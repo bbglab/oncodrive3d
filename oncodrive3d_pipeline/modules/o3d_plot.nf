@@ -1,7 +1,7 @@
 process O3D_PLOT {
     tag "Plot $cohort"
     publishDir "${params.outdir}/${params.outsubdir}", mode:'copy'
-    container 'docker.io/bbglab/oncodrive3d:latest'
+    container 'docker.io/spellegrini87/oncodrive3d:latest'
 
     input:
     tuple val(cohort), path(inputs), path(genes_csv), path(pos_csv), path(mutations_csv), path(miss_prob_json), path(seq_df_tsv)
