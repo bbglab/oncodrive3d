@@ -17,6 +17,30 @@ from scripts.plotting.utils import cap_inf_scores, detect_af_version
 logger = daiquiri.getLogger(__logger_name__ + ".plotting.chimerax_plot")
 
 
+# Characters that would break the ChimeraX command parser (or, worse, allow
+# injecting extra ChimeraX commands) if interpolated raw into the --cmd script.
+# Double quotes are how we delimit path arguments; newlines / carriage returns
+# would let an attacker (or a malformed config) end a command and start new ones.
+_CHIMERAX_UNSAFE_PATH_CHARS = ('"', '\n', '\r')
+
+
+def _validate_chimerax_path(path, role):
+    """Reject paths that contain characters unsafe for the ChimeraX --cmd script.
+
+    Real-world paths in this codebase don't contain these characters (build-datasets
+    rejects them, and HPC/output paths are normally clean), but interpolating them
+    raw would silently produce broken or attacker-controlled ChimeraX command
+    strings. Surface a clear failure instead.
+    """
+    text = str(path)
+    bad = [c for c in _CHIMERAX_UNSAFE_PATH_CHARS if c in text]
+    if bad:
+        raise ValueError(
+            f"{role} path contains characters unsafe for the ChimeraX command "
+            f"script ({', '.join(repr(c) for c in bad)}): {text!r}"
+        )
+
+
 def _run_chimerax(command, label):
     """Run a ChimeraX subprocess. Surface failures as warnings so one bad image
     doesn't abort the whole loop, but the user actually sees something went wrong.
@@ -134,9 +158,14 @@ def get_chimerax_command(chimerax_bin,
     palette = get_palette(intervals, type="diverging") if attribute == "logscore" else get_palette(intervals, type="sequential")
     transparent_bg_suffix = " transparentBackground  true" if transparent_bg else ""
 
-    # Quote paths so ChimeraX's own command parser treats each as a single
-    # token even when the path contains spaces. Paths with embedded double
-    # quotes are not supported (and would be rejected by build-datasets too).
+    # Validate paths *before* interpolating them: the double-quote wrapping below
+    # protects against whitespace splitting but doesn't escape embedded " or
+    # newlines, which would otherwise let a path inject extra ChimeraX commands.
+    _validate_chimerax_path(pdb_path, "PDB")
+    _validate_chimerax_path(attr_file_path, "attribute file")
+
+    # Quote paths so ChimeraX's own command parser treats each as a single token
+    # even when the path contains spaces.
     pdb_arg = f'"{pdb_path}"'
     attr_arg = f'"{attr_file_path}"'
 
@@ -164,6 +193,7 @@ def get_chimerax_command(chimerax_bin,
         cluster_tag = ""
 
     output_path = os.path.join(chimera_output_path, f"{cohort}_{i}_{gene}_{attribute}{cluster_tag}.png")
+    _validate_chimerax_path(output_path, "output")
     chimerax_script += f'save "{output_path}" pixelSize {pixelsize} supersample 3{transparent_bg_suffix};exit'
 
     # Return as an argv list so the caller can use subprocess.run(..., shell=False),
@@ -260,39 +290,47 @@ def generate_chimerax_plot(output_dir,
                     intervals = get_intervals(attribute_vector, attribute)
  
                     logger.debug("Generating 3D images..")
-                    chimerax_command = get_chimerax_command(chimerax_bin, 
-                                                            pdb_path, 
-                                                            chimera_plots_path, 
-                                                            attr_file_path, 
-                                                            attribute, 
-                                                            intervals, 
-                                                            gene,
-                                                            uni_id,
-                                                            labels,
-                                                            i,
-                                                            f,
-                                                            cohort,
-                                                            pixelsize=pixel_size,
-                                                            transparent_bg=transparent_bg)
-                    _run_chimerax(chimerax_command, f"{gene} ({attribute})")
-                    logger.debug(shlex.join(chimerax_command))
-
-                    if attribute == "score" or attribute == "logscore":
-                        chimerax_command = get_chimerax_command(chimerax_bin, 
-                                                                pdb_path, 
-                                                                chimera_plots_path, 
-                                                                attr_file_path, 
-                                                                attribute, 
-                                                                intervals, 
+                    try:
+                        chimerax_command = get_chimerax_command(chimerax_bin,
+                                                                pdb_path,
+                                                                chimera_plots_path,
+                                                                attr_file_path,
+                                                                attribute,
+                                                                intervals,
                                                                 gene,
                                                                 uni_id,
                                                                 labels,
                                                                 i,
                                                                 f,
                                                                 cohort,
-                                                                clusters=clusters,
                                                                 pixelsize=pixel_size,
                                                                 transparent_bg=transparent_bg)
+                    except ValueError as exc:
+                        logger.warning(f"Skipping {gene} ({attribute}): {exc}")
+                        continue
+                    _run_chimerax(chimerax_command, f"{gene} ({attribute})")
+                    logger.debug(shlex.join(chimerax_command))
+
+                    if attribute == "score" or attribute == "logscore":
+                        try:
+                            chimerax_command = get_chimerax_command(chimerax_bin,
+                                                                    pdb_path,
+                                                                    chimera_plots_path,
+                                                                    attr_file_path,
+                                                                    attribute,
+                                                                    intervals,
+                                                                    gene,
+                                                                    uni_id,
+                                                                    labels,
+                                                                    i,
+                                                                    f,
+                                                                    cohort,
+                                                                    clusters=clusters,
+                                                                    pixelsize=pixel_size,
+                                                                    transparent_bg=transparent_bg)
+                        except ValueError as exc:
+                            logger.warning(f"Skipping {gene} ({attribute}, clusters): {exc}")
+                            continue
                         _run_chimerax(chimerax_command, f"{gene} ({attribute}, clusters)")
                         logger.debug(shlex.join(chimerax_command))
                         
