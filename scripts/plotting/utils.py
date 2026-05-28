@@ -42,7 +42,14 @@ def cap_inf_scores(pos_result, col="Score_obs_sim"):
 
     finite_values = pos_result.loc[~inf_mask, col]
     finite_max = finite_values.max() if not finite_values.empty else np.nan
-    cap = finite_max * 1.5 if pd.notna(finite_max) and finite_max > 0 else 1.0
+    if pd.notna(finite_max) and finite_max > 0:
+        cap = finite_max * 1.5
+        # Guard against finite_max being so large that *1.5 overflows back to inf
+        # (would defeat the purpose of capping). Fall back to finite_max itself.
+        if not np.isfinite(cap):
+            cap = finite_max
+    else:
+        cap = 1.0
 
     n_inf = int(inf_mask.sum())
     logger.warning(
