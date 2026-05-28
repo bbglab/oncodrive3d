@@ -292,18 +292,19 @@ def generate_chimerax_plot(output_dir,
                 
             if pdb_path:
 
-                # Mutated positions (= the ones that end up in the .defattr file
-                # and therefore the ones that actually receive a colour from
-                # `color byattribute`). Same for every attribute of this gene,
-                # so compute once outside the inner loop.
-                colored_positions = result_gene.dropna()["Pos"].astype(int).tolist()
+                # Mutated rows = rows the .defattr file is written from = the
+                # residues that actually receive a colour from `color byattribute`.
+                # Compute once and reuse so the sphere-render selection stays
+                # coupled to the .defattr contents.
+                result_gene_mutated = result_gene.dropna()
+                colored_positions = result_gene_mutated["Pos"].astype(int).tolist()
 
                 for attribute in ["mutres", "mutvol", "score", "logscore"]:
 
                     logger.debug("Generating attribute files..")
                     attr_file_path = f"{chimera_attr_path}/{gene}_{attribute}.defattr"
                     create_attribute_file(path_to_file=attr_file_path,
-                                        df=result_gene.dropna(),
+                                        df=result_gene_mutated,
                                         attribute_col=cols[attribute],
                                         attribute_name=attribute)
 
