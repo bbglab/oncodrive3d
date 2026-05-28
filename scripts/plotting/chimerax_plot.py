@@ -24,7 +24,14 @@ def _run_chimerax(command, label):
     `command` is an argv list (no shell interpretation), so paths and labels
     with spaces or shell metacharacters pass through verbatim.
     """
-    result = subprocess.run(command, capture_output=True, text=True)
+    # Discard stdout (never read) but keep stderr for the failure warning;
+    # capture_output=True would buffer both into memory across many genes.
+    result = subprocess.run(
+        command,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
     if result.returncode != 0:
         logger.warning(
             f"ChimeraX failed for {label} "
