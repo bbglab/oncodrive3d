@@ -139,22 +139,23 @@ def get_palette(intervals, type="diverging"):
         return f"{intervals[0]},#FFFFB2:{intervals[1]},#FECC5C:{intervals[2]},#FD8D3C:{intervals[3]},#F03B20:{intervals[4]},#BD0026"
 
 
-def get_chimerax_command(chimerax_bin, 
-                         pdb_path, 
-                         chimera_output_path, 
-                         attr_file_path, 
-                         attribute, 
-                         intervals, 
-                         gene, 
+def get_chimerax_command(chimerax_bin,
+                         pdb_path,
+                         chimera_output_path,
+                         attr_file_path,
+                         attribute,
+                         intervals,
+                         gene,
                          uni_id,
                          labels,
                          i,
                          f,
                          cohort="",
                          clusters=None,
+                         colored_positions=None,
                          pixelsize=0.1,
                          transparent_bg=False):
-    
+
     palette = get_palette(intervals, type="diverging") if attribute == "logscore" else get_palette(intervals, type="sequential")
     transparent_bg_suffix = " transparentBackground  true" if transparent_bg else ""
 
@@ -184,6 +185,20 @@ def get_chimerax_command(chimerax_bin,
         "graphics silhouettes true width 1.3;"
         "zoom;"
     )
+
+    # Render mutated (= colored) residues as spheres so their colour is actually
+    # visible on the cartoon. Without this, the colour mapping is washed out by
+    # the cartoon ribbon. ~sel afterwards clears the green selection markers
+    # from the saved image.
+    if colored_positions is not None and len(colored_positions) > 0:
+        pos_selector = ",".join(str(int(p)) for p in sorted(set(colored_positions)))
+        chimerax_script += (
+            f"sel :{pos_selector};"
+            "style sel sphere;"
+            "hide sel cartoons;"
+            "show sel atoms;"
+            "~sel;"
+        )
 
     if clusters is not None and len(clusters) > 0:
         for pos in clusters:
@@ -276,19 +291,26 @@ def generate_chimerax_plot(output_dir,
                     continue
                 
             if pdb_path:
-                
+
+                # Mutated rows = rows the .defattr file is written from = the
+                # residues that actually receive a colour from `color byattribute`.
+                # Compute once and reuse so the sphere-render selection stays
+                # coupled to the .defattr contents.
+                result_gene_mutated = result_gene.dropna()
+                colored_positions = result_gene_mutated["Pos"].astype(int).tolist()
+
                 for attribute in ["mutres", "mutvol", "score", "logscore"]:
-                    
+
                     logger.debug("Generating attribute files..")
                     attr_file_path = f"{chimera_attr_path}/{gene}_{attribute}.defattr"
                     create_attribute_file(path_to_file=attr_file_path,
-                                        df=result_gene.dropna(),
+                                        df=result_gene_mutated,
                                         attribute_col=cols[attribute],
                                         attribute_name=attribute)
-                    
+
                     attribute_vector = result_gene[cols[attribute]]
                     intervals = get_intervals(attribute_vector, attribute)
- 
+
                     logger.debug("Generating 3D images..")
                     try:
                         chimerax_command = get_chimerax_command(chimerax_bin,
@@ -303,6 +325,7 @@ def generate_chimerax_plot(output_dir,
                                                                 i,
                                                                 f,
                                                                 cohort,
+                                                                colored_positions=colored_positions,
                                                                 pixelsize=pixel_size,
                                                                 transparent_bg=transparent_bg)
                     except ValueError as exc:
@@ -326,6 +349,7 @@ def generate_chimerax_plot(output_dir,
                                                                     f,
                                                                     cohort,
                                                                     clusters=clusters,
+                                                                    colored_positions=colored_positions,
                                                                     pixelsize=pixel_size,
                                                                     transparent_bg=transparent_bg)
                         except ValueError as exc:
