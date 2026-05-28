@@ -21,8 +21,10 @@ def _run_chimerax(command, label):
     """Run a ChimeraX subprocess. Surface failures as warnings so one bad image
     doesn't abort the whole loop, but the user actually sees something went wrong.
 
-    `command` is an argv list (no shell interpretation), so paths and labels
-    with spaces or shell metacharacters pass through verbatim.
+    `command` is an argv list passed with shell=False, so the OS shell never
+    interprets the tokens (spaces, metacharacters, etc. in argv elements are
+    preserved as-is). Path quoting *inside* the ChimeraX --cmd script is
+    handled separately by `get_chimerax_command`.
     """
     # Discard stdout (never read) but keep stderr for the failure warning;
     # capture_output=True would buffer both into memory across many genes.
@@ -132,11 +134,17 @@ def get_chimerax_command(chimerax_bin,
     palette = get_palette(intervals, type="diverging") if attribute == "logscore" else get_palette(intervals, type="sequential")
     transparent_bg_suffix = " transparentBackground  true" if transparent_bg else ""
 
+    # Quote paths so ChimeraX's own command parser treats each as a single
+    # token even when the path contains spaces. Paths with embedded double
+    # quotes are not supported (and would be rejected by build-datasets too).
+    pdb_arg = f'"{pdb_path}"'
+    attr_arg = f'"{attr_file_path}"'
+
     chimerax_script = (
-        f"open {pdb_path}; "
+        f"open {pdb_arg}; "
         "set bgColor white; "
         "color lightgray; "
-        f"open {attr_file_path}; "
+        f"open {attr_arg}; "
         f"color byattribute {attribute} palette {palette}; "
         f"key {palette} :{intervals[0]} :{intervals[1]} :{intervals[2]} :{intervals[3]} :{intervals[4]} pos 0.35,0.03 fontSize 4 size 0.3,0.02;"
         f"2dlabels create label text '{labels[attribute]}' size 6 color darkred xpos 0.34 ypos 0.065;"
@@ -156,10 +164,11 @@ def get_chimerax_command(chimerax_bin,
         cluster_tag = ""
 
     output_path = os.path.join(chimera_output_path, f"{cohort}_{i}_{gene}_{attribute}{cluster_tag}.png")
-    chimerax_script += f"save {output_path} pixelSize {pixelsize} supersample 3{transparent_bg_suffix};exit"
+    chimerax_script += f'save "{output_path}" pixelSize {pixelsize} supersample 3{transparent_bg_suffix};exit'
 
-    # Return as an argv list so the caller can use subprocess.run(..., shell=False)
-    # and avoid shell interpretation of paths/labels with spaces or metacharacters.
+    # Return as an argv list so the caller can use subprocess.run(..., shell=False),
+    # bypassing the OS shell entirely. Paths embedded inside the ChimeraX
+    # --cmd script are also quoted so ChimeraX's own parser handles spaces.
     return [chimerax_bin, "--nogui", "--offscreen", "--silent", "--cmd", chimerax_script]
             
 
