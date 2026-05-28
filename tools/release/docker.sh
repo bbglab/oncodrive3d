@@ -26,10 +26,17 @@ if [[ ! -f chimerax.deb ]]; then
     cat <<EOF >&2
 Missing chimerax.deb in repo root ($(pwd)).
 
-Download the Ubuntu 20.04 ChimeraX .deb from:
-  https://www.cgl.ucsf.edu/chimerax/download.html
+Save the Ubuntu 20.04 ChimeraX .deb installer as:
+  $(pwd)/chimerax.deb
 
-and save it as: $(pwd)/chimerax.deb
+How to get it:
+
+  External users:
+    Download from https://www.cgl.ucsf.edu/chimerax/download.html
+
+  BBGLab internal users:
+    Download from the lab cluster path:
+      /data/bbg/datasets/oncodrive3d/chimerax/chimerax-rc_2004.deb
 EOF
     exit 1
 fi
