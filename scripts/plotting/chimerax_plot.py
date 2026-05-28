@@ -26,12 +26,18 @@ def _run_chimerax(command, label):
     """
     # Discard stdout (never read) but keep stderr for the failure warning;
     # capture_output=True would buffer both into memory across many genes.
-    result = subprocess.run(
-        command,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.PIPE,
-        text=True,
-    )
+    try:
+        result = subprocess.run(
+            command,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+    except OSError as exc:
+        # E.g. FileNotFoundError when chimerax_bin is missing or not executable.
+        # Treat it like a failed run so the loop continues across other genes.
+        logger.warning(f"ChimeraX could not be executed for {label}: {exc}")
+        return None
     if result.returncode != 0:
         logger.warning(
             f"ChimeraX failed for {label} "
