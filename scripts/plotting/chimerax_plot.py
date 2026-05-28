@@ -11,7 +11,7 @@ import numpy as np
 import daiquiri
 
 from scripts import __logger_name__
-from scripts.plotting.utils import detect_af_version
+from scripts.plotting.utils import cap_inf_scores, detect_af_version
 
 logger = daiquiri.getLogger(__logger_name__ + ".plotting.chimerax_plot")
 
@@ -163,6 +163,7 @@ def generate_chimerax_plot(output_dir,
     result = pd.read_csv(pos_result_path)
     if "Ratio_obs_sim" in result.columns:
         result = result.rename(columns={"Ratio_obs_sim" : "Score_obs_sim"})
+    result = cap_inf_scores(result)
     result["Logscore_obs_sim"] = np.log(result["Score_obs_sim"])
 
     # Detect the AlphaFold version actually present in the dataset; the
