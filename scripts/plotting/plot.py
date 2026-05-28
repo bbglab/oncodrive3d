@@ -17,6 +17,7 @@ from matplotlib.axes._axes import Axes
 import daiquiri
 
 from scripts.plotting.utils import (
+    cap_inf_scores,
     get_broad_consequence,
     save_annotated_result,
     get_enriched_result,
@@ -2308,6 +2309,7 @@ def generate_plots(gene_result_path,
 
     gene_result = pd.read_csv(gene_result_path)
     pos_result = pd.read_csv(pos_result_path)
+    pos_result = cap_inf_scores(pos_result)
     maf = pd.read_csv(maf_path, sep="\t")
     miss_prob_dict = json.load(open(miss_prob_path))  
     seq_df = pd.read_csv(seq_df_path, sep="\t")    

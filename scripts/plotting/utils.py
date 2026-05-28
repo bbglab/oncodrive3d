@@ -17,6 +17,50 @@ logger = daiquiri.getLogger(__logger_name__ + ".plotting.utils")
 logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
 
 
+def cap_inf_scores(pos_result, col="Score_obs_sim"):
+    """
+    Replace +inf values in a score column with a saturated finite value.
+
+    `Score_obs_sim` is +inf for extreme hotspot positions where the observed
+    anomaly score is at the mathematical limit (the high-precision Decimal
+    fallback in score_and_simulations.get_dcm_anomaly_score returns +inf when
+    even 600-digit precision underflows). +inf breaks downstream plotting:
+    normalization (sum=inf), log transforms, and axis auto-scaling.
+
+    We cap +inf at 1.5 * max(finite) so the point stays visible at the top of
+    the y-axis without distorting the rest of the track.
+    """
+    if col not in pos_result.columns:
+        return pos_result
+
+    # Only +inf is expected here (the score is bounded below by 0); use the
+    # positive-only check so any future -inf sentinel is preserved instead of
+    # silently rewritten.
+    inf_mask = np.isposinf(pos_result[col])
+    if not inf_mask.any():
+        return pos_result
+
+    finite_values = pos_result.loc[~inf_mask, col]
+    finite_max = finite_values.max() if not finite_values.empty else np.nan
+    if pd.notna(finite_max) and finite_max > 0:
+        cap = finite_max * 1.5
+        # Guard against finite_max being so large that *1.5 overflows back to inf
+        # (would defeat the purpose of capping). Fall back to finite_max itself.
+        if not np.isfinite(cap):
+            cap = finite_max
+    else:
+        cap = 1.0
+
+    n_inf = int(inf_mask.sum())
+    logger.warning(
+        f"Capping {n_inf} `{col}` value(s) at {cap:.4f} for plotting "
+        f"(originally +inf — extreme hotspot positions)"
+    )
+    pos_result = pos_result.copy()
+    pos_result.loc[inf_mask, col] = cap
+    return pos_result
+
+
 _AF_VERSION_RE = re.compile(r"-model_v(\d+)\.pdb(?:\.gz)?$")
 
 
