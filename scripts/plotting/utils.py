@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import json
 import logging
@@ -14,6 +15,66 @@ from scripts import __logger_name__
 logger = daiquiri.getLogger(__logger_name__ + ".plotting.utils")
 
 logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
+
+
+_AF_VERSION_RE = re.compile(r"-model_v(\d+)\.pdb(?:\.gz)?$")
+
+
+def detect_af_version(datasets_dir, requested_version=None):
+    """
+    Detect the AlphaFold version of structures in `datasets_dir/pdb_structures/`.
+
+    Build-datasets writes PDB files named `AF-<id>-F<n>-model_v<N>.pdb[.gz]`.
+    The user-facing `--af_version` flag is easy to get wrong (e.g., a MANE
+    build forces v4 but the CLI default is v6), and the pipeline doesn't
+    forward it, leading to silent "no plots" failures when chimerax-plot
+    looks for the wrong filename.
+
+    This helper inspects the directory and returns the version actually
+    present. If `requested_version` is supplied, it's used as a tiebreaker
+    when multiple versions coexist; otherwise the highest version is chosen.
+
+    Returns the detected version (int), or `requested_version` if detection
+    is not possible.
+    """
+    pdb_dir = os.path.join(datasets_dir, "pdb_structures")
+    if not os.path.isdir(pdb_dir):
+        logger.warning(
+            f"{pdb_dir} is not a directory; falling back to --af_version={requested_version}"
+        )
+        return requested_version
+
+    versions = set()
+    for fname in os.listdir(pdb_dir):
+        match = _AF_VERSION_RE.search(fname)
+        if match:
+            versions.add(int(match.group(1)))
+
+    if not versions:
+        logger.warning(
+            f"No AlphaFold PDB files found in {pdb_dir}; "
+            f"falling back to --af_version={requested_version}"
+        )
+        return requested_version
+
+    if len(versions) == 1:
+        detected = next(iter(versions))
+        if requested_version is not None and int(requested_version) != detected:
+            logger.warning(
+                f"Detected AlphaFold v{detected} in {pdb_dir}, "
+                f"but --af_version was set to {requested_version}. Using v{detected}."
+            )
+        return detected
+
+    sorted_versions = sorted(versions)
+    if requested_version is not None and int(requested_version) in versions:
+        chosen = int(requested_version)
+    else:
+        chosen = max(versions)
+    logger.warning(
+        f"Multiple AlphaFold versions found in {pdb_dir}: {sorted_versions}. Using v{chosen}."
+    )
+    return chosen
 
 
 def get_species(species):

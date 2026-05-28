@@ -11,6 +11,7 @@ import numpy as np
 import daiquiri
 
 from scripts import __logger_name__
+from scripts.plotting.utils import detect_af_version
 
 logger = daiquiri.getLogger(__logger_name__ + ".plotting.chimerax_plot")
 
@@ -151,6 +152,10 @@ def generate_chimerax_plot(output_dir,
     if "Ratio_obs_sim" in result.columns:
         result = result.rename(columns={"Ratio_obs_sim" : "Score_obs_sim"})
     result["Logscore_obs_sim"] = np.log(result["Score_obs_sim"])
+
+    # Detect the AlphaFold version actually present in the dataset; the
+    # user-supplied --af_version is used as a tiebreaker only.
+    af_version = detect_af_version(datasets_dir, requested_version=af_version)
 
     # Process each gene
     genes = gene_result[gene_result["C_gene"] == 1].Gene.unique()
