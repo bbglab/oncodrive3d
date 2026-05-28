@@ -15,6 +15,12 @@ process O3D_CHIMERAX_PLOT {
     def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${cohort}"
     """
+    # Give ChimeraX a writable, per-task HOME so it can initialise its data
+    # directory (\$HOME/.chimerax) without colliding with concurrent tasks or
+    # hitting a read-only host \$HOME inside Singularity.
+    export HOME="\$PWD/.chimerax-home"
+    mkdir -p "\$HOME"
+
     oncodrive3D chimerax-plot \\
         -o $prefix \\
         -g $genes_csv \\
