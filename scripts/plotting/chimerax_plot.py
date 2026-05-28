@@ -2,7 +2,8 @@
 Use ChimeraX to generate 3D structures colored by metrics
 """
 
-import os 
+import os
+import shlex
 import subprocess
 import math
 
@@ -18,8 +19,12 @@ logger = daiquiri.getLogger(__logger_name__ + ".plotting.chimerax_plot")
 
 def _run_chimerax(command, label):
     """Run a ChimeraX subprocess. Surface failures as warnings so one bad image
-    doesn't abort the whole loop, but the user actually sees something went wrong."""
-    result = subprocess.run(command, shell=True, capture_output=True, text=True)
+    doesn't abort the whole loop, but the user actually sees something went wrong.
+
+    `command` is an argv list (no shell interpretation), so paths and labels
+    with spaces or shell metacharacters pass through verbatim.
+    """
+    result = subprocess.run(command, capture_output=True, text=True)
     if result.returncode != 0:
         logger.warning(
             f"ChimeraX failed for {label} "
@@ -112,11 +117,10 @@ def get_chimerax_command(chimerax_bin,
                          transparent_bg=False):
     
     palette = get_palette(intervals, type="diverging") if attribute == "logscore" else get_palette(intervals, type="sequential")
-    transparent_bg = " transparentBackground  true" if transparent_bg else ""
-    
-    chimerax_command = (
-        f"{chimerax_bin} --nogui --offscreen --silent --cmd "
-        f"\"open {pdb_path}; "
+    transparent_bg_suffix = " transparentBackground  true" if transparent_bg else ""
+
+    chimerax_script = (
+        f"open {pdb_path}; "
         "set bgColor white; "
         "color lightgray; "
         f"open {attr_file_path}; "
@@ -130,18 +134,20 @@ def get_chimerax_command(chimerax_bin,
         "graphics silhouettes true width 1.3;"
         "zoom;"
     )
-    
+
     if clusters is not None and len(clusters) > 0:
         for pos in clusters:
-            chimerax_command += f"marker #10 position :{pos} color #dacae961 radius 5.919;"
+            chimerax_script += f"marker #10 position :{pos} color #dacae961 radius 5.919;"
         cluster_tag = "_clusters"
     else:
         cluster_tag = ""
-    
+
     output_path = os.path.join(chimera_output_path, f"{cohort}_{i}_{gene}_{attribute}{cluster_tag}.png")
-    chimerax_command += f"save {output_path} pixelSize {pixelsize} supersample 3{transparent_bg};exit\""
-    
-    return chimerax_command
+    chimerax_script += f"save {output_path} pixelSize {pixelsize} supersample 3{transparent_bg_suffix};exit"
+
+    # Return as an argv list so the caller can use subprocess.run(..., shell=False)
+    # and avoid shell interpretation of paths/labels with spaces or metacharacters.
+    return [chimerax_bin, "--nogui", "--offscreen", "--silent", "--cmd", chimerax_script]
             
 
 def generate_chimerax_plot(output_dir,
@@ -247,7 +253,7 @@ def generate_chimerax_plot(output_dir,
                                                             pixelsize=pixel_size,
                                                             transparent_bg=transparent_bg)
                     _run_chimerax(chimerax_command, f"{gene} ({attribute})")
-                    logger.debug(chimerax_command)
+                    logger.debug(shlex.join(chimerax_command))
 
                     if attribute == "score" or attribute == "logscore":
                         chimerax_command = get_chimerax_command(chimerax_bin, 
@@ -266,7 +272,7 @@ def generate_chimerax_plot(output_dir,
                                                                 pixelsize=pixel_size,
                                                                 transparent_bg=transparent_bg)
                         _run_chimerax(chimerax_command, f"{gene} ({attribute}, clusters)")
-                        logger.debug(chimerax_command)
+                        logger.debug(shlex.join(chimerax_command))
                         
             else:
                 tried_files = ', '.join(os.path.basename(path) for path in pdb_candidates)
