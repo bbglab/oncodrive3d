@@ -158,8 +158,6 @@ Oncodrive3D ships three image variants, each layered on top of the previous so y
 | ChimeraX | `bbglab/oncodrive3d:chimerax`, `:<version>-chimerax` | ~4.3 GB | `run`, `plot`, `chimerax-plot` |
 | Full | `bbglab/oncodrive3d:full`, `:<version>-full` | ~16 GB | `run`, `plot`, `chimerax-plot`, `build-datasets`, `build-annotations` |
 
-Pick **light** for cohort runs (including mutability-aware normal-tissue runs) and standard plotting. Pick **chimerax** if you also need `chimerax-plot`. Pick **full** if you also need to build datasets or annotations from scratch.
-
 #### Docker
 
 ```bash
