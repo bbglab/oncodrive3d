@@ -140,12 +140,33 @@ Oncodrive3D can ingest **site-specific mutability tables** when a single mutatio
 
 Please see the [Mutability-aware runs guide](docs/mutability.md) for the expected file formats, config schema, and troubleshooting tips.
 
-### Running With Singularity
+### Container Images
 
+Oncodrive3D ships three image variants, each layered on top of the previous so you can pick the smallest one that covers your workflow:
+
+| Variant | Tags | Approx size | Supported commands |
+| --- | --- | --- | --- |
+| Light | `bbglab/oncodrive3d:latest`, `:light`, `:<version>`, `:<version>-light` | ~1.5 GB | `run`, `plot` |
+| ChimeraX | `bbglab/oncodrive3d:chimerax`, `:<version>-chimerax` | ~4.3 GB | `run`, `plot`, `chimerax-plot` |
+| Full | `bbglab/oncodrive3d:full`, `:<version>-full` | ~16 GB | `run`, `plot`, `chimerax-plot`, `build-datasets`, `build-annotations` |
+
+Pick **light** for cohort runs (including mutability-aware normal-tissue runs) and standard plotting. Pick **chimerax** if you also need `chimerax-plot`. Pick **full** if you also need to build datasets or annotations from scratch.
+
+#### Docker
+
+```bash
+docker pull bbglab/oncodrive3d:latest
+docker run --rm -v "$PWD":/data bbglab/oncodrive3d:latest \
+    oncodrive3d run -i /data/<input_maf> -p /data/<mut_profile> \
+                    -d /data/<build_folder> -C <cohort_name> -o /data/<output_dir>
 ```
+
+#### Singularity
+
+```bash
 singularity pull oncodrive3d.sif docker://bbglab/oncodrive3d:latest
-singularity exec oncodrive3d.sif oncodrive3d run -i <input_maf> -p <mut_profile> \ 
-                                                 -d <build_folder> -C <cohort_name>
+singularity exec oncodrive3d.sif oncodrive3d run \
+    -i <input_maf> -p <mut_profile> -d <build_folder> -C <cohort_name>
 ```
 
 ### Testing
