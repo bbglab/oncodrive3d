@@ -175,6 +175,9 @@ singularity exec oncodrive3d.sif oncodrive3d run \
     -i <input_maf> -p <mut_profile> -d <build_folder> -C <cohort_name>
 ```
 
+> [!NOTE]
+> Singularity only auto-binds `$HOME` and `$PWD`. If any input or output path lives outside those (e.g. `/data/...` on a cluster), bind that host path explicitly with `-B /path:/path` (e.g. `singularity exec -B /data:/data oncodrive3d.sif ...`).
+
 ### Testing
 
 To verify that Oncodrive3D is installed and configured correctly, you can perform a test run using the provided test input files:
