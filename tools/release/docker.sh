@@ -41,18 +41,42 @@ EOF
     exit 1
 fi
 
-docker build --target light    -f Dockerfile \
-    -t "${REPO}:${VERSION}"          -t "${REPO}:latest" \
-    -t "${REPO}:${VERSION}-light"    -t "${REPO}:light"    .
+LIGHT_TAGS=(
+    "${REPO}:${VERSION}"
+    "${REPO}:latest"
+    "${REPO}:${VERSION}-light"
+    "${REPO}:light"
+)
+CHIMERAX_TAGS=(
+    "${REPO}:${VERSION}-chimerax"
+    "${REPO}:chimerax"
+)
+FULL_TAGS=(
+    "${REPO}:${VERSION}-full"
+    "${REPO}:full"
+)
 
-docker build --target chimerax -f Dockerfile \
-    -t "${REPO}:${VERSION}-chimerax" -t "${REPO}:chimerax" .
+# Expand a tag array into `-t tag1 -t tag2 ...` for docker build.
+build_tag_args() {
+    local args=() tag
+    for tag in "$@"; do args+=(-t "$tag"); done
+    printf '%s\n' "${args[@]}"
+}
 
-docker build --target full     -f Dockerfile \
-    -t "${REPO}:${VERSION}-full"     -t "${REPO}:full"     .
+mapfile -t LIGHT_BUILD_ARGS    < <(build_tag_args "${LIGHT_TAGS[@]}")
+mapfile -t CHIMERAX_BUILD_ARGS < <(build_tag_args "${CHIMERAX_TAGS[@]}")
+mapfile -t FULL_BUILD_ARGS     < <(build_tag_args "${FULL_TAGS[@]}")
 
-docker push "${REPO}" --all-tags
+docker build --target light    -f Dockerfile "${LIGHT_BUILD_ARGS[@]}"    .
+docker build --target chimerax -f Dockerfile "${CHIMERAX_BUILD_ARGS[@]}" .
+docker build --target full     -f Dockerfile "${FULL_BUILD_ARGS[@]}"     .
+
+# Push only the tags created above; avoid `--all-tags` so stale local tags
+# (e.g. from prior releases) are not silently re-published.
+for tag in "${LIGHT_TAGS[@]}" "${CHIMERAX_TAGS[@]}" "${FULL_TAGS[@]}"; do
+    docker push "${tag}"
+done
 
 echo
-echo "Released ${VERSION} to ${REPO}. Tags now on Docker Hub:"
-docker images "${REPO}" --format "  {{.Tag}}"
+echo "Released ${VERSION} to ${REPO}. Tags pushed:"
+printf '  %s\n' "${LIGHT_TAGS[@]}" "${CHIMERAX_TAGS[@]}" "${FULL_TAGS[@]}"
