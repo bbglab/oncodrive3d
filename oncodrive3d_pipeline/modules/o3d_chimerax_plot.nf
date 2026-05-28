@@ -1,7 +1,7 @@
 process O3D_CHIMERAX_PLOT {
     tag "ChimeraX plot $cohort"
     publishDir "${params.outdir}/${params.outsubdir}", mode:'copy'
-    container 'docker.io/spellegrini87/oncodrive3d_chimerax:latest'
+    container 'docker.io/spellegrini87/oncodrive3d:chimerax'
 
     input:
     tuple val(cohort), path(inputs), path(genes_csv), path(pos_csv), path(mutations_csv), path(miss_prob_json), path(seq_df_tsv)
