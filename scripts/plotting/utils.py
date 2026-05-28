@@ -33,7 +33,10 @@ def cap_inf_scores(pos_result, col="Score_obs_sim"):
     if col not in pos_result.columns:
         return pos_result
 
-    inf_mask = np.isinf(pos_result[col])
+    # Only +inf is expected here (the score is bounded below by 0); use the
+    # positive-only check so any future -inf sentinel is preserved instead of
+    # silently rewritten.
+    inf_mask = np.isposinf(pos_result[col])
     if not inf_mask.any():
         return pos_result
 
