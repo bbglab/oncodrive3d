@@ -16,7 +16,19 @@ from scripts.plotting.utils import detect_af_version
 logger = daiquiri.getLogger(__logger_name__ + ".plotting.chimerax_plot")
 
 
-def create_attribute_file(path_to_file, 
+def _run_chimerax(command, label):
+    """Run a ChimeraX subprocess. Surface failures as warnings so one bad image
+    doesn't abort the whole loop, but the user actually sees something went wrong."""
+    result = subprocess.run(command, shell=True, capture_output=True, text=True)
+    if result.returncode != 0:
+        logger.warning(
+            f"ChimeraX failed for {label} "
+            f"(rc={result.returncode}): {result.stderr.strip()}"
+        )
+    return result
+
+
+def create_attribute_file(path_to_file,
                         df, 
                         attribute_col,
                         pos_col="Pos",
@@ -233,9 +245,9 @@ def generate_chimerax_plot(output_dir,
                                                             cohort,
                                                             pixelsize=pixel_size,
                                                             transparent_bg=transparent_bg)
-                    subprocess.run(chimerax_command, shell=True)
+                    _run_chimerax(chimerax_command, f"{gene} ({attribute})")
                     logger.debug(chimerax_command)
-                    
+
                     if attribute == "score" or attribute == "logscore":
                         chimerax_command = get_chimerax_command(chimerax_bin, 
                                                                 pdb_path, 
@@ -252,7 +264,7 @@ def generate_chimerax_plot(output_dir,
                                                                 clusters=clusters,
                                                                 pixelsize=pixel_size,
                                                                 transparent_bg=transparent_bg)
-                        subprocess.run(chimerax_command, shell=True)
+                        _run_chimerax(chimerax_command, f"{gene} ({attribute}, clusters)")
                         logger.debug(chimerax_command)
                         
             else:
