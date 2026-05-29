@@ -154,9 +154,9 @@ Oncodrive3D ships three image variants, each layered on top of the previous so y
 
 | Variant | Tags | Approx size | Supported commands |
 | --- | --- | --- | --- |
-| Light | `bbglab/oncodrive3d:latest`, `:light`, `:<version>`, `:<version>-light` | ~1.5 GB | `run`, `plot` |
-| ChimeraX | `bbglab/oncodrive3d:chimerax`, `:<version>-chimerax` | ~4.3 GB | `run`, `plot`, `chimerax-plot` |
-| Full | `bbglab/oncodrive3d:full`, `:<version>-full` | ~16 GB | `run`, `plot`, `chimerax-plot`, `build-datasets`, `build-annotations` |
+| Light | `bbglab/oncodrive3d:latest`, `:light`, `:<version>`, `:<version>-light` | ~490 MB | `run`, `plot` |
+| ChimeraX | `bbglab/oncodrive3d:chimerax`, `:<version>-chimerax` | ~1.6 GB | `run`, `plot`, `chimerax-plot` |
+| Full | `bbglab/oncodrive3d:full`, `:<version>-full` | ~4.7 GB | `run`, `plot`, `chimerax-plot`, `build-datasets`, `build-annotations` |
 
 #### Docker
 
