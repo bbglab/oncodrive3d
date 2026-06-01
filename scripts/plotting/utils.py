@@ -30,17 +30,22 @@ def cap_inf_scores(pos_result, col="Score_obs_sim"):
     We cap +inf at 1.5 * max(finite) so the point stays visible at the top of
     the y-axis without distorting the rest of the track.
     """
-    if col not in pos_result.columns:
+    if col not in pos_result.columns or pos_result.empty:
         return pos_result
+
+    # Coerce to numeric first: a header-only result CSV (e.g. a control cohort
+    # with no processed genes) reads back with object-dtype columns, which
+    # np.isposinf rejects. errors='coerce' turns any non-numeric cell into NaN.
+    numeric_col = pd.to_numeric(pos_result[col], errors="coerce")
 
     # Only +inf is expected here (the score is bounded below by 0); use the
     # positive-only check so any future -inf sentinel is preserved instead of
     # silently rewritten.
-    inf_mask = np.isposinf(pos_result[col])
+    inf_mask = np.isposinf(numeric_col)
     if not inf_mask.any():
         return pos_result
 
-    finite_values = pos_result.loc[~inf_mask, col]
+    finite_values = numeric_col[~inf_mask]
     finite_max = finite_values.max() if not finite_values.empty else np.nan
     if pd.notna(finite_max) and finite_max > 0:
         cap = finite_max * 1.5

@@ -234,6 +234,9 @@ def generate_chimerax_plot(output_dir,
     seq_df = pd.read_csv(seq_df_path, sep="\t")
     gene_result = pd.read_csv(gene_result_path)
     result = pd.read_csv(pos_result_path)
+    if result.empty:
+        logger.warning("Empty position-level result; nothing to plot.")
+        return
     if "Ratio_obs_sim" in result.columns:
         result = result.rename(columns={"Ratio_obs_sim" : "Score_obs_sim"})
     result = cap_inf_scores(result)
