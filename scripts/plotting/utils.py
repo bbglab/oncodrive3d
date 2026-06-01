@@ -61,8 +61,13 @@ def cap_inf_scores(pos_result, col="Score_obs_sim"):
         f"Capping {n_inf} `{col}` value(s) at {cap:.4f} for plotting "
         f"(originally +inf — extreme hotspot positions)"
     )
+    # Write the whole numeric column back so the returned frame has a numeric
+    # dtype (downstream np.log/scaling stay safe). .copy() prevents the in-place
+    # edit from leaking into the caller's uncapped frame via a to_numeric view.
+    numeric_col = numeric_col.copy()
+    numeric_col.loc[inf_mask] = cap
     pos_result = pos_result.copy()
-    pos_result.loc[inf_mask, col] = cap
+    pos_result[col] = numeric_col
     return pos_result
 
 
