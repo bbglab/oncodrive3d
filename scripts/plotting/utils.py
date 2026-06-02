@@ -55,7 +55,7 @@ def cap_inf_scores(pos_result, col="Score_obs_sim"):
     n_inf = int(inf_mask.sum())
     logger.warning(
         f"Capping {n_inf} `{col}` value(s) at {cap:.4f} for plotting "
-        f"(originally +inf — extreme hotspot positions)"
+        f"(originally +inf: extreme hotspot positions)"
     )
     # Write back the whole numeric column so the returned frame is numeric dtype.
     # .copy() is required: pd.to_numeric can share the caller's buffer, so an
