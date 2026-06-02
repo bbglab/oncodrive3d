@@ -61,9 +61,9 @@ def cap_inf_scores(pos_result, col="Score_obs_sim"):
         f"Capping {n_inf} `{col}` value(s) at {cap:.4f} for plotting "
         f"(originally +inf — extreme hotspot positions)"
     )
-    # Write the whole numeric column back so the returned frame has a numeric
-    # dtype (downstream np.log/scaling stay safe). .copy() prevents the in-place
-    # edit from leaking into the caller's uncapped frame via a to_numeric view.
+    # Write back the whole numeric column so the returned frame is numeric dtype.
+    # .copy() is required: pd.to_numeric can share the caller's buffer, so an
+    # in-place edit would corrupt the uncapped frame.
     numeric_col = numeric_col.copy()
     numeric_col.loc[inf_mask] = cap
     pos_result = pos_result.copy()
