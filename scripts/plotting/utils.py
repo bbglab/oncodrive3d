@@ -21,14 +21,10 @@ def cap_inf_scores(pos_result, col="Score_obs_sim"):
     """
     Replace +inf values in a score column with a saturated finite value.
 
-    `Score_obs_sim` is +inf for extreme hotspot positions where the observed
-    anomaly score is at the mathematical limit (the high-precision Decimal
-    fallback in score_and_simulations.get_dcm_anomaly_score returns +inf when
-    even 600-digit precision underflows). +inf breaks downstream plotting:
-    normalization (sum=inf), log transforms, and axis auto-scaling.
-
-    We cap +inf at 1.5 * max(finite) so the point stays visible at the top of
-    the y-axis without distorting the rest of the track.
+    `Score_obs_sim` is +inf for extreme hotspot positions (the Decimal fallback
+    in score_and_simulations underflows even at 600-digit precision), which
+    breaks downstream plotting (normalization, log transforms, axis scaling).
+    We cap it at 1.5 * max(finite): visible at the top of the track, no distortion.
     """
     if col not in pos_result.columns or pos_result.empty:
         return pos_result
