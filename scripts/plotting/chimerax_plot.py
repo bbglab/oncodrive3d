@@ -289,16 +289,14 @@ def generate_chimerax_plot(output_dir,
                     "logscore" : "Logscore_obs_sim"}                                            
             
             if fragmented_proteins == False:
-                if f != 1:
+                if str(f) != "1":
                     logger.debug(f"Fragmented protein processing {fragmented_proteins}: Skipping {gene} ({uni_id}-F{f})..")
                     continue
                 
             if pdb_path:
 
-                # Mutated rows = rows the .defattr file is written from = the
-                # residues that actually receive a colour from `color byattribute`.
-                # Compute once and reuse so the sphere-render selection stays
-                # coupled to the .defattr contents.
+                # Mutated rows: the residues written to the .defattr file and
+                # thus coloured. Reused below so the spheres match the colours.
                 result_gene_mutated = result_gene.dropna()
                 colored_positions = result_gene_mutated["Pos"].astype(int).tolist()
 
