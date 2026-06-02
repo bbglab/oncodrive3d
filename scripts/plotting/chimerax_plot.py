@@ -234,6 +234,9 @@ def generate_chimerax_plot(output_dir,
     seq_df = pd.read_csv(seq_df_path, sep="\t")
     gene_result = pd.read_csv(gene_result_path)
     result = pd.read_csv(pos_result_path)
+    if result.empty:
+        logger.warning("Empty position-level result; nothing to plot.")
+        return
     if "Ratio_obs_sim" in result.columns:
         result = result.rename(columns={"Ratio_obs_sim" : "Score_obs_sim"})
     result = cap_inf_scores(result)
@@ -286,16 +289,14 @@ def generate_chimerax_plot(output_dir,
                     "logscore" : "Logscore_obs_sim"}                                            
             
             if fragmented_proteins == False:
-                if f != 1:
+                if str(f) != "1":
                     logger.debug(f"Fragmented protein processing {fragmented_proteins}: Skipping {gene} ({uni_id}-F{f})..")
                     continue
                 
             if pdb_path:
 
-                # Mutated rows = rows the .defattr file is written from = the
-                # residues that actually receive a colour from `color byattribute`.
-                # Compute once and reuse so the sphere-render selection stays
-                # coupled to the .defattr contents.
+                # Mutated rows: the residues written to the .defattr file and
+                # thus coloured. Reused below so the spheres match the colours.
                 result_gene_mutated = result_gene.dropna()
                 colored_positions = result_gene_mutated["Pos"].astype(int).tolist()
 

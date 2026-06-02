@@ -178,6 +178,7 @@ CSV file (`<cohort>.3d_clustering_genes.csv`) containing the results of the anal
 - `No_density`: The maximum number of mutations in the spatial volume of any residue is one or less.
 - `No_ID_mapping`: No corresponding UniProt ID is found for the given gene in the Oncodrive3D built datasets.
 - `Cmap_not_found`: The contact map for the gene's structural data is not available.
+- `Cmap_corrupted`: The contact map file exists but could not be loaded (e.g. empty or truncated from an interrupted build).
 - `Mut_not_in_structure`: The proportion of mutations mapped to positions outside the boundaries of the provided PDB structure exceeds the threshold for mapping issues (`--thr_mapping_issue`, default: `0.1`).
 - `WT_mismatch`: The proportion of mutations in the input file where the wild-type amino acid does not match the corresponding residue in the structural model exceeds the threshold for mapping issues (`--thr_mapping_issue`, default: `0.1`).
 - `Mut_with_zero_prob`: The proportion of mutations mapped to positions with a mutation probability of zero exceeds the threshold for mapping issues (`--thr_mapping_issue`, default: `0.1`).

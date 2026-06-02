@@ -187,7 +187,12 @@ def clustering_3d(gene,
     # Load cmap
     cmap_complete_path = f"{cmap_path}/{uniprot_id}-F{af_f}.npy"
     if os.path.isfile(cmap_complete_path):
-        cmap = np.load(cmap_complete_path) 
+        try:
+            cmap = np.load(cmap_complete_path)
+        except (EOFError, ValueError, OSError) as e:
+            logger.warning(f"Could not load cmap for {gene} ({uniprot_id}-F{af_f}): {e}. Skipping..")
+            result_gene_df["Status"] = "Cmap_corrupted"
+            return None, result_gene_df
         cmap = cmap > cmap_prob_thr
         cmap = cmap.astype(int)
     else:

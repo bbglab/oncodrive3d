@@ -21,26 +21,27 @@ def cap_inf_scores(pos_result, col="Score_obs_sim"):
     """
     Replace +inf values in a score column with a saturated finite value.
 
-    `Score_obs_sim` is +inf for extreme hotspot positions where the observed
-    anomaly score is at the mathematical limit (the high-precision Decimal
-    fallback in score_and_simulations.get_dcm_anomaly_score returns +inf when
-    even 600-digit precision underflows). +inf breaks downstream plotting:
-    normalization (sum=inf), log transforms, and axis auto-scaling.
-
-    We cap +inf at 1.5 * max(finite) so the point stays visible at the top of
-    the y-axis without distorting the rest of the track.
+    `Score_obs_sim` is +inf for extreme hotspot positions (the Decimal fallback
+    in score_and_simulations underflows even at 600-digit precision), which
+    breaks downstream plotting (normalization, log transforms, axis scaling).
+    We cap it at 1.5 * max(finite): visible at the top of the track, no distortion.
     """
-    if col not in pos_result.columns:
+    if col not in pos_result.columns or pos_result.empty:
         return pos_result
+
+    # Coerce to numeric first: a header-only result CSV (e.g. a control cohort
+    # with no processed genes) reads back with object-dtype columns, which
+    # np.isposinf rejects. errors='coerce' turns any non-numeric cell into NaN.
+    numeric_col = pd.to_numeric(pos_result[col], errors="coerce")
 
     # Only +inf is expected here (the score is bounded below by 0); use the
     # positive-only check so any future -inf sentinel is preserved instead of
     # silently rewritten.
-    inf_mask = np.isposinf(pos_result[col])
+    inf_mask = np.isposinf(numeric_col)
     if not inf_mask.any():
         return pos_result
 
-    finite_values = pos_result.loc[~inf_mask, col]
+    finite_values = numeric_col[~inf_mask]
     finite_max = finite_values.max() if not finite_values.empty else np.nan
     if pd.notna(finite_max) and finite_max > 0:
         cap = finite_max * 1.5
@@ -56,8 +57,13 @@ def cap_inf_scores(pos_result, col="Score_obs_sim"):
         f"Capping {n_inf} `{col}` value(s) at {cap:.4f} for plotting "
         f"(originally +inf — extreme hotspot positions)"
     )
+    # Write back the whole numeric column so the returned frame is numeric dtype.
+    # .copy() is required: pd.to_numeric can share the caller's buffer, so an
+    # in-place edit would corrupt the uncapped frame.
+    numeric_col = numeric_col.copy()
+    numeric_col.loc[inf_mask] = cap
     pos_result = pos_result.copy()
-    pos_result.loc[inf_mask, col] = cap
+    pos_result[col] = numeric_col
     return pos_result
 
 

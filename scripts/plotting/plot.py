@@ -2309,7 +2309,12 @@ def generate_plots(gene_result_path,
 
     gene_result = pd.read_csv(gene_result_path)
     pos_result = pd.read_csv(pos_result_path)
-    pos_result = cap_inf_scores(pos_result)
+    if pos_result.empty:
+        logger.warning("Empty position-level result; nothing to plot.")
+        return
+    # NB: pos_result is kept uncapped so the saved annotated CSV preserves the
+    # original +inf scores. Capping is applied locally only where a plot
+    # consumes Score_obs_sim (summary_plot, genes_plots).
     maf = pd.read_csv(maf_path, sep="\t")
     miss_prob_dict = json.load(open(miss_prob_path))  
     seq_df = pd.read_csv(seq_df_path, sep="\t")    
@@ -2347,8 +2352,8 @@ def generate_plots(gene_result_path,
         os.makedirs(output_dir, exist_ok=True)
         logger.info(f"Generating summary plot in {output_dir}")
         count_mut_gene_df, count_pos_df, cluster_df = get_summary_counts(gene_result, pos_result, seq_df)
-        summary_plot(gene_result, 
-                     pos_result, 
+        summary_plot(gene_result,
+                     cap_inf_scores(pos_result),
                      count_mut_gene_df, 
                      count_pos_df, 
                      cluster_df,
@@ -2376,8 +2381,8 @@ def generate_plots(gene_result_path,
                                                                         lst_genes)
         
         if c_genes_only == False or (c_genes_only and n_genes > 1):
-            pos_result_annotated, uni_feat_processed = genes_plots(gene_result, 
-                                                                    pos_result, 
+            pos_result_annotated, uni_feat_processed = genes_plots(gene_result,
+                                                                    cap_inf_scores(pos_result),
                                                                     seq_df,
                                                                     maf,
                                                                     maf_nonmiss,
