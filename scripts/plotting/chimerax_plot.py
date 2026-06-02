@@ -17,10 +17,11 @@ from scripts.plotting.utils import cap_inf_scores, detect_af_version
 logger = daiquiri.getLogger(__logger_name__ + ".plotting.chimerax_plot")
 
 
-# Paths are interpolated unquoted into the --cmd script (ChimeraX rejects quoted
-# paths in a ';'-separated --cmd on some versions), so reject characters that
-# would split a path (space) or inject extra commands (quote, newline).
-_CHIMERAX_UNSAFE_PATH_CHARS = ('"', ' ', '\n', '\r')
+# Paths are interpolated unquoted into the ';'-separated --cmd script (ChimeraX
+# rejects quoted paths in such a --cmd on some versions), so reject characters
+# that would split a path (space, tab) or terminate the command and inject new
+# ones (';', quote, newline, CR).
+_CHIMERAX_UNSAFE_PATH_CHARS = ('"', ' ', '\t', ';', '\n', '\r')
 
 
 def _validate_chimerax_path(path, role):
