@@ -227,7 +227,8 @@ def generate_chimerax_plot(output_dir,
     if "Ratio_obs_sim" in result.columns:
         result = result.rename(columns={"Ratio_obs_sim" : "Score_obs_sim"})
     result = cap_inf_scores(result)
-    result["Logscore_obs_sim"] = np.log(result["Score_obs_sim"])
+    with np.errstate(divide="ignore"):
+        result["Logscore_obs_sim"] = np.log(result["Score_obs_sim"])
 
     # Detect the AlphaFold version actually present in the dataset; the
     # user-supplied --af_version is used as a tiebreaker only.
