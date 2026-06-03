@@ -514,7 +514,7 @@ def plot(gene_result_path,
 @click.option("--transparent_bg/--no-transparent_bg", default=True, help="Save plots with a transparent background")
 @click.option("--chimerax_bin", help="Path to chimerax installation", type=str, default="/usr/bin/chimerax")
 @click.option("--af_version", type=click.IntRange(min=1, clamp=False), default=6,
-              help="Version of AlphaFold 2 predictions used for structures")
+              help="AlphaFold version of the structures; auto-detected from the datasets, used only as a tiebreaker when several are present")
 @click.option("-v", "--verbose", help="Verbose", is_flag=True)
 @setup_logging_decorator
 def chimerax_plot(output_dir,
