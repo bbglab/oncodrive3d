@@ -146,11 +146,9 @@ Only raw p-values are provided; apply your preferred multiple-testing correction
 For interactive-ready 3D views, the separate `oncodrive3d chimerax-plot` command renders PNG snapshots (plus `.defattr` attribute files) under `<output_dir>/<cohort>.chimerax/`. It reuses the gene/position CSVs from `oncodrive3d run`, the datasets directory (for AlphaFold structures), and the processed sequence dataframe. Each snapshot colours the AlphaFold model by a mutation or clustering metric (mutations in residue, mutations in volume, clustering score, log clustering score), highlighting the mutated or cluster residues as spheres. The Nextflow pipeline exposes the same functionality through the `chimerax_plot` flag.
 
 > [!NOTE]
-> **ChimeraX must be installed separately.** The framework was tested with **ChimeraX 1.6.1** (`ucsf-chimerax_1.6.1ubuntu20.04_amd64.deb` from [UCSF older releases](https://www.cgl.ucsf.edu/chimerax/older_releases.html); newer releases should also work).
+> **ChimeraX must be installed separately.** The framework was tested with **ChimeraX 1.6.1**. Download `ucsf-chimerax_1.6.1ubuntu20.04_amd64.deb` from [UCSF older releases](https://www.cgl.ucsf.edu/chimerax/older_releases.html) (newer releases should also work) and install it with `sudo apt install ./ucsf-chimerax_1.6.1ubuntu20.04_amd64.deb`; the executable lands at `/usr/bin/chimerax`, which is where the command looks by default (pass `--chimerax_bin` if yours is elsewhere).
 >
 > If instead you run Oncodrive3D through the provided `chimerax` or `full` Docker image, ChimeraX is already included, so no separate install is needed.
->
-> By default the command looks for the executable at `/usr/bin/chimerax`; pass `--chimerax_bin` if yours is elsewhere.
 
 Example:
 
