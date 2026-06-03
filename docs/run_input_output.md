@@ -115,7 +115,7 @@ To compute the mutation profile with BGSignature two main files are required:
     - `CHROMOSOME`
     - `START`
     - `END`
-    - `ELEMENT`  
+    - `ELEMENT` (optional; not needed for the whole-genome `--collapse` workflow above, and not produced by the helper script below)
     
 ##### Create the Regions File  
 
