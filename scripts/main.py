@@ -506,6 +506,8 @@ def plot(gene_result_path,
               help="Show mutated residues as spheres on the base plots. When --cluster_markers is off, the *_clusters plots show cluster residues as spheres regardless of this flag.")
 @click.option("--cluster_markers", is_flag=True,
               help="Add translucent volume bubbles on cluster residues in the *_clusters plots")
+@click.option("--non_mutated_color", type=str, default="gray",
+              help="ChimeraX color for non-mutated residues (the cartoon background)")
 @click.option("--fragmented_proteins", help="Include fragmented proteins", is_flag=True)
 @click.option("--transparent_bg", help="Set background as transparent", is_flag=True)
 @click.option("--chimerax_bin", help="Path to chimerax installation", type=str, default="/usr/bin/chimerax")
@@ -524,6 +526,7 @@ def chimerax_plot(output_dir,
                   cluster_ext,
                   spheres,
                   cluster_markers,
+                  non_mutated_color,
                   fragmented_proteins,
                   transparent_bg,
                   chimerax_bin,
@@ -545,6 +548,7 @@ def chimerax_plot(output_dir,
     logger.info(f"Cluster extended: {cluster_ext}")
     logger.info(f"Highlight residues as spheres: {spheres}")
     logger.info(f"Cluster volume markers: {cluster_markers}")
+    logger.info(f"Non-mutated residues color: {non_mutated_color}")
     logger.info(f"Fragmented proteins: {fragmented_proteins}")
     logger.info(f"Transparent background: {transparent_bg}")
     logger.info(f"AlphaFold version: {af_version}")
@@ -566,7 +570,8 @@ def chimerax_plot(output_dir,
                         chimerax_bin,
                         af_version,
                         spheres=spheres,
-                        cluster_markers=cluster_markers)
+                        cluster_markers=cluster_markers,
+                        non_mutated_color=non_mutated_color)
 
 if __name__ == "__main__":
     oncodrive3D()

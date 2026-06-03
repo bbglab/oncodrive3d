@@ -34,7 +34,7 @@ def _validate_chimerax_path(path, role):
     bad = [c for c in _CHIMERAX_UNSAFE_PATH_CHARS if c in text]
     if bad:
         raise ValueError(
-            f"{role} path contains characters unsafe for the ChimeraX command "
+            f"{role} contains characters unsafe for the ChimeraX command "
             f"script ({', '.join(repr(c) for c in bad)}): {text!r}"
         )
 
@@ -152,19 +152,21 @@ def get_chimerax_command(chimerax_bin,
                          colored_positions=None,
                          cluster_variant=False,
                          pixelsize=0.1,
-                         transparent_bg=False):
+                         transparent_bg=False,
+                         non_mutated_color="gray"):
 
     palette = get_palette(intervals, type="diverging") if attribute == "logscore" else get_palette(intervals, type="sequential")
     transparent_bg_suffix = " transparentBackground  true" if transparent_bg else ""
 
-    # Validate before interpolating: paths go unquoted into the --cmd script.
-    _validate_chimerax_path(pdb_path, "PDB")
-    _validate_chimerax_path(attr_file_path, "attribute file")
+    # Validate before interpolating: values go unquoted into the --cmd script.
+    _validate_chimerax_path(pdb_path, "PDB path")
+    _validate_chimerax_path(attr_file_path, "attribute file path")
+    _validate_chimerax_path(non_mutated_color, "non-mutated color")
 
     chimerax_script = (
         f"open {pdb_path}; "
         "set bgColor white; "
-        "color lightgray; "
+        f"color {non_mutated_color}; "
         f"open {attr_file_path}; "
         f"color byattribute {attribute} palette {palette}; "
         f"key {palette} :{intervals[0]} :{intervals[1]} :{intervals[2]} :{intervals[3]} :{intervals[4]} pos 0.35,0.03 fontSize 4 size 0.3,0.02;"
@@ -200,7 +202,7 @@ def get_chimerax_command(chimerax_bin,
     cluster_tag = "_clusters" if cluster_variant else ""
 
     output_path = os.path.join(chimera_output_path, f"{cohort}_{i}_{gene}_{attribute}{cluster_tag}.png")
-    _validate_chimerax_path(output_path, "output")
+    _validate_chimerax_path(output_path, "output path")
     chimerax_script += f'save {output_path} pixelSize {pixelsize} supersample 3{transparent_bg_suffix};exit'
 
     # argv list for subprocess.run(shell=False) — the OS shell never sees it.
@@ -221,7 +223,8 @@ def generate_chimerax_plot(output_dir,
                             chimerax_bin,
                             af_version,
                             spheres=True,
-                            cluster_markers=False):
+                            cluster_markers=False,
+                            non_mutated_color="gray"):
 
     seq_df = pd.read_csv(seq_df_path, sep="\t")
     gene_result = pd.read_csv(gene_result_path)
@@ -328,7 +331,8 @@ def generate_chimerax_plot(output_dir,
                                                                 cohort,
                                                                 colored_positions=base_spheres,
                                                                 pixelsize=pixel_size,
-                                                                transparent_bg=transparent_bg)
+                                                                transparent_bg=transparent_bg,
+                                                                non_mutated_color=non_mutated_color)
                     except ValueError as exc:
                         logger.warning(f"Skipping {gene} ({attribute}): {exc}")
                         continue
@@ -353,7 +357,8 @@ def generate_chimerax_plot(output_dir,
                                                                     colored_positions=cluster_spheres,
                                                                     cluster_variant=True,
                                                                     pixelsize=pixel_size,
-                                                                    transparent_bg=transparent_bg)
+                                                                    transparent_bg=transparent_bg,
+                                                                    non_mutated_color=non_mutated_color)
                         except ValueError as exc:
                             logger.warning(f"Skipping {gene} ({attribute}, clusters): {exc}")
                             continue
