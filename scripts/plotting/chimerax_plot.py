@@ -153,7 +153,8 @@ def get_chimerax_command(chimerax_bin,
                          cluster_variant=False,
                          pixelsize=0.1,
                          transparent_bg=False,
-                         non_mutated_color="gray"):
+                         non_mutated_color="gray",
+                         text_color="black"):
 
     palette = get_palette(intervals, type="diverging") if attribute == "logscore" else get_palette(intervals, type="sequential")
     transparent_bg_suffix = " transparentBackground  true" if transparent_bg else ""
@@ -162,6 +163,7 @@ def get_chimerax_command(chimerax_bin,
     _validate_chimerax_path(pdb_path, "PDB path")
     _validate_chimerax_path(attr_file_path, "attribute file path")
     _validate_chimerax_path(non_mutated_color, "non-mutated color")
+    _validate_chimerax_path(text_color, "text color")
 
     chimerax_script = (
         f"open {pdb_path}; "
@@ -170,8 +172,8 @@ def get_chimerax_command(chimerax_bin,
         f"open {attr_file_path}; "
         f"color byattribute {attribute} palette {palette}; "
         f"key {palette} :{intervals[0]} :{intervals[1]} :{intervals[2]} :{intervals[3]} :{intervals[4]} pos 0.35,0.03 fontSize 4 size 0.3,0.02;"
-        f"2dlabels create label text '{labels[attribute]}' size 6 color darkred xpos 0.34 ypos 0.065;"
-        f"2dlabels create title text '{gene} - {uni_id}-F{f} ' size 6 color darkred xpos 0.35 ypos 0.93;"
+        f"2dlabels create label text '{labels[attribute]}' size 6 color {text_color} xpos 0.34 ypos 0.065;"
+        f"2dlabels create title text '{gene} - {uni_id}-F{f} ' size 6 color {text_color} xpos 0.35 ypos 0.93;"
         "hide atoms;"
         "show cartoons;"
         "lighting full;"
@@ -224,7 +226,8 @@ def generate_chimerax_plot(output_dir,
                             af_version,
                             spheres=True,
                             cluster_markers=False,
-                            non_mutated_color="gray"):
+                            non_mutated_color="gray",
+                            text_color="black"):
 
     seq_df = pd.read_csv(seq_df_path, sep="\t")
     gene_result = pd.read_csv(gene_result_path)
@@ -332,7 +335,8 @@ def generate_chimerax_plot(output_dir,
                                                                 colored_positions=base_spheres,
                                                                 pixelsize=pixel_size,
                                                                 transparent_bg=transparent_bg,
-                                                                non_mutated_color=non_mutated_color)
+                                                                non_mutated_color=non_mutated_color,
+                                                                text_color=text_color)
                     except ValueError as exc:
                         logger.warning(f"Skipping {gene} ({attribute}): {exc}")
                         continue
@@ -358,7 +362,8 @@ def generate_chimerax_plot(output_dir,
                                                                     cluster_variant=True,
                                                                     pixelsize=pixel_size,
                                                                     transparent_bg=transparent_bg,
-                                                                    non_mutated_color=non_mutated_color)
+                                                                    non_mutated_color=non_mutated_color,
+                                                                    text_color=text_color)
                         except ValueError as exc:
                             logger.warning(f"Skipping {gene} ({attribute}, clusters): {exc}")
                             continue
