@@ -509,7 +509,7 @@ def plot(gene_result_path,
 @click.option("--non_mutated_color", type=str, default="gray",
               help="ChimeraX color for non-mutated residues (the cartoon background)")
 @click.option("--fragmented_proteins", help="Include fragmented proteins", is_flag=True)
-@click.option("--transparent_bg", help="Set background as transparent", is_flag=True)
+@click.option("--transparent_bg/--no-transparent_bg", default=True, help="Save plots with a transparent background")
 @click.option("--chimerax_bin", help="Path to chimerax installation", type=str, default="/usr/bin/chimerax")
 @click.option("--af_version", type=click.IntRange(min=1, clamp=False), default=6,
               help="Version of AlphaFold 2 predictions used for structures")
