@@ -7,7 +7,7 @@ import shlex
 import subprocess
 import math
 
-import pandas as pd   
+import pandas as pd
 import numpy as np
 import daiquiri
 
@@ -143,15 +143,23 @@ def get_palette(intervals, type="diverging"):
         return f"{intervals[0]},#FFFFB2:{intervals[1]},#FECC5C:{intervals[2]},#FD8D3C:{intervals[3]},#F03B20:{intervals[4]},#BD0026"
 
 
-# Approximate fractional image width of one character in the 2dlabels font at
-# size 6 (empirically ~0.0136, near-constant across image sizes). Used to
-# horizontally centre a label instead of anchoring its left edge at a fixed x.
+# ChimeraX has no centre anchor for 2dlabels, so we estimate the text width to
+# place its left edge. The fixed color-bar labels have known widths (image
+# fraction at size 6, measured on a render); other text (the title) falls back
+# to a per-character average.
+_LABEL_FRAC = {
+    "Mutations in residue": 0.267,
+    "Mutations in volume": 0.266,
+    "Clustering score": 0.216,
+    "log(Clustering score)": 0.277,
+}
 _LABEL_CHAR_FRAC = 0.0136
 
 
 def _centered_xpos(text):
     """Left x (image fraction) that horizontally centres `text` at x=0.5."""
-    return round(0.5 - len(text) * _LABEL_CHAR_FRAC / 2, 4)
+    width = _LABEL_FRAC.get(text, len(text) * _LABEL_CHAR_FRAC)
+    return round(0.5 - width / 2, 4)
 
 
 def get_chimerax_command(chimerax_bin,
