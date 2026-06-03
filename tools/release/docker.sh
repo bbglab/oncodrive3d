@@ -32,9 +32,9 @@ Save the Ubuntu 20.04 ChimeraX .deb installer (tested with v1.6.1) as:
 How to get it:
 
   External users:
-    The image needs an Ubuntu 20.04 build (= Debian 11 / Bullseye, matching the
-    image base; its executable is /usr/bin/chimerax). Download v1.6.1
-    (ucsf-chimerax_1.6.1ubuntu20.04_amd64.deb) from:
+    Use the Ubuntu 20.04 build: the Debian 11 (Bullseye) image base provides the
+    libssl1.1 + libffi7 it needs, and its executable lands at /usr/bin/chimerax.
+    Download v1.6.1 (ucsf-chimerax_1.6.1ubuntu20.04_amd64.deb) from:
       https://www.cgl.ucsf.edu/chimerax/older_releases.html
 
   BBGLab internal users:
