@@ -57,6 +57,8 @@ In this case:
 
 The mutation profile of a cohort rapresents the count or the normalized frequencies of mutations in every possible k-nucleotide (e.g., trinucleotide or pentanucleotide) contexts.
 
+It is optional: if not provided, Oncodrive3D uses a uniform distribution as the background model for simulating mutations and scoring clusters.
+
 The mutation profile used by Oncodrive3D is a dictionary (json file) including the frequency of mutations (*values*) of the cohort in 192 trinucleotide contexts (*keys*), normalized by the trinucleotide bias:
 
 ```json
