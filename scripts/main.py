@@ -503,7 +503,7 @@ def plot(gene_result_path,
 @click.option("--pixel_size", help="Pixel size (smaller value is larger number of pixels)", type=float, default=0.08)
 @click.option("--cluster_ext", help="Include extended clusters", is_flag=True)
 @click.option("--spheres/--no-spheres", default=True,
-              help="Highlight residues as spheres: mutated residues on base plots, cluster residues on *_clusters plots (default: enabled)")
+              help="Show mutated residues as spheres on the base plots. When --cluster_markers is off, the *_clusters plots show cluster residues as spheres regardless of this flag.")
 @click.option("--cluster_markers", is_flag=True,
               help="Add translucent volume bubbles on cluster residues in the *_clusters plots")
 @click.option("--fragmented_proteins", help="Include fragmented proteins", is_flag=True)

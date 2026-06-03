@@ -294,9 +294,8 @@ def generate_chimerax_plot(output_dir,
                 mutated_positions = result_gene_mutated["Pos"].astype(int).tolist()
                 cluster_positions = [int(p) for p in clusters]
 
-                # Base plots sphere mutated residues, `_clusters` plots sphere
-                # cluster residues; keep cluster spheres when both toggles are
-                # off so `_clusters` still differs from its base.
+                # `_clusters` always marks the cluster: spheres unless only
+                # volume markers are requested (--no-spheres + --cluster_markers).
                 base_spheres = mutated_positions if spheres else None
                 cluster_spheres = cluster_positions if (spheres or not cluster_markers) else None
                 cluster_bubbles = cluster_positions if cluster_markers else None
