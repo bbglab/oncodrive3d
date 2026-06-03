@@ -18,6 +18,43 @@ def validatePaths(params) {
         }
     }
 
+    // Validate input directory and its expected sub-directories
+    if (!params.indir) {
+        error """
+        \u001B[31mERROR: Missing required parameter --indir.
+
+        Provide the input directory containing the mutation files and mutational
+        profiles, organised as:
+
+            <indir>/${params.vep_input ? 'vep' : 'maf'}/<cohort>${params.vep_input ? '.vep.tsv.gz' : '.in.maf'}
+            <indir>/mut_profile/<cohort>.sig.json
+
+        nextflow run main.nf --indir <input_folder>\u001B[0m
+        """
+    }
+
+    def inPath = file(params.indir)
+    if (!inPath.exists() || !inPath.isDirectory()) {
+        error """
+        \u001B[31mERROR: The specified input directory does not exist or is not a directory:
+        ${params.indir}\u001B[0m
+        """
+    }
+
+    def mutSubdir = params.vep_input ? 'vep' : 'maf'
+    [mutSubdir, 'mut_profile'].each { sub ->
+        def subPath = file("${params.indir}/${sub}")
+        if (!subPath.exists() || !subPath.isDirectory()) {
+            error """
+            \u001B[31mERROR: Expected sub-directory '${sub}/' not found under --indir:
+            ${params.indir}/${sub}
+
+            The input directory must contain '${mutSubdir}/' (mutation files) and
+            'mut_profile/' (mutational profiles).\u001B[0m
+            """
+        }
+    }
+
     // Validate Oncodrive3D datasets path
     def dataPath = file(params.data_dir)
     if (!dataPath.exists() || !dataPath.isDirectory()) {
