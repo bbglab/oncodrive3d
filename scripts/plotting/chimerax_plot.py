@@ -17,11 +17,11 @@ from scripts.plotting.utils import cap_inf_scores, detect_af_version
 logger = daiquiri.getLogger(__logger_name__ + ".plotting.chimerax_plot")
 
 
-# Interpolated unquoted into the ';'-separated --cmd script, so reject chars that
-# would break or inject a command. Paths also forbid whitespace (it splits a path
-# into multiple `open` args); colors keep spaces for multi-word names ("light gray").
+# Reject chars that would break or inject into the ';'-separated --cmd script.
+# Three sets: paths/colors are interpolated unquoted, label text single-quoted.
 _CHIMERAX_UNSAFE_PATH_CHARS = ('"', ' ', '\t', ';', '\n', '\r')
 _CHIMERAX_UNSAFE_COLOR_CHARS = ('"', '\t', ';', '\n', '\r')
+_CHIMERAX_UNSAFE_TEXT_CHARS = ("'", ';', '\n', '\r')
 
 
 def _validate_chimerax_path(path, role):
@@ -37,6 +37,16 @@ def _validate_chimerax_path(path, role):
 def _validate_chimerax_color(value, role):
     """Reject colors with characters that would break/inject the ChimeraX command."""
     bad = [c for c in _CHIMERAX_UNSAFE_COLOR_CHARS if c in str(value)]
+    if bad:
+        raise ValueError(
+            f"{role} contains characters unsafe for the ChimeraX command "
+            f"script ({', '.join(repr(c) for c in bad)}): {value!r}"
+        )
+
+
+def _validate_chimerax_text(value, role):
+    """Reject 2dlabel text with characters that would break/inject the ChimeraX command."""
+    bad = [c for c in _CHIMERAX_UNSAFE_TEXT_CHARS if c in str(value)]
     if bad:
         raise ValueError(
             f"{role} contains characters unsafe for the ChimeraX command "
@@ -183,11 +193,16 @@ def get_chimerax_command(chimerax_bin,
     palette = get_palette(intervals, type="diverging") if attribute == "logscore" else get_palette(intervals, type="sequential")
     transparent_bg_suffix = " transparentBackground  true" if transparent_bg else ""
 
-    # Validate before interpolating: values go unquoted into the --cmd script.
+    label_text = labels[attribute]
+    title_text = f"{gene} - {uni_id}-F{f}"
+
+    # Validate before interpolating into the --cmd script.
     _validate_chimerax_path(pdb_path, "PDB path")
     _validate_chimerax_path(attr_file_path, "attribute file path")
     _validate_chimerax_color(non_mutated_color, "non-mutated color")
     _validate_chimerax_color(text_color, "text color")
+    _validate_chimerax_text(label_text, "label text")
+    _validate_chimerax_text(title_text, "title text")
 
     chimerax_script = (
         f"open {pdb_path}; "
@@ -196,8 +211,8 @@ def get_chimerax_command(chimerax_bin,
         f"open {attr_file_path}; "
         f"color byattribute {attribute} palette {palette}; "
         f"key {palette} :{intervals[0]} :{intervals[1]} :{intervals[2]} :{intervals[3]} :{intervals[4]} pos 0.35,0.03 fontSize 4 size 0.3,0.02 justification right;"
-        f"2dlabels create label text '{labels[attribute]}' size 6 color {text_color} xpos {_centered_xpos(labels[attribute])} ypos 0.065;"
-        f"2dlabels create title text '{gene} - {uni_id}-F{f}' size 6 color {text_color} xpos {_centered_xpos(f'{gene} - {uni_id}-F{f}')} ypos 0.93;"
+        f"2dlabels create label text '{label_text}' size 6 color {text_color} xpos {_centered_xpos(label_text)} ypos 0.065;"
+        f"2dlabels create title text '{title_text}' size 6 color {text_color} xpos {_centered_xpos(title_text)} ypos 0.93;"
         "hide atoms;"
         "show cartoons;"
         "lighting full;"
