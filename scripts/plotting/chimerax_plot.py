@@ -288,8 +288,8 @@ def generate_chimerax_plot(output_dir,
                 
             if pdb_path:
 
-                # Mutated rows: the residues written to the .defattr file and
-                # thus coloured (the whole cartoon is coloured by score regardless).
+                # Positions written to the .defattr: only these residues get
+                # coloured by the attribute; the rest of the cartoon stays grey.
                 result_gene_mutated = result_gene.dropna()
                 mutated_positions = result_gene_mutated["Pos"].astype(int).tolist()
                 cluster_positions = [int(p) for p in clusters]
