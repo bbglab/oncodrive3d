@@ -217,7 +217,8 @@ def generate_chimerax_plot(output_dir,
                             fragmented_proteins,
                             transparent_bg,
                             chimerax_bin,
-                            af_version):
+                            af_version,
+                            highlight="clusters"):
 
     seq_df = pd.read_csv(seq_df_path, sep="\t")
     gene_result = pd.read_csv(gene_result_path)
@@ -285,9 +286,15 @@ def generate_chimerax_plot(output_dir,
             if pdb_path:
 
                 # Mutated rows: the residues written to the .defattr file and
-                # thus coloured. Reused below so the spheres match the colours.
+                # thus coloured (the whole cartoon is coloured by score regardless).
                 result_gene_mutated = result_gene.dropna()
-                colored_positions = result_gene_mutated["Pos"].astype(int).tolist()
+
+                # Residues to highlight as spheres: cluster residues (reusing
+                # `clusters`, which honours --cluster_ext) or all mutated ones.
+                if highlight == "clusters":
+                    colored_positions = [int(p) for p in clusters]
+                else:
+                    colored_positions = result_gene_mutated["Pos"].astype(int).tolist()
 
                 for attribute in ["mutres", "mutvol", "score", "logscore"]:
 

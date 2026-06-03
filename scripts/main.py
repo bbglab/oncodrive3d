@@ -502,6 +502,8 @@ def plot(gene_result_path,
 @click.option("--max_n_genes", help="Maximum number of genes to plot", type=int, default=30)
 @click.option("--pixel_size", help="Pixel size (smaller value is larger number of pixels)", type=float, default=0.08)
 @click.option("--cluster_ext", help="Include extended clusters", is_flag=True)
+@click.option("--highlight", type=click.Choice(["clusters", "mutated"]), default="clusters",
+              help="Residues to highlight as spheres: cluster residues only (default) or all mutated residues")
 @click.option("--fragmented_proteins", help="Include fragmented proteins", is_flag=True)
 @click.option("--transparent_bg", help="Set background as transparent", is_flag=True)
 @click.option("--chimerax_bin", help="Path to chimerax installation", type=str, default="/usr/bin/chimerax")
@@ -518,6 +520,7 @@ def chimerax_plot(output_dir,
                   max_n_genes,
                   pixel_size,
                   cluster_ext,
+                  highlight,
                   fragmented_proteins,
                   transparent_bg,
                   chimerax_bin,
@@ -537,6 +540,7 @@ def chimerax_plot(output_dir,
     logger.info(f"Max number of genes to plot: {max_n_genes}")
     logger.info(f"Pixel size: {pixel_size}")
     logger.info(f"Cluster extended: {cluster_ext}")
+    logger.info(f"Highlight: {highlight}")
     logger.info(f"Fragmented proteins: {fragmented_proteins}")
     logger.info(f"Transparent background: {transparent_bg}")
     logger.info(f"AlphaFold version: {af_version}")
@@ -556,7 +560,8 @@ def chimerax_plot(output_dir,
                         fragmented_proteins,
                         transparent_bg,
                         chimerax_bin,
-                        af_version)
+                        af_version,
+                        highlight=highlight)
 
 if __name__ == "__main__":
     oncodrive3D()
