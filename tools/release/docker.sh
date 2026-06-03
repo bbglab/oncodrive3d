@@ -26,13 +26,16 @@ if [[ ! -f chimerax.deb ]]; then
     cat <<EOF >&2
 Missing chimerax.deb in repo root ($(pwd)).
 
-Save the Ubuntu 20.04 ChimeraX .deb installer as:
+Save the Ubuntu 20.04 ChimeraX .deb installer (tested with v1.6.1) as:
   $(pwd)/chimerax.deb
 
 How to get it:
 
   External users:
-    Download from https://www.cgl.ucsf.edu/chimerax/download.html
+    The image needs an Ubuntu 20.04 build (= Debian 11 / Bullseye, matching the
+    image base; its executable is /usr/bin/chimerax). Download v1.6.1
+    (ucsf-chimerax_1.6.1ubuntu20.04_amd64.deb) from:
+      https://www.cgl.ucsf.edu/chimerax/older_releases.html
 
   BBGLab internal users:
     Download from the lab cluster path:
