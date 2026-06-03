@@ -502,11 +502,19 @@ def plot(gene_result_path,
 @click.option("--max_n_genes", help="Maximum number of genes to plot", type=int, default=30)
 @click.option("--pixel_size", help="Pixel size (smaller value is larger number of pixels)", type=float, default=0.08)
 @click.option("--cluster_ext", help="Include extended clusters", is_flag=True)
+@click.option("--spheres/--no-spheres", default=True,
+              help="Show mutated residues as spheres on the base plots. When --cluster_markers is off, the *_clusters plots show cluster residues as spheres regardless of this flag.")
+@click.option("--cluster_markers", is_flag=True,
+              help="Add translucent volume bubbles on cluster residues in the *_clusters plots")
+@click.option("--non_mutated_color", type=str, default="gray",
+              help="ChimeraX color for non-mutated residues (the cartoon background)")
+@click.option("--text_color", type=str, default="black",
+              help="ChimeraX color for the plot title and color-bar label")
 @click.option("--fragmented_proteins", help="Include fragmented proteins", is_flag=True)
-@click.option("--transparent_bg", help="Set background as transparent", is_flag=True)
+@click.option("--transparent_bg/--no-transparent_bg", default=True, help="Save plots with a transparent background")
 @click.option("--chimerax_bin", help="Path to chimerax installation", type=str, default="/usr/bin/chimerax")
 @click.option("--af_version", type=click.IntRange(min=1, clamp=False), default=6,
-              help="Version of AlphaFold 2 predictions used for structures")
+              help="AlphaFold version of the structures; auto-detected from the datasets, used only as a tiebreaker when several are present")
 @click.option("-v", "--verbose", help="Verbose", is_flag=True)
 @setup_logging_decorator
 def chimerax_plot(output_dir,
@@ -518,6 +526,10 @@ def chimerax_plot(output_dir,
                   max_n_genes,
                   pixel_size,
                   cluster_ext,
+                  spheres,
+                  cluster_markers,
+                  non_mutated_color,
+                  text_color,
                   fragmented_proteins,
                   transparent_bg,
                   chimerax_bin,
@@ -537,6 +549,10 @@ def chimerax_plot(output_dir,
     logger.info(f"Max number of genes to plot: {max_n_genes}")
     logger.info(f"Pixel size: {pixel_size}")
     logger.info(f"Cluster extended: {cluster_ext}")
+    logger.info(f"Highlight residues as spheres: {spheres}")
+    logger.info(f"Cluster volume markers: {cluster_markers}")
+    logger.info(f"Non-mutated residues color: {non_mutated_color}")
+    logger.info(f"Text color: {text_color}")
     logger.info(f"Fragmented proteins: {fragmented_proteins}")
     logger.info(f"Transparent background: {transparent_bg}")
     logger.info(f"AlphaFold version: {af_version}")
@@ -556,7 +572,11 @@ def chimerax_plot(output_dir,
                         fragmented_proteins,
                         transparent_bg,
                         chimerax_bin,
-                        af_version)
+                        af_version,
+                        spheres=spheres,
+                        cluster_markers=cluster_markers,
+                        non_mutated_color=non_mutated_color,
+                        text_color=text_color)
 
 if __name__ == "__main__":
     oncodrive3D()

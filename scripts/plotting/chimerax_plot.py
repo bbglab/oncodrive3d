@@ -7,7 +7,7 @@ import shlex
 import subprocess
 import math
 
-import pandas as pd   
+import pandas as pd
 import numpy as np
 import daiquiri
 
@@ -17,25 +17,40 @@ from scripts.plotting.utils import cap_inf_scores, detect_af_version
 logger = daiquiri.getLogger(__logger_name__ + ".plotting.chimerax_plot")
 
 
-# Paths are interpolated unquoted into the ';'-separated --cmd script (ChimeraX
-# rejects quoted paths in such a --cmd on some versions), so reject characters
-# that would split a path (space, tab) or terminate the command and inject new
-# ones (';', quote, newline, CR).
+# Reject chars that would break or inject into the ';'-separated --cmd script.
+# Three sets: paths/colors are interpolated unquoted, label text single-quoted.
 _CHIMERAX_UNSAFE_PATH_CHARS = ('"', ' ', '\t', ';', '\n', '\r')
+_CHIMERAX_UNSAFE_COLOR_CHARS = ('"', '\t', ';', '\n', '\r')
+_CHIMERAX_UNSAFE_TEXT_CHARS = ("'", ';', '\n', '\r')
 
 
 def _validate_chimerax_path(path, role):
-    """Reject paths with characters that would break the ChimeraX --cmd script.
-
-    Real-world paths here are normally clean; this just surfaces a clear failure
-    instead of a silently broken or injected command.
-    """
-    text = str(path)
-    bad = [c for c in _CHIMERAX_UNSAFE_PATH_CHARS if c in text]
+    """Reject paths with characters that would break/inject the ChimeraX command."""
+    bad = [c for c in _CHIMERAX_UNSAFE_PATH_CHARS if c in str(path)]
     if bad:
         raise ValueError(
-            f"{role} path contains characters unsafe for the ChimeraX command "
-            f"script ({', '.join(repr(c) for c in bad)}): {text!r}"
+            f"{role} contains characters unsafe for the ChimeraX command "
+            f"script ({', '.join(repr(c) for c in bad)}): {path!r}"
+        )
+
+
+def _validate_chimerax_color(value, role):
+    """Reject colors with characters that would break/inject the ChimeraX command."""
+    bad = [c for c in _CHIMERAX_UNSAFE_COLOR_CHARS if c in str(value)]
+    if bad:
+        raise ValueError(
+            f"{role} contains characters unsafe for the ChimeraX command "
+            f"script ({', '.join(repr(c) for c in bad)}): {value!r}"
+        )
+
+
+def _validate_chimerax_text(value, role):
+    """Reject 2dlabel text with characters that would break/inject the ChimeraX command."""
+    bad = [c for c in _CHIMERAX_UNSAFE_TEXT_CHARS if c in str(value)]
+    if bad:
+        raise ValueError(
+            f"{role} contains characters unsafe for the ChimeraX command "
+            f"script ({', '.join(repr(c) for c in bad)}): {value!r}"
         )
 
 
@@ -136,6 +151,25 @@ def get_palette(intervals, type="diverging"):
         return f"{intervals[0]},#FFFFB2:{intervals[1]},#FECC5C:{intervals[2]},#FD8D3C:{intervals[3]},#F03B20:{intervals[4]},#BD0026"
 
 
+# ChimeraX has no centre anchor for 2dlabels, so we estimate the text width to
+# place its left edge. The fixed color-bar labels have known widths (image
+# fraction at size 6, measured on a render); other text (the title) falls back
+# to a per-character average.
+_LABEL_FRAC = {
+    "Mutations in residue": 0.267,
+    "Mutations in volume": 0.266,
+    "Clustering score": 0.216,
+    "log(Clustering score)": 0.277,
+}
+_LABEL_CHAR_FRAC = 0.0136
+
+
+def _centered_xpos(text):
+    """Left x (image fraction) that horizontally centres `text` at x=0.5."""
+    width = _LABEL_FRAC.get(text, len(text) * _LABEL_CHAR_FRAC)
+    return round(0.5 - width / 2, 4)
+
+
 def get_chimerax_command(chimerax_bin,
                          pdb_path,
                          chimera_output_path,
@@ -150,36 +184,45 @@ def get_chimerax_command(chimerax_bin,
                          cohort="",
                          clusters=None,
                          colored_positions=None,
+                         cluster_variant=False,
                          pixelsize=0.1,
-                         transparent_bg=False):
+                         transparent_bg=False,
+                         non_mutated_color="gray",
+                         text_color="black"):
 
     palette = get_palette(intervals, type="diverging") if attribute == "logscore" else get_palette(intervals, type="sequential")
     transparent_bg_suffix = " transparentBackground  true" if transparent_bg else ""
 
-    # Validate before interpolating: paths go unquoted into the --cmd script.
-    _validate_chimerax_path(pdb_path, "PDB")
-    _validate_chimerax_path(attr_file_path, "attribute file")
+    label_text = labels[attribute]
+    title_text = f"{gene} - {uni_id}-F{f}"
+
+    # Validate before interpolating into the --cmd script.
+    _validate_chimerax_path(pdb_path, "PDB path")
+    _validate_chimerax_path(attr_file_path, "attribute file path")
+    _validate_chimerax_color(non_mutated_color, "non-mutated color")
+    _validate_chimerax_color(text_color, "text color")
+    _validate_chimerax_text(label_text, "label text")
+    _validate_chimerax_text(title_text, "title text")
 
     chimerax_script = (
         f"open {pdb_path}; "
         "set bgColor white; "
-        "color lightgray; "
+        f"color {non_mutated_color}; "
         f"open {attr_file_path}; "
         f"color byattribute {attribute} palette {palette}; "
-        f"key {palette} :{intervals[0]} :{intervals[1]} :{intervals[2]} :{intervals[3]} :{intervals[4]} pos 0.35,0.03 fontSize 4 size 0.3,0.02;"
-        f"2dlabels create label text '{labels[attribute]}' size 6 color darkred xpos 0.34 ypos 0.065;"
-        f"2dlabels create title text '{gene} - {uni_id}-F{f} ' size 6 color darkred xpos 0.35 ypos 0.93;"
+        f"key {palette} :{intervals[0]} :{intervals[1]} :{intervals[2]} :{intervals[3]} :{intervals[4]} pos 0.35,0.03 fontSize 4 size 0.3,0.02 justification right;"
+        f"2dlabels create label text '{label_text}' size 6 color {text_color} xpos {_centered_xpos(label_text)} ypos 0.065;"
+        f"2dlabels create title text '{title_text}' size 6 color {text_color} xpos {_centered_xpos(title_text)} ypos 0.93;"
         "hide atoms;"
         "show cartoons;"
-        "lighting soft;"
-        "graphics silhouettes true width 1.3;"
+        "lighting full;"
+        "graphics silhouettes false;"
         "zoom;"
     )
 
-    # Render mutated (= colored) residues as spheres so their colour is actually
-    # visible on the cartoon. Without this, the colour mapping is washed out by
-    # the cartoon ribbon. ~sel afterwards clears the green selection markers
-    # from the saved image.
+    # Highlight the chosen residues as spheres so their colour pops out of the
+    # cartoon (which is otherwise washed out by the ribbon). ~sel afterwards
+    # clears the green selection markers from the saved image.
     if colored_positions is not None and len(colored_positions) > 0:
         pos_selector = ",".join(str(int(p)) for p in sorted(set(colored_positions)))
         chimerax_script += (
@@ -190,15 +233,17 @@ def get_chimerax_command(chimerax_bin,
             "~sel;"
         )
 
+    # Translucent volume markers on cluster residues (independent of the spheres).
     if clusters is not None and len(clusters) > 0:
         for pos in clusters:
             chimerax_script += f"marker #10 position :{pos} color #dacae961 radius 5.919;"
-        cluster_tag = "_clusters"
-    else:
-        cluster_tag = ""
+
+    # Filename suffix is tied to the variant, not to whether bubbles were drawn,
+    # so the `_clusters` images are always produced (stable output set).
+    cluster_tag = "_clusters" if cluster_variant else ""
 
     output_path = os.path.join(chimera_output_path, f"{cohort}_{i}_{gene}_{attribute}{cluster_tag}.png")
-    _validate_chimerax_path(output_path, "output")
+    _validate_chimerax_path(output_path, "output path")
     chimerax_script += f'save {output_path} pixelSize {pixelsize} supersample 3{transparent_bg_suffix};exit'
 
     # argv list for subprocess.run(shell=False) — the OS shell never sees it.
@@ -217,7 +262,11 @@ def generate_chimerax_plot(output_dir,
                             fragmented_proteins,
                             transparent_bg,
                             chimerax_bin,
-                            af_version):
+                            af_version,
+                            spheres=True,
+                            cluster_markers=False,
+                            non_mutated_color="gray",
+                            text_color="black"):
 
     seq_df = pd.read_csv(seq_df_path, sep="\t")
     gene_result = pd.read_csv(gene_result_path)
@@ -268,10 +317,10 @@ def generate_chimerax_plot(output_dir,
             pdb_candidates = [pdb_path_base, f"{pdb_path_base}.gz"]
             pdb_path = next((candidate for candidate in pdb_candidates if os.path.exists(candidate)), None)
             
-            labels = {"mutres" : "Mutations in residue ", 
-                      "mutvol" : "Mutations in volume ",
-                      "score" : "   Clustering score ",
-                      "logscore" : "log(Clustering score) "}
+            labels = {"mutres" : "Mutations in residue",
+                      "mutvol" : "Mutations in volume",
+                      "score" : "Clustering score",
+                      "logscore" : "log(Clustering score)"}
             cols = {"mutres" : "Mut_in_res", 
                     "mutvol" : "Mut_in_vol",
                     "score" : "Score_obs_sim",
@@ -284,10 +333,17 @@ def generate_chimerax_plot(output_dir,
                 
             if pdb_path:
 
-                # Mutated rows: the residues written to the .defattr file and
-                # thus coloured. Reused below so the spheres match the colours.
+                # Positions written to the .defattr: only these residues get
+                # coloured by the attribute; the rest of the cartoon stays grey.
                 result_gene_mutated = result_gene.dropna()
-                colored_positions = result_gene_mutated["Pos"].astype(int).tolist()
+                mutated_positions = result_gene_mutated["Pos"].astype(int).tolist()
+                cluster_positions = [int(p) for p in clusters]
+
+                # `_clusters` always marks the cluster: spheres unless only
+                # volume markers are requested (--no-spheres + --cluster_markers).
+                base_spheres = mutated_positions if spheres else None
+                cluster_spheres = cluster_positions if (spheres or not cluster_markers) else None
+                cluster_bubbles = cluster_positions if cluster_markers else None
 
                 for attribute in ["mutres", "mutvol", "score", "logscore"]:
 
@@ -315,9 +371,11 @@ def generate_chimerax_plot(output_dir,
                                                                 i,
                                                                 f,
                                                                 cohort,
-                                                                colored_positions=colored_positions,
+                                                                colored_positions=base_spheres,
                                                                 pixelsize=pixel_size,
-                                                                transparent_bg=transparent_bg)
+                                                                transparent_bg=transparent_bg,
+                                                                non_mutated_color=non_mutated_color,
+                                                                text_color=text_color)
                     except ValueError as exc:
                         logger.warning(f"Skipping {gene} ({attribute}): {exc}")
                         continue
@@ -338,10 +396,13 @@ def generate_chimerax_plot(output_dir,
                                                                     i,
                                                                     f,
                                                                     cohort,
-                                                                    clusters=clusters,
-                                                                    colored_positions=colored_positions,
+                                                                    clusters=cluster_bubbles,
+                                                                    colored_positions=cluster_spheres,
+                                                                    cluster_variant=True,
                                                                     pixelsize=pixel_size,
-                                                                    transparent_bg=transparent_bg)
+                                                                    transparent_bg=transparent_bg,
+                                                                    non_mutated_color=non_mutated_color,
+                                                                    text_color=text_color)
                         except ValueError as exc:
                             logger.warning(f"Skipping {gene} ({attribute}, clusters): {exc}")
                             continue
