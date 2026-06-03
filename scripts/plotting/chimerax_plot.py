@@ -150,6 +150,7 @@ def get_chimerax_command(chimerax_bin,
                          cohort="",
                          clusters=None,
                          colored_positions=None,
+                         cluster_variant=False,
                          pixelsize=0.1,
                          transparent_bg=False):
 
@@ -176,10 +177,9 @@ def get_chimerax_command(chimerax_bin,
         "zoom;"
     )
 
-    # Render mutated (= colored) residues as spheres so their colour is actually
-    # visible on the cartoon. Without this, the colour mapping is washed out by
-    # the cartoon ribbon. ~sel afterwards clears the green selection markers
-    # from the saved image.
+    # Highlight the chosen residues as spheres so their colour pops out of the
+    # cartoon (which is otherwise washed out by the ribbon). ~sel afterwards
+    # clears the green selection markers from the saved image.
     if colored_positions is not None and len(colored_positions) > 0:
         pos_selector = ",".join(str(int(p)) for p in sorted(set(colored_positions)))
         chimerax_script += (
@@ -190,12 +190,14 @@ def get_chimerax_command(chimerax_bin,
             "~sel;"
         )
 
+    # Translucent volume markers on cluster residues (independent of the spheres).
     if clusters is not None and len(clusters) > 0:
         for pos in clusters:
             chimerax_script += f"marker #10 position :{pos} color #dacae961 radius 5.919;"
-        cluster_tag = "_clusters"
-    else:
-        cluster_tag = ""
+
+    # Filename suffix is tied to the variant, not to whether bubbles were drawn,
+    # so the `_clusters` images are always produced (stable output set).
+    cluster_tag = "_clusters" if cluster_variant else ""
 
     output_path = os.path.join(chimera_output_path, f"{cohort}_{i}_{gene}_{attribute}{cluster_tag}.png")
     _validate_chimerax_path(output_path, "output")
@@ -218,7 +220,8 @@ def generate_chimerax_plot(output_dir,
                             transparent_bg,
                             chimerax_bin,
                             af_version,
-                            highlight="clusters"):
+                            spheres=True,
+                            cluster_markers=False):
 
     seq_df = pd.read_csv(seq_df_path, sep="\t")
     gene_result = pd.read_csv(gene_result_path)
@@ -288,13 +291,15 @@ def generate_chimerax_plot(output_dir,
                 # Mutated rows: the residues written to the .defattr file and
                 # thus coloured (the whole cartoon is coloured by score regardless).
                 result_gene_mutated = result_gene.dropna()
+                mutated_positions = result_gene_mutated["Pos"].astype(int).tolist()
+                cluster_positions = [int(p) for p in clusters]
 
-                # Residues to highlight as spheres: cluster residues (reusing
-                # `clusters`, which honours --cluster_ext) or all mutated ones.
-                if highlight == "clusters":
-                    colored_positions = [int(p) for p in clusters]
-                else:
-                    colored_positions = result_gene_mutated["Pos"].astype(int).tolist()
+                # Base plots sphere mutated residues, `_clusters` plots sphere
+                # cluster residues; keep cluster spheres when both toggles are
+                # off so `_clusters` still differs from its base.
+                base_spheres = mutated_positions if spheres else None
+                cluster_spheres = cluster_positions if (spheres or not cluster_markers) else None
+                cluster_bubbles = cluster_positions if cluster_markers else None
 
                 for attribute in ["mutres", "mutvol", "score", "logscore"]:
 
@@ -322,7 +327,7 @@ def generate_chimerax_plot(output_dir,
                                                                 i,
                                                                 f,
                                                                 cohort,
-                                                                colored_positions=colored_positions,
+                                                                colored_positions=base_spheres,
                                                                 pixelsize=pixel_size,
                                                                 transparent_bg=transparent_bg)
                     except ValueError as exc:
@@ -345,8 +350,9 @@ def generate_chimerax_plot(output_dir,
                                                                     i,
                                                                     f,
                                                                     cohort,
-                                                                    clusters=clusters,
-                                                                    colored_positions=colored_positions,
+                                                                    clusters=cluster_bubbles,
+                                                                    colored_positions=cluster_spheres,
+                                                                    cluster_variant=True,
                                                                     pixelsize=pixel_size,
                                                                     transparent_bg=transparent_bg)
                         except ValueError as exc:
