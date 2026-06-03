@@ -17,25 +17,32 @@ from scripts.plotting.utils import cap_inf_scores, detect_af_version
 logger = daiquiri.getLogger(__logger_name__ + ".plotting.chimerax_plot")
 
 
-# Paths are interpolated unquoted into the ';'-separated --cmd script (ChimeraX
-# rejects quoted paths in such a --cmd on some versions), so reject characters
-# that would split a path (space, tab) or terminate the command and inject new
-# ones (';', quote, newline, CR).
+# Values are interpolated unquoted into the ';'-separated --cmd script (ChimeraX
+# rejects quoted paths in such a --cmd on some versions). Reject chars that would
+# terminate/inject a command ('"', ';', newlines). Paths also reject whitespace
+# (it would split a path into multiple `open` args); colors keep it, as ChimeraX
+# accepts multi-word names like "light gray".
 _CHIMERAX_UNSAFE_PATH_CHARS = ('"', ' ', '\t', ';', '\n', '\r')
+_CHIMERAX_UNSAFE_COLOR_CHARS = ('"', ';', '\n', '\r')
 
 
 def _validate_chimerax_path(path, role):
-    """Reject paths with characters that would break the ChimeraX --cmd script.
-
-    Real-world paths here are normally clean; this just surfaces a clear failure
-    instead of a silently broken or injected command.
-    """
-    text = str(path)
-    bad = [c for c in _CHIMERAX_UNSAFE_PATH_CHARS if c in text]
+    """Reject paths with characters that would break/inject the ChimeraX command."""
+    bad = [c for c in _CHIMERAX_UNSAFE_PATH_CHARS if c in str(path)]
     if bad:
         raise ValueError(
             f"{role} contains characters unsafe for the ChimeraX command "
-            f"script ({', '.join(repr(c) for c in bad)}): {text!r}"
+            f"script ({', '.join(repr(c) for c in bad)}): {path!r}"
+        )
+
+
+def _validate_chimerax_color(value, role):
+    """Reject colors with characters that would break/inject the ChimeraX command."""
+    bad = [c for c in _CHIMERAX_UNSAFE_COLOR_CHARS if c in str(value)]
+    if bad:
+        raise ValueError(
+            f"{role} contains characters unsafe for the ChimeraX command "
+            f"script ({', '.join(repr(c) for c in bad)}): {value!r}"
         )
 
 
@@ -173,8 +180,8 @@ def get_chimerax_command(chimerax_bin,
     # Validate before interpolating: values go unquoted into the --cmd script.
     _validate_chimerax_path(pdb_path, "PDB path")
     _validate_chimerax_path(attr_file_path, "attribute file path")
-    _validate_chimerax_path(non_mutated_color, "non-mutated color")
-    _validate_chimerax_path(text_color, "text color")
+    _validate_chimerax_color(non_mutated_color, "non-mutated color")
+    _validate_chimerax_color(text_color, "text color")
 
     chimerax_script = (
         f"open {pdb_path}; "
