@@ -198,7 +198,15 @@ def clustering_3d(gene,
     else:
         result_gene_df["Status"] = "Cmap_not_found"
         return None, result_gene_df
-    
+
+    # Skip if the contact map size disagrees with the sequence (inconsistent
+    # datasets entry).
+    if len(cmap) != len(seq_gene):
+        logger.warning(f"Length mismatch between contact map ({len(cmap)}) and sequence "
+                       f"({len(seq_gene)}) for {gene} ({uniprot_id}-F{af_f}): Skipping..")
+        result_gene_df["Status"] = "Cmap_seq_mismatch"
+        return None, result_gene_df
+
     # Load PAE
     pae_complete_path = f"{pae_path}/{uniprot_id}-F{af_f}-predicted_aligned_error.npy"
     if os.path.isfile(pae_complete_path):
