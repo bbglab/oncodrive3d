@@ -182,7 +182,7 @@ def get_chimerax_command(chimerax_bin,
         f"color {non_mutated_color}; "
         f"open {attr_file_path}; "
         f"color byattribute {attribute} palette {palette}; "
-        f"key {palette} :{intervals[0]} :{intervals[1]} :{intervals[2]} :{intervals[3]} :{intervals[4]} pos 0.35,0.03 fontSize 4 size 0.3,0.02;"
+        f"key {palette} :{intervals[0]} :{intervals[1]} :{intervals[2]} :{intervals[3]} :{intervals[4]} pos 0.35,0.03 fontSize 4 size 0.3,0.02 justification right;"
         f"2dlabels create label text '{labels[attribute]}' size 6 color {text_color} xpos {_centered_xpos(labels[attribute])} ypos 0.065;"
         f"2dlabels create title text '{gene} - {uni_id}-F{f}' size 6 color {text_color} xpos {_centered_xpos(f'{gene} - {uni_id}-F{f}')} ypos 0.93;"
         "hide atoms;"
