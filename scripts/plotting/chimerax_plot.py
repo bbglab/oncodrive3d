@@ -172,8 +172,8 @@ def get_chimerax_command(chimerax_bin,
         f"2dlabels create title text '{gene} - {uni_id}-F{f} ' size 6 color darkred xpos 0.35 ypos 0.93;"
         "hide atoms;"
         "show cartoons;"
-        "lighting soft;"
-        "graphics silhouettes true width 1.3;"
+        "lighting full;"
+        "graphics silhouettes false;"
         "zoom;"
     )
 
