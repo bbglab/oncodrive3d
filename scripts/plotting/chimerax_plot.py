@@ -136,6 +136,17 @@ def get_palette(intervals, type="diverging"):
         return f"{intervals[0]},#FFFFB2:{intervals[1]},#FECC5C:{intervals[2]},#FD8D3C:{intervals[3]},#F03B20:{intervals[4]},#BD0026"
 
 
+# Approximate fractional image width of one character in the 2dlabels font at
+# size 6 (empirically ~0.0136, near-constant across image sizes). Used to
+# horizontally centre a label instead of anchoring its left edge at a fixed x.
+_LABEL_CHAR_FRAC = 0.0136
+
+
+def _centered_xpos(text):
+    """Left x (image fraction) that horizontally centres `text` at x=0.5."""
+    return round(0.5 - len(text) * _LABEL_CHAR_FRAC / 2, 4)
+
+
 def get_chimerax_command(chimerax_bin,
                          pdb_path,
                          chimera_output_path,
@@ -172,8 +183,8 @@ def get_chimerax_command(chimerax_bin,
         f"open {attr_file_path}; "
         f"color byattribute {attribute} palette {palette}; "
         f"key {palette} :{intervals[0]} :{intervals[1]} :{intervals[2]} :{intervals[3]} :{intervals[4]} pos 0.35,0.03 fontSize 4 size 0.3,0.02;"
-        f"2dlabels create label text '{labels[attribute]}' size 6 color {text_color} xpos 0.34 ypos 0.065;"
-        f"2dlabels create title text '{gene} - {uni_id}-F{f} ' size 6 color {text_color} xpos 0.35 ypos 0.93;"
+        f"2dlabels create label text '{labels[attribute]}' size 6 color {text_color} xpos {_centered_xpos(labels[attribute])} ypos 0.065;"
+        f"2dlabels create title text '{gene} - {uni_id}-F{f}' size 6 color {text_color} xpos {_centered_xpos(f'{gene} - {uni_id}-F{f}')} ypos 0.93;"
         "hide atoms;"
         "show cartoons;"
         "lighting full;"
@@ -278,10 +289,10 @@ def generate_chimerax_plot(output_dir,
             pdb_candidates = [pdb_path_base, f"{pdb_path_base}.gz"]
             pdb_path = next((candidate for candidate in pdb_candidates if os.path.exists(candidate)), None)
             
-            labels = {"mutres" : "Mutations in residue ", 
-                      "mutvol" : "Mutations in volume ",
-                      "score" : "   Clustering score ",
-                      "logscore" : "log(Clustering score) "}
+            labels = {"mutres" : "Mutations in residue",
+                      "mutvol" : "Mutations in volume",
+                      "score" : "Clustering score",
+                      "logscore" : "log(Clustering score)"}
             cols = {"mutres" : "Mut_in_res", 
                     "mutvol" : "Mut_in_vol",
                     "score" : "Score_obs_sim",
