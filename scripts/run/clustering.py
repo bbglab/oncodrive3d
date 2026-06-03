@@ -199,14 +199,6 @@ def clustering_3d(gene,
         result_gene_df["Status"] = "Cmap_not_found"
         return None, result_gene_df
 
-    # Skip if the contact map size disagrees with the sequence (inconsistent
-    # datasets entry).
-    if len(cmap) != len(seq_gene):
-        logger.warning(f"Length mismatch between contact map ({len(cmap)}) and sequence "
-                       f"({len(seq_gene)}) for {gene} ({uniprot_id}-F{af_f}): Skipping..")
-        result_gene_df["Status"] = "Cmap_seq_mismatch"
-        return None, result_gene_df
-
     # Load PAE
     pae_complete_path = f"{pae_path}/{uniprot_id}-F{af_f}-predicted_aligned_error.npy"
     if os.path.isfile(pae_complete_path):
@@ -222,6 +214,14 @@ def clustering_3d(gene,
         gene_miss_prob = np.array(miss_prob_dict[f"{uniprot_id}-F{af_f}"])
     else:
         gene_miss_prob = get_unif_gene_miss_prob(size=len(cmap))
+
+    # Skip if the contact map, sequence and missense-prob vector disagree in
+    # length (inconsistent datasets entry).
+    if not (len(cmap) == len(seq_gene) == len(gene_miss_prob)):
+        logger.warning(f"Length mismatch for {gene} ({uniprot_id}-F{af_f}) — cmap: {len(cmap)}, "
+                       f"seq: {len(seq_gene)}, miss_prob: {len(gene_miss_prob)}: Skipping..")
+        result_gene_df["Status"] = "Cmap_seq_mismatch"
+        return None, result_gene_df
 
     # Filter out genes whose missense prob vec include any NA
     if np.any(np.isnan(gene_miss_prob)):
