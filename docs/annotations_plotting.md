@@ -156,7 +156,7 @@ For interactive-ready 3D views, Oncodrive3D exposes a separate `oncodrive3d chim
 > [!NOTE]
 > **ChimeraX must be installed separately.** The framework was tested with **ChimeraX 1.6.1** (`ucsf-chimerax_1.6.1ubuntu20.04_amd64.deb` from [UCSF older releases](https://www.cgl.ucsf.edu/chimerax/older_releases.html); newer releases should also work).
 >
-> If instead you run Oncodrive3D through the provided `chimerax` or `full` Docker image, ChimeraX is already included — no separate install needed.
+> If instead you run Oncodrive3D through the provided `chimerax` or `full` Docker image, ChimeraX is already included, so no separate install is needed.
 >
 > By default the command looks for the executable at `/usr/bin/chimerax`; pass `--chimerax_bin` if yours is elsewhere.
 
@@ -183,7 +183,7 @@ See `oncodrive3d chimerax-plot --help` for all options.
 - `--pixel_size` controls resolution — smaller values produce larger images (default `0.08`).
 - `--cluster_ext` displays extended clusters (mutations that contribute to but don't directly form significant clusters).
 - `--af_version` is auto-detected from the structures in the datasets directory, so you normally don't set it. It's used only as a tiebreaker when the dataset contains more than one AlphaFold version, or as a fallback if none is detected (default `6`).
-- `--spheres` / `--no-spheres` (default on) highlights residues as spheres — mutated residues on the base plots, cluster residues on the `*_clusters` plots. With `--no-spheres` the base plots are cartoon-only while the `*_clusters` plots still mark the clusters.
+- `--spheres` / `--no-spheres` (default on) highlights residues as spheres: mutated residues on the base plots, cluster residues on the `*_clusters` plots. With `--no-spheres` the base plots are cartoon-only while the `*_clusters` plots still mark the clusters.
 - `--cluster_markers` (default off) adds translucent volume bubbles on the cluster residues in the `*_clusters` plots.
 - `--non_mutated_color` (default `gray`) and `--text_color` (default `black`) set the colour of the non-mutated cartoon and of the title / color-bar label (any ChimeraX colour name or hex).
 - `--transparent_bg` / `--no-transparent_bg` (default on) saves images with a transparent background; pass `--no-transparent_bg` for a white background.
