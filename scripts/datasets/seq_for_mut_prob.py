@@ -320,6 +320,7 @@ def get_batch_exons_coord(batch_ids, ens_canonical_transcripts_lst):
 
         # Iterate throug the transcripts (starting from Ensembl canonical one if present)
         sorted_transcript_lst = get_sorted_transcript_lst(dic["gnCoordinate"], ens_canonical_transcripts_lst)
+        matched = False
         for i, ens_transcr_id in sorted_transcript_lst:
 
             ens_gene_id = dic["gnCoordinate"][i]["ensemblGeneId"]
@@ -339,19 +340,22 @@ def get_batch_exons_coord(batch_ids, ens_canonical_transcripts_lst):
                     end = exon["position"]["position"]
                 ranges.append((begin, end))
 
-            # Check if the DNA seq of the transcript is equal the codon lenght
+            # Keep the first transcript whose CDS length matches the protein
             start = 0 if not int(reverse_strand) else 1
             end = 1 if not int(reverse_strand) else 0
             len_dna = sum([coord[end] - coord[start] + 1 for coord in ranges])
             if len_dna / 3 == len(seq):
+                matched = True
                 break
-            # If there is no transcript with matching sequence length, return NA
-            elif i == len(dic["gnCoordinate"]) - 1:
-                ens_gene_id = np.nan
-                ens_transcr_id = np.nan
-                chromosome = np.nan
-                reverse_strand = np.nan
-                ranges = np.nan
+
+        # No length-matching transcript: drop the mapping so the entry
+        # falls back to Backtranseq (Reference_info -1) downstream
+        if not matched:
+            ens_gene_id = np.nan
+            ens_transcr_id = np.nan
+            chromosome = np.nan
+            reverse_strand = np.nan
+            ranges = np.nan
 
         lst_uni_id.append(uni_id)
         lst_ens_gene_id.append(ens_gene_id)
