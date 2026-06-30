@@ -4,13 +4,16 @@ Oncodrive3D ships with a plotting pipeline that turns the clustering results int
 
 Annotations are built once per dataset via `oncodrive3d build-annotations`, then reused by `oncodrive3d plot` for any cohort.
 
+> [!TIP]
+> Pre-built annotations for **Human** and **Mouse** are available on [Zenodo](https://zenodo.org/records/21031511), paired with the matching pre-built datasets. If you download them you can skip the `build-annotations` step entirely and go straight to [Generating Plots](#generating-plots). Annotations are not provided for the MANE group: MANE-associated structures often map to entries that lack UniProt annotations, so the MANE datasets are not recommended for the plotting workflow. Use the standard Human datasets for plots.
+
 ---
 
 ## Prerequisites
 
 Building the annotation bundle (`oncodrive3d build-annotations`) is the demanding step and needs all of the following. Plotting (`oncodrive3d plot`) needs only items 1 and 2, plus the annotation bundle and the outputs of an `oncodrive3d run` (listed under [Generating Plots](#generating-plots)).
 
-1. **Datasets** – `oncodrive3d build-datasets` (or `build-datasets --mane_only`) must have been run already. Both steps read from this folder (`build-annotations` uses `pdb_structures` and `seq_for_mut_prob.tsv`; `plot` uses `confidence.tsv` and `seq_for_mut_prob.tsv`).
+1. **Datasets** – `oncodrive3d build-datasets` (or `build-datasets --mane_only`) must have been run already, or the pre-built datasets downloaded from Zenodo. Both steps read from this folder (`build-annotations` uses `pdb_structures` and `seq_for_mut_prob.tsv`; `plot` uses `confidence.tsv` and `seq_for_mut_prob.tsv`).
 2. **Python environment** – use the same environment (e.g., `uv` virtualenv) that you rely on for the CLI.
 3. **PDB_Tool binary** – `oncodrive3d build-annotations` invokes the [PDB_Tool](https://github.com/realbigws/PDB_Tool) executable named `PDB_Tool` on `$PATH` to compute per-residue solvent accessibility and secondary structure. See **Installing PDB_Tool** below for a recipe.
 4. **Internet access** – required to download Pfam annotations, UniProt features, and (unless `--ddg_dir` is set) RaSP ΔΔG predictions.
@@ -93,7 +96,7 @@ Once you have:
 - Processed mutations (`<cohort>.mutations.processed.tsv`),
 - Missense probability dictionary (`<cohort>.miss_prob.processed.json`),
 - Processed sequence dataframe (`<cohort>.seq_df.processed.tsv`),
-- Built datasets (`datasets/`) and annotations (`annotations/`),
+- Datasets (`datasets/`) and annotations (`annotations/`), built or downloaded,
 
 call:
 
