@@ -29,7 +29,7 @@ Run a test to ensure that everything is set up correctly and functioning as expe
 nextflow run main.nf -profile test,container --data_dir <build_folder>
 ```
 
-Replace `<build_folder>` with the path to the Oncodrive3D datasets built in the [building datasets](../README.md#building-datasets) step.
+Replace `<build_folder>` with the path to the Oncodrive3D datasets built in the [building datasets](../README.md#building-datasets) step (or downloaded from Zenodo, as described there).
 If you prefer to use Conda, replace `container` in the `-profile` argument with `conda`.
 
 ## Usage
@@ -78,7 +78,7 @@ See [`nextflow.config`](nextflow.config) for the full parameter list and default
 
 ### Optional modules
 
-- `--plot true` – runs the same plotting workflow described in [docs/annotations_plotting.md](../docs/annotations_plotting.md). Requires a pre-built annotations folder (`--annotations_dir`) generated via `oncodrive3d build-annotations`. The pipeline publishes summary plots, per-gene panels, annotated CSVs, UniProt feature tables, and association plots under `${outdir}/${outsubdir}/`.
+- `--plot true` – runs the same plotting workflow described in [docs/annotations_plotting.md](../docs/annotations_plotting.md). Requires a pre-built annotations folder (`--annotations_dir`) generated via `oncodrive3d build-annotations` (or downloaded from [Zenodo](https://zenodo.org/records/21031511) for Human and Mouse). The pipeline publishes summary plots, per-gene panels, annotated CSVs, UniProt feature tables, and association plots under `${outdir}/${outsubdir}/`.
 - `--chimerax_plot true` – submits the optional `oncodrive3d chimerax-plot` step for each processed cohort (see [docs/annotations_plotting.md#chimerax-3d-snapshots](../docs/annotations_plotting.md#chimerax-3d-snapshots)). Ensure the `chimerax` binary is accessible inside the container/Conda env or set `process.ext.args` for `O3D_CHIMERAX_PLOT` (in `nextflow.config`) to include `--chimerax_bin /path/to/ChimeraX` if you need a custom location.
 
 ### Mutability-aware runs

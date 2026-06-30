@@ -1,6 +1,6 @@
 # Building Datasets Output
 
-After `oncodrive3d build-datasets` completes, the build folder contains:
+After `oncodrive3d build-datasets` completes (or after extracting the pre-built datasets [from Zenodo](https://zenodo.org/records/21031511)), the build folder contains:
 
 ```text
 <build_folder>/

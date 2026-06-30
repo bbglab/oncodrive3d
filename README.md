@@ -55,7 +55,13 @@ Python 3.10+ is required. Some systems also need a C/C++ toolchain:
 
 ## Building Datasets
 
-This step builds the datasets necessary for Oncodrive3D to run the 3D clustering analysis. It is required once after installation or whenever you need to generate datasets for a different organism or apply a specific threshold to define amino acid contacts.
+This step builds the datasets necessary for Oncodrive3D to run the 3D clustering analysis. It is required once after installation or whenever you need to generate datasets for a different organism or apply a specific threshold to define amino acid contacts. For common configurations, you can download pre-built datasets instead (see below).
+
+### Pre-built Datasets (download instead of building)
+
+Building the datasets locally is time- and resource-intensive. To skip it, you can download pre-built datasets and annotations for **Oncodrive3D v1.0.9** from [Zenodo](https://zenodo.org/records/21031511).
+
+### Building from Scratch
 
 > [!WARNING]
 > This step is time- and resource-intensive: it downloads and processes large amounts of structural data. Ensure adequate disk space, CPU, and a reliable internet connection (AlphaFold, Ensembl, Pfam, and other resources are fetched on demand).
@@ -194,6 +200,9 @@ Check the output in the `test/output/` directory to ensure the analysis complete
 ## Building Annotations & Plotting
 
 Oncodrive3D ships with an optional plotting pipeline: run `oncodrive3d build-annotations` once to cache structural/functional tracks, then use `oncodrive3d plot` and/or `chimerax-plot` to generate plots and tables that help interpret the clustering signal and distinguish real biology from artifacts.
+
+> [!TIP]
+> Pre-built annotations for Human and Mouse can be downloaded from [Zenodo](https://zenodo.org/records/21031511), letting you skip `build-annotations` for those organisms. The MANE datasets are not recommended for plotting, since MANE-associated structures often map to entries that lack UniProt annotations.
 
 See the [Annotation & plotting workflow](docs/annotations_plotting.md) for prerequisites, usage examples, and output descriptions.
 
